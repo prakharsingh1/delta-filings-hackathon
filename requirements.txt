@@ -1,0 +1,12 @@
+flask
+requests
+PyPDF2
+openai
+lxml
+supabase
+python-dotenv
+gunicorn
+beautifulsoup4
+google-genai
+python-docx
+reportlab

@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delta Filings — Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Ambient dashboard background — soft tinted gradient washes so the
+           white content cards pop instead of floating on flat white. */
+        .dash-main {
+            background:
+                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.13), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.11), transparent 55%),
+                radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.09), transparent 55%),
+                linear-gradient(180deg, #f6f7fc 0%, #eef1fb 100%);
+            background-attachment: fixed;
+        }
+        html.dark .dash-main {
+            background:
+                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.20), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.14), transparent 55%),
+                radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.11), transparent 55%),
+                #0a0a0a;
+            background-attachment: fixed;
+        }
+
+        /* ── Redesign: reveal animations ── */
+        @keyframes dashUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .reveal { opacity: 0; }
+        .reveal.in { animation: dashUp .6s cubic-bezier(.22,.61,.36,1) forwards; }
+        .reveal.d1{animation-delay:.04s}.reveal.d2{animation-delay:.09s}.reveal.d3{animation-delay:.14s}
+        .reveal.d4{animation-delay:.19s}.reveal.d5{animation-delay:.24s}.reveal.d6{animation-delay:.29s}
+        @media (prefers-reduced-motion: reduce){ .reveal{opacity:1!important;animation:none!important} }
+
+        /* ── Hero band ── */
+        .dash-hero {
+            position: relative; overflow: hidden;
+            border-radius: 24px; padding: 34px 36px 92px; color: #fff;
+            background: linear-gradient(115deg, #312e81 0%, #4338ca 32%, #6366f1 64%, #0ea5e9 100%);
+            box-shadow: 0 30px 70px -34px rgba(67,56,202,.7);
+        }
+        .kpi-row { margin-top: -58px; position: relative; z-index: 5; }
+        .dash-hero::after {
+            content:''; position:absolute; inset:0; pointer-events:none;
+            background: radial-gradient(560px 220px at 88% -30%, rgba(255,255,255,.28), transparent 60%);
+        }
+        .dash-hero .hero-orb {
+            position:absolute; border-radius:50%; filter:blur(42px); opacity:.5; pointer-events:none;
+        }
+        .hero-chip {
+            background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28);
+            backdrop-filter: blur(6px); border-radius: 999px;
+        }
+        .hero-btn {
+            background:#fff; color:#4338ca; border-radius:12px; font-weight:600;
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+        .hero-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -12px rgba(0,0,0,.45); }
+        .hero-btn-ghost {
+            background: rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.35);
+            border-radius:12px; font-weight:600; transition: background .18s ease, transform .18s ease;
+        }
+        .hero-btn-ghost:hover { background: rgba(255,255,255,.26); transform: translateY(-2px); }
+
+        /* ── KPI cards ── */
+        .kpi { position:relative; overflow:hidden; background:#fff; border:1px solid #eef0f4;
+               border-radius:20px; padding:20px; box-shadow: 0 12px 34px -18px rgba(15,23,42,.28);
+               transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+        .kpi:hover { transform: translateY(-3px); box-shadow: 0 22px 48px -22px rgba(15,23,42,.42); border-color: rgba(99,102,241,.35); }
+        .kpi-accent { position:absolute; top:0; left:0; right:0; height:3px; }
+        .kpi-icon { width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; }
+        .kpi-num { font-size:2rem; font-weight:800; line-height:1; letter-spacing:-.02em; }
+        html.dark .kpi { background:#141414; border-color:#262626; }
+
+        /* ── Section + chart + guide cards ── */
+        .sec-title { font-size:.7rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#94a3b8; }
+        .panel { background:#fff; border:1px solid #eef0f4; border-radius:22px; }
+        html.dark .panel { background:#141414; border-color:#262626; }
+        .guide-item { transition: transform .18s ease, background .18s ease; border-radius:14px; }
+        .guide-item:hover { transform: translateY(-2px); }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+
+    {% set active_page = 'dashboard' %}
+    {% include 'sidebar.html' %}
+
+    <!-- Main -->
+    <main class="flex-1 overflow-y-auto dash-main">
+        <div class="page-header">
+            <div class="flex items-center justify-between">
+                <div>
+                    {% set greeting = 'morning' if range(6,12).__contains__(now_hour) else ('afternoon' if range(12,18).__contains__(now_hour) else 'evening') %}
+                    {% set first_name = (current_user.name.split(' ')[0] if current_user and current_user.name else '') %}
+                    <p class="page-title">
+                        Good {{ greeting }}{% if first_name %}, {{ first_name }}!{% endif %}
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="button" class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">
+                        <svg class="icon-moon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                        </svg>
+                        <svg class="icon-sun w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                    </button>
+                    {% if current_user %}
+                    <div class="flex items-center gap-2 pl-3 border-l border-slate-200">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                             style="background: linear-gradient(135deg,#4f46e5,#0ea5e9);"
+                             title="{{ current_user.email }}">
+                            {{ current_user.name[0]|upper }}
+                        </div>
+                        <div class="hidden sm:block leading-tight">
+                            <div class="text-xs font-semibold text-slate-800">{{ current_user.name }}</div>
+                            <div class="text-[10px] text-slate-500">{{ current_user.industry or 'Member' }}</div>
+                        </div>
+                        <a href="/logout"
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                            Sign out
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="p-8 space-y-6">
+
+            <!-- ── Welcome hero + KPIs (overlapping) ─────────────────── -->
+            <div class="reveal">
+              <div class="dash-hero">
+                <div class="hero-orb" style="width:220px;height:220px;background:#a5b4fc;top:-70px;right:6%;"></div>
+                <div class="hero-orb" style="width:170px;height:170px;background:#67e8f9;bottom:-80px;right:24%;"></div>
+                <div class="relative">
+                    <span class="hero-chip inline-flex items-center gap-2 px-3 py-1 text-[11px] font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+                        Governance intelligence · {{ user_industry }}
+                    </span>
+                    <h1 class="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight">
+                        Good {{ greeting }}{% if first_name %}, {{ first_name }}{% endif %} &#128075;
+                    </h1>
+                    <p class="mt-2 text-sm sm:text-base text-indigo-50 max-w-xl leading-relaxed" style="opacity:.9;">
+                        Your governance command centre — live prices, the filing calendar, director search and compliance, all in one place.
+                    </p>
+                    <div class="mt-5 flex flex-wrap gap-2.5">
+                        <a href="/prices" class="hero-btn inline-flex items-center gap-2 px-4 py-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                            Live prices &amp; alerts
+                        </a>
+                        {% if companies %}
+                        <a href="/company/{{ companies[0] }}" class="hero-btn-ghost inline-flex items-center gap-2 px-4 py-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            Browse filings
+                        </a>
+                        {% endif %}
+                        <a href="/compliance" class="hero-btn-ghost inline-flex items-center gap-2 px-4 py-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Compliance
+                        </a>
+                    </div>
+                </div>
+              </div><!-- /dash-hero -->
+
+              <!-- ── KPI tiles (overlap the hero) ─────────────────────── -->
+              <div class="kpi-row grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="kpi reveal">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Filings tracked</p>
+                        <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold text-gray-900">{{ total_filings }}</p>
+                    <p class="text-xs text-gray-400 mt-1">Across {{ companies|length }} companies</p>
+                </div>
+
+                <div class="kpi reveal">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">This week</p>
+                        <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold text-gray-900">{{ filings_this_week }}</p>
+                    <p class="text-xs text-gray-400 mt-1">New filings · last 7 days</p>
+                </div>
+
+                <div class="kpi reveal">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Watchlist</p>
+                        <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold text-gray-900">{{ companies|length }}</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ user_industry }} industry</p>
+                </div>
+
+                <div class="kpi reveal">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Last filing</p>
+                        <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    {% if days_since_last is none %}
+                    <p class="text-3xl font-bold text-gray-300">—</p>
+                    <p class="text-xs text-gray-400 mt-1">No filings yet</p>
+                    {% elif days_since_last == 0 %}
+                    <p class="text-3xl font-bold text-emerald-600">Today</p>
+                    <p class="text-xs text-gray-400 mt-1">Most recent activity</p>
+                    {% else %}
+                    <p class="text-3xl font-bold text-gray-900">{{ days_since_last }}<span class="text-base text-gray-400 font-medium">d</span></p>
+                    <p class="text-xs text-gray-400 mt-1">Since most recent filing</p>
+                    {% endif %}
+                </div>
+            </div>
+            </div><!-- /hero+kpi unit -->
+
+            <!-- ── Market Snapshot + Industry Pulse ───────────────────── -->
+            <div class="grid lg:grid-cols-3 gap-5 reveal">
+                <!-- Top Movers (live) -->
+                <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Watchlist Movement</h3>
+                            <p class="text-xs text-gray-400 mt-0.5">Up to 6 most-moved from your watchlist</p>
+                        </div>
+                        <a href="/prices" class="text-xs font-medium text-indigo-600 hover:text-indigo-700">Full prices →</a>
+                    </div>
+                    <div id="top-movers-loading" class="flex items-center gap-3 py-6 text-gray-400">
+                        <div class="spinner"></div>
+                        <span class="text-sm">Fetching live prices…</span>
+                    </div>
+                    <div id="top-movers" class="hidden grid md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-2">▲ Gainers</p>
+                            <div id="movers-up" class="space-y-2"></div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-rose-700 uppercase tracking-wider mb-2">▼ Decliners</p>
+                            <div id="movers-down" class="space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Industry Pulse (live AI brief) -->
+                <div class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 border border-indigo-100 rounded-2xl p-6 shadow-sm flex flex-col">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-base">✦</span>
+                            <h3 class="text-sm font-bold text-indigo-900 uppercase tracking-wider">{{ user_industry }} Pulse</h3>
+                        </div>
+                        <a href="/industry/{{ user_industry|urlencode }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700">Full briefing →</a>
+                    </div>
+                    <div id="industry-pulse" class="text-sm text-gray-800 leading-relaxed flex-1">
+                        <div class="flex items-center gap-3 text-gray-400 py-4">
+                            <div class="spinner"></div>
+                            <span class="text-sm">Loading sector pulse…</span>
+                        </div>
+                    </div>
+                    <p id="industry-pulse-status" class="text-[10px] text-gray-400 mt-3"></p>
+                </div>
+            </div>
+
+            <!-- Quick Access Feature Cards -->
+            <div class="reveal">
+                <h3 class="sec-title mb-1">Explore your workspace</h3>
+                <p class="text-xs text-gray-400 mb-3">New here? Each section below is a tool — open any to dive in.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 reveal">
+                <a href="/prices" class="feature-card feature-card-green">
+                    <div class="feature-icon bg-emerald-100">
+                        <svg fill="none" stroke="#10b981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    </div>
+                    <h3>Stock Prices</h3>
+                    <p>Live prices, 3% alerts, sector analysis &amp; pre-open data</p>
+                    <svg class="feature-arrow w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </a>
+
+                <a href="/din-search" class="feature-card feature-card-purple">
+                    <div class="feature-icon bg-purple-100">
+                        <svg fill="none" stroke="#8b5cf6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <h3>DIN Search</h3>
+                    <p>Find any director across all companies by DIN number</p>
+                    <svg class="feature-arrow w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </a>
+
+                {% if companies %}
+                <a href="/company/{{ companies[0] }}" class="feature-card feature-card-blue">
+                    <div class="feature-icon bg-indigo-100">
+                        <svg fill="none" stroke="#4f46e5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <h3>Corporate Filings</h3>
+                    <p>Browse announcements, filings &amp; XBRL data for {{ companies[0] }}</p>
+                    <svg class="feature-arrow w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </a>
+                {% endif %}
+
+                {% if companies %}
+                <a href="/company/{{ companies[0] }}#governance" class="feature-card feature-card-amber"
+                   onclick="event.preventDefault(); window.location.href='/company/{{ companies[0] }}';">
+                    <div class="feature-icon bg-amber-100">
+                        <svg fill="none" stroke="#f59e0b" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <h3>Governance Reports</h3>
+                    <p>Board composition, committees, meetings &amp; comparisons</p>
+                    <svg class="feature-arrow w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Calendar Section -->
+            <div class="card reveal">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50/50 to-purple-50/50">
+                    <a href="/dashboard?year={{ prev_year }}&month={{ prev_month }}"
+                       class="btn btn-secondary btn-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                        Prev
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-lg font-bold text-gray-900">{{ month_name }} {{ year }}</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ month_count }} filing{{ 's' if month_count != 1 }} this month</p>
+                    </div>
+                    <a href="/dashboard?year={{ next_year }}&month={{ next_month }}"
+                       class="btn btn-secondary btn-sm">
+                        Next
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-7 border-b border-gray-200 bg-slate-50">
+                    {% for day_name in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] %}
+                    <div class="px-2 py-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider
+                                {% if day_name in ['Sat', 'Sun'] %}text-gray-300{% endif %}">
+                        {{ day_name }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% for week in cal_weeks %}
+                <div class="grid grid-cols-7 border-b border-gray-100 last:border-b-0">
+                    {% for cell in week %}
+                    {% if cell %}
+                    <div class="min-h-[100px] border-r border-gray-100 last:border-r-0 p-1.5 hover:bg-indigo-50/30 transition-colors
+                                {% if cell.is_today %}bg-indigo-50 ring-1 ring-inset ring-indigo-200{% endif %}"
+                         {% if cell.events %}onclick="showDayDetail({{ cell.day }})" style="cursor:pointer"{% endif %}>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-semibold {% if cell.is_today %}text-white bg-indigo-600 w-5 h-5 rounded-full flex items-center justify-center text-[10px]{% elif cell.events %}text-gray-900{% else %}text-gray-400{% endif %}">
+                                {{ cell.day }}
+                            </span>
+                            {% if cell.events|length > 0 %}
+                            <span class="text-[9px] font-bold text-indigo-500 bg-indigo-100 px-1 rounded">{{ cell.events|length }}</span>
+                            {% endif %}
+                        </div>
+                        {% for ev in cell.events[:3] %}
+                        <div class="cal-event mb-0.5 px-1.5 py-0.5 rounded text-[9px] leading-tight truncate
+                                    company-bg-{{ companies.index(ev.company) if ev.company in companies else 0 }}"
+                             title="{{ ev.company }}: {{ ev.title }}">
+                            <span class="font-bold">{{ ev.company[:3] }}</span> {{ ev.title[:25] }}{% if ev.title|length > 25 %}...{% endif %}
+                        </div>
+                        {% endfor %}
+                        {% if cell.events|length > 3 %}
+                        <div class="text-[9px] text-gray-400 pl-1.5 mt-0.5">+{{ cell.events|length - 3 }} more</div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="min-h-[100px] border-r border-gray-100 last:border-r-0 bg-gray-50/50"></div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- ── Charts: filing types + by company ─────────────────── -->
+            <div class="grid lg:grid-cols-2 gap-5">
+                <div class="panel p-6 reveal">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="sec-title">Filing Type Breakdown</h3>
+                        <span class="text-[10px] text-gray-400">All time</span>
+                    </div>
+                    {% if top_tags %}
+                    <div class="relative" style="height:268px"><canvas id="tagChart"></canvas></div>
+                    {% else %}
+                    <p class="text-sm text-gray-400 py-6">No tag data yet — refresh a company to populate.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel p-6 reveal">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="sec-title">Filings by Company</h3>
+                        <span class="text-[10px] text-gray-400">All time · click a bar to open</span>
+                    </div>
+                    {% if companies %}
+                    <div class="relative" style="height:268px"><canvas id="companyChart"></canvas></div>
+                    {% else %}
+                    <p class="text-sm text-gray-400 py-6">Add companies to your watchlist to see this.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- ── Recent filings feed (across all watchlist) ────────── -->
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden reveal">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Recent Activity</h3>
+                        <p class="text-[11px] text-gray-400 mt-0.5">Last 10 filings across your watchlist</p>
+                    </div>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% if recent_filings %}
+                        {% for f in recent_filings %}
+                        <a href="/company/{{ f.company }}" class="flex items-center gap-4 px-6 py-3 hover:bg-slate-50 transition-colors">
+                            <div class="flex-shrink-0">
+                                <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                            company-badge-{{ companies.index(f.company) if f.company in companies else 0 }}">
+                                    {{ f.company }}
+                                </span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-gray-800 font-medium truncate">{{ f.title }}</p>
+                            </div>
+                            <div class="flex flex-wrap gap-1 flex-shrink-0">
+                                {% for tag in f.tags.split(',') if tag.strip() %}
+                                <span class="tag tag-{{ tag.strip().lower().split()[0] }}" style="font-size:9px;padding:1px 5px">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                            <div class="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">{{ f.date[:20] }}</div>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <h3>No recent filings</h3>
+                        <p>Refresh a company page to populate the feed.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Month filing list -->
+            <div class="card reveal">
+                <div class="card-header">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">All Filings in {{ month_name }} {{ year }}</h3>
+                    <span class="text-xs text-gray-400">{{ month_count }} filings</span>
+                </div>
+                <div class="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                    {% if month_filings %}
+                        {% for f in month_filings %}
+                        <a href="/company/{{ f.company }}" class="flex items-center gap-4 px-6 py-3 hover:bg-slate-50 transition-colors">
+                            <div class="flex-shrink-0 w-14 text-center">
+                                {% set sd = f.sort_date[:10] %}
+                                <div class="text-lg font-bold text-gray-900">{{ sd[8:10] }}</div>
+                                <div class="text-[10px] text-gray-400 uppercase">{{ month_name[:3] }}</div>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                            company-badge-{{ companies.index(f.company) if f.company in companies else 0 }}">
+                                    {{ f.company }}
+                                </span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-gray-800 font-medium truncate">{{ f.title }}</p>
+                            </div>
+                            <div class="flex flex-wrap gap-1 flex-shrink-0">
+                                {% for tag in f.tags.split(',') if tag.strip() %}
+                                <span class="tag tag-{{ tag.strip().lower().split()[0] }}" style="font-size:9px;padding:1px 5px">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                            <div class="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">{{ f.date[:20] }}</div>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <h3>No filings this month</h3>
+                        <p>Go to a company page and hit <strong>Refresh</strong> to fetch filings.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Day Detail Modal -->
+<div id="day-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width:650px">
+        <div class="modal-header">
+            <div class="flex-1">
+                <h3 id="day-modal-title" class="text-lg font-bold text-gray-900"></h3>
+                <p id="day-modal-count" class="text-sm text-gray-500 mt-0.5"></p>
+            </div>
+            <button onclick="closeDayModal()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="day-modal-list" class="space-y-2"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const DAY_MAP = {{ day_map | tojson }};
+const COMPANIES = {{ companies | tojson }};
+const MONTH_NAME = '{{ month_name }}';
+const YEAR = {{ year }};
+const USER_INDUSTRY = {{ user_industry | tojson }};
+const SYMBOL_DOMAINS = {{ symbol_domains | tojson }};
+const SYMBOL_TV_SLUGS = {{ symbol_tv_slugs | tojson }};
+const COMPANY_COLORS = [
+    {bg:'#dbeafe',text:'#1e40af',dot:'#3b82f6'},
+    {bg:'#dcfce7',text:'#166534',dot:'#22c55e'},
+    {bg:'#fef3c7',text:'#92400e',dot:'#f59e0b'},
+    {bg:'#fce7f3',text:'#9d174d',dot:'#ec4899'},
+    {bg:'#ede9fe',text:'#5b21b6',dot:'#8b5cf6'},
+];
+
+function showDayDetail(day) {
+    const events = DAY_MAP[day] || [];
+    if (!events.length) return;
+    document.getElementById('day-modal-title').textContent = `${day} ${MONTH_NAME} ${YEAR}`;
+    document.getElementById('day-modal-count').textContent = `${events.length} filing${events.length !== 1 ? 's' : ''}`;
+    const listEl = document.getElementById('day-modal-list');
+    listEl.innerHTML = events.map(ev => {
+        const ci = COMPANIES.indexOf(ev.company);
+        const color = COMPANY_COLORS[ci >= 0 ? ci : 0];
+        const tags = (ev.tags || '').split(',').filter(t => t.trim()).map(t =>
+            `<span class="tag tag-${t.trim().toLowerCase().split(' ')[0]}" style="font-size:9px;padding:1px 5px">${t.trim()}</span>`
+        ).join('');
+        return `<a href="/company/${ev.company}" class="block p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all">
+            <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase" style="background:${color.bg};color:${color.text}">${ev.company}</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-900">${ev.title}</p>
+                    <div class="flex items-center gap-2 mt-1.5">
+                        <span class="text-[10px] text-gray-400">${ev.date}</span>
+                        <div class="flex gap-1">${tags}</div>
+                    </div>
+                </div>
+                <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div></a>`;
+    }).join('');
+    document.getElementById('day-modal').classList.remove('hidden');
+}
+function closeDayModal() { document.getElementById('day-modal').classList.add('hidden'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDayModal(); closeSuggestions(); } });
+document.getElementById('day-modal').addEventListener('click', e => { if (e.target.id === 'day-modal') closeDayModal(); });
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
+}
+
+function fmtPrice(n) {
+    if (n == null) return '--';
+    return Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+// ── Live Top Movers ──────────────────────────────────────────
+
+// Deterministic gradient palette per symbol — same input always picks the
+// same colors so the same company keeps the same avatar across reloads.
+const AVATAR_PALETTES = [
+    ['#6366f1', '#8b5cf6'],  // indigo → violet
+    ['#0ea5e9', '#3b82f6'],  // sky → blue
+    ['#10b981', '#06b6d4'],  // emerald → cyan
+    ['#f59e0b', '#ef4444'],  // amber → red
+    ['#ec4899', '#f43f5e'],  // pink → rose
+    ['#8b5cf6', '#ec4899'],  // violet → pink
+    ['#0d9488', '#0891b2'],  // teal → cyan
+    ['#7c3aed', '#2563eb'],  // violet → blue
+    ['#f97316', '#f59e0b'],  // orange → amber
+    ['#14b8a6', '#22c55e'],  // teal → green
+];
+
+function avatarColor(sym) {
+    let hash = 0;
+    const s = String(sym || '');
+    for (let i = 0; i < s.length; i++) hash = ((hash << 5) - hash + s.charCodeAt(i)) | 0;
+    return AVATAR_PALETTES[Math.abs(hash) % AVATAR_PALETTES.length];
+}
+
+function avatarInitials(sym) {
+    return String(sym || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?';
+}
+
+// Cascade for the company logo image, in reliability / quality order:
+//   0  /static/logos/<symbol>.svg  — bundled local vector logo (instant, no
+//      network, never breaks). Drop a new SVG in static/logos/ to add one.
+//   1  /logo/<symbol>              — backend scrape of the company's own site
+//   2  TradingView curated SVG
+//   3  Google's favicon @128
+//   4  DuckDuckGo icon
+//   final  img hides → gradient initials underneath show through
+// (Clearbit was removed — that free logo API was shut down and no longer resolves.)
+function logoFallback(img) {
+    let list;
+    try { list = JSON.parse(img.dataset.cands || '[]'); } catch (e) { list = []; }
+    const i = parseInt(img.dataset.idx || '0', 10) + 1;
+    img.dataset.idx = String(i);
+    if (i < list.length) img.src = list[i];
+    else img.style.display = 'none';
+}
+window.logoFallback = logoFallback;
+
+function avatarHtml(sym) {
+    const c = avatarColor(sym);
+    const initials = escapeHtml(avatarInitials(sym));
+    const tvSlug = SYMBOL_TV_SLUGS[sym] || '';
+    const domain = SYMBOL_DOMAINS[sym] || '';
+
+    // Candidate cascade — local bundled SVG first (instant, never breaks),
+    // then live sources. The local attempt is always included; if the file
+    // isn't there it 404s and onerror advances to the next candidate.
+    const cands = [`/static/logos/${encodeURIComponent(sym)}.svg`];
+    if (domain) cands.push(`/logo/${encodeURIComponent(sym)}?v=2`);
+    if (tvSlug) cands.push(`https://s3-symbol-logo.tradingview.com/${tvSlug}--big.svg`);
+    if (domain) {
+        cands.push(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`);
+        cands.push(`https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico`);
+    }
+
+    const inner = `<img src="${cands[0]}"
+                alt=""
+                referrerpolicy="no-referrer"
+                data-cands='${escapeHtml(JSON.stringify(cands))}'
+                data-idx="0"
+                onerror="logoFallback(this)"
+                class="absolute inset-0 w-full h-full rounded-full object-contain bg-white p-0.5 ring-1 ring-gray-200">`;
+
+    return `<div class="relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-[11px] font-bold shadow-sm ring-2 ring-white"
+                 style="background: linear-gradient(135deg, ${c[0]}, ${c[1]})">
+                <span>${initials}</span>
+                ${inner}
+            </div>`;
+}
+
+function renderMover(p, dir) {
+    const cls = dir === 'up' ? 'text-emerald-600'
+              : dir === 'down' ? 'text-rose-600'
+              : 'text-gray-500';
+    const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '■';
+    return `
+        <a href="/prices" class="flex items-center gap-3 rounded-lg border border-gray-100 hover:border-indigo-300 hover:bg-indigo-50/40 px-3 py-2.5 transition-colors">
+            ${avatarHtml(p.symbol)}
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-gray-900 truncate">${escapeHtml(p.symbol)}</p>
+                <p class="text-[10px] text-gray-400 truncate">${escapeHtml(p.companyName || '')}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <p class="text-sm font-bold text-gray-900">₹${fmtPrice(p.lastPrice)}</p>
+                <p class="text-xs font-semibold ${cls}">${arrow} ${Math.abs(p.pChange || 0).toFixed(2)}%</p>
+            </div>
+        </a>`;
+}
+
+function loadTopMovers() {
+    fetch('/api/prices')
+        .then(r => r.json())
+        .then(data => {
+            const prices = data.prices || {};
+            const items = Object.entries(prices)
+                .map(([sym, p]) => ({ symbol: sym, ...p }))
+                .filter(p => p.pChange != null);
+
+            if (!items.length) {
+                document.getElementById('top-movers-loading').innerHTML =
+                    '<p class="text-xs text-gray-400">No price data available right now.</p>';
+                return;
+            }
+
+            // Show up to 6 companies — the most-moved by absolute % change —
+            // split into gainers (biggest first) and decliners (biggest drop first).
+            const top = [...items]
+                .sort((a, b) => Math.abs(b.pChange || 0) - Math.abs(a.pChange || 0))
+                .slice(0, 6);
+            const ups = top.filter(p => (p.pChange || 0) >= 0)
+                            .sort((a, b) => (b.pChange || 0) - (a.pChange || 0));
+            const downs = top.filter(p => (p.pChange || 0) < 0)
+                              .sort((a, b) => (a.pChange || 0) - (b.pChange || 0));
+
+            document.getElementById('movers-up').innerHTML =
+                ups.length ? ups.map(p => renderMover(p, (p.pChange || 0) > 0 ? 'up' : 'flat')).join('')
+                           : '<p class="text-xs text-gray-400 px-1">No gainers in your watchlist today.</p>';
+            document.getElementById('movers-down').innerHTML =
+                downs.length ? downs.map(p => renderMover(p, 'down')).join('')
+                             : '<p class="text-xs text-gray-400 px-1">No decliners in your watchlist today.</p>';
+
+            document.getElementById('top-movers-loading').classList.add('hidden');
+            document.getElementById('top-movers').classList.remove('hidden');
+        })
+        .catch(() => {
+            document.getElementById('top-movers-loading').innerHTML =
+                '<p class="text-xs text-rose-500">Couldn\'t fetch prices — NSE may be rate-limiting.</p>';
+        });
+}
+
+// ── Industry Pulse (AI brief preview) ────────────────────────
+function loadIndustryPulse() {
+    if (!USER_INDUSTRY) return;
+    fetch('/api/industry-intel/' + encodeURIComponent(USER_INDUSTRY))
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('industry-pulse').innerHTML =
+                    `<p class="text-sm text-gray-500">${escapeHtml(data.message || 'Pulse unavailable.')}</p>`;
+                return;
+            }
+            const summary = (data.summary || '').slice(0, 420);
+            const truncated = (data.summary || '').length > 420 ? '…' : '';
+            document.getElementById('industry-pulse').innerHTML =
+                `<p class="text-sm text-gray-800 leading-relaxed">${escapeHtml(summary + truncated)}</p>`;
+            const status = document.getElementById('industry-pulse-status');
+            if (status) {
+                status.textContent = (data.ai_powered ? 'AI · Gemini' : 'Heuristic') +
+                    ' · ' + (data.news?.sector?.length || 0) + ' sector + ' +
+                    (data.news?.ma?.length || 0) + ' deal headlines tracked';
+            }
+        })
+        .catch(() => {
+            document.getElementById('industry-pulse').innerHTML =
+                '<p class="text-sm text-gray-500">Couldn\'t load sector pulse.</p>';
+        });
+}
+
+// ── Reveal-on-scroll animation ──────────────────────────────
+(function () {
+    const els = document.querySelectorAll('.reveal');
+    let i = 0;
+    els.forEach(el => el.classList.add('d' + ((i++ % 6) + 1)));
+    if (!('IntersectionObserver' in window)) { els.forEach(el => el.classList.add('in')); return; }
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+    }, { threshold: 0.06, rootMargin: '0px 0px -40px 0px' });
+    els.forEach(el => io.observe(el));
+})();
+
+// ── Charts (Chart.js, theme-aware) ──────────────────────────
+const TOP_TAGS = {{ top_tags | tojson }};
+const COMPANY_COUNTS = {{ company_counts | tojson }};
+const CHART_PALETTE = ['#6366f1','#0ea5e9','#22c55e','#f59e0b','#ec4899','#8b5cf6','#14b8a6','#f43f5e'];
+let _tagChart = null, _companyChart = null;
+
+function _isDark() { return document.documentElement.classList.contains('dark'); }
+function _axisColor() { return _isDark() ? '#a3a3a3' : '#64748b'; }
+function _gridColor() { return _isDark() ? 'rgba(255,255,255,.08)' : 'rgba(15,23,42,.07)'; }
+
+function _tooltipStyle() {
+    return {
+        backgroundColor: _isDark() ? '#1c1c1c' : '#0f172a',
+        titleColor: '#fff', bodyColor: '#e2e8f0',
+        padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
+    };
+}
+
+function buildCharts() {
+    if (!window.Chart) return;
+
+    const tagEl = document.getElementById('tagChart');
+    if (tagEl && TOP_TAGS.length) {
+        if (_tagChart) _tagChart.destroy();
+        const tagTotal = TOP_TAGS.reduce((s, t) => s + (t[1] || 0), 0) || 1;
+        const centerText = {
+            id: 'centerText',
+            afterDraw(chart) {
+                const { ctx, chartArea } = chart;
+                if (!chartArea) return;
+                const cx = (chartArea.left + chartArea.right) / 2;
+                const cy = (chartArea.top + chartArea.bottom) / 2;
+                ctx.save();
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = _isDark() ? '#f5f5f5' : '#0f172a';
+                ctx.font = '800 26px Inter, system-ui, sans-serif';
+                ctx.fillText(tagTotal.toLocaleString('en-IN'), cx, cy - 7);
+                ctx.fillStyle = _isDark() ? '#a3a3a3' : '#94a3b8';
+                ctx.font = '700 10px Inter, system-ui, sans-serif';
+                ctx.fillText('TAGGED', cx, cy + 13);
+                ctx.restore();
+            }
+        };
+        _tagChart = new Chart(tagEl, {
+            type: 'doughnut',
+            data: { labels: TOP_TAGS.map(t => t[0]), datasets: [{
+                data: TOP_TAGS.map(t => t[1]), backgroundColor: CHART_PALETTE,
+                borderWidth: 3, borderColor: _isDark() ? '#141414' : '#ffffff',
+                hoverOffset: 8, spacing: 1 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '70%',
+                plugins: {
+                    legend: { position: 'right', labels: { color: _axisColor(),
+                        font: { size: 11.5 }, usePointStyle: true, pointStyle: 'circle',
+                        boxWidth: 8, boxHeight: 8, padding: 14 } },
+                    tooltip: Object.assign(_tooltipStyle(), {
+                        callbacks: { label: (c) => ` ${c.label}: ${c.raw} (${Math.round(c.raw / tagTotal * 100)}%)` } })
+                },
+                animation: { animateScale: true, animateRotate: true, duration: 850 } },
+            plugins: [centerText]
+        });
+    }
+
+    const compEl = document.getElementById('companyChart');
+    if (compEl && COMPANIES.length) {
+        const pairs = COMPANIES.map(s => [s, COMPANY_COUNTS[s] || 0]).sort((a, b) => b[1] - a[1]);
+        const labels = pairs.map(p => p[0]);
+        const data = pairs.map(p => p[1]);
+        if (_companyChart) _companyChart.destroy();
+        _companyChart = new Chart(compEl, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'Filings', data,
+                backgroundColor: (ctx) => {
+                    const { chart, dataIndex } = ctx;
+                    const area = chart.chartArea;
+                    const base = CHART_PALETTE[dataIndex % CHART_PALETTE.length];
+                    if (!area) return base;
+                    const g = chart.ctx.createLinearGradient(area.left, 0, area.right, 0);
+                    g.addColorStop(0, base + '99'); g.addColorStop(1, base);
+                    return g;
+                },
+                borderRadius: 7, borderSkipped: false, maxBarThickness: 24 }] },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                onClick: (e, hit) => { if (hit.length) window.location.href = '/company/' + labels[hit[0].index]; },
+                onHover: (e, hit) => { e.native.target.style.cursor = hit.length ? 'pointer' : 'default'; },
+                plugins: { legend: { display: false }, tooltip: _tooltipStyle() },
+                scales: { x: { ticks: { color: _axisColor(), font: { size: 11 }, precision: 0 }, grid: { color: _gridColor() }, border: { display: false } },
+                          y: { ticks: { color: _axisColor(), font: { size: 11, weight: '600' } }, grid: { display: false }, border: { display: false } } },
+                animation: { duration: 850 } }
+        });
+    }
+}
+buildCharts();
+// Re-render charts (legend/axis colors) whenever dark mode is toggled.
+new MutationObserver(() => buildCharts())
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+loadTopMovers();
+loadIndustryPulse();
+</script>
+<script>
+// Failsafe (isolated): never leave reveal content hidden if the main script errored.
+setTimeout(function () {
+    document.querySelectorAll('.reveal:not(.in)').forEach(function (e) { e.classList.add('in'); });
+}, 1400);
+</script>
+</body>
+</html>

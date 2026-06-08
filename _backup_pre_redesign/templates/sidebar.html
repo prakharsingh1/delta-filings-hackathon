@@ -1,0 +1,512 @@
+<!-- Shared Sidebar -->
+<style>
+    /* "View all" watchlist row — icon sits in the same 8px slot as the colored
+       dots so the label aligns with the company names above it. */
+    .wl-viewall-icon {
+        background: transparent !important;
+        display: inline-flex; align-items: center; justify-content: center;
+        overflow: visible;
+    }
+    /* Inherit .watchlist-item color + weight so "View all" matches the company rows. */
+    .wl-viewall-icon svg { width: 15px; height: 15px; }
+</style>
+<aside class="sidebar">
+    <div class="sidebar-brand">
+        <a href="/dashboard" class="flex items-center gap-2.5">
+            <span class="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30"
+                  style="background: linear-gradient(135deg,#4f46e5,#0ea5e9);">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </span>
+            <span class="min-w-0">
+                <h1>Delta Filings</h1>
+                <p>Corporate Governance Intel</p>
+            </span>
+        </a>
+    </div>
+
+    {#
+        Target for "Announcements" and "Compare" shortcuts.
+        Prefer the currently-viewed company (`selected`); otherwise fall back
+        to the first watchlist entry so the links always go somewhere useful.
+    #}
+    {% set _nav_target = None %}
+    {% if selected is defined and selected %}
+        {% set _nav_target = selected %}
+    {% elif watchlist is defined and watchlist %}
+        {% set _first = watchlist[0] %}
+        {% set _nav_target = (_first.symbol if _first is mapping else _first) %}
+    {% elif companies is defined and companies %}
+        {% set _nav_target = companies[0] %}
+    {% endif %}
+
+    <div class="sidebar-nav">
+        <a href="/dashboard" class="nav-item {{ 'active' if active_page == 'dashboard' else '' }}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+            </svg>
+            Dashboard
+        </a>
+        <a href="/draft" class="nav-item {{ 'active' if active_page == 'draft' else '' }}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            Draft
+        </a>
+        <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}"
+           class="nav-item {{ 'active' if (active_page == 'announcements' or (active_page == 'company' and request.args.get('tab') in ('', None, 'announcements'))) else '' }}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+            </svg>
+            Announcements
+        </a>
+        <a href="/prices" class="nav-item {{ 'active' if active_page == 'prices' else '' }}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+            </svg>
+            Stock Prices
+        </a>
+        <a href="/din-search" class="nav-item {{ 'active' if active_page == 'din_search' else '' }}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            DIN Search
+        </a>
+        <a href="/compliance" class="nav-item {{ 'active' if active_page == 'compliance' else '' }}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            Compliance
+        </a>
+        <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}"
+           class="nav-item {{ 'active' if (active_page == 'compare' or (active_page == 'company' and request.args.get('tab') == 'compare')) else '' }}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+            Compare
+        </a>
+
+        <div class="sidebar-section-label">Watchlist</div>
+
+        {% set _wl = (watchlist if watchlist is defined else []) %}
+        {% for w in _wl[:3] %}
+        <a href="/company/{{ w.symbol if w is mapping else w }}"
+           class="watchlist-item {{ 'active' if (selected is defined and (w.symbol if w is mapping else w) == selected) else '' }}">
+            <div class="flex items-center min-w-0">
+                <span class="wl-dot" style="background: {{ ['#3b82f6','#22c55e','#f59e0b','#ec4899','#8b5cf6'][loop.index0 % 5] }}"></span>
+                <span class="truncate font-medium">{{ w.symbol if w is mapping else w }}</span>
+            </div>
+            {% if company_counts is defined and (w.symbol if w is mapping else w) in company_counts %}
+            <span class="wl-count">{{ company_counts[(w.symbol if w is mapping else w)] }}</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+
+        {% if _wl|length > 3 %}
+        <a href="/watchlist" class="watchlist-item watchlist-viewall {{ 'active' if active_page == 'watchlist' else '' }}">
+            <div class="flex items-center min-w-0">
+                <span class="wl-dot wl-viewall-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 5.25h16.5m-16.5 6.75h16.5m-16.5 6.75h16.5"/>
+                    </svg>
+                </span>
+                <span class="truncate font-medium">View all</span>
+            </div>
+            <span class="wl-count">{{ _wl|length }}</span>
+        </a>
+        {% endif %}
+
+        <!-- User -->
+        {% if current_user %}
+        <div class="mt-4 pt-3 border-t border-gray-200">
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                     style="background: linear-gradient(135deg,#4f46e5,#0ea5e9);">
+                    {{ current_user.name[0]|upper if current_user.name else 'U' }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold text-slate-800 truncate">{{ current_user.name }}</div>
+                    <div class="text-[10px] text-slate-500 truncate">{{ current_user.email }}</div>
+                </div>
+                <a href="/logout" title="Sign out"
+                   class="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Settings -->
+        <div class="mt-3 pt-3 border-t border-gray-200">
+            <button onclick="openSettingsModal()" class="nav-item w-full text-left" style="border:none;background:none;cursor:pointer">
+                <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span>Settings</span>
+                <span id="ai-status-dot" class="ml-auto w-2 h-2 rounded-full bg-gray-300 flex-shrink-0"></span>
+            </button>
+        </div>
+    </div>
+</aside>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width:580px">
+        <div class="modal-header">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">Settings</h3>
+                <p class="text-sm text-gray-500 mt-0.5">Industry watchlist and AI configuration</p>
+            </div>
+            <button onclick="closeSettingsModal()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" style="padding:0">
+            <!-- Industry / Watchlist -->
+            <div class="px-6 py-5 border-b border-gray-200">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">1. Industry Watchlist</div>
+                <p class="text-[11px] text-gray-500 mb-3">
+                    Switch the industry to track a different set of companies. Your current watchlist
+                    will be <span class="font-semibold text-red-600">replaced</span> with the top companies in the new sector.
+                </p>
+                <div class="flex items-center gap-2">
+                    <select id="settings-industry"
+                            class="flex-1 px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-xl
+                                   focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option value="">Loading industries…</option>
+                    </select>
+                    <button onclick="changeIndustry()" id="industry-save-btn"
+                            class="text-xs font-semibold px-4 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        Switch
+                    </button>
+                </div>
+                <div id="industry-status" class="text-[11px] mt-2"></div>
+
+                <!-- Add a single company -->
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <p class="text-[11px] text-gray-500 mb-2">Or add a single company to your current watchlist:</p>
+                    <div class="relative" id="set-add-wrapper">
+                        <input type="text" id="set-add-input" placeholder="Search company to add…"
+                               class="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-xl
+                                      focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                                      placeholder-gray-400"
+                               oninput="setOnSearch()" autocomplete="off">
+                        <div id="set-add-suggestions" class="hidden absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-56 overflow-y-auto"></div>
+                    </div>
+                    <div id="set-add-status" class="hidden text-[11px] mt-2"></div>
+                </div>
+            </div>
+
+            <!-- Model Selection -->
+            <div class="px-6 py-5 bg-slate-50 border-b border-gray-200">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">2. Select Model Engine</div>
+                <div id="model-cards" class="grid grid-cols-2 gap-3">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+            <!-- API Key -->
+            <div class="px-6 py-5 border-t border-gray-200">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">3. AI API Key</div>
+                <div class="relative">
+                    <input type="password" id="settings-api-key" placeholder="Enter your AI API key..."
+                           class="w-full px-4 py-3 text-sm bg-slate-50 border border-gray-200 rounded-xl
+                                  focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                                  font-mono placeholder-gray-400">
+                    <button onclick="toggleKeyVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <svg id="eye-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button onclick="testApiKey()" id="test-key-btn"
+                            class="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                        Test Key
+                    </button>
+                    <span id="key-test-result" class="text-xs"></span>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-2">
+                    Provide an AI API key to unlock smart summaries.
+                    Without a key, summaries use basic text extraction.
+                </p>
+            </div>
+
+            <!-- Save -->
+            <div class="px-6 py-4 bg-slate-50 border-t border-gray-200 flex items-center justify-between">
+                <div id="settings-save-status" class="text-xs"></div>
+                <button onclick="saveSettings()" id="save-settings-btn"
+                        class="btn btn-primary text-sm px-5 py-2">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   SETTINGS MODAL
+   ═══════════════════════════════════════ */
+let _settingsLoaded = false;
+let _selectedModel = 'gemini-2.5-flash';
+
+function openSettingsModal() {
+    document.getElementById('settings-modal').classList.remove('hidden');
+    if (!_settingsLoaded) loadSettings();
+}
+
+function closeSettingsModal() {
+    document.getElementById('settings-modal').classList.add('hidden');
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeSettingsModal();
+});
+
+function loadSettings() {
+    fetch('/api/settings').then(r => r.json()).then(data => {
+        _settingsLoaded = true;
+        _selectedModel = data.gemini_model || 'gemini-2.5-flash';
+
+        // Industry dropdown
+        const indSel = document.getElementById('settings-industry');
+        if (indSel) {
+            const current = data.industry || '';
+            const list = data.industries || [];
+            indSel.innerHTML = list.map(name =>
+                `<option value="${name}" ${name === current ? 'selected' : ''}>${name}</option>`
+            ).join('');
+            // Stash current so we can warn before switch.
+            indSel.dataset.current = current;
+        }
+
+        // Render model cards
+        const container = document.getElementById('model-cards');
+        container.innerHTML = Object.entries(data.models).map(([id, m]) => {
+            const badgeColors = {
+                emerald: 'bg-emerald-500',
+                indigo: 'bg-indigo-500',
+                violet: 'bg-violet-500',
+            };
+            return `<div class="model-card ${id === _selectedModel ? 'selected' : ''}" data-model="${id}" onclick="selectModel('${id}')">
+                <div class="flex items-start justify-between mb-1.5">
+                    <span class="text-sm font-bold text-gray-900">${m.name}</span>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${badgeColors[m.badge_color] || 'bg-gray-500'} text-white">${m.badge}</span>
+                </div>
+                <p class="text-[11px] text-gray-500 leading-snug mb-3">${m.description}</p>
+                <div class="text-[10px] text-gray-400 space-y-1">
+                    <div class="flex justify-between"><span>Speed:</span><span class="text-gray-700 font-medium">${m.speed}</span></div>
+                    <div class="flex justify-between"><span>Cost:</span><span class="text-gray-700 font-medium">${m.cost}</span></div>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Set API key field
+        if (data.gemini_api_key_set) {
+            document.getElementById('settings-api-key').placeholder = data.gemini_api_key_masked || '••••••••';
+        }
+
+        // Update status dot
+        updateAiStatusDot(data.gemini_api_key_set);
+    });
+}
+
+function changeIndustry() {
+    const sel = document.getElementById('settings-industry');
+    const btn = document.getElementById('industry-save-btn');
+    const status = document.getElementById('industry-status');
+    const target = sel.value;
+    const current = sel.dataset.current || '';
+
+    if (!target) {
+        status.innerHTML = '<span class="text-amber-600">Pick an industry first.</span>';
+        return;
+    }
+    if (target === current) {
+        status.innerHTML = '<span class="text-gray-400">Already on this industry.</span>';
+        return;
+    }
+    if (!confirm(`Switching to "${target}" will replace your current watchlist with that sector\'s top companies. Continue?`)) {
+        return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Switching…';
+    status.innerHTML = '<span class="text-gray-500">Replacing watchlist and pulling SEBI history…</span>';
+
+    fetch('/api/settings/industry', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({industry: target}),
+    })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false; btn.textContent = 'Switch';
+            if (data.error) {
+                status.innerHTML = `<span class="text-red-500">${data.message || 'Failed to switch.'}</span>`;
+                return;
+            }
+            sel.dataset.current = target;
+            const syms = (data.symbols || []).join(', ');
+            status.innerHTML = `<span class="text-emerald-600 font-medium">&#x2713; Switched to ${target} — ${data.symbols.length} companies: ${syms}. Reloading…</span>`;
+            setTimeout(() => { window.location.reload(); }, 1200);
+        })
+        .catch(() => {
+            btn.disabled = false; btn.textContent = 'Switch';
+            status.innerHTML = '<span class="text-red-500">Network error.</span>';
+        });
+}
+
+function selectModel(modelId) {
+    _selectedModel = modelId;
+    document.querySelectorAll('.model-card').forEach(el => {
+        el.classList.toggle('selected', el.dataset.model === modelId);
+    });
+}
+
+function toggleKeyVisibility() {
+    const input = document.getElementById('settings-api-key');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function testApiKey() {
+    const key = document.getElementById('settings-api-key').value.trim();
+    if (!key) { document.getElementById('key-test-result').innerHTML = '<span class="text-amber-500">Enter a key first</span>'; return; }
+    const btn = document.getElementById('test-key-btn');
+    const result = document.getElementById('key-test-result');
+    btn.disabled = true; btn.textContent = 'Testing...';
+    result.innerHTML = '<span class="text-gray-400 animate-pulse">Connecting to AI...</span>';
+
+    fetch('/api/settings/test-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({api_key: key}) })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false; btn.textContent = 'Test Key';
+            result.innerHTML = data.valid
+                ? '<span class="text-emerald-600 font-medium">&#x2713; ' + data.message + '</span>'
+                : '<span class="text-red-500">&#x2717; ' + data.message + '</span>';
+        })
+        .catch(() => { btn.disabled = false; btn.textContent = 'Test Key'; result.innerHTML = '<span class="text-red-500">Network error</span>'; });
+}
+
+function saveSettings() {
+    const key = document.getElementById('settings-api-key').value.trim();
+    const body = { gemini_model: _selectedModel };
+    if (key) body.gemini_api_key = key;
+
+    const btn = document.getElementById('save-settings-btn');
+    const status = document.getElementById('settings-save-status');
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    fetch('/api/settings', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false; btn.textContent = 'Save Settings';
+            if (data.error) {
+                status.innerHTML = '<span class="text-red-500">' + data.message + '</span>';
+            } else {
+                status.innerHTML = '<span class="text-emerald-600 font-medium">&#x2713; Settings saved</span>';
+                updateAiStatusDot(!!key || document.getElementById('settings-api-key').placeholder !== 'Enter your AI API key...');
+                setTimeout(() => { status.innerHTML = ''; }, 3000);
+            }
+        })
+        .catch(() => { btn.disabled = false; btn.textContent = 'Save Settings'; status.innerHTML = '<span class="text-red-500">Failed</span>'; });
+}
+
+function updateAiStatusDot(hasKey) {
+    const dot = document.getElementById('ai-status-dot');
+    if (dot) {
+        dot.className = 'ml-auto w-2 h-2 rounded-full flex-shrink-0 ' + (hasKey ? 'bg-emerald-400' : 'bg-gray-300');
+        dot.title = hasKey ? 'AI active' : 'No API key set';
+    }
+}
+
+// Check AI status on page load
+fetch('/api/settings').then(r=>r.json()).then(d => updateAiStatusDot(d.gemini_api_key_set)).catch(()=>{});
+
+function removeCompany(symbol) {
+    if (!confirm(`Remove ${symbol} from your watchlist?`)) return;
+    fetch(`/api/watchlist/${symbol}`, {method: 'DELETE'}).then(r => r.json()).then(() => window.location.reload()).catch(() => alert('Failed'));
+}
+
+/* ═══════════════════════════════════════
+   SETTINGS — Add a single company
+   ═══════════════════════════════════════ */
+let _setAddTimer = null, _setAddResults = [];
+const _SET_EXISTING = {{ (companies if companies is defined else []) | tojson }};
+
+function setOnSearch() {
+    clearTimeout(_setAddTimer);
+    const q = document.getElementById('set-add-input').value.trim();
+    if (q.length < 2) { _setCloseSuggestions(); return; }
+    _setAddTimer = setTimeout(() => {
+        fetch(`/api/symbol_search?q=${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(data => { _setAddResults = data.results || []; _setRender(q); })
+            .catch(() => _setCloseSuggestions());
+    }, 250);
+}
+
+function _setRender(query) {
+    const el = document.getElementById('set-add-suggestions');
+    if (!_setAddResults.length) {
+        el.innerHTML = `<div class="px-3 py-3 text-xs text-gray-400">No matches for "${query}"</div>`;
+        el.classList.remove('hidden'); return;
+    }
+    const existing = new Set(_SET_EXISTING.map(c => c.toUpperCase()));
+    el.innerHTML = _setAddResults.map(s => {
+        const already = existing.has(s.symbol.toUpperCase());
+        const badge = already ? '<span class="text-[9px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-medium">On watchlist</span>' : '';
+        const click = already ? '' : `onclick="setAddCompany('${s.symbol}', '${s.name.replace(/'/g, "\\'")}')"`;
+        const cls = already ? 'cursor-default opacity-60' : 'cursor-pointer hover:bg-indigo-50';
+        return `<div class="px-3 py-2.5 ${cls} transition-colors border-b border-gray-50 last:border-0" ${click}>
+            <div class="flex items-center justify-between"><span class="text-sm font-bold text-gray-900">${s.symbol}</span>${badge}</div>
+            <p class="text-[11px] text-gray-500 mt-0.5 truncate">${s.name}</p></div>`;
+    }).join('');
+    el.classList.remove('hidden');
+}
+
+function _setCloseSuggestions() {
+    const el = document.getElementById('set-add-suggestions');
+    if (el) el.classList.add('hidden');
+}
+
+document.addEventListener('click', e => {
+    const wrap = document.getElementById('set-add-wrapper');
+    if (wrap && !wrap.contains(e.target)) _setCloseSuggestions();
+});
+
+function setAddCompany(symbol, name) {
+    _setCloseSuggestions();
+    const input = document.getElementById('set-add-input');
+    const statusEl = document.getElementById('set-add-status');
+    input.value = ''; input.disabled = true;
+    statusEl.textContent = `Adding ${symbol}…`;
+    statusEl.className = 'text-[11px] mt-2 text-blue-600 animate-pulse';
+    statusEl.classList.remove('hidden');
+    fetch('/api/watchlist', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({symbol, name}) })
+        .then(r => r.json()).then(data => {
+            input.disabled = false;
+            if (data.error) { statusEl.textContent = data.message; statusEl.className = 'text-[11px] mt-2 text-amber-600'; }
+            else { statusEl.textContent = `Added ${symbol} (${data.new_count} filings). Reloading…`; statusEl.className = 'text-[11px] mt-2 text-green-600 font-medium'; setTimeout(() => window.location.reload(), 900); }
+        }).catch(() => { input.disabled = false; statusEl.textContent = 'Network error'; statusEl.className = 'text-[11px] mt-2 text-red-500'; });
+}
+</script>

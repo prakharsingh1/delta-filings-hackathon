@@ -1,0 +1,85 @@
+{% extends 'public_base.html' %}
+{% block title %}Gratuity Calculator · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">Last drawn monthly salary — Basic + DA (₹)</label>
+                <input id="salary" type="number" min="0" step="1000" value="60000" class="input">
+            </div>
+            <div>
+                <label class="label">Years of service</label>
+                <input id="years" type="number" min="0" step="1" value="10" class="input">
+            </div>
+            <div>
+                <label class="label">Additional months (over the last full year)</label>
+                <input id="months" type="number" min="0" max="11" step="1" value="0" class="input">
+            </div>
+            <div>
+                <label class="label">Employer type</label>
+                <select id="covered" class="input">
+                    <option value="true">Covered under the Gratuity Act</option>
+                    <option value="false">Not covered under the Act</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="result mt-6">
+            <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Gratuity payable</div>
+            <div class="mt-2 text-4xl font-extrabold text-slate-900" id="amount">₹0</div>
+            <div class="mt-2 text-sm text-slate-600" id="detail"></div>
+            <div class="mt-1 text-xs" id="eligibility"></div>
+        </div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Under the Payment of Gratuity Act, 1972 (covered employers), gratuity = (15 ÷ 26) × last drawn salary (basic + DA) × completed years, where service beyond 6 months in the final year rounds up to a full year. Eligibility generally requires 5 years of continuous service (waived on death/disablement). For employers not covered by the Act, the factor is 15 ÷ 30 (half-month per year). The tax exemption is capped at ₹20,00,000. Verify with your payroll/CS team.
+</div>
+</section>
+
+<script>
+const CFG = {{ cfg | tojson }};
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+function compute() {
+    const salary = Math.max(0, parseFloat(document.getElementById('salary').value || 0));
+    const years = Math.max(0, parseInt(document.getElementById('years').value || 0));
+    const months = Math.min(11, Math.max(0, parseInt(document.getElementById('months').value || 0)));
+    const covered = document.getElementById('covered').value === 'true';
+
+    // Service > 6 months in the final year rounds up to a full year (covered employers).
+    let completed = years + (months > 6 ? 1 : 0);
+
+    const denom = covered ? CFG.denominator : 30;   // 26 (covered) or 30 (non-covered)
+    let gratuity = (CFG.numerator / denom) * salary * completed;
+
+    const capped = Math.min(gratuity, CFG.max_exempt);
+    const amountEl = document.getElementById('amount');
+    const detailEl = document.getElementById('detail');
+    const eligEl = document.getElementById('eligibility');
+
+    amountEl.textContent = fmt(capped);
+    detailEl.textContent = `(${CFG.numerator} ÷ ${denom}) × ${fmt(salary)} × ${completed} year(s) = ${fmt(gratuity)}.`
+        + (gratuity > CFG.max_exempt ? ` Capped at the ₹20,00,000 exemption limit.` : '');
+
+    if (years < CFG.min_years_eligible) {
+        eligEl.innerHTML = `<span style="color:#dc2626;">Below ${CFG.min_years_eligible} years of continuous service — not eligible unless service ended due to death or disablement.</span>`;
+    } else {
+        eligEl.innerHTML = `<span style="color:#059669;">Eligible — ${years}+ years of continuous service.</span>`;
+    }
+}
+['salary','years','months','covered'].forEach(id => document.getElementById(id).addEventListener('input', compute));
+compute();
+</script>
+{% endblock %}

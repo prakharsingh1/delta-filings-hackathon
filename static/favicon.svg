@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#0f172a" shape-rendering="geometricPrecision">
+  <style>
+    @media (prefers-color-scheme: dark) { :root { fill: #ffffff; } svg { fill: #ffffff; } }
+  </style>
+  <polygon points="94.00,50.00 50.00,57.00 6.00,50.00 50.00,43.00"/>
+  <polygon points="89.64,69.09 46.96,56.31 10.36,30.91 53.04,43.69"/>
+  <polygon points="77.43,84.40 44.53,54.36 22.57,15.60 55.47,45.64"/>
+  <polygon points="59.79,92.90 43.18,51.56 40.21,7.10 56.82,48.44"/>
+  <polygon points="40.21,92.90 43.18,48.44 59.79,7.10 56.82,51.56"/>
+  <polygon points="22.57,84.40 44.53,45.64 77.43,15.60 55.47,54.36"/>
+  <polygon points="10.36,69.09 46.96,43.69 89.64,30.91 53.04,56.31"/>
+  <circle cx="50.0" cy="50.0" r="9.0"/>
+</svg>

@@ -1,0 +1,41 @@
+# Exclude large/local-only files from Railway deploy uploads
+
+# PDF cache (227MB+ locally, regenerated on server as needed)
+.pdf_cache/
+pdf_cache/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Node.js (only used for docx generation scripts, not needed in prod)
+node_modules/
+package-lock.json
+package.json
+create_brd.js
+create_frd.js
+
+# Local SQLite databases (Railway uses volume at /data)
+*.db
+*.db-journal
+
+# Generated docs
+*.docx
+
+# OS / editor files
+.DS_Store
+.vscode/
+.idea/
+.claude/
+
+# Local env (Railway has its own via dashboard)
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Local backups (never deploy)
+_backup_pre_redesign/

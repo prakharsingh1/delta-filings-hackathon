@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delta Filings — Corporate Governance Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --indigo: #4f46e5;
+            --sky: #0ea5e9;
+            --pink: #ec4899;
+        }
+        * { -webkit-font-smoothing: antialiased; }
+        html { scroll-behavior: smooth; }
+        html, body { font-family: 'Inter', system-ui, sans-serif; }
+        body {
+            color: #0f172a;
+            background: #fbfbfe;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated gradient background ── */
+        .bg-orbs {
+            position: fixed; inset: 0; z-index: -2; pointer-events: none;
+            background: #fbfbfe;
+            overflow: hidden;
+        }
+        .orb {
+            position: absolute; border-radius: 50%; filter: blur(80px);
+            opacity: 0.55;
+            will-change: transform;
+        }
+        .orb.a { width: 520px; height: 520px; top: -120px; left: -120px;
+                 background: radial-gradient(circle, #6366f1 0%, transparent 70%);
+                 animation: floatA 22s ease-in-out infinite; }
+        .orb.b { width: 560px; height: 560px; top: 40%; right: -160px;
+                 background: radial-gradient(circle, #0ea5e9 0%, transparent 70%);
+                 animation: floatB 28s ease-in-out infinite; }
+        .orb.c { width: 480px; height: 480px; bottom: -160px; left: 25%;
+                 background: radial-gradient(circle, #ec4899 0%, transparent 70%);
+                 animation: floatC 26s ease-in-out infinite; opacity: 0.4; }
+        .orb.d { width: 380px; height: 380px; top: 20%; left: 40%;
+                 background: radial-gradient(circle, #22c55e 0%, transparent 70%);
+                 animation: floatD 32s ease-in-out infinite; opacity: 0.25; }
+        @keyframes floatA { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(120px,60px) scale(1.1);} }
+        @keyframes floatB { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-100px,-80px) scale(1.05);} }
+        @keyframes floatC { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(80px,-120px) scale(1.08);} }
+        @keyframes floatD { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-140px,100px) scale(1.12);} }
+
+        /* Grain texture */
+        .grain {
+            position: fixed; inset: 0; z-index: -1; pointer-events: none;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.9'/></svg>");
+        }
+
+        /* ── Glass cards ── */
+        .glass {
+            background: rgba(255,255,255,0.65);
+            backdrop-filter: blur(18px) saturate(180%);
+            -webkit-backdrop-filter: blur(18px) saturate(180%);
+            border: 1px solid rgba(255,255,255,0.7);
+        }
+
+        /* ── Buttons ── */
+        .btn-primary {
+            position: relative; overflow: hidden;
+            background: linear-gradient(135deg,#4f46e5,#6366f1 40%,#0ea5e9);
+            background-size: 200% 200%;
+            color: white; font-weight: 600;
+            padding: 13px 24px; border-radius: 12px;
+            box-shadow: 0 10px 30px -10px rgba(79,70,229,0.6);
+            transition: transform .2s ease, box-shadow .2s ease, background-position .5s ease;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -10px rgba(79,70,229,0.7); background-position: 100% 0; }
+        .btn-primary::after {
+            content: ''; position: absolute; top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+            transition: left .7s ease;
+        }
+        .btn-primary:hover::after { left: 100%; }
+        .btn-ghost {
+            background: rgba(255,255,255,0.85);
+            color: #1e293b; font-weight: 600;
+            padding: 13px 24px; border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            transition: background .15s ease, transform .15s ease;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-ghost:hover { background: white; transform: translateY(-2px); }
+
+        /* ── Typography effects ── */
+        .gradient-text {
+            background: linear-gradient(120deg,#4f46e5 0%, #0ea5e9 50%, #ec4899 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            animation: gradientShift 8s ease-in-out infinite;
+        }
+        @keyframes gradientShift { 0%,100%{background-position:0% 50%;} 50%{background-position:100% 50%;} }
+
+        .tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 12px; font-weight: 600;
+            background: rgba(99,102,241,0.10);
+            color: #4f46e5;
+            padding: 6px 14px; border-radius: 999px;
+            border: 1px solid rgba(99,102,241,0.2);
+        }
+        .pulse-dot {
+            width: 7px; height: 7px; border-radius: 999px; background: #10b981;
+            box-shadow: 0 0 0 0 rgba(16,185,129,0.6);
+            animation: pulseDot 1.8s ease-out infinite;
+        }
+        @keyframes pulseDot {
+            0%{box-shadow:0 0 0 0 rgba(16,185,129,0.6);}
+            70%{box-shadow:0 0 0 10px rgba(16,185,129,0);}
+            100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}
+        }
+
+        /* ── Scroll reveal ── */
+        .reveal { opacity: 0; transform: translateY(32px); transition: opacity .7s cubic-bezier(.2,.8,.2,1), transform .7s cubic-bezier(.2,.8,.2,1); }
+        .reveal.in { opacity: 1; transform: none; }
+        .reveal.delay-1 { transition-delay: .1s; }
+        .reveal.delay-2 { transition-delay: .2s; }
+        .reveal.delay-3 { transition-delay: .3s; }
+        .reveal.delay-4 { transition-delay: .4s; }
+
+        /* ── Feature cards ── */
+        .feature-card {
+            background: white;
+            border: 1px solid #eef1f7;
+            border-radius: 18px;
+            padding: 26px;
+            transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease, border-color .3s ease;
+            position: relative; overflow: hidden;
+        }
+        .feature-card::before {
+            content: ''; position: absolute; inset: 0; border-radius: 18px;
+            padding: 1.5px; background: linear-gradient(135deg, transparent, transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude;
+            opacity: 0; transition: opacity .3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 30px 60px -20px rgba(15,23,42,0.18);
+        }
+        .feature-card:hover::before {
+            opacity: 1; background: linear-gradient(135deg,#6366f1,#0ea5e9,#ec4899);
+        }
+        .feature-icon {
+            width: 48px; height: 48px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 16px;
+            transition: transform .3s ease;
+        }
+        .feature-card:hover .feature-icon { transform: scale(1.08) rotate(-3deg); }
+
+        /* ── Marquee ── */
+        .marquee { overflow: hidden; position: relative; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+        .marquee-track { display: flex; gap: 48px; animation: marquee 30s linear infinite; width: max-content; }
+        @keyframes marquee { 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
+        .marquee-item { color: #64748b; font-weight: 600; font-size: 14px; white-space: nowrap; }
+
+        /* ── Floating preview panel ── */
+        .floaty { animation: floaty 6s ease-in-out infinite; }
+        @keyframes floaty { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-12px);} }
+
+        /* ── Use case ticker ── */
+        .rotate-wrap { display: inline-block; position: relative; height: 1.05em; overflow: hidden; vertical-align: bottom; }
+        .rotate-track { display: flex; flex-direction: column; animation: rotateRoles 10s steps(1) infinite; }
+        .rotate-track span { height: 1.05em; line-height: 1.05em; }
+        @keyframes rotateRoles {
+            0%,20%   { transform: translateY(0); }
+            25%,45%  { transform: translateY(-1.05em); }
+            50%,70%  { transform: translateY(-2.1em); }
+            75%,95%  { transform: translateY(-3.15em); }
+            100%     { transform: translateY(-4.2em); }
+        }
+
+        /* ── Number counter glow ── */
+        .stat-num { font-variant-numeric: tabular-nums; }
+
+        /* ── Step connector line ── */
+        .step-line {
+            position: absolute; top: 36px; left: 50%; right: -50%;
+            height: 2px;
+            background: linear-gradient(90deg, #e2e8f0 0%, #c7d2fe 50%, #e2e8f0 100%);
+        }
+        @media (max-width: 768px) { .step-line { display: none; } }
+
+        /* Subtle section divider */
+        .soft-divider { height: 1px; background: linear-gradient(90deg, transparent, #e2e8f0, transparent); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .orb, .rotate-track, .marquee-track, .floaty, .pulse-dot, .gradient-text { animation: none !important; }
+            .reveal { opacity: 1 !important; transform: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated background -->
+    <div class="bg-orbs">
+        <div class="orb a"></div>
+        <div class="orb b"></div>
+        <div class="orb c"></div>
+        <div class="orb d"></div>
+    </div>
+    <div class="grain"></div>
+
+    <!-- Nav -->
+    <header class="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between relative z-10">
+        <a href="/" class="flex items-center gap-2">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30"
+                 style="background: linear-gradient(135deg,#4f46e5,#0ea5e9);">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </div>
+            <div>
+                <div class="font-bold text-slate-900 text-lg leading-tight">Delta Filings</div>
+                <div class="text-[11px] text-slate-500 -mt-0.5">Governance Intelligence</div>
+            </div>
+        </a>
+        <nav class="hidden md:flex items-center gap-7 text-sm text-slate-600 font-medium">
+            <a href="#features" class="hover:text-slate-900 transition">Features</a>
+            <a href="#use-cases" class="hover:text-slate-900 transition">Use Cases</a>
+            <a href="/tools" class="hover:text-slate-900 transition">Tools</a>
+            <a href="/blog" class="hover:text-slate-900 transition">Blog</a>
+        </nav>
+        <div class="flex items-center gap-3">
+            <a href="/signin" class="hidden sm:inline-flex btn-ghost text-sm">Sign In</a>
+            <a href="/signup" class="btn-primary text-sm">Get Started</a>
+        </div>
+    </header>
+
+    <!-- ── HERO ── -->
+    <section class="max-w-6xl mx-auto px-6 pt-10 pb-28 text-center relative z-10">
+        <h1 class="reveal mt-6 text-5xl sm:text-7xl font-extrabold tracking-tight leading-[1.02]">
+            Track filings.<br>
+            Draft letters.<br>
+            <span class="gradient-text">Stay ahead of SEBI.</span>
+        </h1>
+        <p class="reveal delay-1 mt-7 text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            Delta Filings is the corporate governance intelligence workspace for
+            <span class="rotate-wrap font-semibold text-slate-900">
+                <span class="rotate-track">
+                    <span>analysts.</span>
+                    <span>compliance teams.</span>
+                    <span>investors.</span>
+                    <span>researchers.</span>
+                    <span>analysts.</span>
+                </span>
+            </span>
+        </p>
+        <p class="reveal delay-1 mt-3 text-slate-500 max-w-xl mx-auto">
+            Filings, compliance, AI letter drafting, price alerts on Telegram, and instant "why it moved" explanations — all in one place.
+        </p>
+        <div class="reveal delay-2 mt-10 flex items-center justify-center gap-3 flex-wrap">
+            <a href="/signup" class="btn-primary">
+                Get Started — it's free
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </a>
+            <a href="#features" class="btn-ghost">See how it works</a>
+        </div>
+
+        <!-- Floating preview panel -->
+        <div class="reveal delay-3 mt-20 floaty glass rounded-2xl p-5 sm:p-7 shadow-2xl shadow-indigo-900/20 max-w-5xl mx-auto">
+            <div class="flex items-center gap-1.5 mb-5">
+                <span class="w-3 h-3 rounded-full bg-rose-400"></span>
+                <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+                <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+                <span class="ml-3 text-[11px] font-mono text-slate-500">delta-filings.app / compliance</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-white rounded-xl border border-slate-100 p-4 text-left">
+                    <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Upcoming</div>
+                    <div class="mt-1 text-3xl font-bold text-slate-900 stat-num" data-count="22">0</div>
+                    <div class="text-[11px] text-slate-500 mt-0.5">obligations · 30d</div>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-100 p-4 text-left">
+                    <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Overdue</div>
+                    <div class="mt-1 text-3xl font-bold text-rose-600 stat-num" data-count="4">0</div>
+                    <div class="text-[11px] text-slate-500 mt-0.5">at risk now</div>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-100 p-4 text-left">
+                    <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Filings</div>
+                    <div class="mt-1 text-3xl font-bold text-indigo-600 stat-num" data-count="1248">0</div>
+                    <div class="text-[11px] text-slate-500 mt-0.5">tracked · live</div>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-100 p-4 text-left">
+                    <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Score</div>
+                    <div class="mt-1 text-3xl font-bold text-emerald-600 stat-num" data-count="94">0</div>
+                    <div class="text-[11px] text-slate-500 mt-0.5">compliance · /100</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scroll hint -->
+        <div class="mt-16 flex justify-center">
+            <div class="flex flex-col items-center gap-2 text-slate-400 text-xs">
+                <div>Scroll to explore</div>
+                <svg class="w-4 h-4 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── MARQUEE: industries ── -->
+    <section class="relative z-10 py-10 border-y border-slate-200/60 bg-white/40 backdrop-blur-sm">
+        <div class="text-center text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-5">Built for Indian listed companies</div>
+        <div class="marquee">
+            <div class="marquee-track">
+                <span class="marquee-item">📊 FMCG</span>
+                <span class="marquee-item">🏗️ Steel</span>
+                <span class="marquee-item">🏦 Banking</span>
+                <span class="marquee-item">💊 Pharma</span>
+                <span class="marquee-item">💻 IT Services</span>
+                <span class="marquee-item">⚡ Energy</span>
+                <span class="marquee-item">🚗 Auto</span>
+                <span class="marquee-item">🏢 Real Estate</span>
+                <span class="marquee-item">🛡️ Insurance</span>
+                <span class="marquee-item">🧪 Chemicals</span>
+                <!-- duplicate for seamless scroll -->
+                <span class="marquee-item">📊 FMCG</span>
+                <span class="marquee-item">🏗️ Steel</span>
+                <span class="marquee-item">🏦 Banking</span>
+                <span class="marquee-item">💊 Pharma</span>
+                <span class="marquee-item">💻 IT Services</span>
+                <span class="marquee-item">⚡ Energy</span>
+                <span class="marquee-item">🚗 Auto</span>
+                <span class="marquee-item">🏢 Real Estate</span>
+                <span class="marquee-item">🛡️ Insurance</span>
+                <span class="marquee-item">🧪 Chemicals</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── WHAT IS IT ── -->
+    <section class="max-w-6xl mx-auto px-6 py-24 relative z-10">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-14 items-center">
+            <div class="reveal">
+                <span class="tag">What is Delta Filings?</span>
+                <h2 class="mt-5 text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
+                    Your entire governance<br>stack, <span class="gradient-text">unified.</span>
+                </h2>
+                <p class="mt-5 text-slate-600 leading-relaxed text-lg">
+                    Indian listed companies produce a river of disclosures — board meetings, results, ratings,
+                    governance reports, LODR compliance. Delta Filings turns that river into
+                    <strong>signal</strong>: tracked, summarised, and matched to deadlines automatically.
+                </p>
+                <div class="mt-8 space-y-3">
+                    <div class="flex items-start gap-3">
+                        <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex-shrink-0 flex items-center justify-center mt-0.5">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-slate-900">Replace 4 tools with 1</div>
+                            <div class="text-sm text-slate-500">Filings feed, compliance trackers, DIN lookups, governance dashboards.</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex-shrink-0 flex items-center justify-center mt-0.5">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-slate-900">Zero setup</div>
+                            <div class="text-sm text-slate-500">Pick an industry — we pre-build your watchlist &amp; pull filings instantly.</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex-shrink-0 flex items-center justify-center mt-0.5">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-slate-900">AI that reads for you</div>
+                            <div class="text-sm text-slate-500">AI-powered summaries surface the "so what" of every 80-page PDF.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Illustrative mini-dashboard -->
+            <div class="reveal delay-2 relative">
+                <div class="absolute -inset-4 bg-gradient-to-br from-indigo-500/20 via-sky-500/20 to-pink-500/20 rounded-3xl blur-2xl"></div>
+                <div class="relative glass rounded-2xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Dashboard preview</div>
+                        <span class="tag" style="padding:3px 10px; font-size:10px;"><span class="pulse-dot"></span> Live</span>
+                    </div>
+                    <!-- Mini filings -->
+                    <div class="space-y-2.5">
+                        <div class="bg-white rounded-lg border border-slate-100 p-3 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-md bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">HL</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-semibold text-slate-900 truncate">Outcome of Board Meeting</div>
+                                <div class="text-[11px] text-slate-500">HINDUNILVR · 2 hours ago</div>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">NEW</span>
+                        </div>
+                        <div class="bg-white rounded-lg border border-slate-100 p-3 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-md bg-rose-100 flex items-center justify-center text-rose-600 font-bold text-xs">IT</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-semibold text-slate-900 truncate">Quarterly Financial Results</div>
+                                <div class="text-[11px] text-slate-500">ITC · Yesterday</div>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-100 text-sky-700">XBRL</span>
+                        </div>
+                        <div class="bg-white rounded-lg border border-slate-100 p-3 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-md bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-xs">NS</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-semibold text-slate-900 truncate">Credit Rating Upgrade</div>
+                                <div class="text-[11px] text-slate-500">NESTLEIND · 3 days ago</div>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">AI</span>
+                        </div>
+                    </div>
+                    <!-- Mini compliance bar -->
+                    <div class="mt-4 bg-white rounded-lg border border-slate-100 p-3">
+                        <div class="flex items-center justify-between text-xs mb-1.5">
+                            <span class="font-semibold text-slate-700">Compliance Score</span>
+                            <span class="font-bold text-emerald-600">94/100</span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full" style="width:94%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── FEATURES ── -->
+    <section id="features" class="max-w-6xl mx-auto px-6 py-20 relative z-10">
+        <div class="text-center max-w-2xl mx-auto reveal">
+            <span class="tag">Core features</span>
+            <h2 class="mt-4 text-4xl sm:text-5xl font-bold tracking-tight">Everything you need. Nothing you don't.</h2>
+            <p class="mt-4 text-slate-600 text-lg">Nine capabilities — working together in one elegant workspace.</p>
+        </div>
+
+        <div class="mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="background:#eef2ff;">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div class="font-bold text-slate-900 text-lg">Real-time Filing Tracker</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">Every NSE announcement pulled live. Smart tags, search, and "new since last visit" highlighting.</p>
+            </div>
+            <div class="feature-card reveal delay-1">
+                <div class="feature-icon" style="background:#ecfeff;">
+                    <svg class="w-6 h-6 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                </div>
+                <div class="font-bold text-slate-900 text-lg">AI Summaries</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">AI-powered one-click summaries. 80-page PDFs → 5 bullet points in seconds.</p>
+            </div>
+            <div class="feature-card reveal delay-2">
+                <div class="feature-icon" style="background:#ecfdf5;">
+                    <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <div class="font-bold text-slate-900 text-lg">Compliance</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">12+ SEBI LODR &amp; PIT mandates tracked automatically. Health score per company. Never miss a deadline.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="background:#fef9c3;">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </div>
+                <div class="font-bold text-slate-900 text-lg">Draft</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">File AI-assisted SEBI letters in your company's tone. 50+ filing types.</p>
+            </div>
+            <div class="feature-card reveal delay-1">
+                <div class="feature-icon" style="background:#fef3c7;">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                </div>
+                <div class="font-bold text-slate-900 text-lg">Live Stock Prices</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">Real-time NSE quotes, pre-open alerts, sector context — explained by recent filings.</p>
+            </div>
+            <div class="feature-card reveal delay-2">
+                <div class="feature-icon" style="background:#fff1f2;">
+                    <svg class="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                </div>
+                <div class="font-bold text-slate-900 text-lg">Price Alerts</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">Set a threshold per stock — get instant pings on your devices when it crosses.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="background:#fce7f3;">
+                    <svg class="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                </div>
+                <div class="font-bold text-slate-900 text-lg">Why It Moved</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">When a stock jumps, get an explanation that weighs company-specific news, sector chatter, India-macro mood, and global cues.</p>
+            </div>
+            <div class="feature-card reveal delay-1">
+                <div class="feature-icon" style="background:#f3e8ff;">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+                <div class="font-bold text-slate-900 text-lg">DIN Search</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">Find any director by DIN across your full watchlist — filings &amp; governance data.</p>
+            </div>
+            <div class="feature-card reveal delay-2">
+                <div class="feature-icon" style="background:#e0f2fe;">
+                    <svg class="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                </div>
+                <div class="font-bold text-slate-900 text-lg">Filing Diff Engine</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">See exactly what changed between two filings. Inline and side-by-side views.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── USE CASES ── -->
+    <section id="use-cases" class="max-w-6xl mx-auto px-6 py-24 relative z-10">
+        <div class="text-center max-w-2xl mx-auto reveal">
+            <span class="tag">Use cases</span>
+            <h2 class="mt-4 text-4xl sm:text-5xl font-bold tracking-tight">Built for the way <span class="gradient-text">you work.</span></h2>
+        </div>
+
+        <div class="mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div class="reveal glass rounded-2xl p-6 hover:-translate-y-1 transition">
+                <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-2xl mb-4">📈</div>
+                <div class="font-bold text-slate-900">Equity Analysts</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">Spot board changes, results, and ratings the moment they drop — with AI summaries to cut reading time 10×.</p>
+            </div>
+            <div class="reveal delay-1 glass rounded-2xl p-6 hover:-translate-y-1 transition">
+                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-2xl mb-4">🛡️</div>
+                <div class="font-bold text-slate-900">Compliance Teams</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">Automated LODR &amp; PIT tracking per company. Upcoming, overdue, missed — reconciled with verified metrics.</p>
+            </div>
+            <div class="reveal delay-2 glass rounded-2xl p-6 hover:-translate-y-1 transition">
+                <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-2xl mb-4">💼</div>
+                <div class="font-bold text-slate-900">Portfolio Managers</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">Watchlist-level governance score. Detect 3% price moves with "why did it move?" narratives from filings.</p>
+            </div>
+            <div class="reveal delay-3 glass rounded-2xl p-6 hover:-translate-y-1 transition">
+                <div class="w-12 h-12 rounded-xl bg-fuchsia-500/10 flex items-center justify-center text-2xl mb-4">🎓</div>
+                <div class="font-bold text-slate-900">Researchers &amp; Students</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">Track director networks across companies via DIN search. Compare governance reports across quarters.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── WHY DELTA ── -->
+    <section id="why" class="max-w-6xl mx-auto px-6 py-24 relative z-10">
+        <div class="text-center max-w-2xl mx-auto reveal">
+            <span class="tag">Why Delta Filings</span>
+            <h2 class="mt-4 text-4xl sm:text-5xl font-bold tracking-tight">The smarter way to stay compliant.</h2>
+        </div>
+
+        <div class="mt-14 grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div class="reveal glass rounded-2xl p-7">
+                <div class="text-5xl mb-3">⚡</div>
+                <div class="font-bold text-slate-900 text-lg">10× faster than manual</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">No more NSE tab-hopping. No more Excel deadline trackers. Everything live, in one place.</p>
+            </div>
+            <div class="reveal delay-1 glass rounded-2xl p-7">
+                <div class="text-5xl mb-3">🎯</div>
+                <div class="font-bold text-slate-900 text-lg">Built for Indian markets</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">SEBI LODR, PIT regulations, NSE &amp; BSE conventions — baked in. Not an afterthought.</p>
+            </div>
+            <div class="reveal delay-2 glass rounded-2xl p-7">
+                <div class="text-5xl mb-3">🔒</div>
+                <div class="font-bold text-slate-900 text-lg">Your data stays yours</div>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed">Local SQLite database, session-based auth, no third-party tracking. Keys stored on your server.</p>
+            </div>
+        </div>
+
+        <!-- Numbers strip -->
+        <div class="mt-14 reveal glass rounded-2xl p-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <div>
+                <div class="text-4xl font-extrabold gradient-text stat-num" data-count="12">0</div>
+                <div class="text-[11px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">SEBI mandates</div>
+            </div>
+            <div>
+                <div class="text-4xl font-extrabold gradient-text stat-num" data-count="5">0</div>
+                <div class="text-[11px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">Industries pre-built</div>
+            </div>
+            <div>
+                <div class="text-4xl font-extrabold gradient-text">∞</div>
+                <div class="text-[11px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">Filings tracked</div>
+            </div>
+            <div>
+                <div class="text-4xl font-extrabold gradient-text stat-num" data-count="60">0</div>
+                <div class="text-[11px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">Seconds to set up</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── HOW IT WORKS ── -->
+    <section class="max-w-6xl mx-auto px-6 py-24 relative z-10">
+        <div class="text-center max-w-2xl mx-auto reveal">
+            <span class="tag">In 60 seconds</span>
+            <h2 class="mt-4 text-4xl sm:text-5xl font-bold tracking-tight">From sign-up to insight.</h2>
+            <p class="mt-4 text-slate-600 text-lg">Four steps. No credit card.</p>
+        </div>
+
+        <div class="mt-16 grid grid-cols-1 md:grid-cols-4 gap-5 relative">
+            <div class="reveal relative">
+                <div class="step-line"></div>
+                <div class="glass rounded-2xl p-6 text-center relative z-10">
+                    <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-indigo-500/30"
+                         style="background:linear-gradient(135deg,#4f46e5,#6366f1);">1</div>
+                    <div class="font-bold text-slate-900">Sign up</div>
+                    <p class="mt-1 text-sm text-slate-600">Name, email, password.</p>
+                </div>
+            </div>
+            <div class="reveal delay-1 relative">
+                <div class="step-line"></div>
+                <div class="glass rounded-2xl p-6 text-center relative z-10">
+                    <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-sky-500/30"
+                         style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);">2</div>
+                    <div class="font-bold text-slate-900">Pick industry</div>
+                    <p class="mt-1 text-sm text-slate-600">FMCG · Steel · Banking · Pharma · IT</p>
+                </div>
+            </div>
+            <div class="reveal delay-2 relative">
+                <div class="step-line"></div>
+                <div class="glass rounded-2xl p-6 text-center relative z-10">
+                    <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-fuchsia-500/30"
+                         style="background:linear-gradient(135deg,#a855f7,#ec4899);">3</div>
+                    <div class="font-bold text-slate-900">Auto-watchlist</div>
+                    <p class="mt-1 text-sm text-slate-600">Filings &amp; compliance pre-loaded.</p>
+                </div>
+            </div>
+            <div class="reveal delay-3 relative">
+                <div class="glass rounded-2xl p-6 text-center relative z-10">
+                    <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-emerald-500/30"
+                         style="background:linear-gradient(135deg,#10b981,#22c55e);">4</div>
+                    <div class="font-bold text-slate-900">Stay ahead</div>
+                    <p class="mt-1 text-sm text-slate-600">Dashboard live. SEBI-ready.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── CTA ── -->
+    <section class="max-w-4xl mx-auto px-6 py-28 text-center relative z-10">
+        <div class="reveal">
+            <h2 class="text-5xl sm:text-6xl font-extrabold tracking-tight leading-tight">
+                Start tracking<br><span class="gradient-text">smarter today.</span>
+            </h2>
+            <p class="mt-5 text-slate-600 text-lg max-w-xl mx-auto">Your account, your watchlist, your compliance score — all live in under a minute.</p>
+            <div class="mt-10 flex items-center justify-center gap-3 flex-wrap">
+                <a href="/signup" class="btn-primary text-base">
+                    Get Started — it's free
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                </a>
+                <a href="/signin" class="btn-ghost">Sign In</a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="relative z-10 border-t border-slate-200/60 py-10 bg-white/40 backdrop-blur">
+        <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-lg flex items-center justify-center"
+                     style="background: linear-gradient(135deg,#4f46e5,#0ea5e9);">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <span>© Delta Filings · Governance Intelligence</span>
+            </div>
+            <div class="flex flex-wrap gap-6">
+                <a href="/tools" class="hover:text-slate-800 transition">Tools</a>
+                <a href="/blog" class="hover:text-slate-800 transition">Blog</a>
+                <a href="/about" class="hover:text-slate-800 transition">About</a>
+                <a href="#features" class="hover:text-slate-800 transition">Features</a>
+                <a href="/signin" class="hover:text-slate-800 transition">Sign In</a>
+                <a href="/signup" class="hover:text-slate-800 transition">Sign Up</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ── Scroll-reveal observer ──
+        const io = new IntersectionObserver((entries) => {
+            for (const e of entries) {
+                if (e.isIntersecting) {
+                    e.target.classList.add('in');
+                    io.unobserve(e.target);
+                }
+            }
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+        document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+        // ── Number counters ──
+        const numObs = new IntersectionObserver((entries) => {
+            for (const e of entries) {
+                if (!e.isIntersecting) continue;
+                const el = e.target;
+                const target = parseInt(el.dataset.count, 10);
+                if (isNaN(target)) { numObs.unobserve(el); continue; }
+                const duration = 1400;
+                const start = performance.now();
+                const ease = t => 1 - Math.pow(1 - t, 3);
+                const tick = (now) => {
+                    const t = Math.min(1, (now - start) / duration);
+                    el.textContent = Math.round(target * ease(t)).toLocaleString();
+                    if (t < 1) requestAnimationFrame(tick);
+                };
+                requestAnimationFrame(tick);
+                numObs.unobserve(el);
+            }
+        }, { threshold: 0.3 });
+        document.querySelectorAll('.stat-num').forEach(el => numObs.observe(el));
+
+        // ── Parallax orbs on scroll ──
+        const orbs = document.querySelectorAll('.orb');
+        let lastY = 0, ticking = false;
+        window.addEventListener('scroll', () => {
+            lastY = window.scrollY;
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    orbs.forEach((o, i) => {
+                        const speed = (i + 1) * 0.05;
+                        o.style.translate = `0 ${-lastY * speed}px`;
+                    });
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        }, { passive: true });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delta Filings — Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Ambient dashboard background — soft tinted gradient washes so the
+           white content cards pop instead of floating on flat white. */
+        .dash-main {
+            background:
+                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.13), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.11), transparent 55%),
+                radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.09), transparent 55%),
+                linear-gradient(180deg, #f6f7fc 0%, #eef1fb 100%);
+            background-attachment: fixed;
+        }
+        html.dark .dash-main {
+            background:
+                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.20), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.14), transparent 55%),
+                radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.11), transparent 55%),
+                #0a0a0a;
+            background-attachment: fixed;
+        }
+
+        /* ── Redesign: reveal animations ── */
+        @keyframes dashUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .reveal { opacity: 0; }
+        .reveal.in { animation: dashUp .6s cubic-bezier(.22,.61,.36,1) forwards; }
+        .reveal.d1{animation-delay:.04s}.reveal.d2{animation-delay:.09s}.reveal.d3{animation-delay:.14s}
+        .reveal.d4{animation-delay:.19s}.reveal.d5{animation-delay:.24s}.reveal.d6{animation-delay:.29s}
+        @media (prefers-reduced-motion: reduce){ .reveal{opacity:1!important;animation:none!important} }
+
+        /* ── Hero band ── */
+        .dash-hero {
+            position: relative; overflow: hidden;
+            border-radius: 24px; padding: 34px 36px 92px; color: #fff;
+            background: linear-gradient(115deg, #312e81 0%, #4338ca 32%, #6366f1 64%, #0ea5e9 100%);
+            box-shadow: 0 30px 70px -34px rgba(67,56,202,.7);
+        }
+        .kpi-row { margin-top: -58px; position: relative; z-index: 5; }
+        .dash-hero::after {
+            content:''; position:absolute; inset:0; pointer-events:none;
+            background: radial-gradient(560px 220px at 88% -30%, rgba(255,255,255,.28), transparent 60%);
+        }
+        .dash-hero .hero-orb {
+            position:absolute; border-radius:50%; filter:blur(42px); opacity:.5; pointer-events:none;
+        }
+        .hero-chip {
+            background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28);
+            backdrop-filter: blur(6px); border-radius: 999px;
+        }
+        .hero-btn {
+            background:#fff; color:#4338ca; border-radius:12px; font-weight:600;
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+        .hero-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -12px rgba(0,0,0,.45); }
+        .hero-btn-ghost {
+            background: rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.35);
+            border-radius:12px; font-weight:600; transition: background .18s ease, transform .18s ease;
+        }
+        .hero-btn-ghost:hover { background: rgba(255,255,255,.26); transform: translateY(-2px); }
+
+        /* ── KPI cards ── */
+        .kpi { position:relative; overflow:hidden; background:#fff; border:1px solid #eef0f4;
+               border-radius:20px; padding:20px; box-shadow: 0 12px 34px -18px rgba(15,23,42,.28);
+               transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+        .kpi:hover { transform: translateY(-3px); box-shadow: 0 22px 48px -22px rgba(15,23,42,.42); border-color: rgba(99,102,241,.35); }
+        .kpi-accent { position:absolute; top:0; left:0; right:0; height:3px; }
+        .kpi-icon { width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; }
+        .kpi-num { font-size:2rem; font-weight:800; line-height:1; letter-spacing:-.02em; }
+        html.dark .kpi { background:#141414; border-color:#262626; }
+
+        /* ── Section + chart + guide cards ── */
+        .sec-title { font-size:.7rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#94a3b8; }
+        .panel { background:#fff; border:1px solid #eef0f4; border-radius:22px; }
+        html.dark .panel { background:#141414; border-color:#262626; }
+        .guide-item { transition: transform .18s ease, background .18s ease; border-radius:14px; }
+        .guide-item:hover { transform: translateY(-2px); }
+
+        /* ── Gradient KPI cards ── */
+        .gkpi { position:relative; overflow:hidden; border-radius:20px; padding:22px 22px 20px; color:#fff;
+                box-shadow:0 16px 40px -20px rgba(15,23,42,.45); transition:transform .2s ease, box-shadow .2s ease; }
+        .gkpi:hover { transform:translateY(-4px); box-shadow:0 26px 54px -22px rgba(15,23,42,.55); }
+        .gkpi-amber  { background:linear-gradient(135deg,#4f46e5,#6366f1); }
+        .gkpi-violet { background:linear-gradient(135deg,#2563eb,#0ea5e9); }
+        .gkpi-dark   { background:linear-gradient(135deg,#1e1b4b,#3730a3); }
+        .gkpi-label { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; opacity:.9; }
+        .gkpi-num   { font-size:2.15rem; font-weight:800; line-height:1.1; margin-top:8px; letter-spacing:-.02em; }
+        .gkpi-sub   { font-size:.72rem; opacity:.82; margin-top:5px; }
+        .gkpi-spark { position:absolute; top:18px; right:18px; width:22px; height:22px; opacity:.55; }
+
+        /* ── Segmented tabs (rank panel + overview) ── */
+        .seg-tabs { display:inline-flex; gap:2px; padding:4px; background:#f1f5f9; border-radius:12px; }
+        html.dark .seg-tabs { background:#1f1f1f; }
+        .seg-tab { border:none; background:transparent; cursor:pointer; font-size:12px; font-weight:600;
+                   color:#64748b; padding:6px 14px; border-radius:9px; transition:all .2s ease; white-space:nowrap; }
+        .seg-tab:hover { color:#0f172a; }
+        html.dark .seg-tab:hover { color:#f5f5f5; }
+        .seg-tab.active { background:#fff; color:#4f46e5; box-shadow:0 1px 3px rgba(15,23,42,.12); }
+        html.dark .seg-tab.active { background:#0a0a0a; color:#a5b4fc; }
+
+        /* ── Rank rows + overview table ── */
+        .rank-group { font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; margin-bottom:2px; padding:0 4px; }
+        .rank-row { display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:12px;
+                    transition:background .15s ease, transform .15s ease; text-decoration:none; }
+        .rank-row:hover { background:#f8fafc; transform:translateX(2px); }
+        html.dark .rank-row:hover { background:#1c1c1c; }
+        .ov-row { transition:background .15s ease; cursor:pointer; }
+        .ov-row:hover { background:#f8fafc; }
+        html.dark .ov-row:hover { background:#1c1c1c; }
+        .ov-row td, .ov-head th { border-bottom:1px solid #f1f5f9; }
+        html.dark .ov-row td, html.dark .ov-head th { border-bottom-color:#1f1f1f; }
+
+        /* ════════════════════════════════════════════════
+           DISCLOSURE ACTIVITY — dot-matrix chart
+           Stacked dots per day (Actual). Hovered day reveals
+           the AI Projected overlay as indigo dots on top.
+           ════════════════════════════════════════════════ */
+        .da-seg { display:inline-flex; gap:2px; padding:3px; background:#f1f5f9; border-radius:10px; }
+        html.dark .da-seg { background:#1f1f1f; }
+        .da-seg-btn { border:none; background:transparent; cursor:pointer;
+            font-size:11.5px; font-weight:600; color:#64748b;
+            padding:5px 11px; border-radius:7px;
+            transition: background .2s ease, color .2s ease; }
+        .da-seg-btn:hover { color:#0f172a; }
+        .da-seg-btn.active { background:#fff; color:#4f46e5;
+            box-shadow:0 1px 3px rgba(15,23,42,0.10); }
+        html.dark .da-seg-btn.active { background:#0a0a0a; color:#a5b4fc; }
+
+        .da-legend-dot { width:9px; height:9px; border-radius:50%;
+            box-shadow: 0 0 0 3px rgba(255,255,255,1), 0 0 0 4px rgba(15,23,42,0.04); }
+        html.dark .da-legend-dot { box-shadow: 0 0 0 3px #0a0a0a, 0 0 0 4px rgba(255,255,255,0.06); }
+
+        .da-insight {
+            display:flex; align-items:flex-start; gap:9px;
+            padding:12px 13px; border-radius:14px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(14,165,233,0.05));
+            border:1px solid rgba(99,102,241,0.16);
+        }
+        html.dark .da-insight {
+            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(14,165,233,0.08));
+            border-color: rgba(99,102,241,0.30);
+        }
+
+        .da-run-btn {
+            position: relative;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color:#fff; font-weight:700; font-size:13px;
+            padding:12px 16px; border-radius:14px; border:none; cursor:pointer;
+            box-shadow: 0 10px 22px -10px rgba(99,102,241,0.55);
+            transition: transform .2s ease, box-shadow .2s ease;
+            overflow: hidden;
+        }
+        .da-run-btn:hover { transform: translateY(-1px);
+            box-shadow: 0 14px 28px -10px rgba(99,102,241,0.65); }
+        .da-run-btn:active { transform: translateY(0); }
+        .da-run-btn::before {
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(120deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%);
+            transform: translateX(-100%);
+            transition: transform .7s ease;
+            pointer-events: none;
+        }
+        .da-run-btn:hover::before { transform: translateX(100%); }
+
+        /* ── The matrix itself ──
+           Architecture:
+             .da-matrix (host)
+               └── .da-chart (position:relative; sized container)
+                    ├── .da-y-labels   (absolute, left strip)
+                    ├── .da-grid-line  (absolute, full-width dashed lines)
+                    └── .da-cols       (absolute, flex row of columns)
+                         └── .da-col (relative; dots positioned absolutely
+                                      so they line up with the y-scale)
+        */
+        .da-matrix { position: relative; }
+        .da-chart {
+            position: relative;
+            height: 300px;
+            padding-left: 36px;
+            padding-bottom: 36px;
+        }
+        .da-y-labels {
+            position: absolute; left: 0; top: 0; bottom: 36px; width: 30px;
+            pointer-events: none;
+        }
+        .da-y-label {
+            position: absolute; right: 6px;
+            transform: translateY(50%);
+            font-size: 10px; line-height: 1; color: #94a3b8; font-weight: 600;
+            white-space: nowrap;
+        }
+        html.dark .da-y-label { color:#737373; }
+        .da-grid-line {
+            position: absolute; left: 36px; right: 8px;
+            height: 1px;
+            background: repeating-linear-gradient(to right, #e2e8f0 0 4px, transparent 4px 8px);
+            pointer-events: none;
+        }
+        html.dark .da-grid-line { background: repeating-linear-gradient(to right, #2a2a2a 0 4px, transparent 4px 8px); }
+
+        .da-cols {
+            position: absolute;
+            left: 36px; right: 8px;
+            top: 8px; bottom: 36px;
+            display: flex; gap: 3px;
+        }
+        .da-col {
+            flex: 1; position: relative; min-width: 0; cursor: pointer;
+        }
+
+        .da-dot {
+            position: absolute; left: 50%;
+            width: 10px; height: 10px; border-radius: 50%;
+            transform: translate(-50%, 50%);
+            transition: background .2s ease, opacity .25s ease, transform .25s cubic-bezier(.22,.61,.36,1);
+            will-change: transform, opacity;
+        }
+        /* Faint placeholder grid — gives every day visual presence even when filings are 0. */
+        .da-dot.bg {
+            background: rgba(148,163,184,0.18);
+            width: 5px; height: 5px;
+        }
+        html.dark .da-dot.bg { background: rgba(120,120,120,0.22); }
+        /* Actual filings — green, fade in left→right */
+        .da-dot.fill {
+            background: rgba(16,185,129,0.92);
+            box-shadow: 0 0 0 2px rgba(16,185,129,0.10);
+            opacity: 0; transform: translate(-50%, 50%) scale(.4);
+        }
+        .da-dot.fill.in { opacity: 1; transform: translate(-50%, 50%); }
+        /* AI projected overlay — indigo, only on active/hovered column */
+        .da-dot.proj {
+            background: rgba(99,102,241,0.95);
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
+            opacity: 0; transform: translate(-50%, 50%) scale(.4);
+        }
+        .da-col:hover .da-dot.fill { background:#10b981; box-shadow: 0 0 0 2px rgba(16,185,129,0.18); }
+        .da-col.active .da-dot.proj { opacity: 1; transform: translate(-50%, 50%) scale(1); }
+        .da-col.active .da-dot.fill { background:#059669; transform: translate(-50%, 50%) scale(1.08); }
+        .da-col.active .da-dot.bg { opacity: 0; }
+
+        /* When one column is pinned/active, others mute slightly. */
+        .da-chart.has-active .da-col:not(.active) .da-dot.fill { opacity: 0.42; }
+        .da-chart.has-active .da-col:not(.active) .da-dot.bg   { opacity: 0.50; }
+
+        .da-col-label {
+            position: absolute; left: 50%; bottom: -24px; transform: translateX(-50%);
+            font-size: 10px; color: #94a3b8; font-weight: 600;
+            white-space: nowrap; transition: color .18s ease, bottom .2s ease;
+        }
+        .da-col.active .da-col-label {
+            color: #fff;
+            background: linear-gradient(135deg,#4f46e5,#7c3aed);
+            padding: 3px 9px; border-radius: 999px; bottom: -29px;
+            box-shadow: 0 6px 14px -4px rgba(99,102,241,0.45);
+        }
+
+        /* Floating tooltip */
+        .da-tooltip {
+            position: absolute; top: 6px; right: 6px; z-index: 5;
+            min-width: 170px; padding: 12px 14px; border-radius: 14px;
+            background: #ffffff; border: 1px solid #e2e8f0;
+            box-shadow: 0 14px 30px -10px rgba(15,23,42,0.18);
+            font-size: 12.5px; color: #334155;
+            opacity: 0; transform: translateY(-4px); pointer-events: none;
+            transition: opacity .2s ease, transform .2s ease;
+        }
+        html.dark .da-tooltip { background:#141414; border-color:#262626; color:#e2e8f0; }
+        .da-tooltip.visible { opacity: 1; transform: none; }
+        .da-tt-row { display:flex; justify-content:space-between; gap:14px; }
+        .da-tt-row + .da-tt-row { margin-top: 4px; }
+        .da-tt-key { color: #64748b; font-weight: 500; }
+        .da-tt-val { color: #0f172a; font-weight: 800; }
+        html.dark .da-tt-val { color: #f5f5f5; }
+        .da-tt-head {
+            font-size: 11px; font-weight: 700; color: #4f46e5;
+            text-transform: uppercase; letter-spacing: .06em;
+            margin-bottom: 6px;
+        }
+
+        /* Dashed connector marker (y-line pointing to projected value) */
+        .da-marker {
+            position: absolute; top: 0; height: 0;
+            border-top: 1.5px dashed rgba(99,102,241,0.55);
+            opacity: 0; pointer-events: none;
+            transition: opacity .2s ease;
+        }
+        .da-marker.visible { opacity: 1; }
+        .da-marker-pill {
+            position: absolute; left: -6px; top: -11px;
+            transform: translate(-100%, 0);
+            background: linear-gradient(135deg,#4f46e5,#7c3aed); color: white;
+            font-size: 10.5px; font-weight: 700;
+            padding: 3px 9px; border-radius: 999px;
+            box-shadow: 0 6px 14px -4px rgba(99,102,241,0.45);
+            white-space: nowrap;
+        }
+
+        /* ════════════════════════════════════════════════
+           DISCLOSURE ACTIVITY — Expand button + detail modal
+           ════════════════════════════════════════════════ */
+        .da-expand-btn {
+            width: 32px; height: 32px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 9px;
+            background: #f1f5f9;
+            color: #475569; border: none; cursor: pointer;
+            transition: transform .2s ease, background .2s ease, color .2s ease;
+        }
+        .da-expand-btn:hover { background: #e2e8f0; color: #0f172a; transform: translateY(-1px); }
+        html.dark .da-expand-btn { background: #1f1f1f; color: #a3a3a3; }
+        html.dark .da-expand-btn:hover { background: #2a2a2a; color: #f5f5f5; }
+        .da-expand-btn svg { width: 15px; height: 15px; }
+
+        /* Overlay */
+        .da-detail-overlay {
+            position: fixed; inset: 0; z-index: 100;
+            background: rgba(15,23,42,0.50);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px;
+            opacity: 0; pointer-events: none;
+            transition: opacity .22s ease;
+        }
+        .da-detail-overlay.open { opacity: 1; pointer-events: auto; }
+
+        .da-detail-card {
+            background: #ffffff;
+            width: 100%; max-width: 980px; max-height: 88vh;
+            border-radius: 20px;
+            box-shadow: 0 40px 80px -25px rgba(15,23,42,0.35);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            transform: translateY(20px) scale(.97); opacity: 0;
+            transition: transform .35s cubic-bezier(.22,.61,.36,1), opacity .25s ease;
+        }
+        html.dark .da-detail-card { background: #0f0f0f; box-shadow: 0 50px 100px -30px rgba(0,0,0,.8); }
+        .da-detail-overlay.open .da-detail-card { transform: none; opacity: 1; }
+
+        /* ── Header ── */
+        .da-detail-header {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 22px 24px 18px;
+        }
+        .da-detail-title {
+            font-size: 19px; font-weight: 800; color: #0f172a;
+            letter-spacing: -0.02em; line-height: 1.2;
+        }
+        html.dark .da-detail-title { color: #f5f5f5; }
+        .da-detail-meta {
+            font-size: 12.5px; color: #64748b; margin-top: 4px; line-height: 1.5;
+        }
+        .da-detail-meta span { color: #334155; font-weight: 600; }
+        html.dark .da-detail-meta { color: #a3a3a3; }
+        html.dark .da-detail-meta span { color: #f5f5f5; }
+        .da-detail-close {
+            width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            color: #64748b; background: transparent; border: none; cursor: pointer;
+            transition: background .15s ease, color .15s ease, transform .2s ease;
+        }
+        .da-detail-close:hover { background:#f1f5f9; color:#0f172a; transform: rotate(90deg); }
+        html.dark .da-detail-close:hover { background:#1f1f1f; color:#f5f5f5; }
+
+        /* ── Toolbar (search + sort + filter toggle) ── */
+        .da-toolbar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 0 24px 16px;
+            flex-wrap: wrap;
+        }
+        .da-search-wrap { position: relative; flex: 1; min-width: 240px; }
+        .da-search-icon {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            width: 15px; height: 15px; color: #94a3b8; pointer-events: none;
+        }
+        #da-detail-search {
+            width: 100%; padding: 9px 12px 9px 34px;
+            font-size: 13px; font-weight: 500;
+            background: #f8fafc; border: 1px solid transparent; border-radius: 10px;
+            outline: none; color: #0f172a;
+            transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+        }
+        #da-detail-search::placeholder { color: #94a3b8; font-weight: 400; }
+        #da-detail-search:focus {
+            background: #ffffff; border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99,102,241,.10);
+        }
+        html.dark #da-detail-search { background:#161616; color:#f5f5f5; }
+        html.dark #da-detail-search:focus { background:#0a0a0a; border-color:#6366f1; }
+
+        #da-detail-sort {
+            padding: 8px 26px 8px 12px; font-size: 12.5px; font-weight: 600;
+            background-color: #f8fafc; color: #334155;
+            border: 1px solid transparent; border-radius: 10px;
+            outline: none; cursor: pointer;
+            background-image:
+                url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            appearance: none; -webkit-appearance: none;
+            transition: background-color .15s ease;
+        }
+        #da-detail-sort:hover { background-color: #eef1f7; }
+        html.dark #da-detail-sort { background-color:#161616; color:#e2e8f0; }
+
+        .da-tool-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 12px; font-size: 12.5px; font-weight: 600;
+            background: #f8fafc; color: #334155;
+            border: 1px solid transparent; border-radius: 10px; cursor: pointer;
+            transition: background .15s ease, color .15s ease;
+        }
+        .da-tool-btn:hover { background: #eef1f7; color: #0f172a; }
+        .da-tool-btn svg { width: 14px; height: 14px; }
+        .da-tool-btn[aria-expanded="true"] {
+            background: rgba(99,102,241,0.08); color: #4f46e5;
+        }
+        .da-tool-btn-ghost { background: transparent; color: #ef4444; }
+        .da-tool-btn-ghost:hover { background: #fef2f2; color: #dc2626; }
+        html.dark .da-tool-btn { background:#161616; color:#a3a3a3; }
+        html.dark .da-tool-btn:hover { background:#1f1f1f; color:#f5f5f5; }
+        html.dark .da-tool-btn-ghost { background:transparent; color:#f87171; }
+
+        .da-tool-badge {
+            font-size: 10px; font-weight: 700;
+            min-width: 18px; padding: 0 6px; height: 18px;
+            border-radius: 999px;
+            background: #4f46e5; color: #fff;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+
+        /* ── Chips drawer (collapsible) ── */
+        .da-chips-drawer {
+            padding: 4px 24px 14px;
+            display: flex; flex-direction: column; gap: 10px;
+            animation: drawerIn .25s cubic-bezier(.22,.61,.36,1);
+        }
+        @keyframes drawerIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+        .da-chip-group { display: flex; align-items: flex-start; gap: 12px; }
+        .da-chip-group-label {
+            flex-shrink: 0; width: 64px;
+            font-size: 10px; font-weight: 700;
+            color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em;
+            padding-top: 7px;
+        }
+        .da-chip-row {
+            display: flex; gap: 5px; flex-wrap: wrap; flex: 1;
+            max-height: 76px; overflow-y: auto;
+        }
+        .da-chip-row::-webkit-scrollbar { width: 0; height: 0; }
+        .da-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 10px;
+            font-size: 11.5px; font-weight: 600; color: #64748b;
+            background: #f1f5f9; border: 1px solid transparent; border-radius: 999px;
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease;
+            white-space: nowrap;
+        }
+        .da-chip:hover { background: #e2e8f0; color: #0f172a; }
+        .da-chip.active {
+            background: #4f46e5; color: #fff;
+        }
+        html.dark .da-chip { background:#1c1c1c; color:#a3a3a3; }
+        html.dark .da-chip:hover { background:#262626; color:#f5f5f5; }
+        .da-chip-count {
+            font-size: 10px; font-weight: 700;
+            color: #94a3b8;
+        }
+        .da-chip.active .da-chip-count { color: rgba(255,255,255,0.75); }
+
+        /* ── Active filter pills (selected company/tag/day) ── */
+        .da-active-pills {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            padding: 0 24px 14px;
+        }
+        .da-active-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 6px 4px 11px;
+            font-size: 11.5px; font-weight: 600; color: #4f46e5;
+            background: rgba(99,102,241,0.10);
+            border-radius: 999px;
+            animation: pillIn .2s ease;
+        }
+        @keyframes pillIn { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: none; } }
+        .da-active-pill .da-active-pill-key {
+            color: #64748b; font-weight: 500; text-transform: lowercase;
+        }
+        .da-active-pill button {
+            border: none; background: transparent; padding: 2px;
+            color: #6366f1; cursor: pointer; border-radius: 999px;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: background .15s ease;
+        }
+        .da-active-pill button:hover { background: rgba(99,102,241,0.20); }
+
+        /* ── Body — grouped list ── */
+        .da-detail-body {
+            flex: 1; overflow-y: auto;
+            padding: 4px 24px 24px;
+            border-top: 1px solid #f1f5f9;
+        }
+        html.dark .da-detail-body { border-top-color: #1a1a1a; }
+        .da-date-group { margin-bottom: 8px; }
+        .da-date-group:last-child { margin-bottom: 0; }
+        .da-date-head {
+            position: sticky; top: 0; z-index: 2;
+            background: rgba(255,255,255,0.94);
+            backdrop-filter: blur(8px);
+            display: flex; align-items: baseline; gap: 10px;
+            padding: 14px 0 8px;
+            font-size: 11px; font-weight: 700; color: #64748b;
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        html.dark .da-date-head { background: rgba(15,15,15,0.94); color:#a3a3a3; }
+        .da-date-head .da-date-count {
+            font-size: 10px; color: #94a3b8;
+            font-weight: 600; text-transform: none; letter-spacing: 0;
+        }
+
+        .da-filing-row {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 12px 0;
+            text-decoration: none;
+            transition: background .12s ease, padding-left .15s ease, padding-right .15s ease;
+            border-bottom: 1px solid #f5f7fb;
+            border-radius: 0;
+        }
+        .da-filing-row:last-child { border-bottom: none; }
+        .da-filing-row:hover { background: #f8fafc; padding-left: 10px; padding-right: 10px; border-radius: 10px; border-bottom-color: transparent; }
+        html.dark .da-filing-row { border-bottom-color: #1a1a1a; }
+        html.dark .da-filing-row:hover { background: #161616; }
+
+        .da-filing-time {
+            font-size: 11.5px; color: #94a3b8; font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            min-width: 46px; padding-top: 2px;
+        }
+        .da-filing-company {
+            display: inline-block;
+            font-size: 10.5px; font-weight: 700; color: #4f46e5;
+            background: rgba(99,102,241,0.10);
+            padding: 2px 8px; border-radius: 5px;
+            margin-right: 8px;
+            letter-spacing: 0.02em;
+        }
+        .da-filing-title {
+            font-size: 13.5px; font-weight: 600; color: #0f172a;
+            line-height: 1.45;
+        }
+        html.dark .da-filing-title { color:#f5f5f5; }
+        .da-filing-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .da-filing-tag {
+            font-size: 10px; font-weight: 600;
+            padding: 1px 7px; border-radius: 4px;
+            background: #f1f5f9; color: #64748b;
+        }
+        html.dark .da-filing-tag { background: #1c1c1c; color: #a3a3a3; }
+        .da-filing-arrow {
+            color: #cbd5e1; flex-shrink: 0; padding-top: 4px;
+            transition: transform .15s ease, color .15s ease;
+        }
+        .da-filing-row:hover .da-filing-arrow { color:#4f46e5; transform: translateX(3px); }
+
+        /* Empty state */
+        .da-empty {
+            text-align: center; padding: 60px 20px;
+            color: #94a3b8; font-size: 13px;
+        }
+        .da-empty-icon {
+            width: 52px; height: 52px; margin: 0 auto 14px;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #94a3b8;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        html.dark .da-empty-icon { background:#1c1c1c; }
+
+        /* Mobile tightening */
+        @media (max-width: 720px) {
+            .da-detail-card { max-height: 100vh; border-radius: 0; }
+            .da-detail-overlay { padding: 0; }
+            .da-detail-header { padding: 18px 18px 14px; }
+            .da-toolbar { padding: 0 18px 14px; }
+            .da-chips-drawer, .da-active-pills, .da-detail-body { padding-left: 18px; padding-right: 18px; }
+            .da-chip-group { flex-direction: column; gap: 4px; }
+            .da-chip-group-label { padding-top: 0; }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+
+    {% set active_page = 'dashboard' %}
+    {% include 'sidebar.html' %}
+
+    <!-- Main -->
+    <main class="flex-1 overflow-y-auto dash-main">
+        {% set first_name = (current_user.name.split(' ')[0] if current_user and current_user.name else '') %}
+        <div class="p-8 space-y-6">
+
+            <!-- ── Welcome ──────────────────────────────────────────── -->
+            <div class="reveal flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                        Welcome back{% if first_name %}, {{ first_name }}{% endif %}
+                    </h1>
+                    <p class="text-sm text-slate-500 mt-1">A complete view of your watchlist, disclosures and compliance — at a glance.</p>
+                </div>
+                <a href="/prices" class="hidden sm:inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700">
+                    Open live prices
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </a>
+            </div>
+
+            <!-- ── Top grid: gradient KPIs + activity chart (left) · movers (right) ── -->
+            <div class="grid lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="gkpi gkpi-amber reveal">
+                            <svg class="gkpi-spark" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2l2.4 6.6L20 11l-6.6 2.4L11 20l-2.4-6.6L2 11l6.6-2.4z"/></svg>
+                            <p class="gkpi-label">Filings tracked</p>
+                            <p class="gkpi-num">{{ '{:,}'.format(total_filings) }}</p>
+                            <p class="gkpi-sub">Across {{ companies|length }} companies</p>
+                        </div>
+                        <div class="gkpi gkpi-violet reveal">
+                            <svg class="gkpi-spark" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2l2.4 6.6L20 11l-6.6 2.4L11 20l-2.4-6.6L2 11l6.6-2.4z"/></svg>
+                            <p class="gkpi-label">New this week</p>
+                            <p class="gkpi-num">{{ filings_this_week }}</p>
+                            <p class="gkpi-sub">Disclosures, last 7 days</p>
+                        </div>
+                        <div class="gkpi gkpi-dark reveal">
+                            <svg class="gkpi-spark" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2l2.4 6.6L20 11l-6.6 2.4L11 20l-2.4-6.6L2 11l6.6-2.4z"/></svg>
+                            <p class="gkpi-label">Companies watched</p>
+                            <p class="gkpi-num">{{ companies|length }}</p>
+                            <p class="gkpi-sub">{{ user_industry }} sector</p>
+                        </div>
+                    </div>
+
+                    <div class="panel p-6 reveal" id="disclosure-activity-panel">
+                        <!-- Header -->
+                        <div class="flex items-start justify-between flex-wrap gap-3 mb-5">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">Disclosure Activity</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">
+                                    Actual filings vs day-of-week baseline across your watchlist
+                                    {% if activity_freshness_label %}
+                                    · <span class="text-slate-500">data through {{ activity_freshness_label }}</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="da-seg" id="da-range">
+                                    <button class="da-seg-btn" data-range="14">14d</button>
+                                    <button class="da-seg-btn active" data-range="30">30d</button>
+                                    <button class="da-seg-btn" data-range="60">60d</button>
+                                </div>
+                                <button type="button" class="da-expand-btn" onclick="openDaDetail()" title="Expand — see every filing">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+                                    </svg>
+                                </button>
+                                {% if activity_stale_days is not none and activity_stale_days > 7 %}
+                                <span class="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg flex items-center gap-1.5" title="The cached feed hasn't seen a new filing in {{ activity_stale_days }} days. Refresh your watchlist to repull.">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                    Cache {{ activity_stale_days }}d stale
+                                </span>
+                                {% elif activity_stale_days == 0 %}
+                                <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">Filed today</span>
+                                {% elif activity_stale_days is not none %}
+                                <span class="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg hidden sm:inline">Last filing {{ activity_stale_days }}d ago</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            <!-- ── Left rail: legend + AI insight + CTA ── -->
+                            <div class="md:col-span-1 flex flex-col gap-4 order-2 md:order-1">
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                        <span class="da-legend-dot" style="background:#10b981"></span> Actual
+                                    </div>
+                                    <div class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                        <span class="da-legend-dot" style="background:#6366f1"></span>
+                                        Day-of-week baseline
+                                        <span class="text-[10px] font-medium text-slate-400" title="Average filings on the same weekday across this window. Shown on hover/click.">ⓘ</span>
+                                    </div>
+                                </div>
+                                <div class="da-insight">
+                                    <svg class="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    <p class="text-xs text-slate-700 leading-relaxed" id="da-insight-text">
+                                        {% if activity_total and activity_total > 0 %}
+                                            {{ busiest_day_name }} is your busiest filing day across the window (avg {{ busiest_day_avg }}/day). Plan reviews around it.
+                                        {% elif activity_stale_days is not none %}
+                                            No fresh filings in the last 60 days — the cache is {{ activity_stale_days }} days behind. Refresh your watchlist to repull from NSE/BSE.
+                                        {% else %}
+                                            No filings cached yet. Add a company to your watchlist to start tracking activity.
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <button type="button" id="da-run-btn" class="da-run-btn mt-auto"
+                                        onclick="runDisclosureAnalysis()">
+                                    <span class="da-run-label">Run Analysis</span>
+                                </button>
+                            </div>
+
+                            <!-- ── Right: dot-matrix chart ── -->
+                            <div class="md:col-span-3 relative order-1 md:order-2">
+                                <div id="da-matrix" class="da-matrix"></div>
+                                <div id="da-tooltip" class="da-tooltip" role="tooltip" aria-hidden="true"></div>
+                                <div id="da-marker"  class="da-marker"  aria-hidden="true"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: today's movers + sector pulse (sharing the same card) -->
+                <div class="panel p-5 reveal flex flex-col">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-slate-800">Today's movers</h3>
+                        <a href="/prices" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-700">All prices &rarr;</a>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5 mb-3">Biggest gains &amp; drops across your watchlist</p>
+                    <div id="rank-list">
+                        <div class="flex items-center gap-3 text-gray-400 py-6"><div class="spinner"></div><span class="text-sm">Fetching live prices&hellip;</span></div>
+                    </div>
+
+                    <!-- ── Sector pulse (moved inside the movers card) ── -->
+                    <div class="mt-5 pt-5 border-t border-slate-100 flex-1 flex flex-col">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                <h3 class="text-sm font-bold text-slate-800">{{ user_industry }} sector pulse</h3>
+                            </div>
+                            <a href="/industry/{{ user_industry|urlencode }}" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-700">Full briefing &rarr;</a>
+                        </div>
+                        <div id="industry-pulse" class="text-[13px] text-gray-700 leading-relaxed flex-1">
+                            <div class="flex items-center gap-3 text-gray-400 py-2"><div class="spinner"></div><span class="text-sm">Loading sector pulse&hellip;</span></div>
+                        </div>
+                        <p id="industry-pulse-status" class="text-[10px] text-gray-400 mt-2"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Watchlist overview table ─────────────────────────── -->
+            <div class="panel reveal overflow-hidden">
+                <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">Watchlist overview</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Live price &amp; filing volume for every tracked company</p>
+                    </div>
+                    <div class="seg-tabs">
+                        <button class="seg-tab active" data-ov="all" onclick="setOvTab(this,'all')">All</button>
+                        <button class="seg-tab" data-ov="gainers" onclick="setOvTab(this,'gainers')">Gainers</button>
+                        <button class="seg-tab" data-ov="losers" onclick="setOvTab(this,'losers')">Losers</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="ov-head">
+                            <tr class="text-left text-[10px] uppercase tracking-wider text-slate-400">
+                                <th class="px-6 py-3 font-bold">Company</th>
+                                <th class="px-4 py-3 font-bold text-right">Price</th>
+                                <th class="px-4 py-3 font-bold text-right">Change</th>
+                                <th class="px-4 py-3 font-bold text-right hidden md:table-cell">Day range</th>
+                                <th class="px-6 py-3 font-bold text-right">Filings</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overview-body">
+                            <tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 text-sm">Loading live data&hellip;</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Quick Access Feature Cards -->
+            <div class="reveal">
+                <h3 class="sec-title mb-1">Explore your workspace</h3>
+                <p class="text-xs text-gray-400 mb-3">New here? Each section below is a tool — open any to dive in.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 reveal">
+                <a href="/prices" class="feature-card feature-card-green">
+                    <div class="feature-icon bg-emerald-100">
+                        <svg fill="none" stroke="#10b981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    </div>
+                    <h3>Stock Prices</h3>
+                    <p>Live prices, 3% alerts, sector analysis &amp; pre-open data</p>
+                    <svg class="feature-arrow w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </a>
+
+                <a href="/din-search" class="feature-card feature-card-purple">
+                    <div class="feature-icon bg-purple-100">
+                        <svg fill="none" stroke="#8b5cf6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <h3>DIN Search</h3>
+                    <p>Find any director across all companies by DIN number</p>
+                    <svg class="feature-arrow w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </a>
+
+                {% if companies %}
+                <a href="/company/{{ companies[0] }}" class="feature-card feature-card-blue">
+                    <div class="feature-icon bg-indigo-100">
+                        <svg fill="none" stroke="#4f46e5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <h3>Corporate Filings</h3>
+                    <p>Browse announcements, filings &amp; XBRL data for {{ companies[0] }}</p>
+                    <svg class="feature-arrow w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </a>
+                {% endif %}
+
+                {% if companies %}
+                <a href="/company/{{ companies[0] }}#governance" class="feature-card feature-card-amber"
+                   onclick="event.preventDefault(); window.location.href='/company/{{ companies[0] }}';">
+                    <div class="feature-icon bg-amber-100">
+                        <svg fill="none" stroke="#f59e0b" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <h3>Governance Reports</h3>
+                    <p>Board composition, committees, meetings &amp; comparisons</p>
+                    <svg class="feature-arrow w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Calendar Section -->
+            <div class="card reveal">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50/50 to-purple-50/50">
+                    <a href="/dashboard?year={{ prev_year }}&month={{ prev_month }}"
+                       class="btn btn-secondary btn-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                        Prev
+                    </a>
+                    <div class="text-center">
+                        <h3 class="text-lg font-bold text-gray-900">{{ month_name }} {{ year }}</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ month_count }} filing{{ 's' if month_count != 1 }} this month</p>
+                    </div>
+                    <a href="/dashboard?year={{ next_year }}&month={{ next_month }}"
+                       class="btn btn-secondary btn-sm">
+                        Next
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-7 border-b border-gray-200 bg-slate-50">
+                    {% for day_name in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] %}
+                    <div class="px-2 py-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider
+                                {% if day_name in ['Sat', 'Sun'] %}text-gray-300{% endif %}">
+                        {{ day_name }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% for week in cal_weeks %}
+                <div class="grid grid-cols-7 border-b border-gray-100 last:border-b-0">
+                    {% for cell in week %}
+                    {% if cell %}
+                    <div class="min-h-[100px] border-r border-gray-100 last:border-r-0 p-1.5 hover:bg-indigo-50/30 transition-colors
+                                {% if cell.is_today %}bg-indigo-50 ring-1 ring-inset ring-indigo-200{% endif %}"
+                         {% if cell.events %}onclick="showDayDetail({{ cell.day }})" style="cursor:pointer"{% endif %}>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-semibold {% if cell.is_today %}text-white bg-indigo-600 w-5 h-5 rounded-full flex items-center justify-center text-[10px]{% elif cell.events %}text-gray-900{% else %}text-gray-400{% endif %}">
+                                {{ cell.day }}
+                            </span>
+                            {% if cell.events|length > 0 %}
+                            <span class="text-[9px] font-bold text-indigo-500 bg-indigo-100 px-1 rounded">{{ cell.events|length }}</span>
+                            {% endif %}
+                        </div>
+                        {% for ev in cell.events[:3] %}
+                        <div class="cal-event mb-0.5 px-1.5 py-0.5 rounded text-[9px] leading-tight truncate
+                                    company-bg-{{ companies.index(ev.company) if ev.company in companies else 0 }}"
+                             title="{{ ev.company }}: {{ ev.title }}">
+                            <span class="font-bold">{{ ev.company[:3] }}</span> {{ ev.title[:25] }}{% if ev.title|length > 25 %}...{% endif %}
+                        </div>
+                        {% endfor %}
+                        {% if cell.events|length > 3 %}
+                        <div class="text-[9px] text-gray-400 pl-1.5 mt-0.5">+{{ cell.events|length - 3 }} more</div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="min-h-[100px] border-r border-gray-100 last:border-r-0 bg-gray-50/50"></div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- ── Charts: filing types + by company ─────────────────── -->
+            <div class="grid lg:grid-cols-2 gap-5">
+                <div class="panel p-6 reveal">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="sec-title">Filing Type Breakdown</h3>
+                        <span class="text-[10px] text-gray-400">All time</span>
+                    </div>
+                    {% if top_tags %}
+                    <div class="relative" style="height:268px"><canvas id="tagChart"></canvas></div>
+                    {% else %}
+                    <p class="text-sm text-gray-400 py-6">No tag data yet — refresh a company to populate.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel p-6 reveal">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="sec-title">Filings by Company</h3>
+                        <span class="text-[10px] text-gray-400">All time · click a bar to open</span>
+                    </div>
+                    {% if companies %}
+                    <div class="relative" style="height:268px"><canvas id="companyChart"></canvas></div>
+                    {% else %}
+                    <p class="text-sm text-gray-400 py-6">Add companies to your watchlist to see this.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- ── Recent filings feed (across all watchlist) ────────── -->
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden reveal">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Recent Activity</h3>
+                        <p class="text-[11px] text-gray-400 mt-0.5">Last 10 filings across your watchlist</p>
+                    </div>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% if recent_filings %}
+                        {% for f in recent_filings %}
+                        <a href="/company/{{ f.company }}" class="flex items-center gap-4 px-6 py-3 hover:bg-slate-50 transition-colors">
+                            <div class="flex-shrink-0">
+                                <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                            company-badge-{{ companies.index(f.company) if f.company in companies else 0 }}">
+                                    {{ f.company }}
+                                </span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-gray-800 font-medium truncate">{{ f.title }}</p>
+                            </div>
+                            <div class="flex flex-wrap gap-1 flex-shrink-0">
+                                {% for tag in f.tags.split(',') if tag.strip() %}
+                                <span class="tag tag-{{ tag.strip().lower().split()[0] }}" style="font-size:9px;padding:1px 5px">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                            <div class="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">{{ f.date[:20] }}</div>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <h3>No recent filings</h3>
+                        <p>Refresh a company page to populate the feed.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Month filing list -->
+            <div class="card reveal">
+                <div class="card-header">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">All Filings in {{ month_name }} {{ year }}</h3>
+                    <span class="text-xs text-gray-400">{{ month_count }} filings</span>
+                </div>
+                <div class="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                    {% if month_filings %}
+                        {% for f in month_filings %}
+                        <a href="/company/{{ f.company }}" class="flex items-center gap-4 px-6 py-3 hover:bg-slate-50 transition-colors">
+                            <div class="flex-shrink-0 w-14 text-center">
+                                {% set sd = f.sort_date[:10] %}
+                                <div class="text-lg font-bold text-gray-900">{{ sd[8:10] }}</div>
+                                <div class="text-[10px] text-gray-400 uppercase">{{ month_name[:3] }}</div>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                            company-badge-{{ companies.index(f.company) if f.company in companies else 0 }}">
+                                    {{ f.company }}
+                                </span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-gray-800 font-medium truncate">{{ f.title }}</p>
+                            </div>
+                            <div class="flex flex-wrap gap-1 flex-shrink-0">
+                                {% for tag in f.tags.split(',') if tag.strip() %}
+                                <span class="tag tag-{{ tag.strip().lower().split()[0] }}" style="font-size:9px;padding:1px 5px">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                            <div class="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">{{ f.date[:20] }}</div>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <h3>No filings this month</h3>
+                        <p>Go to a company page and hit <strong>Refresh</strong> to fetch filings.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     DISCLOSURE ACTIVITY — Detail / Drill-down Modal
+     Triggered by the expand button in the panel header, or by
+     clicking a column in the dot matrix (pre-filters to that day).
+     ════════════════════════════════════════════════════════ -->
+<div id="da-detail" class="da-detail-overlay" aria-hidden="true" role="dialog" aria-labelledby="da-detail-title">
+    <div class="da-detail-card">
+        <!-- Header — title + inline stats summary + close -->
+        <header class="da-detail-header">
+            <div class="flex-1 min-w-0">
+                <h3 id="da-detail-title" class="da-detail-title">Disclosure activity</h3>
+                <p id="da-detail-meta" class="da-detail-meta">
+                    <span id="da-stat-count">0</span> filings ·
+                    <span id="da-stat-companies">0</span> companies ·
+                    Top tag <span id="da-stat-toptag">—</span> ·
+                    <span id="da-stat-range">—</span>
+                </p>
+            </div>
+            <button type="button" class="da-detail-close" onclick="closeDaDetail()" aria-label="Close">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </header>
+
+        <!-- Toolbar — search + sort + collapsible filter toggle -->
+        <div class="da-toolbar">
+            <div class="da-search-wrap">
+                <svg class="da-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                <input id="da-detail-search" type="search" placeholder="Search title, company or tag…" autocomplete="off">
+            </div>
+            <select id="da-detail-sort" aria-label="Sort">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="company">Company A→Z</option>
+            </select>
+            <button type="button" id="da-filter-toggle" class="da-tool-btn" onclick="toggleDaFilters()" aria-expanded="false">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                Filters
+                <span id="da-filter-count" class="da-tool-badge" style="display:none">0</span>
+            </button>
+            <button type="button" id="da-clear-btn" class="da-tool-btn da-tool-btn-ghost" onclick="clearDaFilters()" style="display:none">Clear</button>
+        </div>
+
+        <!-- Collapsible chips drawer (hidden by default; toggled via the Filters button) -->
+        <div id="da-chips-drawer" class="da-chips-drawer" hidden>
+            <div class="da-chip-group">
+                <span class="da-chip-group-label">Companies</span>
+                <div class="da-chip-row" id="da-company-chips">
+                    <button type="button" class="da-chip active" data-company="">All</button>
+                    {% for c in activity_companies %}
+                    <button type="button" class="da-chip" data-company="{{ c.symbol }}">{{ c.symbol }} <span class="da-chip-count">{{ c.count }}</span></button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% if activity_tags %}
+            <div class="da-chip-group">
+                <span class="da-chip-group-label">Tags</span>
+                <div class="da-chip-row" id="da-tag-chips">
+                    <button type="button" class="da-chip active" data-tag="">All</button>
+                    {% for t in activity_tags %}
+                    <button type="button" class="da-chip" data-tag="{{ t.tag }}">{{ t.tag }} <span class="da-chip-count">{{ t.count }}</span></button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Active-filter pill row (only shown when filters are applied) -->
+        <div id="da-active-pills" class="da-active-pills" hidden></div>
+
+        <!-- Body — grouped list -->
+        <div class="da-detail-body" id="da-detail-list">
+            <!-- populated by JS -->
+        </div>
+    </div>
+</div>
+
+
+<!-- Day Detail Modal -->
+<div id="day-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width:650px">
+        <div class="modal-header">
+            <div class="flex-1">
+                <h3 id="day-modal-title" class="text-lg font-bold text-gray-900"></h3>
+                <p id="day-modal-count" class="text-sm text-gray-500 mt-0.5"></p>
+            </div>
+            <button onclick="closeDayModal()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="day-modal-list" class="space-y-2"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const DAY_MAP = {{ day_map | tojson }};
+const COMPANIES = {{ companies | tojson }};
+const MONTH_NAME = '{{ month_name }}';
+const YEAR = {{ year }};
+const USER_INDUSTRY = {{ user_industry | tojson }};
+const SYMBOL_DOMAINS = {{ symbol_domains | tojson }};
+const SYMBOL_TV_SLUGS = {{ symbol_tv_slugs | tojson }};
+const COMPANY_COLORS = [
+    {bg:'#dbeafe',text:'#1e40af',dot:'#3b82f6'},
+    {bg:'#dcfce7',text:'#166534',dot:'#22c55e'},
+    {bg:'#fef3c7',text:'#92400e',dot:'#f59e0b'},
+    {bg:'#fce7f3',text:'#9d174d',dot:'#ec4899'},
+    {bg:'#ede9fe',text:'#5b21b6',dot:'#8b5cf6'},
+];
+
+function showDayDetail(day) {
+    const events = DAY_MAP[day] || [];
+    if (!events.length) return;
+    document.getElementById('day-modal-title').textContent = `${day} ${MONTH_NAME} ${YEAR}`;
+    document.getElementById('day-modal-count').textContent = `${events.length} filing${events.length !== 1 ? 's' : ''}`;
+    const listEl = document.getElementById('day-modal-list');
+    listEl.innerHTML = events.map(ev => {
+        const ci = COMPANIES.indexOf(ev.company);
+        const color = COMPANY_COLORS[ci >= 0 ? ci : 0];
+        const tags = (ev.tags || '').split(',').filter(t => t.trim()).map(t =>
+            `<span class="tag tag-${t.trim().toLowerCase().split(' ')[0]}" style="font-size:9px;padding:1px 5px">${t.trim()}</span>`
+        ).join('');
+        return `<a href="/company/${ev.company}" class="block p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all">
+            <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase" style="background:${color.bg};color:${color.text}">${ev.company}</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-900">${ev.title}</p>
+                    <div class="flex items-center gap-2 mt-1.5">
+                        <span class="text-[10px] text-gray-400">${ev.date}</span>
+                        <div class="flex gap-1">${tags}</div>
+                    </div>
+                </div>
+                <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div></a>`;
+    }).join('');
+    document.getElementById('day-modal').classList.remove('hidden');
+}
+function closeDayModal() { document.getElementById('day-modal').classList.add('hidden'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDayModal(); closeSuggestions(); } });
+document.getElementById('day-modal').addEventListener('click', e => { if (e.target.id === 'day-modal') closeDayModal(); });
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
+}
+
+function fmtPrice(n) {
+    if (n == null) return '--';
+    return Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+// ── Live Top Movers ──────────────────────────────────────────
+
+// Deterministic gradient palette per symbol — same input always picks the
+// same colors so the same company keeps the same avatar across reloads.
+const AVATAR_PALETTES = [
+    ['#6366f1', '#8b5cf6'],  // indigo → violet
+    ['#0ea5e9', '#3b82f6'],  // sky → blue
+    ['#10b981', '#06b6d4'],  // emerald → cyan
+    ['#f59e0b', '#ef4444'],  // amber → red
+    ['#ec4899', '#f43f5e'],  // pink → rose
+    ['#8b5cf6', '#ec4899'],  // violet → pink
+    ['#0d9488', '#0891b2'],  // teal → cyan
+    ['#7c3aed', '#2563eb'],  // violet → blue
+    ['#f97316', '#f59e0b'],  // orange → amber
+    ['#14b8a6', '#22c55e'],  // teal → green
+];
+
+function avatarColor(sym) {
+    let hash = 0;
+    const s = String(sym || '');
+    for (let i = 0; i < s.length; i++) hash = ((hash << 5) - hash + s.charCodeAt(i)) | 0;
+    return AVATAR_PALETTES[Math.abs(hash) % AVATAR_PALETTES.length];
+}
+
+function avatarInitials(sym) {
+    return String(sym || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?';
+}
+
+// Cascade for the company logo image, in reliability / quality order:
+//   0  /static/logos/<symbol>.svg  — bundled local vector logo (instant, no
+//      network, never breaks). Drop a new SVG in static/logos/ to add one.
+//   1  /logo/<symbol>              — backend scrape of the company's own site
+//   2  TradingView curated SVG
+//   3  Google's favicon @128
+//   4  DuckDuckGo icon
+//   final  img hides → gradient initials underneath show through
+// (Clearbit was removed — that free logo API was shut down and no longer resolves.)
+function logoFallback(img) {
+    let list;
+    try { list = JSON.parse(img.dataset.cands || '[]'); } catch (e) { list = []; }
+    const i = parseInt(img.dataset.idx || '0', 10) + 1;
+    img.dataset.idx = String(i);
+    if (i < list.length) img.src = list[i];
+    else img.style.display = 'none';
+}
+window.logoFallback = logoFallback;
+
+function avatarHtml(sym) {
+    const c = avatarColor(sym);
+    const initials = escapeHtml(avatarInitials(sym));
+    const tvSlug = SYMBOL_TV_SLUGS[sym] || '';
+    const domain = SYMBOL_DOMAINS[sym] || '';
+
+    // Candidate cascade — local bundled SVG first (instant, never breaks),
+    // then live sources. The local attempt is always included; if the file
+    // isn't there it 404s and onerror advances to the next candidate.
+    const cands = [`/static/logos/${encodeURIComponent(sym)}.svg`];
+    if (domain) cands.push(`/logo/${encodeURIComponent(sym)}?v=2`);
+    if (tvSlug) cands.push(`https://s3-symbol-logo.tradingview.com/${tvSlug}--big.svg`);
+    if (domain) {
+        cands.push(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`);
+        cands.push(`https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico`);
+    }
+
+    const inner = `<img src="${cands[0]}"
+                alt=""
+                referrerpolicy="no-referrer"
+                data-cands='${escapeHtml(JSON.stringify(cands))}'
+                data-idx="0"
+                onerror="logoFallback(this)"
+                class="absolute inset-0 w-full h-full rounded-full object-contain bg-white p-0.5 ring-1 ring-gray-200">`;
+
+    return `<div class="relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-[11px] font-bold shadow-sm ring-2 ring-white"
+                 style="background: linear-gradient(135deg, ${c[0]}, ${c[1]})">
+                <span>${initials}</span>
+                ${inner}
+            </div>`;
+}
+
+// ── Tracked-companies panel + overview table (live prices) ───
+let _prices = {};          // symbol -> price object
+let _priceErr = false;
+let _rankTab = 'watchlist';
+let _ovTab = 'all';
+
+function _items() {
+    return Object.entries(_prices)
+        .map(([sym, p]) => ({ symbol: sym, ...p }))
+        .filter(p => p.pChange != null);
+}
+
+function _changeCls(pc) { return (pc || 0) > 0 ? 'text-emerald-600' : (pc || 0) < 0 ? 'text-rose-500' : 'text-gray-400'; }
+function _arrow(pc) { return (pc || 0) > 0 ? '▲' : (pc || 0) < 0 ? '▼' : '·'; }
+
+function renderRankRow(p) {
+    const cls = _changeCls(p.pChange);
+    return `
+        <a href="/company/${encodeURIComponent(p.symbol)}" class="rank-row">
+            ${avatarHtml(p.symbol, 34)}
+            <div class="flex-1 min-w-0">
+                <p class="text-[13px] font-bold text-gray-900 truncate">${escapeHtml(p.symbol)}</p>
+                <p class="text-[10px] text-gray-400 truncate">${escapeHtml(p.companyName || '')}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <p class="text-[13px] font-bold text-gray-900">₹${fmtPrice(p.lastPrice)}</p>
+                <p class="text-[11px] font-semibold ${cls}">${_arrow(p.pChange)} ${Math.abs(p.pChange || 0).toFixed(2)}%</p>
+            </div>
+        </a>`;
+}
+
+function renderRank() {
+    const el = document.getElementById('rank-list');
+    if (!el) return;
+    if (_priceErr) { el.innerHTML = '<p class="text-xs text-rose-500 px-1 py-4">Couldn\'t fetch live prices right now.</p>'; return; }
+    const list = _items();
+    if (!list.length) { el.innerHTML = '<p class="text-xs text-gray-400 px-1 py-4">No live price data available.</p>'; return; }
+    const gainers = list.filter(p => p.pChange > 0).sort((a, b) => b.pChange - a.pChange).slice(0, 3);
+    const losers = list.filter(p => p.pChange < 0).sort((a, b) => a.pChange - b.pChange).slice(0, 3);
+    let html = '';
+    if (gainers.length) html += '<p class="rank-group" style="color:#059669">Gainers</p>' + gainers.map(renderRankRow).join('');
+    if (losers.length) html += `<p class="rank-group" style="color:#e11d48;${gainers.length ? 'margin-top:12px' : ''}">Decliners</p>` + losers.map(renderRankRow).join('');
+    el.innerHTML = html || '<p class="text-xs text-gray-400 px-1 py-4">No price movement in your watchlist today.</p>';
+}
+
+function renderOverview() {
+    const body = document.getElementById('overview-body');
+    if (!body) return;
+    // Every watchlist company, merged with live price (price may be missing).
+    let rows = COMPANIES.map(sym => {
+        const p = _prices[sym] || {};
+        return { symbol: sym, companyName: p.companyName || sym, lastPrice: p.lastPrice,
+                 pChange: p.pChange, dayLow: p.dayLow, dayHigh: p.dayHigh,
+                 filings: COMPANY_COUNTS[sym] || 0 };
+    });
+    if (_ovTab === 'gainers') rows = rows.filter(r => (r.pChange || 0) > 0).sort((a, b) => b.pChange - a.pChange);
+    else if (_ovTab === 'losers') rows = rows.filter(r => (r.pChange || 0) < 0).sort((a, b) => a.pChange - b.pChange);
+    else rows = rows.sort((a, b) => b.filings - a.filings);
+
+    if (!rows.length) { body.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 text-sm">No ${_ovTab} today.</td></tr>`; return; }
+    body.innerHTML = rows.map(r => {
+        const cls = _changeCls(r.pChange);
+        const price = r.lastPrice != null ? '₹' + fmtPrice(r.lastPrice) : '<span class="text-gray-300">—</span>';
+        const chg = r.pChange != null ? `${_arrow(r.pChange)} ${Math.abs(r.pChange).toFixed(2)}%` : '<span class="text-gray-300">—</span>';
+        const range = (r.dayLow && r.dayHigh) ? `₹${fmtPrice(r.dayLow)} – ₹${fmtPrice(r.dayHigh)}` : '<span class="text-gray-300">—</span>';
+        return `<tr class="ov-row" onclick="window.location.href='/company/${encodeURIComponent(r.symbol)}'">
+            <td class="px-6 py-3">
+                <div class="flex items-center gap-3">
+                    ${avatarHtml(r.symbol, 30)}
+                    <div class="min-w-0">
+                        <p class="text-[13px] font-bold text-gray-900 truncate">${escapeHtml(r.symbol)}</p>
+                        <p class="text-[10px] text-gray-400 truncate max-w-[180px]">${escapeHtml(r.companyName)}</p>
+                    </div>
+                </div>
+            </td>
+            <td class="px-4 py-3 text-right font-semibold text-gray-900">${price}</td>
+            <td class="px-4 py-3 text-right font-semibold ${cls}">${chg}</td>
+            <td class="px-4 py-3 text-right text-gray-500 hidden md:table-cell">${range}</td>
+            <td class="px-6 py-3 text-right"><span class="inline-flex items-center justify-center min-w-[34px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">${r.filings}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+function setOvTab(btn, tab) {
+    _ovTab = tab;
+    btn.parentNode.querySelectorAll('.seg-tab').forEach(b => b.classList.toggle('active', b === btn));
+    renderOverview();
+}
+
+function loadWatchlist() {
+    fetch('/api/prices')
+        .then(r => r.json())
+        .then(data => { _prices = data.prices || {}; _priceErr = false; renderRank(); renderOverview(); })
+        .catch(() => { _priceErr = true; renderRank(); renderOverview(); });
+}
+
+// ── Industry Pulse (AI brief preview) ────────────────────────
+function loadIndustryPulse() {
+    if (!USER_INDUSTRY) return;
+    fetch('/api/industry-intel/' + encodeURIComponent(USER_INDUSTRY))
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('industry-pulse').innerHTML =
+                    `<p class="text-sm text-gray-500">${escapeHtml(data.message || 'Pulse unavailable.')}</p>`;
+                return;
+            }
+            const summary = (data.summary || '').slice(0, 420);
+            const truncated = (data.summary || '').length > 420 ? '…' : '';
+            document.getElementById('industry-pulse').innerHTML =
+                `<p class="text-sm text-gray-800 leading-relaxed">${escapeHtml(summary + truncated)}</p>`;
+            const status = document.getElementById('industry-pulse-status');
+            if (status) {
+                status.textContent = (data.ai_powered ? 'AI · Gemini' : 'Heuristic') +
+                    ' · ' + (data.news?.sector?.length || 0) + ' sector + ' +
+                    (data.news?.ma?.length || 0) + ' deal headlines tracked';
+            }
+        })
+        .catch(() => {
+            document.getElementById('industry-pulse').innerHTML =
+                '<p class="text-sm text-gray-500">Couldn\'t load sector pulse.</p>';
+        });
+}
+
+// ── Reveal-on-scroll animation ──────────────────────────────
+(function () {
+    const els = document.querySelectorAll('.reveal');
+    let i = 0;
+    els.forEach(el => el.classList.add('d' + ((i++ % 6) + 1)));
+    if (!('IntersectionObserver' in window)) { els.forEach(el => el.classList.add('in')); return; }
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+    }, { threshold: 0.06, rootMargin: '0px 0px -40px 0px' });
+    els.forEach(el => io.observe(el));
+})();
+
+// ── Charts (Chart.js, theme-aware) ──────────────────────────
+const TOP_TAGS = {{ top_tags | tojson }};
+const COMPANY_COUNTS = {{ company_counts | tojson }};
+const FILING_TREND = {{ filing_trend | tojson }};
+const FILING_ACTIVITY = {{ filing_activity | tojson }};
+const BUSIEST_DAY_NAME = {{ busiest_day_name | tojson }};
+const BUSIEST_DAY_AVG  = {{ busiest_day_avg | tojson }};
+const ACTIVITY_FILINGS = {{ activity_filings | tojson }};
+const CHART_PALETTE = ['#4f46e5','#6366f1','#2563eb','#0ea5e9','#818cf8','#38bdf8','#3b82f6','#a5b4fc'];
+let _tagChart = null, _companyChart = null, _trendChart = null;
+
+function _isDark() { return document.documentElement.classList.contains('dark'); }
+function _axisColor() { return _isDark() ? '#a3a3a3' : '#64748b'; }
+function _gridColor() { return _isDark() ? 'rgba(255,255,255,.08)' : 'rgba(15,23,42,.07)'; }
+
+function _tooltipStyle() {
+    return {
+        backgroundColor: _isDark() ? '#1c1c1c' : '#0f172a',
+        titleColor: '#fff', bodyColor: '#e2e8f0',
+        padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
+    };
+}
+
+function buildCharts() {
+    if (!window.Chart) return;
+
+    // ── Disclosure activity is rendered as a dot-matrix (see buildDotMatrix). ──
+
+    const tagEl = document.getElementById('tagChart');
+    if (tagEl && TOP_TAGS.length) {
+        if (_tagChart) _tagChart.destroy();
+        const tagTotal = TOP_TAGS.reduce((s, t) => s + (t[1] || 0), 0) || 1;
+        const centerText = {
+            id: 'centerText',
+            afterDraw(chart) {
+                const { ctx, chartArea } = chart;
+                if (!chartArea) return;
+                const cx = (chartArea.left + chartArea.right) / 2;
+                const cy = (chartArea.top + chartArea.bottom) / 2;
+                ctx.save();
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = _isDark() ? '#f5f5f5' : '#0f172a';
+                ctx.font = '800 26px Inter, system-ui, sans-serif';
+                ctx.fillText(tagTotal.toLocaleString('en-IN'), cx, cy - 7);
+                ctx.fillStyle = _isDark() ? '#a3a3a3' : '#94a3b8';
+                ctx.font = '700 10px Inter, system-ui, sans-serif';
+                ctx.fillText('TAGGED', cx, cy + 13);
+                ctx.restore();
+            }
+        };
+        _tagChart = new Chart(tagEl, {
+            type: 'doughnut',
+            data: { labels: TOP_TAGS.map(t => t[0]), datasets: [{
+                data: TOP_TAGS.map(t => t[1]), backgroundColor: CHART_PALETTE,
+                borderWidth: 3, borderColor: _isDark() ? '#141414' : '#ffffff',
+                hoverOffset: 8, spacing: 1 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '70%',
+                plugins: {
+                    legend: { position: 'right', labels: { color: _axisColor(),
+                        font: { size: 11.5 }, usePointStyle: true, pointStyle: 'circle',
+                        boxWidth: 8, boxHeight: 8, padding: 14 } },
+                    tooltip: Object.assign(_tooltipStyle(), {
+                        callbacks: { label: (c) => ` ${c.label}: ${c.raw} (${Math.round(c.raw / tagTotal * 100)}%)` } })
+                },
+                animation: { animateScale: true, animateRotate: true, duration: 850 } },
+            plugins: [centerText]
+        });
+    }
+
+    const compEl = document.getElementById('companyChart');
+    if (compEl && COMPANIES.length) {
+        const pairs = COMPANIES.map(s => [s, COMPANY_COUNTS[s] || 0]).sort((a, b) => b[1] - a[1]);
+        const labels = pairs.map(p => p[0]);
+        const data = pairs.map(p => p[1]);
+        if (_companyChart) _companyChart.destroy();
+        _companyChart = new Chart(compEl, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'Filings', data,
+                backgroundColor: (ctx) => {
+                    const { chart, dataIndex } = ctx;
+                    const area = chart.chartArea;
+                    const base = CHART_PALETTE[dataIndex % CHART_PALETTE.length];
+                    if (!area) return base;
+                    const g = chart.ctx.createLinearGradient(area.left, 0, area.right, 0);
+                    g.addColorStop(0, base + '99'); g.addColorStop(1, base);
+                    return g;
+                },
+                borderRadius: 7, borderSkipped: false, maxBarThickness: 24 }] },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                onClick: (e, hit) => { if (hit.length) window.location.href = '/company/' + labels[hit[0].index]; },
+                onHover: (e, hit) => { e.native.target.style.cursor = hit.length ? 'pointer' : 'default'; },
+                plugins: { legend: { display: false }, tooltip: _tooltipStyle() },
+                scales: { x: { ticks: { color: _axisColor(), font: { size: 11 }, precision: 0 }, grid: { color: _gridColor() }, border: { display: false } },
+                          y: { ticks: { color: _axisColor(), font: { size: 11, weight: '600' } }, grid: { display: false }, border: { display: false } } },
+                animation: { duration: 850 } }
+        });
+    }
+}
+buildCharts();
+// Re-render charts (legend/axis colors) whenever dark mode is toggled.
+new MutationObserver(() => buildCharts())
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+/* ════════════════════════════════════════════════
+   DISCLOSURE ACTIVITY — dot-matrix renderer
+   ════════════════════════════════════════════════ */
+let _daRange = 30;           // days currently shown
+let _daActiveIdx = null;     // which column is highlighted
+
+function _daSlice() {
+    const data = FILING_ACTIVITY || [];
+    return data.slice(-_daRange);
+}
+
+function _daMaxStack(slice) {
+    // Visual scale: one dot per filing, capped so the tallest day shows ≤ MAX dots.
+    const maxVal = slice.reduce((m, d) => Math.max(m, d.actual, d.projected), 0);
+    return Math.max(maxVal, 1);
+}
+
+function _daYLabelsFor(maxVal) {
+    // Pick 4 ticks (0 + 3 above) rounded to nice integers.
+    if (maxVal <= 4) return [0, 1, 2, 3, 4];
+    if (maxVal <= 8) return [0, 2, 4, 6, 8];
+    const step = Math.ceil(maxVal / 4);
+    return [0, step, step * 2, step * 3, step * 4];
+}
+
+function buildDotMatrix() {
+    const host = document.getElementById('da-matrix');
+    if (!host) return;
+    const slice = _daSlice();
+    const maxStack = _daMaxStack(slice);
+    const yLabels = _daYLabelsFor(maxStack);
+    const yMax = yLabels[yLabels.length - 1];
+
+    // Helper: convert a value v ∈ [0, yMax] to a `bottom: N%` string for the dot/line.
+    // We center each tick within its row by offsetting half a row up, so the dot for
+    // value 1 sits visually *between* gridlines 0 and 1, etc.
+    const halfRow = 50 / yMax;
+    const pctForRow = (i) => `calc(${(i / yMax) * 100}% - ${halfRow}%)`;
+
+    let html = '<div class="da-chart" id="da-chart">';
+
+    // Y axis labels (numbers)
+    html += '<div class="da-y-labels">';
+    yLabels.forEach(v => {
+        html += `<div class="da-y-label" style="bottom:${(v / yMax) * 100}%">${v}</div>`;
+    });
+    html += '</div>';
+
+    // Dashed gridlines (skip the 0 line — covered by the columns' baseline)
+    yLabels.forEach(v => {
+        if (v === 0) return;
+        html += `<div class="da-grid-line" style="bottom:${(v / yMax) * 100}%"></div>`;
+    });
+
+    // Columns
+    html += '<div class="da-cols">';
+    const showLabelEvery = slice.length <= 14 ? 1 : (slice.length <= 30 ? 5 : 7);
+    slice.forEach((d, idx) => {
+        const showLabel = (idx === slice.length - 1) || (idx % showLabelEvery === 0);
+        const actualInt = Math.max(0, Math.round(d.actual));
+        const projInt   = Math.max(0, Math.round(d.projected));
+        let dots = '';
+
+        // 1) Faint placeholder grid: one tiny dot per row, every column. Makes
+        //    the chart read as a structured grid even on zero-filing days.
+        for (let i = 1; i <= yMax; i++) {
+            dots += `<span class="da-dot bg" style="bottom:${pctForRow(i)}"></span>`;
+        }
+        // 2) Actual filings (solid green) — overlays the placeholder.
+        for (let i = 1; i <= actualInt; i++) {
+            const delay = (idx * 10) + (i * 18);
+            dots += `<span class="da-dot fill" style="bottom:${pctForRow(i)};transition-delay:${delay}ms"></span>`;
+        }
+        // 3) Projected overlay (indigo, hidden by default — revealed on active).
+        for (let i = actualInt + 1; i <= projInt; i++) {
+            dots += `<span class="da-dot proj" style="bottom:${pctForRow(i)}"></span>`;
+        }
+
+        html += `<div class="da-col" data-idx="${idx}">
+            ${dots}
+            ${showLabel ? `<span class="da-col-label">${d.label}</span>` : ''}
+        </div>`;
+    });
+    html += '</div>';
+    html += '</div>';
+
+    host.innerHTML = html;
+
+    // Reveal `fill` dots — staggered fade-in (left to right, bottom to top).
+    requestAnimationFrame(() => {
+        host.querySelectorAll('.da-dot.fill').forEach(el => el.classList.add('in'));
+    });
+
+    // Wire hover / click on each column
+    host.querySelectorAll('.da-col').forEach(col => {
+        col.addEventListener('mouseenter', () => _daActivate(parseInt(col.dataset.idx, 10)));
+        col.addEventListener('mouseleave', () => _daDeactivate());
+        col.addEventListener('click', () => _daPin(parseInt(col.dataset.idx, 10)));
+    });
+}
+
+let _daPinned = null;
+function _daPin(idx) { _daPinned = (_daPinned === idx) ? null : idx; _daActivate(idx); }
+function _daActivate(idx) {
+    const host  = document.getElementById('da-matrix');
+    const chart = document.getElementById('da-chart');
+    const tt    = document.getElementById('da-tooltip');
+    const mk    = document.getElementById('da-marker');
+    const slice = _daSlice();
+    const d = slice[idx]; if (!d || !chart) return;
+    _daActiveIdx = idx;
+    chart.classList.add('has-active');
+    host.querySelectorAll('.da-col').forEach((c, i) => c.classList.toggle('active', i === idx));
+
+    // Tooltip — "Baseline" because the projected value is the unbiased same-DOW average,
+    // not a model forecast. Honest labelling matters more than marketing copy here.
+    tt.innerHTML = `
+        <div class="da-tt-head">${d.full}</div>
+        <div class="da-tt-row"><span class="da-tt-key">Actual</span><span class="da-tt-val">${d.actual}</span></div>
+        <div class="da-tt-row"><span class="da-tt-key">Baseline (avg ${d.dow})</span><span class="da-tt-val">${d.projected}</span></div>
+    `;
+    tt.classList.add('visible');
+
+    // Dashed marker — from the y-axis to the column, at the height of the visually-topmost dot.
+    const col = host.querySelector(`.da-col[data-idx="${idx}"]`);
+    if (col) {
+        // Pick the topmost dot in document order priority: projected > fill > placeholder.
+        // We must use the *last* matching child because dots stack by bottom-percentage
+        // and the LAST one in the list of a given class is the visually-highest one
+        // (smallest `bottom` differential).
+        const topDot = col.querySelector('.da-dot.proj:last-of-type')
+                    || col.querySelector('.da-dot.fill.in:last-of-type')
+                    || col.querySelector('.da-dot.fill:last-of-type')
+                    || col.querySelector('.da-dot.bg:last-of-type');
+        if (topDot) {
+            const chartRect = chart.getBoundingClientRect();
+            const dotRect   = topDot.getBoundingClientRect();
+            const colRect   = col.getBoundingClientRect();
+            const topY  = (dotRect.top + dotRect.height / 2) - chartRect.top;
+            const leftX = 36;
+            const colCx = (colRect.left + colRect.width / 2) - chartRect.left;
+            mk.style.top    = `${topY}px`;
+            mk.style.left   = `${leftX}px`;
+            mk.style.width  = `${Math.max(0, colCx - leftX)}px`;
+            mk.innerHTML    = `<span class="da-marker-pill">${d.projected}</span>`;
+            mk.classList.add('visible');
+        }
+    }
+}
+function _daDeactivate() {
+    if (_daPinned !== null) return;
+    const host  = document.getElementById('da-matrix');
+    const chart = document.getElementById('da-chart');
+    const tt    = document.getElementById('da-tooltip');
+    const mk    = document.getElementById('da-marker');
+    if (chart) chart.classList.remove('has-active');
+    host?.querySelectorAll('.da-col.active').forEach(c => c.classList.remove('active'));
+    tt?.classList.remove('visible');
+    mk?.classList.remove('visible');
+    _daActiveIdx = null;
+}
+
+// Range pills
+document.querySelectorAll('#da-range .da-seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#da-range .da-seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _daRange = parseInt(btn.dataset.range, 10) || 30;
+        _daPinned = null;
+        buildDotMatrix();
+    });
+});
+
+// "Run Analysis" — recomputes the insight bubble + briefly highlights the busiest day.
+function runDisclosureAnalysis() {
+    const btn  = document.getElementById('da-run-btn');
+    const lbl  = btn?.querySelector('.da-run-label');
+    const note = document.getElementById('da-insight-text');
+    if (!btn || !lbl || !note) return;
+    const original = lbl.textContent;
+    lbl.textContent = 'Analysing…';
+    btn.disabled = true;
+    setTimeout(() => {
+        const slice = _daSlice();
+        if (!slice.length) { lbl.textContent = original; btn.disabled = false; return; }
+        const total = slice.reduce((s,d)=>s+d.actual,0);
+        if (total === 0) {
+            note.innerHTML = `No filings in the last ${_daRange} days. The cache may be stale — try refreshing your watchlist from Settings to repull NSE/BSE feeds.`;
+            lbl.textContent = original; btn.disabled = false;
+            return;
+        }
+        // Heaviest column in current window
+        const top = slice.reduce((acc, d, i) => (d.actual > acc.v ? {i, v: d.actual, d} : acc), {i: -1, v: -1, d: null});
+        const weekendShare = slice.filter(d => /Sat|Sun/.test(d.dow)).reduce((s,d)=>s+d.actual,0);
+        const wkPct = Math.round(weekendShare / total * 100);
+        const insights = [
+            BUSIEST_DAY_AVG > 0 ? `${BUSIEST_DAY_NAME}s remain heaviest (avg ${BUSIEST_DAY_AVG}/day). Plan reviews around them.` : null,
+            top.v > 0 ? `Peak this window: <b>${top.d.full}</b> with ${top.v} filings — worth a closer look.` : null,
+            wkPct >= 8 ? `Weekend filings make up ${wkPct}% of volume — unusual; check for after-hours intimations.` : `Weekend filings ~${wkPct}%, in line with the norm.`,
+        ].filter(Boolean);
+        const pick = insights[Math.floor(Math.random() * insights.length)];
+        note.innerHTML = pick;
+        lbl.textContent = original;
+        btn.disabled = false;
+        if (top.i >= 0 && top.v > 0) { _daPinned = top.i; _daActivate(top.i); }
+    }, 700);
+}
+
+buildDotMatrix();
+window.addEventListener('resize', () => { if (_daActiveIdx !== null) _daActivate(_daActiveIdx); });
+
+/* ════════════════════════════════════════════════════════
+   DISCLOSURE ACTIVITY — Detail / Drill-down modal
+   ════════════════════════════════════════════════════════ */
+const _daState = {
+    search: '',
+    company: '',   // ticker or ''
+    tag: '',       // tag name or ''
+    sort: 'newest',
+    day: null,     // iso date or null
+};
+
+function _matchesFilters(f) {
+    if (_daState.day && f.iso !== _daState.day) return false;
+    if (_daState.company && f.company !== _daState.company) return false;
+    if (_daState.tag && !(f.tags || []).includes(_daState.tag)) return false;
+    if (_daState.search) {
+        const hay = ((f.title || '') + ' ' + (f.company || '') + ' ' + (f.tags || []).join(' ')).toLowerCase();
+        for (const t of _daState.search.toLowerCase().split(/\s+/).filter(Boolean)) {
+            if (!hay.includes(t)) return false;
+        }
+    }
+    return true;
+}
+
+function _sortFilings(arr) {
+    const a = arr.slice();
+    if (_daState.sort === 'oldest') a.sort((x, y) => x.sort_date.localeCompare(y.sort_date));
+    else if (_daState.sort === 'company') a.sort((x, y) => (x.company || '').localeCompare(y.company || ''));
+    else a.sort((x, y) => y.sort_date.localeCompare(x.sort_date));
+    return a;
+}
+
+function _humanDateHead(iso) {
+    // Return e.g. "Mon, Apr 10 · 2026"
+    try {
+        const d = new Date(iso + 'T00:00:00');
+        return d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (_) { return iso; }
+}
+
+function _renderDaDetail() {
+    const filtered = _sortFilings(ACTIVITY_FILINGS.filter(_matchesFilters));
+    // Inline stats — woven into the title meta line
+    const companies  = new Set(filtered.map(f => f.company).filter(Boolean));
+    document.getElementById('da-stat-count').textContent     = filtered.length.toLocaleString('en-IN');
+    document.getElementById('da-stat-companies').textContent = companies.size;
+    // Top tag in current filter
+    const tagCounts = {};
+    filtered.forEach(f => (f.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
+    const topTag = Object.entries(tagCounts).sort((a,b) => b[1] - a[1])[0];
+    document.getElementById('da-stat-toptag').textContent = topTag ? topTag[0] : '—';
+    // Compact date range
+    let rangeTxt = '—';
+    if (filtered.length) {
+        const isos = filtered.map(f => f.iso);
+        const lo = isos.reduce((a,b) => a < b ? a : b);
+        const hi = isos.reduce((a,b) => a > b ? a : b);
+        const fmt = (s) => { try { return new Date(s + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }); } catch(_) { return s; } };
+        rangeTxt = (lo === hi) ? fmt(lo) : `${fmt(lo)} → ${fmt(hi)}`;
+    }
+    document.getElementById('da-stat-range').textContent = rangeTxt;
+
+    // Update tool-bar filter badge + clear button visibility
+    _renderDaActivePills();
+
+    // Body
+    const body = document.getElementById('da-detail-list');
+    if (!filtered.length) {
+        body.innerHTML = `<div class="da-empty">
+            <div class="da-empty-icon">
+                <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+            </div>
+            <p class="font-semibold text-slate-700">No filings match these filters.</p>
+            <p class="text-xs mt-1">Try clearing the company or tag chip, or widen the search.</p>
+        </div>`;
+        return;
+    }
+
+    // Group by date
+    const groups = new Map();
+    filtered.forEach(f => {
+        if (!groups.has(f.iso)) groups.set(f.iso, []);
+        groups.get(f.iso).push(f);
+    });
+
+    let html = '';
+    for (const [iso, items] of groups) {
+        html += `<div class="da-date-group">
+            <div class="da-date-head">
+                <span>${_humanDateHead(iso)}</span>
+                <span class="da-date-count">${items.length} ${items.length === 1 ? 'filing' : 'filings'}</span>
+            </div>`;
+        items.forEach(f => {
+            const tagsHtml = (f.tags || []).slice(0, 4).map(t => `<span class="da-filing-tag">${t}</span>`).join('');
+            const hrefAttr = f.url ? `href="${f.url}" target="_blank" rel="noopener"` : `href="/company/${encodeURIComponent(f.company)}"`;
+            html += `<a class="da-filing-row" ${hrefAttr}>
+                <div class="da-filing-time">${f.time || '—'}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-start flex-wrap">
+                        <span class="da-filing-company">${f.company || 'UNKNOWN'}</span>
+                        <span class="da-filing-title flex-1 min-w-0">${f.title || '(no title)'}</span>
+                    </div>
+                    ${tagsHtml ? `<div class="da-filing-tags">${tagsHtml}</div>` : ''}
+                </div>
+                <div class="da-filing-arrow">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </a>`;
+        });
+        html += `</div>`;
+    }
+    body.innerHTML = html;
+}
+
+function _renderDaActivePills() {
+    const wrap = document.getElementById('da-active-pills');
+    const clearBtn = document.getElementById('da-clear-btn');
+    const badge = document.getElementById('da-filter-count');
+    if (!wrap) return;
+    const pills = [];
+    if (_daState.day) {
+        pills.push({ key: 'day', label: _humanDateHead(_daState.day), action: 'clearDaDay()' });
+    }
+    if (_daState.company) {
+        pills.push({ key: 'company', label: _daState.company, action: "_daClear('company')" });
+    }
+    if (_daState.tag) {
+        pills.push({ key: 'tag', label: _daState.tag, action: "_daClear('tag')" });
+    }
+    if (_daState.search) {
+        pills.push({ key: 'search', label: `"${_daState.search}"`, action: "_daClear('search')" });
+    }
+    if (!pills.length) {
+        wrap.hidden = true; wrap.innerHTML = '';
+        if (clearBtn) clearBtn.style.display = 'none';
+        if (badge) badge.style.display = 'none';
+        return;
+    }
+    wrap.hidden = false;
+    wrap.innerHTML = pills.map(p => `
+        <span class="da-active-pill">
+            <span class="da-active-pill-key">${p.key}:</span> ${p.label}
+            <button type="button" onclick="${p.action}" aria-label="Remove ${p.key} filter">
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </span>
+    `).join('');
+    if (clearBtn) clearBtn.style.display = '';
+    if (badge) { badge.textContent = pills.length; badge.style.display = 'inline-flex'; }
+}
+
+function _daClear(key) {
+    if (key === 'company') {
+        _daState.company = '';
+        document.querySelectorAll('#da-company-chips .da-chip').forEach(c => c.classList.toggle('active', c.dataset.company === ''));
+    } else if (key === 'tag') {
+        _daState.tag = '';
+        document.querySelectorAll('#da-tag-chips .da-chip').forEach(c => c.classList.toggle('active', c.dataset.tag === ''));
+    } else if (key === 'search') {
+        _daState.search = '';
+        const s = document.getElementById('da-detail-search'); if (s) s.value = '';
+    }
+    _renderDaDetail();
+}
+
+function toggleDaFilters() {
+    const drawer = document.getElementById('da-chips-drawer');
+    const btn    = document.getElementById('da-filter-toggle');
+    if (!drawer || !btn) return;
+    const isOpen = !drawer.hidden;
+    drawer.hidden = isOpen;
+    btn.setAttribute('aria-expanded', String(!isOpen));
+}
+
+function openDaDetail(opts) {
+    const overlay = document.getElementById('da-detail');
+    if (!overlay) return;
+    if (opts && opts.iso) {
+        _daState.day = opts.iso;
+    }
+    overlay.setAttribute('aria-hidden', 'false');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    _renderDaDetail();
+    setTimeout(() => document.getElementById('da-detail-search')?.focus(), 200);
+}
+
+function closeDaDetail() {
+    const overlay = document.getElementById('da-detail');
+    if (!overlay) return;
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+
+function clearDaFilters() {
+    _daState.search = ''; _daState.company = ''; _daState.tag = ''; _daState.day = null;
+    const s = document.getElementById('da-detail-search'); if (s) s.value = '';
+    document.querySelectorAll('#da-company-chips .da-chip').forEach(c => c.classList.toggle('active', c.dataset.company === ''));
+    document.querySelectorAll('#da-tag-chips .da-chip').forEach(c => c.classList.toggle('active', c.dataset.tag === ''));
+    _renderDaDetail();
+}
+
+function clearDaDay() { _daState.day = null; _renderDaDetail(); }
+
+// Wire filter controls
+document.getElementById('da-detail-search')?.addEventListener('input', (e) => {
+    _daState.search = e.target.value || '';
+    _renderDaDetail();
+});
+document.getElementById('da-detail-sort')?.addEventListener('change', (e) => {
+    _daState.sort = e.target.value;
+    _renderDaDetail();
+});
+document.querySelectorAll('#da-company-chips .da-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        document.querySelectorAll('#da-company-chips .da-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        _daState.company = chip.dataset.company || '';
+        _renderDaDetail();
+    });
+});
+document.querySelectorAll('#da-tag-chips .da-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        document.querySelectorAll('#da-tag-chips .da-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        _daState.tag = chip.dataset.tag || '';
+        _renderDaDetail();
+    });
+});
+// Click outside the card → close
+document.getElementById('da-detail')?.addEventListener('click', (e) => {
+    if (e.target.id === 'da-detail') closeDaDetail();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('da-detail')?.classList.contains('open')) {
+        closeDaDetail();
+    }
+});
+
+// Drill in from a dot-matrix column → open modal pre-filtered to that day.
+// Hook into the existing column click flow: when a column gets pinned, also open the modal.
+const _origPin = _daPin;
+_daPin = function (idx) {
+    _origPin(idx);
+    const slice = _daSlice();
+    const d = slice[idx];
+    if (d && (d.actual > 0)) {
+        openDaDetail({ iso: d.iso });
+    }
+};
+
+
+loadWatchlist();
+loadIndustryPulse();
+</script>
+<script>
+// Failsafe (isolated): never leave reveal content hidden if the main script errored.
+setTimeout(function () {
+    document.querySelectorAll('.reveal:not(.in)').forEach(function (e) { e.classList.add('in'); });
+}, 1400);
+</script>
+</body>
+</html>

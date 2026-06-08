@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Prices - Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* Ambient background so the white price cards pop (matches dashboard). */
+        .dash-main {
+            background:
+                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.13), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.11), transparent 55%),
+                radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.09), transparent 55%),
+                linear-gradient(180deg, #f6f7fc 0%, #eef1fb 100%);
+            background-attachment: fixed;
+        }
+        html.dark .dash-main {
+            background:
+                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.20), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.14), transparent 55%),
+                radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.11), transparent 55%),
+                #0a0a0a;
+            background-attachment: fixed;
+        }
+        /* Subtle lift on price cards */
+        #price-cards > div { transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease; }
+        #price-cards > div:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body class="bg-slate-50 text-gray-900">
+
+<!-- Alert Banner -->
+<div id="alert-banner" class="hidden fixed top-0 left-0 right-0 z-50 alert-banner">
+    <div id="alert-banner-content" class="bg-red-600 text-white px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+            <span id="alert-banner-text" class="text-sm font-medium"></span>
+        </div>
+        <button onclick="dismissAlert()" class="text-white/80 hover:text-white">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+</div>
+
+<div class="flex h-screen overflow-hidden">
+    {% set active_page = 'prices' %}
+    {% include 'sidebar.html' %}
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto dash-main">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="page-title">Stock Prices</h2>
+                    <p id="last-updated" class="page-subtitle">Loading...</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2 text-xs text-gray-500">
+                        <input type="checkbox" id="auto-refresh" checked class="rounded border-gray-300">
+                        Auto-refresh (30s)
+                    </label>
+                    <button onclick="openAlertsList()"
+                        class="text-xs font-medium px-3 py-1.5 rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        My Alerts <span id="alerts-count-badge" class="hidden ml-1 text-[10px] bg-amber-600 text-white rounded-full px-1.5">0</span>
+                    </button>
+                    <button onclick="refreshPrices()" id="refresh-btn"
+                        class="btn btn-primary">
+                        <svg id="refresh-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pre-Open Alerts Section -->
+        <div id="preopen-section" class="hidden px-8 pt-6">
+            <div class="bg-purple-50 border border-purple-200 rounded-xl p-5">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <h3 class="text-sm font-bold text-purple-800">Pre-Open Market Alerts (1.5%+ before opening bell)</h3>
+                </div>
+                <div id="preopen-list" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div id="alerts-section" class="hidden px-8 pt-6">
+            <div class="bg-red-50 border border-red-200 rounded-xl p-5">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                    <h3 class="text-sm font-bold text-red-800">Price Movement Alerts (3%+ change)</h3>
+                </div>
+                <div id="alerts-list" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- Sector Correlation Alerts -->
+        <div id="sector-alerts-section" class="hidden px-8 pt-6">
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                    <h3 class="text-sm font-bold text-blue-800">Sector Correlation Analysis</h3>
+                </div>
+                <div id="sector-alerts-list" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="prices-loading" class="flex items-center justify-center py-20">
+            <div class="spinner"></div>
+            <span class="ml-3 text-sm text-gray-500">Fetching live prices from NSE...</span>
+        </div>
+
+        <!-- Price Cards Grid -->
+        <div id="prices-grid" class="hidden px-8 py-6">
+            <div id="price-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+        </div>
+
+        <!-- Sector Overview -->
+        <div id="sector-overview" class="hidden px-8 py-6">
+            <h3 id="sector-overview-heading" class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Sector Overview</h3>
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <span id="sector-name" class="text-lg font-bold text-gray-900">--</span>
+                        <div class="flex items-baseline gap-3 mt-1">
+                            <span id="sector-price" class="text-2xl font-bold">--</span>
+                            <span id="sector-change" class="text-sm font-semibold">--</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 text-center">
+                        <a id="industry-news-btn" href="/industry/{{ user_industry|urlencode }}"
+                           class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                            </svg>
+                            Industry News
+                        </a>
+                        <div id="sector-adv" class="bg-green-50 rounded-lg px-4 py-2">
+                            <p class="text-[10px] text-gray-400 font-bold">Advances</p>
+                            <p class="text-lg font-bold text-green-600">--</p>
+                        </div>
+                        <div id="sector-dec" class="bg-red-50 rounded-lg px-4 py-2">
+                            <p class="text-[10px] text-gray-400 font-bold">Declines</p>
+                            <p class="text-lg font-bold text-red-600">--</p>
+                        </div>
+                        <div id="sector-unch" class="bg-gray-50 rounded-lg px-4 py-2">
+                            <p class="text-[10px] text-gray-400 font-bold">Unchanged</p>
+                            <p class="text-lg font-bold text-gray-500">--</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Sector Stocks Heatmap -->
+                <div id="sector-heatmap" class="grid grid-cols-3 md:grid-cols-5 gap-2"></div>
+            </div>
+        </div>
+
+        <!-- Market Overview -->
+        <div id="market-overview" class="hidden px-8 pb-8">
+            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Performance Overview</h3>
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b-2 border-gray-200">
+                            <th class="text-left px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Company</th>
+                            <th class="text-right px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Price</th>
+                            <th class="text-right px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Change</th>
+                            <th class="text-right px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Change %</th>
+                            <th class="text-right px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Day Range</th>
+                            <th class="text-right px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">52W Range</th>
+                            <th class="text-right px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Volume</th>
+                            <th class="text-right px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">30D</th>
+                            <th class="text-right px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">1Y</th>
+                        </tr>
+                    </thead>
+                    <tbody id="overview-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Detail Modal -->
+<div id="detail-modal" class="modal-overlay hidden">
+    <div class="modal-content modal-wide">
+        <div class="modal-header">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+                <span id="detail-logo"></span>
+                <div class="min-w-0">
+                    <h3 id="detail-symbol" class="text-lg font-bold text-gray-900"></h3>
+                    <p id="detail-company" class="text-sm text-gray-500 mt-0.5"></p>
+                </div>
+            </div>
+            <button onclick="closeDetail()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="detail-loading" class="flex items-center justify-center py-12">
+                <div class="spinner"></div>
+                <span class="ml-3 text-sm text-gray-500">Loading details...</span>
+            </div>
+            <div id="detail-content" class="hidden space-y-6 p-2"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+let pricesData = {};
+let refreshTimer = null;
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatNumber(n) {
+    if (n === null || n === undefined || n === 0) return '--';
+    return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+function formatVolume(v) {
+    if (!v) return '--';
+    if (v >= 10000000) return (v / 10000000).toFixed(2) + ' Cr';
+    if (v >= 100000) return (v / 100000).toFixed(2) + ' L';
+    if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
+    return v.toString();
+}
+
+function changeClass(pChange) {
+    if (pChange > 0) return 'price-up';
+    if (pChange < 0) return 'price-down';
+    return 'price-neutral';
+}
+
+function changeArrow(pChange) {
+    if (pChange > 0) return '&#9650;';
+    if (pChange < 0) return '&#9660;';
+    return '&#9644;';
+}
+
+/* ── Company logo avatar (local SVG first, then live fallbacks) ── */
+const SYMBOL_DOMAINS = {{ symbol_domains | tojson }};
+const SYMBOL_TV_SLUGS = {{ symbol_tv_slugs | tojson }};
+const AVATAR_PALETTES = [['#6366f1','#8b5cf6'],['#0ea5e9','#06b6d4'],['#f59e0b','#f97316'],['#ec4899','#f43f5e'],['#22c55e','#16a34a'],['#14b8a6','#0d9488']];
+function avatarColor(sym){let h=0;const s=String(sym||'');for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return AVATAR_PALETTES[Math.abs(h)%AVATAR_PALETTES.length];}
+function avatarInitials(sym){return String(sym||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'?';}
+function logoFallback(img){let list;try{list=JSON.parse(img.dataset.cands||'[]');}catch(e){list=[];}const i=parseInt(img.dataset.idx||'0',10)+1;img.dataset.idx=String(i);if(i<list.length)img.src=list[i];else img.style.display='none';}
+window.logoFallback=logoFallback;
+function avatarHtml(sym, size){
+    size = size || 40;
+    const c = avatarColor(sym);
+    const initials = escapeHtml(avatarInitials(sym));
+    const tvSlug = SYMBOL_TV_SLUGS[sym] || '';
+    const domain = SYMBOL_DOMAINS[sym] || '';
+    const cands = [`/static/logos/${encodeURIComponent(sym)}.svg`];
+    if (domain) cands.push(`/logo/${encodeURIComponent(sym)}?v=2`);
+    if (tvSlug) cands.push(`https://s3-symbol-logo.tradingview.com/${tvSlug}--big.svg`);
+    if (domain) {
+        cands.push(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`);
+        cands.push(`https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico`);
+    }
+    const inner = `<img src="${cands[0]}" alt="" referrerpolicy="no-referrer" data-cands='${escapeHtml(JSON.stringify(cands))}' data-idx="0" onerror="logoFallback(this)" class="absolute inset-0 w-full h-full rounded-full object-contain bg-white p-0.5 ring-1 ring-gray-200">`;
+    return `<div class="relative flex-shrink-0 rounded-full flex items-center justify-center text-white text-[11px] font-bold shadow-sm ring-2 ring-white" style="width:${size}px;height:${size}px;background:linear-gradient(135deg,${c[0]},${c[1]})"><span>${initials}</span>${inner}</div>`;
+}
+
+function refreshPrices() {
+    const icon = document.getElementById('refresh-icon');
+    icon.classList.add('refresh-spin');
+
+    fetch('/api/prices')
+        .then(r => r.json())
+        .then(data => {
+            icon.classList.remove('refresh-spin');
+            pricesData = data.prices || {};
+            renderPrices(data);
+            renderAlerts(data.alerts || []);
+            document.getElementById('last-updated').textContent =
+                'Last updated: ' + new Date().toLocaleTimeString();
+
+            // Update sidebar prices
+            for (const [sym, p] of Object.entries(pricesData)) {
+                const el = document.getElementById(`sidebar-price-${sym}`);
+                if (el && p.lastPrice) {
+                    el.textContent = `₹${formatNumber(p.lastPrice)}`;
+                    el.className = `text-xs font-medium ${changeClass(p.pChange)}`;
+                }
+            }
+        })
+        .catch(() => {
+            icon.classList.remove('refresh-spin');
+            document.getElementById('prices-loading').innerHTML =
+                '<p class="text-red-400 text-sm">Failed to fetch prices. Retrying...</p>';
+        });
+}
+
+function renderPrices(data) {
+    const prices = data.prices || {};
+    const symbols = data.symbols || [];
+    const container = document.getElementById('price-cards');
+    const loading = document.getElementById('prices-loading');
+    const grid = document.getElementById('prices-grid');
+    const overview = document.getElementById('market-overview');
+
+    loading.classList.add('hidden');
+    grid.classList.remove('hidden');
+    overview.classList.remove('hidden');
+
+    // Price cards
+    container.innerHTML = symbols.map(sym => {
+        const p = prices[sym];
+        if (!p) return '';
+        const cls = changeClass(p.pChange);
+        const arrow = changeArrow(p.pChange);
+        const isAlert = Math.abs(p.pChange || 0) >= 3;
+        const alertCls = isAlert ? 'alert-card border-red-300' : '';
+
+        // Day range bar
+        const range = p.dayHigh - p.dayLow;
+        const pos = range > 0 ? ((p.lastPrice - p.dayLow) / range * 100) : 50;
+
+        const hasAlert = (window._alertsBySymbol && window._alertsBySymbol[sym]) ? true : false;
+        return `
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 cursor-pointer hover:shadow-md transition-shadow ${alertCls}"
+             onclick="openDetail('${sym}')">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    ${avatarHtml(sym, 40)}
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-bold text-gray-900">${escapeHtml(sym)}</h3>
+                        <p class="text-[10px] text-gray-400 truncate max-w-[130px]">${escapeHtml(p.companyName || '')}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                    ${isAlert ? '<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">ALERT</span>' : ''}
+                    <button onclick="event.stopPropagation(); openAlertModal('${sym}', '${escapeAttr(p.companyName || '')}')"
+                            title="${hasAlert ? 'Manage alert' : 'Set price alert'}"
+                            class="${hasAlert ? 'text-amber-600 bg-amber-50' : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'} rounded-lg p-1.5 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="${hasAlert ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex items-baseline gap-3 mb-3">
+                <span class="text-2xl font-bold text-gray-900">₹${formatNumber(p.lastPrice)}</span>
+                <span class="text-sm font-semibold ${cls}">${arrow} ${formatNumber(Math.abs(p.change))} (${(p.pChange || 0).toFixed(2)}%)</span>
+            </div>
+            <!-- Day Range -->
+            <div class="mb-3">
+                <div class="flex justify-between text-[10px] text-gray-400 mb-1">
+                    <span>₹${formatNumber(p.dayLow)}</span>
+                    <span class="font-medium text-gray-500">Day Range</span>
+                    <span>₹${formatNumber(p.dayHigh)}</span>
+                </div>
+                <div class="h-1.5 bg-gray-100 rounded-full relative">
+                    <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-red-300 via-yellow-300 to-green-300 rounded-full" style="width: 100%"></div>
+                    <div class="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-gray-800 rounded-full border-2 border-white shadow"
+                         style="left: ${pos}%"></div>
+                </div>
+            </div>
+            <!-- Stats row -->
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-gray-50 rounded-lg py-1.5 px-1">
+                    <p class="text-[10px] text-gray-400">Open</p>
+                    <p class="text-xs font-semibold">₹${formatNumber(p.open)}</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg py-1.5 px-1">
+                    <p class="text-[10px] text-gray-400">Volume</p>
+                    <p class="text-xs font-semibold">${formatVolume(p.totalTradedVolume)}</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg py-1.5 px-1">
+                    <p class="text-[10px] text-gray-400">52W High</p>
+                    <p class="text-xs font-semibold">₹${formatNumber(p.yearHigh)}</p>
+                </div>
+            </div>
+            ${p.perChange30d != null ? `
+            <div class="flex gap-2 mt-3">
+                <span class="text-[10px] px-2 py-0.5 rounded-full ${p.perChange30d >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}">
+                    30D: ${p.perChange30d >= 0 ? '+' : ''}${p.perChange30d.toFixed(1)}%
+                </span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full ${p.perChange365d >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}">
+                    1Y: ${p.perChange365d >= 0 ? '+' : ''}${(p.perChange365d || 0).toFixed(1)}%
+                </span>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+
+    // Overview table
+    const tbody = document.getElementById('overview-table');
+    tbody.innerHTML = symbols.map(sym => {
+        const p = prices[sym];
+        if (!p) return '';
+        const cls = changeClass(p.pChange);
+        return `
+        <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="openDetail('${sym}')">
+            <td class="px-5 py-3">
+                <span class="text-sm font-semibold text-gray-900">${escapeHtml(sym)}</span>
+                <p class="text-[10px] text-gray-400 truncate max-w-[140px]">${escapeHtml(p.companyName || '')}</p>
+            </td>
+            <td class="text-right px-5 py-3 text-sm font-bold">₹${formatNumber(p.lastPrice)}</td>
+            <td class="text-right px-5 py-3 text-sm font-medium ${cls}">${formatNumber(p.change)}</td>
+            <td class="text-right px-5 py-3 text-sm font-semibold ${cls}">${(p.pChange||0).toFixed(2)}%</td>
+            <td class="text-right px-5 py-3 text-xs text-gray-500">₹${formatNumber(p.dayLow)} - ₹${formatNumber(p.dayHigh)}</td>
+            <td class="text-right px-5 py-3 text-xs text-gray-500">₹${formatNumber(p.yearLow)} - ₹${formatNumber(p.yearHigh)}</td>
+            <td class="text-right px-5 py-3 text-xs text-gray-600">${formatVolume(p.totalTradedVolume)}</td>
+            <td class="text-right px-5 py-3 text-xs font-medium ${(p.perChange30d||0) >= 0 ? 'price-up' : 'price-down'}">${p.perChange30d != null ? (p.perChange30d >= 0 ? '+' : '') + p.perChange30d.toFixed(1) + '%' : '--'}</td>
+            <td class="text-right px-5 py-3 text-xs font-medium ${(p.perChange365d||0) >= 0 ? 'price-up' : 'price-down'}">${p.perChange365d != null ? (p.perChange365d >= 0 ? '+' : '') + p.perChange365d.toFixed(1) + '%' : '--'}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderAlerts(alerts) {
+    const section = document.getElementById('alerts-section');
+    const banner = document.getElementById('alert-banner');
+
+    if (!alerts.length) {
+        section.classList.add('hidden');
+        banner.classList.add('hidden');
+        return;
+    }
+
+    section.classList.remove('hidden');
+
+    // Top banner
+    const topAlert = alerts[0];
+    document.getElementById('alert-banner-text').innerHTML =
+        `<strong>${topAlert.symbol}</strong> ${topAlert.direction === 'up' ? 'surged' : 'dropped'} <strong>${Math.abs(topAlert.pChange).toFixed(2)}%</strong> to ₹${formatNumber(topAlert.lastPrice)}`;
+    banner.classList.remove('hidden');
+
+    // Alert cards
+    const list = document.getElementById('alerts-list');
+    list.innerHTML = alerts.map(a => {
+        const cls = a.direction === 'up' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50';
+        const textCls = a.direction === 'up' ? 'text-green-700' : 'text-red-700';
+        const reasons = (a.reasons || []).map(r =>
+            `<li class="text-xs text-gray-600">${escapeHtml(r)}</li>`
+        ).join('');
+
+        return `
+        <div class="rounded-lg border ${cls} p-4">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold ${textCls}">${escapeHtml(a.symbol)}</span>
+                    <span class="text-sm font-semibold ${textCls}">
+                        ${a.direction === 'up' ? '&#9650;' : '&#9660;'} ${Math.abs(a.pChange).toFixed(2)}%
+                    </span>
+                </div>
+                <span class="text-sm font-bold">₹${formatNumber(a.lastPrice)}</span>
+            </div>
+            ${reasons ? `
+            <div class="mt-2">
+                <p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Possible Reasons</p>
+                <ul class="list-disc pl-4 space-y-0.5">${reasons}</ul>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function dismissAlert() {
+    document.getElementById('alert-banner').classList.add('hidden');
+}
+
+function openDetail(symbol) {
+    const modal = document.getElementById('detail-modal');
+    const loading = document.getElementById('detail-loading');
+    const content = document.getElementById('detail-content');
+    modal.classList.remove('hidden');
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+
+    document.getElementById('detail-symbol').textContent = symbol;
+    document.getElementById('detail-company').textContent = '';
+    document.getElementById('detail-logo').innerHTML = avatarHtml(symbol, 44);
+
+    fetch(`/api/price/${symbol}`)
+        .then(r => r.json())
+        .then(data => {
+            loading.classList.add('hidden');
+            if (data.error) {
+                content.innerHTML = `<p class="text-red-400">${data.message}</p>`;
+                content.classList.remove('hidden');
+                return;
+            }
+            renderDetail(data);
+            content.classList.remove('hidden');
+        })
+        .catch(() => {
+            loading.classList.add('hidden');
+            content.innerHTML = '<p class="text-red-400">Failed to load details.</p>';
+            content.classList.remove('hidden');
+        });
+}
+
+function renderDetail(data) {
+    const q = data.quote;
+    const reasons = data.reasons || [];
+    const content = document.getElementById('detail-content');
+    const cls = changeClass(q.pChange);
+
+    document.getElementById('detail-company').textContent = q.companyName || '';
+
+    const range52 = q.yearHigh - q.yearLow;
+    const pos52 = range52 > 0 ? ((q.lastPrice - q.yearLow) / range52 * 100) : 50;
+
+    content.innerHTML = `
+    <!-- Price Header -->
+    <div class="flex items-baseline gap-4 mb-2">
+        <span class="text-3xl font-bold">₹${formatNumber(q.lastPrice)}</span>
+        <span class="text-lg font-semibold ${cls}">${changeArrow(q.pChange)} ₹${formatNumber(Math.abs(q.change))} (${(q.pChange||0).toFixed(2)}%)</span>
+    </div>
+    ${data.alert ? '<div class="bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4 text-xs text-red-700 font-medium">&#x26A0; Price moved more than 3% — significant movement detected</div>' : ''}
+    <p class="text-xs text-gray-400 mb-6">Last updated: ${q.lastUpdateTime || 'N/A'} | Industry: ${q.industry || 'N/A'}</p>
+
+    <!-- Key Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-[10px] text-gray-400 uppercase font-bold">Open</p>
+            <p class="text-sm font-bold mt-1">₹${formatNumber(q.open)}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-[10px] text-gray-400 uppercase font-bold">Prev Close</p>
+            <p class="text-sm font-bold mt-1">₹${formatNumber(q.previousClose)}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-[10px] text-gray-400 uppercase font-bold">VWAP</p>
+            <p class="text-sm font-bold mt-1">₹${formatNumber(q.vwap)}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-[10px] text-gray-400 uppercase font-bold">Volume</p>
+            <p class="text-sm font-bold mt-1">${formatVolume(q.totalTradedVolume)}</p>
+        </div>
+    </div>
+
+    <!-- Day Range -->
+    <div class="mb-6">
+        <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Day Range</p>
+        <div class="flex justify-between text-xs text-gray-500 mb-1">
+            <span>₹${formatNumber(q.dayLow)}</span>
+            <span>₹${formatNumber(q.dayHigh)}</span>
+        </div>
+        <div class="h-2 bg-gray-100 rounded-full relative">
+            <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-red-300 via-yellow-300 to-green-300 rounded-full" style="width:100%"></div>
+            <div class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-gray-800 rounded-full border-2 border-white shadow"
+                 style="left:${q.dayHigh > q.dayLow ? ((q.lastPrice - q.dayLow) / (q.dayHigh - q.dayLow) * 100) : 50}%"></div>
+        </div>
+    </div>
+
+    <!-- 52 Week Range -->
+    <div class="mb-6">
+        <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">52-Week Range</p>
+        <div class="flex justify-between text-xs text-gray-500 mb-1">
+            <span>₹${formatNumber(q.yearLow)}${q.yearLowDate ? ' <span class=\"text-gray-300\">(' + q.yearLowDate + ')</span>' : ''}</span>
+            <span>₹${formatNumber(q.yearHigh)}${q.yearHighDate ? ' <span class=\"text-gray-300\">(' + q.yearHighDate + ')</span>' : ''}</span>
+        </div>
+        <div class="h-2 bg-gray-100 rounded-full relative">
+            <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-red-300 via-yellow-300 to-green-300 rounded-full" style="width:100%"></div>
+            <div class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 rounded-full border-2 border-white shadow"
+                 style="left:${pos52}%"></div>
+        </div>
+    </div>
+
+    <!-- Performance -->
+    ${q.perChange30d != null ? `
+    <div class="mb-6">
+        <p class="text-[10px] font-bold text-gray-400 uppercase mb-3">Performance</p>
+        <div class="flex gap-3">
+            <div class="flex-1 rounded-lg p-3 ${q.perChange30d >= 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">
+                <p class="text-[10px] text-gray-500">30 Days</p>
+                <p class="text-lg font-bold ${q.perChange30d >= 0 ? 'text-green-700' : 'text-red-700'}">${q.perChange30d >= 0 ? '+' : ''}${q.perChange30d.toFixed(2)}%</p>
+            </div>
+            <div class="flex-1 rounded-lg p-3 ${(q.perChange365d||0) >= 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">
+                <p class="text-[10px] text-gray-500">1 Year</p>
+                <p class="text-lg font-bold ${(q.perChange365d||0) >= 0 ? 'text-green-700' : 'text-red-700'}">${(q.perChange365d||0) >= 0 ? '+' : ''}${(q.perChange365d||0).toFixed(2)}%</p>
+            </div>
+        </div>
+    </div>` : ''}
+
+    <!-- Deep Price-Movement Analysis: news + Reddit + AI summary.
+         Filing-only fallback shown immediately; richer panel fills in
+         async via /api/price-intel/<symbol>. -->
+    <div id="intel-section">
+        <div class="flex items-center justify-between mb-3">
+            <p class="text-[10px] font-bold text-gray-400 uppercase">Why did this stock move?</p>
+            <span id="intel-status" class="text-[10px] text-gray-400">Loading deeper analysis…</span>
+        </div>
+        <div id="intel-summary" class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-3 text-sm text-gray-700">
+            ${reasons.length ? `
+                <ul class="space-y-1.5">
+                    ${reasons.map(r => `<li class="flex items-start gap-2">
+                        <span class="text-amber-500 mt-0.5">&#x2022;</span>
+                        <span>${escapeHtml(r)}</span>
+                    </li>`).join('')}
+                </ul>` : '<p class="text-gray-500">Analyzing recent news, filings, and chatter…</p>'}
+        </div>
+        <div id="intel-rating" class="mb-3"></div>
+        <div id="intel-evidence" class="grid grid-cols-1 gap-3"></div>
+    </div>
+
+    <div class="mt-6 pt-4 border-t border-gray-100">
+        <a href="/company/${q.symbol}" class="text-xs font-medium text-blue-600 hover:text-blue-700">
+            View Corporate Filings &rarr;
+        </a>
+    </div>`;
+
+    // Kick off the async deep analysis. The basic filing-only summary
+    // above stays visible if this fails or while it loads.
+    loadPriceIntel(q.symbol);
+}
+
+function loadPriceIntel(symbol) {
+    fetch(`/api/price-intel/${encodeURIComponent(symbol)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('intel-status').textContent = '';
+                return;
+            }
+            renderPriceIntel(data);
+        })
+        .catch(() => {
+            const s = document.getElementById('intel-status');
+            if (s) s.textContent = '';
+        });
+}
+
+function _formatRelativeTime(isoOrEpoch) {
+    if (!isoOrEpoch) return '';
+    let dt;
+    if (typeof isoOrEpoch === 'number') dt = new Date(isoOrEpoch * 1000);
+    else dt = new Date(isoOrEpoch);
+    if (isNaN(dt)) return '';
+    const diffMin = Math.max(0, (Date.now() - dt) / 60000);
+    if (diffMin < 60) return Math.round(diffMin) + 'm ago';
+    if (diffMin < 24 * 60) return Math.round(diffMin / 60) + 'h ago';
+    return Math.round(diffMin / 60 / 24) + 'd ago';
+}
+
+function renderPriceIntel(data) {
+    const status = document.getElementById('intel-status');
+    const summaryEl = document.getElementById('intel-summary');
+    const evidence = document.getElementById('intel-evidence');
+    if (!summaryEl || !evidence) return;
+
+    if (status) {
+        const fetched = data.fetched_at ? _formatRelativeTime(data.fetched_at) : '';
+        status.textContent = (data.ai_powered ? 'AI summary' : 'Heuristic summary')
+                            + (fetched ? ' · updated ' + fetched : '');
+    }
+
+    if (data.summary) {
+        summaryEl.innerHTML = `
+            <div class="flex items-start gap-2">
+                <span class="text-amber-500 mt-0.5">${data.ai_powered ? '&#x2728;' : '&#x2022;'}</span>
+                <p class="text-sm text-gray-800 leading-relaxed">${escapeHtml(data.summary)}</p>
+            </div>`;
+    }
+
+    const news = (data.news || []).slice(0, 6);
+    const filings = (data.filings || []).slice(0, 4);
+
+    // Analyst & technical rating panel (rendered full-width above the news).
+    renderRating(data.rating);
+
+    const newsCard = news.length ? `
+        <div class="bg-white border border-gray-200 rounded-lg p-3">
+            <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">News headlines (${news.length})</p>
+            <ul class="space-y-2">
+                ${news.map(n => `
+                    <li>
+                        <a href="${n.url}" target="_blank" rel="noopener"
+                           class="text-xs font-medium text-gray-800 hover:text-indigo-600 line-clamp-2 block">
+                            ${escapeHtml(n.title)}
+                        </a>
+                        <p class="text-[10px] text-gray-400 mt-0.5">
+                            ${escapeHtml(n.source || 'news')}${n.published ? ' · ' + _formatRelativeTime(n.published) : ''}
+                        </p>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>` : `
+        <div class="bg-white border border-gray-200 rounded-lg p-3 text-center">
+            <p class="text-xs text-gray-400">No fresh news in the last few days.</p>
+        </div>`;
+
+    evidence.innerHTML = newsCard;
+}
+
+const _RATING_COLORS = {
+    'Strong Buy': '#059669', 'Buy': '#16a34a', 'Hold': '#d97706',
+    'Reduce': '#ea580c', 'Sell': '#dc2626'
+};
+
+function renderRating(rating) {
+    const box = document.getElementById('intel-rating');
+    if (!box) return;
+    if (!rating || rating.score == null) {
+        box.innerHTML = `<div class="bg-white border border-gray-200 rounded-lg p-3 text-center">
+            <p class="text-xs text-gray-400">Analyst &amp; technical rating not available for this stock.</p></div>`;
+        return;
+    }
+
+    const score = rating.score;
+    const label = rating.label || 'Hold';
+    const color = _RATING_COLORS[label] || '#6b7280';
+    const a = rating.analyst;
+    const t = rating.technical;
+    const pct = Math.max(0, Math.min(100, score * 10));
+
+    // Analyst distribution bar
+    let distBar = '';
+    if (a && a.dist) {
+        const d = a.dist;
+        const segs = [
+            ['Strong Buy', d.strongBuy, '#059669'], ['Buy', d.buy, '#34d399'],
+            ['Hold', d.hold, '#fbbf24'], ['Sell', d.sell, '#f87171'],
+            ['Strong Sell', d.strongSell, '#dc2626']
+        ];
+        const tot = segs.reduce((s, x) => s + (x[1] || 0), 0) || 1;
+        distBar = `
+            <div class="mt-3">
+                <div class="flex h-2.5 rounded-full overflow-hidden">
+                    ${segs.map(s => s[1] ? `<div style="width:${s[1]/tot*100}%;background:${s[2]}" title="${s[0]}: ${s[1]}"></div>` : '').join('')}
+                </div>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] text-gray-500">
+                    ${segs.filter(s => s[1]).map(s => `<span><span style="color:${s[2]}">&#9632;</span> ${s[0]} ${s[1]}</span>`).join('')}
+                </div>
+            </div>`;
+    }
+
+    // Target price + upside
+    let targetBlock = '';
+    if (a && a.target_mean && a.current) {
+        const up = rating.upside_pct;
+        const upColor = up >= 0 ? '#059669' : '#dc2626';
+        targetBlock = `
+            <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+                <div class="bg-gray-50 rounded-lg py-2">
+                    <div class="text-[10px] text-gray-400 uppercase">Target (avg)</div>
+                    <div class="text-sm font-bold text-gray-900">₹${formatNumber(a.target_mean)}</div>
+                </div>
+                <div class="bg-gray-50 rounded-lg py-2">
+                    <div class="text-[10px] text-gray-400 uppercase">Upside</div>
+                    <div class="text-sm font-bold" style="color:${upColor}">${up >= 0 ? '+' : ''}${up}%</div>
+                </div>
+                <div class="bg-gray-50 rounded-lg py-2">
+                    <div class="text-[10px] text-gray-400 uppercase">Range</div>
+                    <div class="text-xs font-semibold text-gray-700">₹${formatNumber(a.target_low)}–${formatNumber(a.target_high)}</div>
+                </div>
+            </div>`;
+    }
+
+    // Technical components
+    let techBlock = '';
+    if (t) {
+        const chip = (lbl, val, ok) => `<span class="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full ${ok === null ? 'bg-gray-100 text-gray-600' : (ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}">${lbl}: <b>${val}</b></span>`;
+        const items = [];
+        if (t.dma50 != null) items.push(chip('vs 50-DMA', '₹' + formatNumber(t.dma50), t.last > t.dma50));
+        if (t.dma200 != null) items.push(chip('vs 200-DMA', '₹' + formatNumber(t.dma200), t.last > t.dma200));
+        if (t.rsi != null) items.push(chip('RSI(14)', t.rsi, t.rsi >= 30 && t.rsi <= 70 ? null : (t.rsi < 30)));
+        if (t.pos52 != null) items.push(chip('52W position', t.pos52 + '%', t.pos52 >= 50));
+        if (t.mom1m != null) items.push(chip('1M momentum', (t.mom1m >= 0 ? '+' : '') + t.mom1m + '%', t.mom1m >= 0));
+        techBlock = `<div class="mt-3"><div class="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Technical signals</div>
+            <div class="flex flex-wrap gap-1.5">${items.join('')}</div></div>`;
+    }
+
+    const sourceNote = (rating.source === 'analyst' && a)
+        ? `Consensus of ${a.count} analyst${a.count === 1 ? '' : 's'} (via Yahoo Finance)`
+        : 'Computed from price technicals (no analyst coverage found)';
+
+    box.innerHTML = `
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+            <div class="flex items-center justify-between mb-1">
+                <p class="text-[10px] font-bold text-gray-400 uppercase">Analyst &amp; Signal — what the Street thinks</p>
+                <span class="text-[10px] text-gray-400">${sourceNote}</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex-shrink-0 text-center">
+                    <div class="text-3xl font-extrabold" style="color:${color}">${score}<span class="text-base text-gray-400">/10</span></div>
+                    <div class="text-xs font-bold" style="color:${color}">${label}</div>
+                </div>
+                <div class="flex-1">
+                    <div class="h-2.5 rounded-full" style="background:linear-gradient(90deg,#dc2626,#f59e0b,#059669)"></div>
+                    <div class="relative h-0">
+                        <div style="position:absolute;left:${pct}%;transform:translateX(-50%);top:-9px;">
+                            <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #111827;"></div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-[9px] text-gray-400 mt-1.5"><span>Sell</span><span>Hold</span><span>Strong Buy</span></div>
+                </div>
+            </div>
+            ${targetBlock}
+            ${distBar}
+            ${techBlock}
+            <p class="mt-3 text-[10px] text-gray-400 leading-relaxed">For information only — not investment advice. ${rating.source === 'analyst' ? 'Analyst data may lag; verify before acting.' : 'A rules-based reading of price action, not a recommendation.'}</p>
+        </div>`;
+}
+
+function closeDetail() {
+    document.getElementById('detail-modal').classList.add('hidden');
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeDetail();
+});
+
+// Auto-refresh
+function startAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+        if (document.getElementById('auto-refresh').checked) {
+            refreshPrices();
+        }
+    }, 30000);
+}
+
+// ── Pre-Open Data ──────────────────────────────────────
+function fetchPreOpen() {
+    fetch('/api/pre-open')
+        .then(r => r.json())
+        .then(data => renderPreOpenAlerts(data.alerts || []))
+        .catch(() => {});
+}
+
+function renderPreOpenAlerts(alerts) {
+    const section = document.getElementById('preopen-section');
+    if (!alerts.length) {
+        section.classList.add('hidden');
+        return;
+    }
+    section.classList.remove('hidden');
+    const list = document.getElementById('preopen-list');
+    list.innerHTML = alerts.map(a => {
+        const cls = a.direction === 'up' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50';
+        const textCls = a.direction === 'up' ? 'text-green-700' : 'text-red-700';
+        const reasons = (a.reasons || []).map(r =>
+            `<li class="text-xs text-gray-600">${escapeHtml(r)}</li>`
+        ).join('');
+        return `
+        <div class="rounded-lg border ${cls} p-4">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">PRE-OPEN</span>
+                    <span class="text-sm font-bold ${textCls}">${escapeHtml(a.symbol)}</span>
+                    <span class="text-sm font-semibold ${textCls}">
+                        ${a.direction === 'up' ? '&#9650;' : '&#9660;'} ${Math.abs(a.pChange).toFixed(2)}%
+                    </span>
+                </div>
+                <div class="text-right">
+                    <span class="text-sm font-bold">IEP: &#x20B9;${formatNumber(a.iep)}</span>
+                    <p class="text-[10px] text-gray-400">Prev Close: &#x20B9;${formatNumber(a.prevClose)}</p>
+                </div>
+            </div>
+            ${reasons ? `
+            <div class="mt-2">
+                <p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Why it moved before market opened</p>
+                <ul class="list-disc pl-4 space-y-0.5">${reasons}</ul>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// ── Sector Data ──────────────────────────────────────
+function fetchSector() {
+    fetch('/api/sector')
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return;
+            renderSectorOverview(data.sector, data.stocks || []);
+            renderSectorAlerts(data.alerts || []);
+        })
+        .catch(() => {});
+}
+
+function renderSectorOverview(sector, stocks) {
+    if (!sector) return;
+    const section = document.getElementById('sector-overview');
+    section.classList.remove('hidden');
+
+    const idxName = sector.indexName || 'Sector';
+    document.getElementById('sector-name').textContent = idxName;
+    const heading = document.getElementById('sector-overview-heading');
+    if (heading) heading.textContent = idxName + ' Sector Overview';
+    document.getElementById('sector-price').textContent = '₹' + formatNumber(sector.lastPrice);
+
+    const cls = changeClass(sector.pChange);
+    const arrow = changeArrow(sector.pChange);
+    document.getElementById('sector-change').innerHTML =
+        `<span class="${cls}">${arrow} ${formatNumber(Math.abs(sector.change))} (${(sector.pChange||0).toFixed(2)}%)</span>`;
+
+    document.getElementById('sector-adv').querySelector('.text-lg').textContent = sector.advances || 0;
+    document.getElementById('sector-dec').querySelector('.text-lg').textContent = sector.declines || 0;
+    document.getElementById('sector-unch').querySelector('.text-lg').textContent = sector.unchanged || 0;
+
+    // Heatmap
+    const heatmap = document.getElementById('sector-heatmap');
+    const sorted = [...stocks].sort((a, b) => (b.pChange || 0) - (a.pChange || 0));
+    heatmap.innerHTML = sorted.map(s => {
+        const pc = s.pChange || 0;
+        let bg, text;
+        if (pc >= 3) { bg = 'bg-green-600'; text = 'text-white'; }
+        else if (pc >= 1) { bg = 'bg-green-100'; text = 'text-green-800'; }
+        else if (pc > -1) { bg = 'bg-gray-100'; text = 'text-gray-700'; }
+        else if (pc > -3) { bg = 'bg-red-100'; text = 'text-red-800'; }
+        else { bg = 'bg-red-600'; text = 'text-white'; }
+        const isWatchlist = {{ companies | tojson }}.includes(s.symbol);
+        const ring = isWatchlist ? 'ring-2 ring-blue-400' : '';
+        return `
+        <div class="${bg} ${text} ${ring} rounded-lg p-2.5 text-center cursor-pointer hover:opacity-90 transition-opacity"
+             onclick="openDetail('${s.symbol}')">
+            <p class="text-[10px] font-bold truncate">${escapeHtml(s.symbol)}</p>
+            <p class="text-sm font-bold">${pc >= 0 ? '+' : ''}${pc.toFixed(2)}%</p>
+            <p class="text-[10px] opacity-75">₹${formatNumber(s.lastPrice)}</p>
+        </div>`;
+    }).join('');
+}
+
+function renderSectorAlerts(alerts) {
+    const section = document.getElementById('sector-alerts-section');
+    if (!alerts.length) {
+        section.classList.add('hidden');
+        return;
+    }
+    section.classList.remove('hidden');
+    const list = document.getElementById('sector-alerts-list');
+    list.innerHTML = alerts.map(a => {
+        const dir = a.direction === 'up';
+        const mainCls = dir ? 'border-green-200' : 'border-red-200';
+        const textCls = dir ? 'text-green-700' : 'text-red-700';
+        const bgCls = dir ? 'bg-green-50' : 'bg-red-50';
+
+        // Sector analysis reasons
+        const sectorReasons = (a.sectorAnalysis || []).map(r =>
+            `<li class="text-xs text-gray-600">${escapeHtml(r)}</li>`
+        ).join('');
+
+        // Main stock reasons
+        const mainReasons = (a.reasons || []).map(r =>
+            `<li class="text-xs text-gray-600">${escapeHtml(r)}</li>`
+        ).join('');
+
+        // Correlated movers
+        const movers = (a.correlatedMovers || []).map(m => {
+            const mDir = m.pChange > 0;
+            const mCls = mDir ? 'text-green-700' : 'text-red-700';
+            const mReasons = (m.reasons || []).map(r =>
+                `<li class="text-[11px] text-gray-500">${escapeHtml(r)}</li>`
+            ).join('');
+            return `
+            <div class="bg-white rounded-lg border border-gray-200 p-3 mt-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-gray-700">${escapeHtml(m.symbol)}</span>
+                    <span class="text-xs font-semibold ${mCls}">${mDir ? '&#9650;' : '&#9660;'} ${Math.abs(m.pChange).toFixed(2)}% | ₹${formatNumber(m.lastPrice)}</span>
+                </div>
+                ${mReasons ? `<ul class="list-disc pl-4 mt-1 space-y-0.5">${mReasons}</ul>` : ''}
+            </div>`;
+        }).join('');
+
+        return `
+        <div class="rounded-xl border ${mainCls} ${bgCls} p-4">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold ${textCls}">${escapeHtml(a.symbol)}</span>
+                    <span class="text-sm font-semibold ${textCls}">
+                        ${dir ? '&#9650;' : '&#9660;'} ${Math.abs(a.pChange).toFixed(2)}%
+                    </span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${a.isSectorWide ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}">
+                        ${a.isSectorWide ? 'SECTOR-WIDE' : 'COMPANY-SPECIFIC'}
+                    </span>
+                </div>
+                <span class="text-xs text-gray-500">${a.sectorName} ${a.sectorChange >= 0 ? '+' : ''}${(a.sectorChange||0).toFixed(2)}%</span>
+            </div>
+
+            ${sectorReasons ? `
+            <div class="mb-3">
+                <p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Sector Analysis</p>
+                <ul class="list-disc pl-4 space-y-0.5">${sectorReasons}</ul>
+            </div>` : ''}
+
+            ${mainReasons ? `
+            <div class="mb-3">
+                <p class="text-[10px] font-bold text-gray-500 uppercase mb-1">${escapeHtml(a.symbol)} Filing Analysis</p>
+                <ul class="list-disc pl-4 space-y-0.5">${mainReasons}</ul>
+            </div>` : ''}
+
+            ${a.correlatedMovers && a.correlatedMovers.length ? `
+            <div>
+                <p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Other ${escapeHtml(a.sectorName || 'Sector')} Stocks Also Moving 3%+ (${a.correlatedMovers.length})</p>
+                ${movers}
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+/* ═════════════════════════════════════════════
+   PRICE ALERTS — set, list, test, fire UI
+   ═════════════════════════════════════════════ */
+window._alertsBySymbol = {};
+let _firedAlertIds = new Set();         // dedupe across polls so the same fire doesn't double-beep
+let _telegramConfigured = false;
+let _telegramBotUsername = '';
+let _telegramLink = {linked: false, first_name: '', username: ''};
+
+function escapeAttr(t) {
+    return String(t || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// ── Audio ── tiny WebAudio chirp; no asset needed.
+let _audioCtx = null;
+function playAlertSound() {
+    try {
+        if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = _audioCtx;
+        // Two-tone chirp (E5 → A5)
+        const t0 = ctx.currentTime;
+        [{f: 659.25, t: 0}, {f: 880.00, t: 0.18}].forEach(({f, t}) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine'; osc.frequency.value = f;
+            gain.gain.setValueAtTime(0.0001, t0 + t);
+            gain.gain.exponentialRampToValueAtTime(0.25, t0 + t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t0 + t + 0.35);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(t0 + t); osc.stop(t0 + t + 0.4);
+        });
+    } catch (e) { /* audio blocked until first user gesture; that's fine */ }
+}
+
+// ── Browser notification ──
+function ensureNotificationPermission() {
+    if (!('Notification' in window)) return Promise.resolve('unsupported');
+    if (Notification.permission === 'granted') return Promise.resolve('granted');
+    if (Notification.permission === 'denied')  return Promise.resolve('denied');
+    return Notification.requestPermission();
+}
+
+function showBrowserNotification(title, body) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+        const n = new Notification(title, { body, tag: 'delta-alert-' + Date.now() });
+        setTimeout(() => n.close(), 8000);
+    } catch (e) { /* ignore */ }
+}
+
+// ── Toast inside the page ──
+function showAlertToast({symbol, pChange, lastPrice, threshold_pct, direction, telegram_sent, is_test, message}) {
+    const wrap = document.getElementById('alert-toast-wrap') || (() => {
+        const d = document.createElement('div');
+        d.id = 'alert-toast-wrap';
+        d.className = 'fixed top-4 right-4 z-[60] flex flex-col gap-2 max-w-sm';
+        document.body.appendChild(d);
+        return d;
+    })();
+    const card = document.createElement('div');
+    const arrow = pChange > 0 ? '↑' : '↓';
+    const color = pChange > 0 ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50';
+    card.className = `rounded-xl border ${color} shadow-lg p-3.5 text-xs animate-slide-in`;
+    card.innerHTML = `
+        <div class="flex items-center justify-between mb-1">
+            <strong class="text-gray-900 text-sm">${is_test ? '🔔 Test Alert' : '🔔 Alert'} — ${escapeHtml(symbol)}</strong>
+            <button onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-700">&times;</button>
+        </div>
+        <p class="text-gray-800">${arrow} ${pChange.toFixed(2)}% — ₹${(lastPrice || 0).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+        <p class="text-[10px] text-gray-500 mt-0.5">Threshold ±${threshold_pct}% (${direction || 'either'})</p>
+        ${telegram_sent ? '<p class="text-[10px] text-emerald-600 mt-1">✓ Sent to Telegram</p>' : ''}`;
+    wrap.appendChild(card);
+    setTimeout(() => card.remove(), 12000);
+}
+
+function processFiredAlerts(fired) {
+    if (!Array.isArray(fired) || !fired.length) return;
+    let anyNew = false;
+    for (const f of fired) {
+        const key = `${f.alert_id || 'test'}-${(f.lastPrice || 0).toFixed(2)}`;
+        if (_firedAlertIds.has(key)) continue;
+        _firedAlertIds.add(key);
+        anyNew = true;
+        showAlertToast(f);
+        showBrowserNotification(
+            `${f.symbol} ${f.pChange > 0 ? '▲' : '▼'} ${f.pChange.toFixed(2)}%`,
+            `Last ₹${(f.lastPrice || 0).toFixed(2)} · threshold ±${f.threshold_pct}%`
+        );
+    }
+    if (anyNew) playAlertSound();
+}
+
+// ── Modal: create / edit a single alert ──
+function openAlertModal(symbol, companyName) {
+    let modal = document.getElementById('alert-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'alert-modal';
+        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[70] hidden p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-start justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900" id="alert-modal-title">Set Price Alert</h3>
+                        <p class="text-xs text-gray-500 mt-0.5" id="alert-modal-sub"></p>
+                    </div>
+                    <button onclick="closeAlertModal()" class="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">Threshold (% change today)</label>
+                        <div class="flex items-center gap-2">
+                            <input id="alert-threshold" type="number" step="0.5" min="0.5" max="20" value="3"
+                                   class="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400">
+                            <span class="text-sm text-gray-500">%</span>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-1">Fires when today's % change crosses this threshold.</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">Direction</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="flex items-center justify-center gap-1.5 px-2 py-2 border border-gray-200 rounded-lg cursor-pointer text-xs has-[:checked]:bg-amber-50 has-[:checked]:border-amber-400">
+                                <input type="radio" name="alert-direction" value="either" checked class="hidden"> Either
+                            </label>
+                            <label class="flex items-center justify-center gap-1.5 px-2 py-2 border border-gray-200 rounded-lg cursor-pointer text-xs has-[:checked]:bg-green-50 has-[:checked]:border-green-400">
+                                <input type="radio" name="alert-direction" value="up" class="hidden"> ▲ Up only
+                            </label>
+                            <label class="flex items-center justify-center gap-1.5 px-2 py-2 border border-gray-200 rounded-lg cursor-pointer text-xs has-[:checked]:bg-red-50 has-[:checked]:border-red-400">
+                                <input type="radio" name="alert-direction" value="down" class="hidden"> ▼ Down only
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Telegram delivery</label>
+                            <button type="button" onclick="toggleManualChatId()"
+                                    class="text-[10px] text-amber-600 hover:underline">Use chat ID instead</button>
+                        </div>
+
+                        <!-- One-click Telegram Login Widget -->
+                        <div id="alert-tg-link-status" class="rounded-lg border border-amber-100 bg-amber-50 p-3 mb-2 hidden">
+                            <p class="text-xs text-amber-900" id="alert-tg-link-text"></p>
+                            <button type="button" onclick="unlinkTelegram()" class="text-[10px] text-amber-600 hover:underline mt-1">Unlink</button>
+                        </div>
+                        <div id="alert-tg-widget-mount" class="flex items-center gap-2 mb-1"></div>
+
+                        <!-- Manual chat ID fallback -->
+                        <div id="alert-tg-manual" class="hidden">
+                            <input id="alert-tg" type="text" placeholder="Numeric chat ID (use @userinfobot to find yours)"
+                                   class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400">
+                            <a href="https://t.me/userinfobot" target="_blank" rel="noopener"
+                               class="text-[10px] text-amber-600 hover:underline">Open @userinfobot</a>
+                        </div>
+
+                        <p class="text-[10px] text-gray-400 mt-1" id="alert-tg-hint"></p>
+                    </div>
+                    <div id="alert-modal-status" class="text-[11px]"></div>
+                </div>
+                <div class="px-5 py-4 bg-slate-50 border-t border-gray-100 flex items-center justify-between">
+                    <button onclick="testAlert()" id="alert-test-btn"
+                            class="text-xs font-medium px-3 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-white">
+                        Test alert
+                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="deleteAlertFromModal()" id="alert-delete-btn"
+                                class="hidden text-xs font-medium px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50">Delete</button>
+                        <button onclick="saveAlert()" id="alert-save-btn"
+                                class="text-xs font-semibold px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700">
+                            Save Alert
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        modal.addEventListener('click', e => { if (e.target === modal) closeAlertModal(); });
+        document.body.appendChild(modal);
+    }
+    modal.dataset.symbol = symbol;
+    modal.dataset.company = companyName || '';
+    document.getElementById('alert-modal-title').textContent = `Set Price Alert — ${symbol}`;
+    document.getElementById('alert-modal-sub').textContent = companyName || '';
+    refreshTelegramLinkUI();
+
+    // Pre-fill if user already has an alert for this symbol
+    const existing = (window._alertsBySymbol[symbol] || [])[0];
+    if (existing) {
+        document.getElementById('alert-threshold').value = existing.threshold_pct;
+        document.querySelectorAll('input[name="alert-direction"]').forEach(el => {
+            el.checked = (el.value === existing.direction);
+        });
+        document.getElementById('alert-tg').value = existing.telegram_chat_id || '';
+        if (existing.telegram_chat_id) {
+            document.getElementById('alert-tg-manual').classList.remove('hidden');
+        }
+        document.getElementById('alert-delete-btn').classList.remove('hidden');
+        document.getElementById('alert-delete-btn').dataset.alertId = existing.id;
+    } else {
+        document.getElementById('alert-threshold').value = 3;
+        const def = document.querySelector('input[name="alert-direction"][value="either"]');
+        if (def) def.checked = true;
+        document.getElementById('alert-tg').value = '';
+        document.getElementById('alert-delete-btn').classList.add('hidden');
+    }
+    document.getElementById('alert-modal-status').innerHTML = '';
+    modal.classList.remove('hidden');
+    ensureNotificationPermission();
+}
+
+// ── Telegram Login Widget integration ──
+// Widget is the standard Telegram one. It calls window.onTelegramAuth(user)
+// after the user authorizes. We forward the payload to /api/alerts/link-telegram
+// which HMAC-verifies it before saving.
+function refreshTelegramLinkUI() {
+    const status = document.getElementById('alert-tg-link-status');
+    const txt = document.getElementById('alert-tg-link-text');
+    const mount = document.getElementById('alert-tg-widget-mount');
+    const hint = document.getElementById('alert-tg-hint');
+
+    if (!_telegramConfigured) {
+        status.classList.add('hidden');
+        mount.innerHTML = '';
+        hint.textContent = 'Telegram is not configured on the server — alerts will only show in this browser tab.';
+        return;
+    }
+    if (_telegramLink.linked) {
+        status.classList.remove('hidden');
+        const handle = _telegramLink.username ? '@' + _telegramLink.username : (_telegramLink.first_name || 'your account');
+        txt.innerHTML = `✓ Linked to Telegram as <strong>${escapeHtml(handle)}</strong>. New alerts auto-deliver here.`;
+        mount.innerHTML = '';
+        hint.textContent = 'You can override this per-alert with a different chat ID below.';
+    } else {
+        status.classList.add('hidden');
+        mount.innerHTML = '';
+        if (_telegramBotUsername) {
+            // Mount the widget. data-request-access="write" lets the bot DM
+            // the user without them ever opening it in Telegram first.
+            const s = document.createElement('script');
+            s.async = true;
+            s.src = 'https://telegram.org/js/telegram-widget.js?22';
+            s.setAttribute('data-telegram-login', _telegramBotUsername);
+            s.setAttribute('data-size', 'medium');
+            s.setAttribute('data-radius', '8');
+            s.setAttribute('data-onauth', 'onTelegramAuth(user)');
+            s.setAttribute('data-request-access', 'write');
+            mount.appendChild(s);
+            hint.innerHTML = 'One-click linking — Telegram will ask you to authorize <strong>@' + escapeHtml(_telegramBotUsername) + '</strong>. No phone/ID copying needed.';
+        } else {
+            hint.textContent = 'Bot username not yet known to server. Try refreshing the page.';
+        }
+    }
+}
+
+window.onTelegramAuth = function(user) {
+    const status = document.getElementById('alert-modal-status');
+    if (status) status.innerHTML = '<span class="text-gray-500">Linking Telegram…</span>';
+    fetch('/api/alerts/link-telegram', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(user),
+    }).then(r => r.json()).then(data => {
+        if (data.error) {
+            if (status) status.innerHTML = `<span class="text-red-600">${escapeHtml(data.message || 'Telegram link failed')}</span>`;
+            return;
+        }
+        _telegramLink = {linked: true, first_name: data.first_name || '', username: data.username || ''};
+        if (status) status.innerHTML = '<span class="text-emerald-600 font-medium">✓ Telegram linked. A confirmation has been sent to your Telegram.</span>';
+        refreshTelegramLinkUI();
+    }).catch(() => {
+        if (status) status.innerHTML = '<span class="text-red-600">Network error linking Telegram.</span>';
+    });
+};
+
+function unlinkTelegram() {
+    if (!confirm('Unlink Telegram? Existing alerts that point to this account will stop delivering.')) return;
+    fetch('/api/alerts/unlink-telegram', {method: 'POST'}).then(r => r.json()).then(() => {
+        _telegramLink = {linked: false, first_name: '', username: ''};
+        refreshTelegramLinkUI();
+    });
+}
+
+function toggleManualChatId() {
+    const m = document.getElementById('alert-tg-manual');
+    m.classList.toggle('hidden');
+}
+
+function closeAlertModal() {
+    const m = document.getElementById('alert-modal');
+    if (m) m.classList.add('hidden');
+}
+
+function _modalDirection() {
+    const sel = document.querySelector('input[name="alert-direction"]:checked');
+    return sel ? sel.value : 'either';
+}
+
+function saveAlert() {
+    const m = document.getElementById('alert-modal');
+    const symbol = m.dataset.symbol;
+    const threshold = parseFloat(document.getElementById('alert-threshold').value);
+    const direction = _modalDirection();
+    const tg = document.getElementById('alert-tg').value.trim();
+    const status = document.getElementById('alert-modal-status');
+    const btn = document.getElementById('alert-save-btn');
+
+    if (!(threshold > 0)) { status.innerHTML = '<span class="text-red-600">Threshold must be > 0</span>'; return; }
+
+    btn.disabled = true; btn.textContent = 'Saving…';
+    fetch('/api/alerts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({symbol, threshold_pct: threshold, direction, telegram_chat_id: tg}),
+    }).then(r => r.json()).then(data => {
+        btn.disabled = false; btn.textContent = 'Save Alert';
+        if (data.error) {
+            status.innerHTML = `<span class="text-red-600">${escapeHtml(data.message || 'Save failed')}</span>`;
+            return;
+        }
+        status.innerHTML = '<span class="text-emerald-600 font-medium">✓ Alert saved.</span>';
+        loadAlertsList().then(() => {
+            // Re-render cards so the bell icon flips to amber.
+            if (window._lastPricesData) renderPrices(window._lastPricesData);
+        });
+        setTimeout(closeAlertModal, 800);
+    }).catch(() => {
+        btn.disabled = false; btn.textContent = 'Save Alert';
+        status.innerHTML = '<span class="text-red-600">Network error</span>';
+    });
+}
+
+function deleteAlertFromModal() {
+    const id = document.getElementById('alert-delete-btn').dataset.alertId;
+    if (!id) return;
+    if (!confirm('Delete this alert?')) return;
+    fetch(`/api/alerts/${id}`, {method: 'DELETE'}).then(r => r.json()).then(() => {
+        loadAlertsList().then(() => { if (window._lastPricesData) renderPrices(window._lastPricesData); });
+        closeAlertModal();
+    });
+}
+
+function testAlert() {
+    const m = document.getElementById('alert-modal');
+    const symbol = m.dataset.symbol;
+    const threshold = parseFloat(document.getElementById('alert-threshold').value) || 3;
+    const tg = document.getElementById('alert-tg').value.trim();
+    const status = document.getElementById('alert-modal-status');
+    const btn = document.getElementById('alert-test-btn');
+    btn.disabled = true; btn.textContent = 'Sending test…';
+    ensureNotificationPermission();
+    fetch('/api/alerts/test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({symbol, threshold_pct: threshold, telegram_chat_id: tg}),
+    }).then(r => r.json()).then(data => {
+        btn.disabled = false; btn.textContent = 'Test alert';
+        processFiredAlerts(data.fired_alerts || []);
+        const f = (data.fired_alerts || [])[0] || {};
+        if (f.telegram_sent) {
+            status.innerHTML = '<span class="text-emerald-600">✓ Telegram sent + sound + browser notification fired.</span>';
+        } else if (tg) {
+            status.innerHTML = '<span class="text-amber-600">Sound + browser fired. Telegram failed — check your chat ID and that you\'ve started a chat with the bot.</span>';
+        } else {
+            status.innerHTML = '<span class="text-emerald-600">✓ Sound + browser notification fired (no Telegram chat ID).</span>';
+        }
+    }).catch(() => {
+        btn.disabled = false; btn.textContent = 'Test alert';
+        status.innerHTML = '<span class="text-red-600">Network error</span>';
+    });
+}
+
+// ── Alerts list panel ──
+function openAlertsList() {
+    let modal = document.getElementById('alerts-list-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'alerts-list-modal';
+        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[70] hidden p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900">My Price Alerts</h3>
+                        <p class="text-xs text-gray-500 mt-0.5" id="alerts-list-sub"></p>
+                    </div>
+                    <button onclick="closeAlertsList()" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button>
+                </div>
+                <div id="alerts-list-body" class="flex-1 overflow-y-auto p-5"></div>
+            </div>`;
+        modal.addEventListener('click', e => { if (e.target === modal) closeAlertsList(); });
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    renderAlertsList();
+}
+function closeAlertsList() { document.getElementById('alerts-list-modal')?.classList.add('hidden'); }
+
+function renderAlertsList() {
+    const body = document.getElementById('alerts-list-body');
+    const sub = document.getElementById('alerts-list-sub');
+    const all = Object.values(window._alertsBySymbol).flat();
+    if (sub) sub.textContent = _telegramConfigured
+        ? `${all.length} active alerts · Telegram delivery enabled`
+        : `${all.length} active alerts · Telegram not configured server-side`;
+    if (!all.length) {
+        body.innerHTML = '<p class="text-sm text-gray-500 text-center py-8">No alerts yet. Click the bell icon on any stock to set one.</p>';
+        return;
+    }
+    body.innerHTML = all.map(a => {
+        const dirSymbol = a.direction === 'up' ? '▲' : a.direction === 'down' ? '▼' : '↕';
+        const last = a.last_triggered_at ? new Date(a.last_triggered_at).toLocaleString() : '—';
+        return `
+        <div class="border border-gray-200 rounded-lg p-3 mb-2 flex items-center justify-between">
+            <div class="min-w-0">
+                <p class="text-sm font-bold text-gray-900">${escapeHtml(a.symbol)} ${dirSymbol} ${a.threshold_pct}%</p>
+                <p class="text-[10px] text-gray-400 truncate">Last fired: ${last} · ${a.telegram_chat_id ? 'Telegram linked' : 'Browser only'}</p>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button onclick="openAlertModal('${escapeAttr(a.symbol)}', '')" class="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50">Edit</button>
+                <button onclick="deleteAlert(${a.id})" class="text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50">Delete</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function deleteAlert(id) {
+    if (!confirm('Delete this alert?')) return;
+    fetch(`/api/alerts/${id}`, {method: 'DELETE'}).then(r => r.json()).then(() => {
+        loadAlertsList().then(() => {
+            renderAlertsList();
+            if (window._lastPricesData) renderPrices(window._lastPricesData);
+        });
+    });
+}
+
+function loadAlertsList() {
+    return fetch('/api/alerts').then(r => r.json()).then(data => {
+        _telegramConfigured = !!data.telegram_configured;
+        _telegramBotUsername = data.telegram_bot_username || '';
+        _telegramLink = data.telegram_link || {linked: false, first_name: '', username: ''};
+        window._alertsBySymbol = {};
+        for (const a of (data.alerts || [])) {
+            (window._alertsBySymbol[a.symbol] ||= []).push(a);
+        }
+        const badge = document.getElementById('alerts-count-badge');
+        const total = (data.alerts || []).length;
+        if (badge) {
+            if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
+            else badge.classList.add('hidden');
+        }
+        return data;
+    }).catch(() => ({}));
+}
+
+// Hook into the existing renderPrices flow so the bell icon reflects alert state
+const _origRenderPrices = renderPrices;
+window.renderPrices = function(data) {
+    window._lastPricesData = data;
+    _origRenderPrices(data);
+    processFiredAlerts(data.fired_alerts || []);
+    if (data.telegram_configured !== undefined) _telegramConfigured = !!data.telegram_configured;
+};
+
+// Init
+refreshPrices();
+fetchPreOpen();
+fetchSector();
+startAutoRefresh();
+loadAlertsList();
+</script>
+
+<style>
+@keyframes slide-in { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.animate-slide-in { animation: slide-in 0.3s ease-out; }
+</style>
+</body>
+</html>

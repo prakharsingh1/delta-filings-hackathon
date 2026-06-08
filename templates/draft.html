@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draft - Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <style>
+        .wizard-step { transition: opacity 0.2s, transform 0.2s; }
+        .step-pill { display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:9999px; font-size:11px; font-weight:600; }
+        .step-pill.done { background:#ecfdf5; color:#059669; }
+        .step-pill.active { background:#eef2ff; color:#4f46e5; }
+        .step-pill.todo { background:#f1f5f9; color:#94a3b8; }
+
+        /* Quill polish to match the SEBI-letter feel */
+        .ql-toolbar.ql-snow {
+            border: none;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 8px 12px;
+            background: #fafafa;
+        }
+        .ql-container.ql-snow { border: none; }
+        .ql-editor {
+            min-height: 480px;
+            font-family: 'Times New Roman', Georgia, serif;
+            font-size: 14px;
+            line-height: 1.7;
+            padding: 24px 28px;
+        }
+        .ql-editor::-webkit-scrollbar { width: 8px; }
+        .ql-editor::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+        /* Highlight {token} placeholders in body so they're easy to spot */
+        .placeholder-pill {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            font-weight: 600;
+            padding: 0 6px;
+            border-radius: 4px;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+            font-size: 0.9em;
+            border: 1px solid #fde68a;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-gray-900">
+
+<div class="flex h-screen overflow-hidden">
+    {% set active_page = 'draft' %}
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 overflow-y-auto">
+        <div class="page-header">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-3">
+                        <h2 class="page-title">Draft</h2>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 uppercase tracking-wider">AI</span>
+                    </div>
+                    <p class="page-subtitle">Draft SEBI compliance letters with your company's tone — download as PDF or Word.</p>
+                </div>
+                <div id="step-pills" class="hidden md:flex items-center gap-2"></div>
+            </div>
+        </div>
+
+        <div class="px-6 py-6 max-w-[1500px] mx-auto">
+
+            <!-- ── STEP 1: Company ── -->
+            <div id="step-1" class="wizard-step bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-5">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Step 1</span>
+                    <h3 class="text-lg font-bold text-gray-900">Choose company</h3>
+                </div>
+                <p class="text-sm text-gray-500 mb-4">Pick the company this letter is on behalf of.</p>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2" id="company-grid">
+                    {% for w in watchlist %}
+                    <button type="button"
+                            class="company-btn text-left px-3 py-2.5 border border-gray-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                            data-symbol="{{ w.symbol }}" data-name="{{ w.name }}">
+                        <p class="text-sm font-bold text-gray-900">{{ w.symbol }}</p>
+                        <p class="text-[10px] text-gray-500 truncate">{{ w.name }}</p>
+                    </button>
+                    {% endfor %}
+                    <button type="button" onclick="openOtherCompany()"
+                            class="text-left px-3 py-2.5 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors">
+                        <p class="text-sm font-bold text-indigo-700">+ Other company</p>
+                        <p class="text-[10px] text-indigo-500 truncate">Search any NSE-listed company</p>
+                    </button>
+                </div>
+
+                <!-- Other company search panel -->
+                <div id="other-company" class="mt-4 hidden border border-indigo-200 bg-indigo-50/40 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Search for a listed company</p>
+                        <button onclick="closeOtherCompany()" class="text-xs text-gray-500 hover:text-gray-700">close</button>
+                    </div>
+                    <div class="relative">
+                        <input id="other-company-input" type="text" autocomplete="off" placeholder="Type at least 2 letters of the symbol or name…"
+                               class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                        <div id="other-company-results" class="hidden absolute left-0 right-0 mt-1 max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-10"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1.5">We'll fetch their public filings on first use (one-time, ~5 seconds).</p>
+                </div>
+                {% if not watchlist %}
+                <p class="text-sm text-gray-400 mt-3">No companies in your watchlist — use <strong>+ Other company</strong> above to draft for any listed company.</p>
+                {% endif %}
+
+                <!-- ── Continue from a previous draft ── -->
+                <div class="mt-6 pt-5 border-t border-gray-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <p class="text-[11px] font-bold uppercase tracking-wider text-gray-500">Your previous drafts</p>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Only you can see these. Auto-saved on every generation and download.</p>
+                        </div>
+                        <button onclick="openMyDrafts()" id="view-all-drafts-btn"
+                                class="hidden text-[11px] font-semibold px-2.5 py-1.5 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                            View all <span id="my-drafts-count">0</span>
+                        </button>
+                    </div>
+                    <div id="recent-drafts-list" class="space-y-2"></div>
+                </div>
+
+                <!-- ── Teams & sharing — overview of every draft you're on ── -->
+                <div class="mt-6 pt-5 border-t border-gray-200">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-2">
+                            <p class="text-[11px] font-bold uppercase tracking-wider text-gray-500">Teams &amp; sharing</p>
+                            <span id="teams-count-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700"></span>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mb-3">
+                        Drafts you've pinned for sharing. Click <strong>Share with Team</strong> on any draft above to manage its team here.
+                        Up to 5 teammates per draft; invitees see the draft only.
+                    </p>
+                    <div id="teams-overview-list" class="grid sm:grid-cols-2 gap-3"></div>
+                </div>
+            </div>
+
+            <!-- ── STEP 2: Filing Type ── -->
+            <div id="step-2" class="wizard-step bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-5 hidden">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Step 2</span>
+                    <h3 class="text-lg font-bold text-gray-900">Filing type</h3>
+                </div>
+                <p class="text-sm text-gray-500 mb-3">What kind of letter are you drafting? We'll pull past examples of this type from <span id="step2-company-name" class="font-semibold text-gray-700"></span>. <span id="filing-type-count" class="text-gray-400"></span></p>
+
+                <div class="flex flex-wrap items-center gap-2 mb-4">
+                    <input id="filing-type-search" type="text" placeholder="Search by name, regulation, or keyword (e.g., 'reg 30', 'dividend', 'voting')…"
+                           oninput="filterFilingTypes()"
+                           class="flex-1 min-w-[200px] px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <select id="filing-type-category" onchange="filterFilingTypes()"
+                            class="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
+                        <option value="">All categories</option>
+                    </select>
+                </div>
+
+                <div id="filing-type-grid"></div>
+            </div>
+
+            <!-- ── STEP 3: Past Examples & New Info ── -->
+            <div id="step-3" class="wizard-step bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-5 hidden">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Step 3</span>
+                    <h3 class="text-lg font-bold text-gray-900">Past examples & new information</h3>
+                </div>
+
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-gray-500">Past filings of this type <span id="past-count" class="text-gray-400 font-medium normal-case"></span></p>
+                        <button onclick="learnStyle()" id="learn-style-btn"
+                                class="text-[10px] font-semibold px-2.5 py-1 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                            🧠 Re-learn company language
+                        </button>
+                    </div>
+                    <div id="past-examples" class="space-y-2"></div>
+                </div>
+
+                <!-- Learned style summary — what the AI picked up -->
+                <div id="style-fingerprint" class="hidden mb-4 border border-indigo-200 bg-indigo-50/60 rounded-lg p-3.5">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Learned house style</p>
+                        <span id="style-meta" class="text-[10px] text-indigo-500"></span>
+                    </div>
+                    <pre id="style-fingerprint-text" class="text-[11px] text-gray-700 whitespace-pre-wrap font-mono leading-relaxed"></pre>
+                </div>
+
+                <div class="mb-3">
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-gray-500 block mb-1.5">What's new — describe the event</label>
+                    <textarea id="new-info" rows="5" placeholder="e.g. We need to disclose appointment of Mr. John Doe as Chief Financial Officer, effective 10 May 2026. He brings 20 years of experience in finance, last serving as VP-Finance at XYZ Limited. DIN: 12345678."
+                              class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"></textarea>
+                    <p class="text-[10px] text-gray-400 mt-1">Be specific — names, dates, designations, amounts. The more facts you give, the less the AI has to ask you to fill in.</p>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <button onclick="goBackToStep(2)" class="text-xs text-gray-500 hover:text-gray-700">← Change filing type</button>
+                    <button onclick="generateDraft()" id="generate-btn"
+                            class="text-sm font-semibold px-5 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        ✨ Generate draft with AI
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── STEP 4: Two-column editor (left = fields, right = document) ── -->
+            <div id="step-4" class="wizard-step hidden mb-5">
+                <div class="flex items-center gap-2 mb-3 px-1">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Step 4</span>
+                    <h3 class="text-lg font-bold text-gray-900">Edit &amp; finalize</h3>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
+
+                    <!-- ── LEFT: Letter details + auto-detected placeholders ── -->
+                    <aside class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 h-fit lg:sticky lg:top-4 max-h-[calc(100vh-80px)] overflow-y-auto">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2">Letter details</p>
+                        <div class="space-y-2.5">
+                            <div>
+                                <label class="text-[10px] text-gray-500 block mb-0.5">Subject</label>
+                                <input id="field-subject" type="text"
+                                       class="w-full px-2.5 py-1.5 text-xs font-semibold border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 block mb-0.5">Registered office</label>
+                                <input id="field-regoffice" type="text" placeholder="e.g. 123, Mumbai – 400 001"
+                                       class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 block mb-0.5">CIN</label>
+                                <input id="field-cin" type="text" placeholder="L51900MH1990PLC..."
+                                       class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] text-gray-500 block mb-0.5">BSE Code</label>
+                                    <input id="field-bse" type="text"
+                                           class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 block mb-0.5">NSE Symbol</label>
+                                    <input id="field-nse" type="text"
+                                           class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 block mb-0.5">Signer</label>
+                                <input id="field-signer" type="text" placeholder="Jane Doe"
+                                       class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 block mb-0.5">Designation</label>
+                                <input id="field-designation" type="text" placeholder="Company Secretary"
+                                       class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            </div>
+                        </div>
+
+                        <!-- Team & sharing -->
+                        <div id="team-section" class="mt-5 pt-4 border-t border-gray-100 hidden">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Team</p>
+                                <span id="team-role-badge" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600"></span>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mb-2">Only you and invited members can see this draft.</p>
+                            <div id="team-list" class="space-y-1.5 mb-2"></div>
+                            <div id="team-owner-actions" class="hidden">
+                                <button onclick="generateInviteLink()" id="invite-btn"
+                                        class="w-full text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                    Generate invite link
+                                </button>
+                                <p id="invite-status" class="text-[10px] text-gray-400 mt-1.5"></p>
+                                <div id="invite-link-box" class="hidden mt-2 p-2 rounded border border-emerald-200 bg-emerald-50">
+                                    <p class="text-[9px] font-bold text-emerald-700 mb-1 uppercase tracking-wider">Share this link</p>
+                                    <div class="flex items-center gap-1.5">
+                                        <input id="invite-link-input" readonly
+                                               class="flex-1 px-2 py-1 text-[10px] font-mono bg-white border border-emerald-200 rounded">
+                                        <button onclick="copyInviteLink()" class="text-[10px] px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700">Copy</button>
+                                    </div>
+                                    <p class="text-[9px] text-gray-500 mt-1">Anyone with this link can join — even if they don't have an account yet.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Auto-extracted {placeholder} fields from the body+annexures -->
+                        <div id="placeholders-section" class="mt-5 pt-4 border-t border-gray-100 hidden">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Fields in document</p>
+                                <button onclick="rescanPlaceholders()"
+                                        class="text-[10px] text-indigo-600 hover:underline">Rescan</button>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mb-2">Click <strong>AI Fill</strong> to auto-populate what the AI can confidently answer, then review and click <strong>Apply to document</strong>.</p>
+                            <div id="placeholder-fields" class="space-y-2"></div>
+
+                            <div class="mt-3 grid grid-cols-2 gap-2">
+                                <button onclick="aiFillPlaceholders()" id="ai-fill-btn"
+                                        class="text-xs font-semibold px-3 py-2 rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                    AI Fill
+                                </button>
+                                <button onclick="applyPlaceholders()" id="apply-placeholders-btn"
+                                        class="text-xs font-semibold px-3 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 flex items-center justify-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Apply
+                                </button>
+                            </div>
+                            <p id="apply-status" class="text-[10px] text-gray-400 mt-1.5 text-center"></p>
+                        </div>
+                    </aside>
+
+                    <!-- ── RIGHT: Document editor + AI toolbar ── -->
+                    <main class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <!-- Custom AI/save toolbar above Quill -->
+                        <div class="flex items-center justify-between gap-2 px-4 py-2 border-b border-gray-100 bg-white flex-wrap">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <button onclick="modifyDraft()" id="btn-modify"
+                                        class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                    Modify Draft
+                                </button>
+                                <button onclick="improveBody('polish')" id="btn-polish"
+                                        class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">✨ Polish</button>
+                                <button onclick="improveBody('tone')" id="btn-tone"
+                                        class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">🎯 Tone</button>
+                                <button onclick="improveBody('formal')" id="btn-formal"
+                                        class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">📜 Formal</button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="save-draft-status" class="text-[11px] text-gray-400"></span>
+                                <button onclick="saveDraftManually()" id="save-draft-btn"
+                                        class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                                    Save
+                                </button>
+                                <button onclick="goToPreview()" id="preview-top-btn"
+                                        class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1">
+                                    Preview &amp; download
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Quill formatting toolbar (auto-generated) -->
+                        <div id="editor-toolbar">
+                            <span class="ql-formats">
+                                <select class="ql-header">
+                                    <option selected></option>
+                                    <option value="1"></option>
+                                    <option value="2"></option>
+                                    <option value="3"></option>
+                                    <option value="4"></option>
+                                </select>
+                                <select class="ql-size"></select>
+                            </span>
+                            <span class="ql-formats">
+                                <button class="ql-bold"></button>
+                                <button class="ql-italic"></button>
+                                <button class="ql-underline"></button>
+                                <button class="ql-strike"></button>
+                                <button class="ql-clean"></button>
+                            </span>
+                            <span class="ql-formats">
+                                <button class="ql-list" value="bullet"></button>
+                                <button class="ql-list" value="ordered"></button>
+                                <button class="ql-blockquote"></button>
+                            </span>
+                            <span class="ql-formats">
+                                <button class="ql-align" value=""></button>
+                                <button class="ql-align" value="center"></button>
+                                <button class="ql-align" value="right"></button>
+                                <button class="ql-align" value="justify"></button>
+                            </span>
+                            <span class="ql-formats">
+                                <button class="ql-link"></button>
+                            </span>
+                        </div>
+
+                        <!-- The actual contenteditable region; Quill mounts here. -->
+                        <div id="editor-body"></div>
+
+                        <p id="ai-status" class="text-[11px] text-gray-400 mt-1 px-4 py-2 border-t border-gray-100"></p>
+
+                        <!-- ── Annexures ── -->
+                        <div class="px-4 py-4 border-t border-gray-100">
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Annexures</p>
+                                    <p class="text-[11px] text-gray-400 mt-0.5">Each annexure prints on a fresh page. Markdown pipe-tables supported.</p>
+                                </div>
+                                <button onclick="addAnnexure()"
+                                        class="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                                    + Add annexure
+                                </button>
+                            </div>
+                            <div id="annexures-list" class="space-y-3"></div>
+                        </div>
+
+                        <!-- Footer: feedback + nav -->
+                        <div class="px-4 py-3 border-t border-gray-100 bg-slate-50/50 flex items-center justify-between flex-wrap gap-2">
+                            <div class="flex items-center gap-2">
+                                <button onclick="rateDraft('up')" id="rate-up"
+                                        class="text-[11px] font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white">
+                                    👍 Helpful
+                                </button>
+                                <button onclick="rateDraft('down')" id="rate-down"
+                                        class="text-[11px] font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white">
+                                    👎 Not helpful
+                                </button>
+                                <span id="rate-status" class="text-[11px] text-gray-400 ml-1"></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="goBackToStep(3)" class="text-xs text-gray-500 hover:text-gray-700">← Back</button>
+                                <button onclick="goToPreview()"
+                                        class="text-sm font-semibold px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                    Preview &amp; download →
+                                </button>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            </div>
+
+            <!-- ── STEP 5: Preview & Download ── -->
+            <div id="step-5" class="wizard-step bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-5 hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Step 5</span>
+                        <h3 class="text-lg font-bold text-gray-900">Preview &amp; download</h3>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="downloadLetter('pdf')" id="dl-pdf"
+                                class="text-sm font-semibold px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
+                            ⬇ PDF
+                        </button>
+                        <button onclick="downloadLetter('docx')" id="dl-docx"
+                                class="text-sm font-semibold px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+                            ⬇ Word
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mb-4">Final letter as it will appear on the official letterhead. Both formats render identically — you can edit the Word file later if needed.</p>
+                <div id="preview" class="bg-white border-2 border-gray-300 rounded-lg p-10 shadow-inner" style="font-family: 'Times New Roman', Georgia, serif;"></div>
+                <div class="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                    <button onclick="goBackToStep(4)" class="text-xs text-gray-500 hover:text-gray-700">← Edit letter</button>
+                    <button onclick="resetWizard()" class="text-xs text-gray-500 hover:text-gray-700">↺ Start over</button>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+const STATE = {
+    company: null,         // {symbol, name}
+    filing_type: null,     // {id, label, subject_default, body_hint}
+    examples: [],
+    new_info: "",
+    subject: "",
+    body: "",
+    annexures: [],         // [{title, body}]
+    draft_id: null,        // server-assigned after first save (null = unsaved)
+};
+
+function escapeHtml(s) {
+    const d = document.createElement('div'); d.textContent = (s == null ? '' : s); return d.innerHTML;
+}
+
+// ── Step pills ──
+const STEPS = ["Company", "Filing type", "Reference & input", "Edit", "Preview"];
+function renderStepPills(currentIdx) {
+    const container = document.getElementById('step-pills');
+    container.innerHTML = STEPS.map((label, i) => {
+        const cls = i < currentIdx ? 'done' : i === currentIdx ? 'active' : 'todo';
+        return `<span class="step-pill ${cls}"><span class="font-bold">${i+1}</span> ${escapeHtml(label)}</span>`;
+    }).join('');
+}
+
+function showStep(n) {
+    for (let i = 1; i <= 5; i++) {
+        document.getElementById('step-'+i).classList.toggle('hidden', i !== n);
+    }
+    renderStepPills(n - 1);
+    if (n === 4) _initQuillIfNeeded();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function goBackToStep(n) { showStep(n); }
+function resetWizard() {
+    STATE.company = null; STATE.filing_type = null; STATE.examples = [];
+    STATE.new_info = ""; STATE.subject = ""; STATE.body = "";
+    STATE.annexures = []; STATE.draft_id = null;
+    showStep(1);
+}
+
+// ── Step 1 → 2 ──
+function _selectCompany(symbol, name) {
+    STATE.company = {symbol, name};
+    document.getElementById('step2-company-name').textContent = symbol;
+    document.getElementById('field-nse').value = symbol;
+    loadFilingTypes();
+    showStep(2);
+}
+document.querySelectorAll('.company-btn').forEach(btn => {
+    btn.addEventListener('click', () => _selectCompany(btn.dataset.symbol, btn.dataset.name));
+});
+
+// ── Other company search (NSE-wide, not just watchlist) ──
+function openOtherCompany() {
+    const panel = document.getElementById('other-company');
+    panel.classList.remove('hidden');
+    document.getElementById('other-company-input').focus();
+}
+function closeOtherCompany() {
+    document.getElementById('other-company').classList.add('hidden');
+    document.getElementById('other-company-results').classList.add('hidden');
+    document.getElementById('other-company-input').value = '';
+}
+let _otherSearchTimer = null;
+document.getElementById('other-company-input').addEventListener('input', e => {
+    clearTimeout(_otherSearchTimer);
+    const q = e.target.value.trim();
+    const out = document.getElementById('other-company-results');
+    if (q.length < 2) { out.classList.add('hidden'); return; }
+    _otherSearchTimer = setTimeout(() => {
+        fetch(`/api/symbol_search?q=${encodeURIComponent(q)}`).then(r => r.json()).then(data => {
+            const results = data.results || [];
+            if (!results.length) {
+                out.innerHTML = '<p class="px-3 py-3 text-xs text-gray-400">No matches.</p>';
+                out.classList.remove('hidden');
+                return;
+            }
+            out.innerHTML = results.map(r => `
+                <button type="button" onclick="_selectCompany('${escapeJsAttr(r.symbol)}', '${escapeJsAttr(r.name)}')"
+                        class="w-full text-left px-3 py-2 hover:bg-indigo-50 border-b border-gray-100 last:border-b-0">
+                    <p class="text-sm font-semibold text-gray-900">${escapeHtml(r.symbol)}</p>
+                    <p class="text-[10px] text-gray-500 truncate">${escapeHtml(r.name)}</p>
+                </button>
+            `).join('');
+            out.classList.remove('hidden');
+        });
+    }, 220);
+});
+// Two distinct contexts need two different escapings:
+//   - escapeAttr: plain HTML attributes (data-*, value, title) — reader is
+//     getAttribute() which returns the raw decoded string. Just HTML-escape.
+//   - escapeJsAttr: JS string literals embedded inside HTML event attrs
+//     (onclick="fn('...')"). Reader is the JS parser AFTER HTML decodes.
+//     So JS-escape FIRST (`'` → \', `\` → \\), then HTML-escape.
+// The previous single helper was doing JS-escape for every case, which left
+// a literal backslash inside data-pattern, breaking placeholder matching.
+function escapeAttr(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;');
+}
+function escapeJsAttr(s) {
+    let v = String(s == null ? '' : s);
+    v = v.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    v = v.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    return v;
+}
+
+let _allFilingTypes = [];
+
+function loadFilingTypes() {
+    fetch('/api/draft/filing-types').then(r => r.json()).then(data => {
+        _allFilingTypes = data.types || [];
+        // Populate the category dropdown with counts
+        const cats = {};
+        for (const t of _allFilingTypes) {
+            cats[t.category] = (cats[t.category] || 0) + 1;
+        }
+        const sel = document.getElementById('filing-type-category');
+        sel.innerHTML = '<option value="">All categories (' + _allFilingTypes.length + ')</option>'
+            + Object.keys(cats).sort().map(c =>
+                `<option value="${escapeAttr(c)}">${escapeHtml(c)} (${cats[c]})</option>`
+              ).join('');
+        document.getElementById('filing-type-search').value = '';
+        renderFilingTypes(_allFilingTypes);
+    });
+}
+
+function filterFilingTypes() {
+    const q = document.getElementById('filing-type-search').value.toLowerCase().trim();
+    const cat = document.getElementById('filing-type-category').value;
+    const filtered = _allFilingTypes.filter(t => {
+        if (cat && t.category !== cat) return false;
+        if (!q) return true;
+        const hay = (t.label + ' ' + (t.category || '') + ' ' + (t.subject_default || '') + ' ' + (t.body_hint || '')).toLowerCase();
+        return hay.includes(q);
+    });
+    renderFilingTypes(filtered);
+}
+
+function renderFilingTypes(types) {
+    const grid = document.getElementById('filing-type-grid');
+    document.getElementById('filing-type-count').textContent =
+        `(${types.length} of ${_allFilingTypes.length} filing types shown)`;
+    if (!types.length) {
+        grid.innerHTML = '<p class="text-sm text-gray-400 px-2 py-6 text-center">No matches.</p>';
+        return;
+    }
+    // Group by category, render headed sections so users can scan quickly.
+    const groups = {};
+    for (const t of types) {
+        (groups[t.category] = groups[t.category] || []).push(t);
+    }
+    grid.innerHTML = Object.keys(groups).sort().map(cat => `
+        <div class="mb-4">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">${escapeHtml(cat)}</p>
+            <div class="grid md:grid-cols-2 gap-2">
+                ${groups[cat].map(t => `
+                    <button type="button" onclick="pickFilingType('${escapeJsAttr(t.id)}')"
+                            class="text-left px-3 py-2.5 border border-gray-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors">
+                        <p class="text-sm font-semibold text-gray-900 leading-snug">${escapeHtml(t.label)}</p>
+                        <p class="text-[10px] text-gray-500 mt-0.5 line-clamp-1">${escapeHtml(t.subject_default || t.body_hint || '')}</p>
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function pickFilingType(typeId) {
+    STATE.filing_type = _allFilingTypes.find(t => t.id === typeId);
+    if (!STATE.filing_type) return;
+    STATE.subject = STATE.filing_type.subject_default || '';
+    loadPastExamples();
+    showStep(3);
+}
+
+// ── Step 3: examples + new info ──
+function loadPastExamples() {
+    const wrap = document.getElementById('past-examples');
+    const countEl = document.getElementById('past-count');
+    const fpWrap = document.getElementById('style-fingerprint');
+    wrap.innerHTML = '<p class="text-xs text-gray-400">Searching past filings (this can take a few seconds for new companies)…</p>';
+    countEl.textContent = '';
+    fpWrap.classList.add('hidden');
+
+    fetch(`/api/draft/examples?symbol=${encodeURIComponent(STATE.company.symbol)}&filing_type=${encodeURIComponent(STATE.filing_type.id)}`)
+        .then(r => r.json()).then(data => {
+            STATE.examples = data.examples || [];
+            countEl.textContent = STATE.examples.length
+                ? `(showing ${STATE.examples.length} of last filings; ${data.total_filings || 0} total cached)`
+                : `(none found yet — ${data.total_filings || 0} filings cached overall)`;
+
+            if (!STATE.examples.length) {
+                wrap.innerHTML = `<div class="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+                    No past <em>${escapeHtml(STATE.filing_type.label.toLowerCase())}</em> from ${escapeHtml(STATE.company.symbol)} found in our cache.
+                    The AI will draft from SEBI conventions only. Paste any reference letter you have into the body box after generation if you want a closer style match.
+                </div>`;
+            } else {
+                wrap.innerHTML = STATE.examples.map((ex, i) => `
+                    <details class="border border-gray-200 rounded-lg" ${i === 0 ? 'open' : ''}>
+                        <summary class="cursor-pointer px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between">
+                            <span class="min-w-0 flex-1 truncate">
+                                <span class="font-medium text-gray-900">${escapeHtml(ex.title || 'Past filing')}</span>
+                                <span class="text-gray-400 ml-2">${escapeHtml(ex.date || '')}</span>
+                            </span>
+                            ${ex.pdf_link ? `<a href="${ex.pdf_link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="text-[10px] text-indigo-600 hover:underline ml-2 flex-shrink-0">PDF ↗</a>` : ''}
+                        </summary>
+                        <div class="px-3 py-2 text-[11px] text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 border-t border-gray-200 max-h-56 overflow-y-auto">${escapeHtml(ex.text || ex.description || '(text not available)')}</div>
+                    </details>
+                `).join('');
+            }
+
+            // Show cached fingerprint if available; otherwise auto-trigger
+            // a fresh learn pass so the user sees the AI's understanding
+            // before they click Generate.
+            if (data.style_fingerprint) {
+                _renderFingerprint(data.style_fingerprint, data.style_learned_at, STATE.examples.length);
+            } else if (STATE.examples.length >= 2) {
+                learnStyle();   // run automatically the first time
+            }
+        });
+}
+
+function _renderFingerprint(text, learnedAt, exampleCount) {
+    const wrap = document.getElementById('style-fingerprint');
+    document.getElementById('style-fingerprint-text').textContent = text;
+    let meta = '';
+    if (exampleCount) meta += `${exampleCount} letters analyzed`;
+    if (learnedAt) {
+        const t = new Date(learnedAt);
+        if (!isNaN(t)) meta += (meta ? ' · ' : '') + `learned ${t.toLocaleString()}`;
+    }
+    document.getElementById('style-meta').textContent = meta;
+    wrap.classList.remove('hidden');
+}
+
+function learnStyle() {
+    const btn = document.getElementById('learn-style-btn');
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '🧠 Reading past letters…';
+    fetch('/api/draft/learn-style', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({symbol: STATE.company.symbol, filing_type: STATE.filing_type.id}),
+    }).then(r => r.json()).then(data => {
+        btn.disabled = false; btn.textContent = orig;
+        if (data.error) {
+            alert(data.message || 'Style learning failed');
+            return;
+        }
+        _renderFingerprint(data.fingerprint || '', new Date().toISOString(), data.example_count);
+    }).catch(() => {
+        btn.disabled = false; btn.textContent = orig;
+    });
+}
+
+function generateDraft() {
+    STATE.new_info = document.getElementById('new-info').value.trim();
+    if (!STATE.new_info) {
+        alert("Please describe what's new — names, dates, designations.");
+        return;
+    }
+    const btn = document.getElementById('generate-btn');
+    btn.disabled = true; btn.textContent = '✨ Drafting…';
+
+    fetch('/api/draft/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            company_name: STATE.company.name,
+            symbol: STATE.company.symbol,
+            filing_type: STATE.filing_type.id,
+            new_info: STATE.new_info,
+            subject: STATE.subject,
+            examples: STATE.examples.map(e => ({text: e.text, description: e.description, date: e.date})),
+        }),
+    }).then(r => r.json()).then(data => {
+        btn.disabled = false; btn.textContent = '✨ Generate draft with AI';
+        if (data.error) { alert(data.message || 'Draft failed'); return; }
+        STATE.subject = data.subject || STATE.subject;
+        STATE.body = data.body || '';
+        STATE.annexures = (data.annexures || []).map(a => ({title: a.title || '', body: a.body || ''}));
+        STATE.draft_id = data.draft_id || null;
+        document.getElementById('field-subject').value = STATE.subject;
+        _setEditorPlainText(STATE.body);
+        renderAnnexureEditors();
+        showStep(4);
+        rescanPlaceholders();
+        if (STATE.draft_id) {
+            const s = document.getElementById('save-draft-status');
+            if (s) s.textContent = `Auto-saved as draft #${STATE.draft_id}`;
+            loadMyDraftsCount();
+            loadTeam();
+        }
+    }).catch(() => {
+        btn.disabled = false; btn.textContent = '✨ Generate draft with AI';
+        alert('Network error. Try again.');
+    });
+}
+
+// ── Team panel ───────────────────────────────────────────
+let _myEffectiveRole = 'owner';   // updated when team loads
+
+function _initials(name, email) {
+    const s = (name || email || '?').trim();
+    return s.charAt(0).toUpperCase();
+}
+
+function loadTeam() {
+    if (!STATE.draft_id) {
+        document.getElementById('team-section').classList.add('hidden');
+        return;
+    }
+    fetch(`/api/drafts/${STATE.draft_id}/team`).then(r => r.json()).then(data => {
+        if (data.error) {
+            document.getElementById('team-section').classList.add('hidden');
+            return;
+        }
+        const team = data.team || {};
+        _myEffectiveRole = data.your_role || 'viewer';
+        const isOwner = _myEffectiveRole === 'owner';
+
+        // Toggle the section + role badge
+        document.getElementById('team-section').classList.remove('hidden');
+        const badge = document.getElementById('team-role-badge');
+        badge.textContent = _myEffectiveRole.toUpperCase();
+        badge.className = 'text-[10px] font-semibold px-1.5 py-0.5 rounded ' +
+            (isOwner ? 'bg-indigo-100 text-indigo-700'
+             : _myEffectiveRole === 'editor' ? 'bg-emerald-100 text-emerald-700'
+             : 'bg-amber-100 text-amber-700');
+        document.getElementById('team-owner-actions').classList.toggle('hidden', !isOwner);
+
+        const list = document.getElementById('team-list');
+        const collabs = team.collaborators || [];
+        // Owner row (synthesized from owner_id)
+        const rows = [];
+        rows.push({
+            user_id: team.owner_id, role: 'owner', designation: 'Owner',
+            user_name: '', user_email: '', _is_owner: true,
+        });
+        for (const c of collabs) rows.push(c);
+
+        list.innerHTML = rows.map(m => {
+            const name = m.user_name || m.user_email || (m._is_owner ? 'Owner' : 'Member');
+            const initial = _initials(m.user_name, m.user_email);
+            const rolePill = `<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                m.role === 'owner' ? 'bg-indigo-100 text-indigo-700'
+                : m.role === 'editor' ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-amber-100 text-amber-700'}">${escapeHtml((m.role || '').toUpperCase())}</span>`;
+            const canManage = isOwner && !m._is_owner;
+            return `
+            <div class="flex items-center gap-2 px-2 py-1.5 rounded border border-gray-200" data-collab-id="${escapeAttr(m.user_id)}">
+                <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">${escapeHtml(initial)}</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[11px] font-semibold text-gray-900 truncate">${escapeHtml(name)}</p>
+                    <p class="text-[10px] text-gray-500 truncate">${escapeHtml(m.designation || (m._is_owner ? 'Owner' : ''))}</p>
+                </div>
+                ${rolePill}
+                ${canManage ? `
+                <button onclick="editTeamMember('${escapeJsAttr(m.user_id)}')" title="Edit role / designation"
+                        class="text-gray-400 hover:text-indigo-600 text-[12px] px-1">✎</button>
+                <button onclick="removeTeamMember('${escapeJsAttr(m.user_id)}')" title="Remove"
+                        class="text-gray-400 hover:text-red-500 text-[12px] px-1">×</button>
+                ` : ''}
+            </div>`;
+        }).join('');
+
+        // Pending invites (owner-only)
+        const invs = team.pending_invites || [];
+        if (invs.length && isOwner) {
+            list.innerHTML += `
+            <div class="mt-2 pt-2 border-t border-gray-100">
+                <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Pending invites</p>
+                ${invs.map(inv => `
+                    <div class="flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 mb-1">
+                        <p class="text-[10px] text-amber-700 flex-1 truncate">${escapeHtml(inv.invited_email || inv.designation || '(open invite)')}</p>
+                        <span class="text-[9px] text-amber-600">${escapeHtml((inv.role || '').toUpperCase())}</span>
+                        <button onclick="copyInviteToken('${escapeJsAttr(inv.token)}')" title="Copy link"
+                                class="text-[10px] text-emerald-600 hover:underline">copy</button>
+                        <button onclick="revokeInvite('${escapeJsAttr(inv.token)}')" title="Revoke"
+                                class="text-[10px] text-red-500 hover:underline">×</button>
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+
+        // If we're a viewer, lock the editor + hide AI/save buttons.
+        _applyReadOnlyMode(_myEffectiveRole === 'viewer');
+    }).catch(() => {});
+}
+
+function _applyReadOnlyMode(readOnly) {
+    if (_quill) _quill.enable(!readOnly);
+    const ids = ['btn-modify','btn-polish','btn-tone','btn-formal',
+                 'save-draft-btn','ai-fill-btn','apply-placeholders-btn',
+                 'preview-top-btn'];
+    for (const id of ids) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        if (id === 'preview-top-btn') {
+            // Viewers can still preview / download — this is read-only,
+            // not "no exports". Don't disable preview.
+            continue;
+        }
+        el.disabled = readOnly;
+        el.classList.toggle('opacity-50', readOnly);
+        el.classList.toggle('cursor-not-allowed', readOnly);
+    }
+    // Lock annexure textareas + placeholder inputs too
+    document.querySelectorAll('#annexures-list textarea, #annexures-list input, #placeholder-fields input')
+        .forEach(el => { el.readOnly = readOnly; });
+    // Show a small banner at top of editor card if read-only
+    let banner = document.getElementById('readonly-banner');
+    if (readOnly) {
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'readonly-banner';
+            banner.className = 'px-4 py-2 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-800';
+            banner.innerHTML = '🔒 You\'re viewing this draft as a <strong>Viewer</strong>. Ask the owner for editor access if you need to make changes.';
+            const main = document.querySelector('#step-4 main');
+            if (main) main.insertBefore(banner, main.firstChild);
+        }
+    } else if (banner) {
+        banner.remove();
+    }
+}
+
+function generateInviteLink() {
+    if (!STATE.draft_id) {
+        alert('Save the draft first before inviting collaborators.');
+        return;
+    }
+    const status = document.getElementById('invite-status');
+    const btn = document.getElementById('invite-btn');
+    btn.disabled = true; btn.textContent = '⌛ Generating…';
+    fetch(`/api/drafts/${STATE.draft_id}/team/invite`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({role: 'editor'}),
+    }).then(r => r.json()).then(data => {
+        btn.disabled = false; btn.textContent = '🔗 Generate invite link';
+        if (data.error) {
+            status.innerHTML = `<span class="text-red-600">${escapeHtml(data.message || 'Failed')}</span>`;
+            return;
+        }
+        const url = data.invite.url;
+        document.getElementById('invite-link-input').value = url;
+        document.getElementById('invite-link-box').classList.remove('hidden');
+        status.innerHTML = '<span class="text-emerald-600">✓ Invite link ready — copy &amp; share.</span>';
+        loadTeam();
+        loadTeamsOverview();
+    });
+}
+
+function copyInviteLink() {
+    const inp = document.getElementById('invite-link-input');
+    inp.select();
+    document.execCommand('copy');
+    inp.blur();
+    document.getElementById('invite-status').innerHTML =
+        '<span class="text-emerald-700">✓ Copied to clipboard.</span>';
+}
+
+function copyInviteToken(token) {
+    const url = window.location.origin + '/draft/invite/' + token;
+    const tmp = document.createElement('input');
+    tmp.value = url; document.body.appendChild(tmp); tmp.select();
+    document.execCommand('copy'); tmp.remove();
+    alert('Invite link copied: ' + url);
+}
+
+function revokeInvite(token) {
+    if (!confirm('Revoke this invite link? Anyone holding the link will no longer be able to use it.')) return;
+    fetch(`/api/drafts/${STATE.draft_id}/invites/${encodeURIComponent(token)}/revoke`, {method: 'POST'})
+        .then(r => r.json()).then(() => { loadTeam(); loadTeamsOverview(); });
+}
+
+function editTeamMember(userId) {
+    const role = prompt('Set role: editor or viewer', 'editor');
+    if (!role) return;
+    const designation = prompt('Designation (optional, e.g. "Reviewer", "Compliance head")', '');
+    fetch(`/api/drafts/${STATE.draft_id}/team/${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({role: role.trim().toLowerCase(), designation: (designation || '').trim()}),
+    }).then(r => r.json()).then(data => {
+        if (data.error) alert(data.message);
+        else { loadTeam(); loadTeamsOverview(); }
+    });
+}
+
+function removeTeamMember(userId) {
+    if (!confirm('Remove this collaborator?')) return;
+    fetch(`/api/drafts/${STATE.draft_id}/team/${encodeURIComponent(userId)}`, {method: 'DELETE'})
+        .then(r => r.json()).then(data => {
+            if (data.error) alert(data.message);
+            else { loadTeam(); loadTeamsOverview(); }
+        });
+}
+
+// ── Quill rich-text editor (initialised lazily on first showStep(4)) ──
+let _quill = null;
+
+function _initQuillIfNeeded() {
+    if (_quill) return;
+    const target = document.getElementById('editor-body');
+    if (!target || typeof Quill === 'undefined') return;
+    _quill = new Quill('#editor-body', {
+        theme: 'snow',
+        modules: {
+            toolbar: '#editor-toolbar',
+            history: { delay: 800, maxStack: 200, userOnly: true },
+        },
+        placeholder: 'Your letter body will appear here…',
+    });
+    // Keep STATE.body in sync as the user types; debounce so we don't burn
+    // CPU on every keystroke.
+    let t = null;
+    _quill.on('text-change', () => {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => {
+            STATE.body = _getEditorPlainText();
+        }, 300);
+    });
+}
+
+function _getEditorPlainText() {
+    if (!_quill) return '';
+    // Quill's getText() gives plain text including \n; trim trailing newline.
+    return _quill.getText().replace(/\n+$/, '');
+}
+
+function _setEditorPlainText(text) {
+    _initQuillIfNeeded();
+    if (!_quill) return;
+    _quill.setText(text || '');
+    // Quill leaves a trailing \n; that's fine for editing.
+}
+
+// ── Step 4: AI improvements ──
+function improveBody(mode) {
+    _initQuillIfNeeded();
+    const txt = _getEditorPlainText().trim();
+    if (!txt) return;
+    const status = document.getElementById('ai-status');
+    const buttons = ['btn-polish','btn-tone','btn-formal','btn-modify'].map(id => document.getElementById(id));
+    buttons.forEach(b => b.disabled = true);
+    status.textContent = 'AI is rewriting…';
+
+    fetch('/api/draft/improve', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            text: txt, mode,
+            examples: STATE.examples.map(e => ({text: e.text, description: e.description})),
+        }),
+    }).then(r => r.json()).then(data => {
+        buttons.forEach(b => b.disabled = false);
+        if (data.error) { status.innerHTML = `<span class="text-red-500">${escapeHtml(data.message)}</span>`; return; }
+        _setEditorPlainText(data.text || txt);
+        STATE.body = data.text || txt;
+        rescanPlaceholders();
+        status.innerHTML = `<span class="text-emerald-600">✓ Updated. Review the changes — your previous text was replaced.</span>`;
+        setTimeout(() => { status.textContent = ''; }, 6000);
+    }).catch(() => {
+        buttons.forEach(b => b.disabled = false);
+        status.innerHTML = '<span class="text-red-500">Network error</span>';
+    });
+}
+
+// "Modify Draft" — free-form instruction that the AI applies to the whole body.
+function modifyDraft() {
+    _initQuillIfNeeded();
+    const txt = _getEditorPlainText().trim();
+    if (!txt) return;
+    const instruction = prompt(
+        "Tell the AI what to change in this draft.\n\n" +
+        "Examples:\n" +
+        " • make it shorter\n" +
+        " • add a paragraph about regulatory approvals required\n" +
+        " • emphasise that the appointment is effective immediately\n" +
+        " • soften the tone, less legalese"
+    );
+    if (!instruction || !instruction.trim()) return;
+
+    const status = document.getElementById('ai-status');
+    const btn = document.getElementById('btn-modify');
+    btn.disabled = true;
+    status.textContent = 'AI is applying your instruction…';
+
+    fetch('/api/draft/improve', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            text: txt, mode: 'custom', instruction,
+            examples: STATE.examples.map(e => ({text: e.text, description: e.description})),
+        }),
+    }).then(r => r.json()).then(data => {
+        btn.disabled = false;
+        if (data.error) { status.innerHTML = `<span class="text-red-500">${escapeHtml(data.message)}</span>`; return; }
+        _setEditorPlainText(data.text || txt);
+        STATE.body = data.text || txt;
+        rescanPlaceholders();
+        status.innerHTML = `<span class="text-emerald-600">✓ Modified per your instruction.</span>`;
+        setTimeout(() => { status.textContent = ''; }, 6000);
+    }).catch(() => {
+        btn.disabled = false;
+        status.innerHTML = '<span class="text-red-500">Network error</span>';
+    });
+}
+
+// ── Placeholder detection + auto-fill ──
+// Picks up two patterns from the body + annexures:
+//   {snake_case_token}  — Gemini's named placeholders
+//   [PLEASE FILL — hint] — fallback for when the AI doesn't have a value
+// Each unique token gets a labeled input. Typing in the input replaces all
+// instances of that token in the editor + every annexure body.
+function _extractPlaceholders(allText) {
+    const out = new Map();   // token → {kind, label, hint}
+    // {snake_case}
+    for (const m of allText.matchAll(/\{([a-z][a-z0-9_]{2,60})\}/g)) {
+        const tok = m[1];
+        if (!out.has(tok)) {
+            out.set(tok, {
+                kind: 'curly',
+                pattern: '{' + tok + '}',
+                label: tok.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                hint: '',
+            });
+        }
+    }
+    // [PLEASE FILL — hint]
+    for (const m of allText.matchAll(/\[\s*PLEASE\s*FILL[^\]]*\]/gi)) {
+        const literal = m[0];
+        const tok = literal;       // use the full literal as the token key
+        if (!out.has(tok)) {
+            // Pull the hint after a dash if present
+            const hint = (literal.match(/[—\-:]\s*([^\]]+)\]/) || [])[1] || '';
+            out.set(tok, {
+                kind: 'bracket',
+                pattern: literal,
+                label: 'Please fill',
+                hint: hint.trim(),
+            });
+        }
+    }
+    return out;
+}
+
+function rescanPlaceholders() {
+    _initQuillIfNeeded();
+    _syncAnnexuresFromDOM();
+    const bodyText = _getEditorPlainText();
+    const annxText = STATE.annexures.map(a => (a.title || '') + '\n' + (a.body || '')).join('\n\n');
+    const tokens = _extractPlaceholders(bodyText + '\n\n' + annxText);
+
+    const section = document.getElementById('placeholders-section');
+    const list = document.getElementById('placeholder-fields');
+    if (!list) return;
+    if (!tokens.size) {
+        section.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+    }
+    section.classList.remove('hidden');
+
+    // Render the inputs (preserving any existing typed values)
+    const oldValues = {};
+    list.querySelectorAll('input[data-token]').forEach(inp => {
+        oldValues[inp.dataset.token] = inp.value;
+    });
+
+    // Each input is identified by its index — we use that to read all values
+    // back when the user clicks "Apply to document". No keystroke-by-keystroke
+    // mutation; one batch substitution on demand.
+    const tokenList = Array.from(tokens.entries());
+    list.innerHTML = tokenList.map(([tok, info], i) => `
+        <div>
+            <label class="text-[10px] text-gray-500 block mb-0.5" title="${escapeAttr(info.pattern)}">
+                ${escapeHtml(info.label)}${info.hint ? ' <span class="text-amber-600">— ' + escapeHtml(info.hint) + '</span>' : ''}
+            </label>
+            <input type="text" data-token-idx="${i}" data-pattern="${escapeAttr(info.pattern)}"
+                   value="${escapeAttr(oldValues[tok] || '')}"
+                   placeholder="Fill in and click Apply…"
+                   class="w-full px-2.5 py-1.5 text-xs border border-amber-200 bg-amber-50/40 rounded focus:outline-none focus:ring-2 focus:ring-amber-400">
+        </div>
+    `).join('');
+    // Submit on Enter inside any field
+    list.querySelectorAll('input[data-pattern]').forEach(inp => {
+        inp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); applyPlaceholders(); }
+        });
+    });
+}
+
+// AI-fill: ask the server to pre-populate placeholders it can answer
+// confidently from the user's description, the body context, and public
+// knowledge of the company. User reviews before clicking Apply.
+function aiFillPlaceholders() {
+    _initQuillIfNeeded();
+    const list = document.getElementById('placeholder-fields');
+    if (!list) return;
+
+    const placeholders = [];
+    list.querySelectorAll('input[data-pattern]').forEach(inp => {
+        const pat = inp.getAttribute('data-pattern') || '';
+        if (!pat) return;
+        // Re-derive label/hint from the input's label sibling for context.
+        const label = inp.previousElementSibling ? inp.previousElementSibling.textContent.trim() : '';
+        placeholders.push({pattern: pat, label});
+    });
+    if (!placeholders.length) {
+        return;
+    }
+
+    const status = document.getElementById('apply-status');
+    const btn = document.getElementById('ai-fill-btn');
+    if (status) status.innerHTML = '<span class="text-indigo-600">AI is filling what it can…</span>';
+    btn.disabled = true; btn.textContent = '⌛ Filling…';
+
+    fetch('/api/draft/ai-fill', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            company_name: STATE.company ? STATE.company.name : '',
+            symbol: STATE.company ? STATE.company.symbol : '',
+            filing_type: STATE.filing_type ? STATE.filing_type.id : '',
+            new_info: STATE.new_info || '',
+            body: _getEditorPlainText(),
+            annexures: STATE.annexures.map(a => ({title: a.title, body: a.body})),
+            placeholders,
+        }),
+    }).then(r => r.json()).then(data => {
+        btn.disabled = false; btn.textContent = '✨ AI Fill';
+        if (data.error) {
+            if (status) status.innerHTML = `<span class="text-red-600">${escapeHtml(data.message || 'AI fill failed')}</span>`;
+            return;
+        }
+        const fills = data.fills || [];
+        if (!fills.length) {
+            if (status) status.innerHTML = '<span class="text-amber-600">AI couldn\'t confidently fill any field — please fill manually.</span>';
+            return;
+        }
+        // Match fills to inputs by pattern, populate.
+        const byPattern = {};
+        for (const f of fills) byPattern[f.pattern] = f.value;
+        let filled = 0;
+        list.querySelectorAll('input[data-pattern]').forEach(inp => {
+            const pat = inp.getAttribute('data-pattern');
+            if (pat in byPattern && !inp.value) {
+                inp.value = byPattern[pat];
+                inp.classList.add('border-indigo-300', 'bg-indigo-50/60');
+                inp.classList.remove('border-amber-200', 'bg-amber-50/40');
+                inp.title = '✨ AI-filled — review before applying';
+                filled++;
+            }
+        });
+        if (status) {
+            const skipped = placeholders.length - filled;
+            status.innerHTML = `<span class="text-emerald-600">✓ AI filled ${filled} field${filled === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} for you to fill` : ''}. Review then click Apply.</span>`;
+        }
+    }).catch(() => {
+        btn.disabled = false; btn.textContent = '✨ AI Fill';
+        if (status) status.innerHTML = '<span class="text-red-600">Network error</span>';
+    });
+}
+
+// One-shot batch substitution. Reads every placeholder field, swaps each
+// non-empty value into the body + annexures, then rescans (filled tokens
+// disappear from the sidebar; un-filled ones remain).
+function applyPlaceholders() {
+    _initQuillIfNeeded();
+    const list = document.getElementById('placeholder-fields');
+    if (!list) return;
+
+    // Collect (pattern → value) entries from the sidebar, dropping blanks so
+    // un-filled tokens stay as visible {tokens} in the document.
+    const entries = [];
+    list.querySelectorAll('input[data-pattern]').forEach(inp => {
+        const pat = inp.getAttribute('data-pattern') || '';
+        const val = (inp.value || '').trim();
+        if (pat && val) entries.push([pat, val]);
+    });
+
+    const status = document.getElementById('apply-status');
+    if (!entries.length) {
+        if (status) status.innerHTML = '<span class="text-amber-600">Type at least one value first.</span>';
+        return;
+    }
+
+    // ── Body: do the substitutions on plain text, then write back. We
+    // rebuild the entire editor content rather than diff-patching because
+    // that's far more reliable than juggling Quill indices around multi-
+    // pass replacements. Trade-off: any rich-text formatting in the body
+    // is reset to plain — acceptable for SEBI letters which are flat prose.
+    let bodyText = _getEditorPlainText();
+    let touchedCount = 0;
+    for (const [pat, val] of entries) {
+        const before = bodyText;
+        bodyText = bodyText.split(pat).join(val);
+        if (before !== bodyText) touchedCount++;
+    }
+    _setEditorPlainText(bodyText);
+    STATE.body = bodyText;
+
+    // ── Annexures: same substitution on each title/body, then re-render.
+    let annexTouched = false;
+    STATE.annexures = STATE.annexures.map(a => {
+        let title = a.title || '';
+        let body  = a.body  || '';
+        let changed = false;
+        for (const [pat, val] of entries) {
+            if (title.includes(pat)) { title = title.split(pat).join(val); changed = true; }
+            if (body.includes(pat))  { body  = body.split(pat).join(val);  changed = true; }
+        }
+        if (changed) annexTouched = true;
+        return {title, body};
+    });
+    if (annexTouched) renderAnnexureEditors();
+
+    // Refresh the sidebar — filled tokens are gone, only unfilled remain.
+    rescanPlaceholders();
+
+    if (status) {
+        const total = entries.length;
+        status.innerHTML = `<span class="text-emerald-600">✓ Applied ${total} value${total === 1 ? '' : 's'} to the document.</span>`;
+        setTimeout(() => { status.textContent = ''; }, 4000);
+    }
+}
+
+// ── Helpful / Not helpful — local rating, used to gate future telemetry ──
+function rateDraft(verdict) {
+    const status = document.getElementById('rate-status');
+    document.querySelectorAll('#rate-up, #rate-down').forEach(b => b.disabled = true);
+    if (status) status.textContent = verdict === 'up' ? '✓ Thanks for the thumbs up.' : 'Thanks — we\'ll improve.';
+    try {
+        if (STATE.draft_id) {
+            localStorage.setItem('draft-rating-' + STATE.draft_id, verdict);
+        }
+    } catch (e) { /* ignore */ }
+}
+
+// ── Annexure editors ──
+function renderAnnexureEditors() {
+    const wrap = document.getElementById('annexures-list');
+    if (!wrap) return;
+    if (!STATE.annexures.length) {
+        wrap.innerHTML = '<p class="text-[11px] text-gray-400 italic">No annexures yet. AI suggests them automatically based on filing type, or click "+ Add annexure" to add one manually.</p>';
+        return;
+    }
+    wrap.innerHTML = STATE.annexures.map((a, i) => `
+        <div class="border border-gray-200 rounded-lg p-3 bg-slate-50/40">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Annexure ${_roman(i+1)}</span>
+                <input type="text" data-annx-title="${i}" value="${escapeHtml(a.title)}"
+                       placeholder="Title (e.g. Brief profile of Mr. X)"
+                       class="flex-1 px-2 py-1.5 text-sm font-semibold border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
+                <button onclick="deleteAnnexure(${i})" class="text-xs text-red-500 hover:text-red-700">Delete</button>
+            </div>
+            <textarea data-annx-body="${i}" rows="6" placeholder="Annexure content. Markdown tables supported: | Header | ... |"
+                      class="w-full px-3 py-2 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono">${escapeHtml(a.body)}</textarea>
+            <div class="flex gap-1.5 mt-1">
+                <button onclick="improveAnnexure(${i}, 'polish')" class="text-[10px] font-semibold px-2 py-0.5 rounded border border-gray-200 text-gray-700 hover:bg-white">✨ Polish</button>
+                <button onclick="improveAnnexure(${i}, 'tone')" class="text-[10px] font-semibold px-2 py-0.5 rounded border border-indigo-200 text-indigo-700 hover:bg-white">🎯 Match tone</button>
+                <button onclick="improveAnnexure(${i}, 'formal')" class="text-[10px] font-semibold px-2 py-0.5 rounded border border-gray-200 text-gray-700 hover:bg-white">📜 Formal</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function _roman(n) { return ['I','II','III','IV','V','VI','VII','VIII','IX','X'][n-1] || ('#'+n); }
+
+function _syncAnnexuresFromDOM() {
+    document.querySelectorAll('[data-annx-title]').forEach(el => {
+        const i = parseInt(el.dataset.annxTitle, 10);
+        if (STATE.annexures[i]) STATE.annexures[i].title = el.value;
+    });
+    document.querySelectorAll('[data-annx-body]').forEach(el => {
+        const i = parseInt(el.dataset.annxBody, 10);
+        if (STATE.annexures[i]) STATE.annexures[i].body = el.value;
+    });
+}
+
+function addAnnexure() {
+    _syncAnnexuresFromDOM();
+    const n = STATE.annexures.length + 1;
+    STATE.annexures.push({title: `Annexure ${_roman(n)} — `, body: ''});
+    renderAnnexureEditors();
+}
+
+function deleteAnnexure(i) {
+    if (!confirm('Delete this annexure?')) return;
+    _syncAnnexuresFromDOM();
+    STATE.annexures.splice(i, 1);
+    renderAnnexureEditors();
+}
+
+function improveAnnexure(i, mode) {
+    _syncAnnexuresFromDOM();
+    const annx = STATE.annexures[i];
+    if (!annx || !annx.body.trim()) return;
+    fetch('/api/draft/improve', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            text: annx.body, mode,
+            examples: STATE.examples.map(e => ({text: e.text, description: e.description})),
+        }),
+    }).then(r => r.json()).then(data => {
+        if (data.error) { alert(data.message || 'Rewrite failed'); return; }
+        STATE.annexures[i].body = data.text || annx.body;
+        renderAnnexureEditors();
+    });
+}
+
+// ── Step 5: preview ──
+function _gatherLetter() {
+    _syncAnnexuresFromDOM();
+    const bodyText = _quill ? _getEditorPlainText() : (STATE.body || '');
+    STATE.body = bodyText;
+    return {
+        draft_id: STATE.draft_id,
+        company_name: STATE.company ? STATE.company.name : '',
+        symbol: STATE.company ? STATE.company.symbol : '',
+        filing_type: STATE.filing_type ? STATE.filing_type.id : '',
+        registered_office: document.getElementById('field-regoffice').value,
+        cin: document.getElementById('field-cin').value,
+        subject: document.getElementById('field-subject').value,
+        body: bodyText,
+        new_info: STATE.new_info || '',
+        signer_name: document.getElementById('field-signer').value,
+        signer_designation: document.getElementById('field-designation').value,
+        bse_code: document.getElementById('field-bse').value,
+        nse_symbol: document.getElementById('field-nse').value,
+        annexures: STATE.annexures.map(a => ({title: a.title, body: a.body})),
+    };
+}
+
+// ── Manual save + history modal ──
+function saveDraftManually() {
+    const L = _gatherLetter();
+    L.id = STATE.draft_id || null;
+    L.company_symbol = L.symbol;
+    const btn = document.getElementById('save-draft-btn');
+    const status = document.getElementById('save-draft-status');
+    btn.disabled = true; btn.textContent = '💾 Saving…';
+    fetch('/api/drafts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(L),
+    }).then(r => r.json()).then(data => {
+        btn.disabled = false; btn.textContent = '💾 Save draft';
+        if (data.error) {
+            status.innerHTML = `<span class="text-red-600">${escapeHtml(data.message || 'Save failed')}</span>`;
+            return;
+        }
+        STATE.draft_id = data.id;
+        status.innerHTML = `<span class="text-emerald-600">✓ Saved as draft #${data.id}</span>`;
+        loadMyDraftsCount();
+        setTimeout(() => { status.textContent = ''; }, 4000);
+    }).catch(() => {
+        btn.disabled = false; btn.textContent = '💾 Save draft';
+        status.innerHTML = '<span class="text-red-600">Network error</span>';
+    });
+}
+
+// ── Teams & sharing overview (step 1) ──
+// Per the user's request, the panel only shows drafts the user has explicitly
+// "shared" via the Share button on a previous draft. We persist that pinned
+// set in localStorage so it survives reloads — it's per-browser, not server-
+// side, since it's purely a UI preference.
+const _PIN_STORAGE_KEY = 'pinned-team-drafts-v1';
+
+function _loadPinnedTeams() {
+    try {
+        const raw = localStorage.getItem(_PIN_STORAGE_KEY);
+        if (!raw) return new Set();
+        const ids = JSON.parse(raw);
+        return new Set(Array.isArray(ids) ? ids.map(Number) : []);
+    } catch (e) { return new Set(); }
+}
+function _savePinnedTeams(set) {
+    try { localStorage.setItem(_PIN_STORAGE_KEY, JSON.stringify(Array.from(set))); }
+    catch (e) {}
+}
+
+function pinDraftToTeams(draftId) {
+    const pinned = _loadPinnedTeams();
+    pinned.add(Number(draftId));
+    _savePinnedTeams(pinned);
+    loadTeamsOverview(() => {
+        // Scroll the new card into view so the user sees what just got added
+        const wrap = document.getElementById('teams-overview-list');
+        if (wrap) wrap.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    });
+}
+
+function unpinDraftFromTeams(draftId) {
+    const pinned = _loadPinnedTeams();
+    pinned.delete(Number(draftId));
+    _savePinnedTeams(pinned);
+    loadTeamsOverview();
+}
+
+function _teamColor(idx) {
+    const palette = [
+        ['bg-indigo-100','text-indigo-700'],
+        ['bg-emerald-100','text-emerald-700'],
+        ['bg-amber-100','text-amber-700'],
+        ['bg-rose-100','text-rose-700'],
+        ['bg-violet-100','text-violet-700'],
+        ['bg-sky-100','text-sky-700'],
+    ];
+    return palette[idx % palette.length];
+}
+
+function _avatarInitial(name, email, fallback) {
+    const s = (name || email || fallback || '?').trim();
+    return s.charAt(0).toUpperCase();
+}
+
+function loadTeamsOverview(onDone) {
+    fetch('/api/drafts/teams-overview').then(r => r.json()).then(data => {
+        const allTeams = data.teams || [];
+        const pinned = _loadPinnedTeams();
+        // Only show drafts the user explicitly clicked "Share" on. The
+        // Teams & sharing panel is opt-in, not auto-populated.
+        const teams = allTeams.filter(t => pinned.has(Number(t.id)));
+
+        const wrap = document.getElementById('teams-overview-list');
+        const badge = document.getElementById('teams-count-badge');
+        if (!wrap) return;
+
+        if (badge) {
+            if (teams.length) { badge.textContent = teams.length; badge.classList.remove('hidden'); }
+            else badge.classList.add('hidden');
+        }
+
+        if (!teams.length) {
+            wrap.innerHTML = `
+            <div class="sm:col-span-2 rounded-xl border-2 border-dashed border-gray-200 p-5 text-center">
+                <svg class="w-10 h-10 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                <p class="text-sm font-medium text-gray-700">No drafts pinned for sharing yet.</p>
+                <p class="text-[11px] text-gray-400 mt-1">Click <strong>Share with Team</strong> on any draft above to manage its team here.</p>
+            </div>`;
+            if (onDone) onDone();
+            return;
+        }
+
+        wrap.innerHTML = teams.map(t => {
+            const role = t.my_role || 'viewer';
+            const isOwner = t.is_owner;
+            const roleBadge = `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                isOwner ? 'bg-indigo-600 text-white'
+                : role === 'editor' ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-amber-100 text-amber-700'
+            }">${role.toUpperCase()}</span>`;
+
+            // Build avatar stack: owner first, then collaborators (up to 4 visible).
+            const stack = [{user_id: t.owner_id, _is_owner: true, role: 'owner'}].concat(t.collaborators || []);
+            const visible = stack.slice(0, 4);
+            const overflow = stack.length - visible.length;
+            const avatars = visible.map((m, i) => {
+                const [bg, fg] = _teamColor(i);
+                const initial = _avatarInitial(m.user_name, m.user_email, m._is_owner ? 'O' : 'M');
+                const titleText = m._is_owner
+                    ? 'Owner'
+                    : (m.user_name || m.user_email || 'Member') +
+                      (m.designation ? ` · ${m.designation}` : '') +
+                      ` · ${m.role || 'editor'}`;
+                return `<div title="${escapeAttr(titleText)}"
+                            class="w-7 h-7 rounded-full ${bg} ${fg} text-[11px] font-bold flex items-center justify-center border-2 border-white -ml-1.5 first:ml-0 shadow-sm">
+                    ${escapeHtml(initial)}
+                </div>`;
+            }).join('');
+            const overflowChip = overflow > 0 ? `
+                <div class="w-7 h-7 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold flex items-center justify-center border-2 border-white -ml-1.5 shadow-sm">
+                    +${overflow}
+                </div>` : '';
+
+            const updated = t.updated_at ? new Date(t.updated_at) : null;
+            const upStr = updated && !isNaN(updated) ? updated.toLocaleString() : '';
+            const lastBy = t.updated_by_email || '';
+
+            return `
+            <div class="group relative rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-md bg-white overflow-hidden transition-all">
+                <div class="p-3.5">
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-gray-900 truncate">${escapeHtml(t.subject || '(no subject)')}</p>
+                            <p class="text-[10px] text-gray-500 mt-0.5 truncate">
+                                ${escapeHtml(t.company_symbol || '')} · ${escapeHtml(t.filing_type || '')}
+                            </p>
+                        </div>
+                        ${roleBadge}
+                    </div>
+
+                    <div class="flex items-center justify-between mt-2">
+                        <div class="flex items-center">${avatars}${overflowChip}</div>
+                        <span class="text-[10px] text-gray-400">${t.team_size} member${t.team_size === 1 ? '' : 's'}</span>
+                    </div>
+
+                    ${upStr ? `<p class="text-[10px] text-gray-400 mt-2.5 truncate">
+                        Last edit ${escapeHtml(lastBy ? 'by ' + lastBy + ' · ' : '')}${escapeHtml(upStr)}
+                    </p>` : ''}
+                </div>
+                <div class="border-t border-gray-100 px-3 py-2 bg-gray-50/40 flex items-center gap-2">
+                    <button onclick="loadDraft(${t.id})"
+                            class="flex-1 text-[11px] font-semibold px-2.5 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700">
+                        Open &amp; manage
+                    </button>
+                    ${isOwner ? `<button onclick="openInviteModal(${t.id})"
+                            class="text-[11px] font-semibold px-2.5 py-1.5 rounded border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">
+                        + Invite
+                    </button>` : ''}
+                    <button onclick="unpinDraftFromTeams(${t.id})" title="Remove from this view (doesn't affect access)"
+                            class="text-[11px] text-gray-400 hover:text-gray-700 px-1">×</button>
+                </div>
+            </div>`;
+        }).join('');
+        if (onDone) onDone();
+    }).catch(() => { if (onDone) onDone(); });
+}
+
+// Quick invite modal callable from the overview cards (without going through step 4).
+function openInviteModal(draftId) {
+    if (!confirm('Generate a new invite link for this draft? Anyone with the link can join as an editor.')) return;
+    fetch(`/api/drafts/${draftId}/team/invite`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({role: 'editor'}),
+    }).then(r => r.json()).then(data => {
+        if (data.error) { alert(data.message || 'Invite failed'); return; }
+        const url = data.invite.url;
+        // Try to copy automatically; show prompt as fallback.
+        const tmp = document.createElement('input');
+        tmp.value = url; document.body.appendChild(tmp); tmp.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        tmp.remove();
+        prompt('Invite link (copied to clipboard) — share with your teammate:', url);
+        loadTeamsOverview();
+    });
+}
+
+function loadMyDraftsCount() {
+    fetch('/api/drafts').then(r => r.json()).then(data => {
+        const drafts = data.drafts || [];
+        const n = drafts.length;
+
+        // Inline list (top 5) inside Step 1
+        const list = document.getElementById('recent-drafts-list');
+        if (list) {
+            if (n === 0) {
+                list.innerHTML = '<p class="text-[11px] text-gray-400 italic px-1 py-2">No drafts yet. Pick a company above and generate your first draft — it\'ll show up here for next time.</p>';
+            } else {
+                const top = drafts.slice(0, 5);
+                list.innerHTML = top.map(d => {
+                    const updated = new Date(d.updated_at);
+                    const upStr = isNaN(updated) ? d.updated_at : updated.toLocaleString();
+                    const role = d.effective_role || 'owner';
+                    const isOwner = !!d.is_owner;
+                    const roleBadge = !isOwner ? `<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                        role === 'editor' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                    }">${escapeHtml(role.toUpperCase())}</span>` : '';
+                    const lastBy = d.updated_by_email || '';
+                    return `
+                    <div class="flex items-center justify-between gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors">
+                        <button onclick="loadDraft(${d.id})" class="flex-1 min-w-0 text-left">
+                            <div class="flex items-center gap-1.5 mb-0.5">
+                                <p class="text-sm font-semibold text-gray-900 truncate">${escapeHtml(d.subject || '(no subject)')}</p>
+                                ${roleBadge}
+                            </div>
+                            <p class="text-[10px] text-gray-500 truncate">
+                                ${escapeHtml(d.company_symbol || '')} · ${escapeHtml(d.filing_type || '')} · ${d.annexure_count || 0} annx · ${lastBy ? escapeHtml(lastBy) + ' · ' : ''}${escapeHtml(upStr)}
+                            </p>
+                        </button>
+                        <div class="flex gap-1.5 flex-shrink-0">
+                            ${isOwner ? `<button onclick="pinDraftToTeams(${d.id})" title="Add to Teams &amp; sharing"
+                                    class="text-[11px] font-semibold px-2.5 py-1 rounded border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 whitespace-nowrap">Share with Team</button>` : ''}
+                            <button onclick="loadDraft(${d.id})" class="text-[11px] font-semibold px-2.5 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700">Open</button>
+                            ${isOwner ? `<button onclick="deleteDraftFromList(${d.id})" class="text-[11px] text-red-500 hover:text-red-700 px-1">×</button>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        // "View all" button visible only when there are more than 5
+        const btn = document.getElementById('view-all-drafts-btn');
+        const badge = document.getElementById('my-drafts-count');
+        if (btn) {
+            if (n > 5) {
+                btn.classList.remove('hidden');
+                if (badge) badge.textContent = n;
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+    }).catch(() => {});
+}
+
+function openMyDrafts() {
+    let modal = document.getElementById('my-drafts-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'my-drafts-modal';
+        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[80] hidden p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900">My Drafts</h3>
+                        <p class="text-xs text-gray-500 mt-0.5" id="my-drafts-sub">Only you can see these.</p>
+                    </div>
+                    <button onclick="closeMyDrafts()" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button>
+                </div>
+                <div id="my-drafts-body" class="flex-1 overflow-y-auto p-5"></div>
+            </div>`;
+        modal.addEventListener('click', e => { if (e.target === modal) closeMyDrafts(); });
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    renderMyDrafts();
+}
+function closeMyDrafts() { document.getElementById('my-drafts-modal')?.classList.add('hidden'); }
+
+function renderMyDrafts() {
+    const body = document.getElementById('my-drafts-body');
+    body.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">Loading…</p>';
+    fetch('/api/drafts').then(r => r.json()).then(data => {
+        const drafts = data.drafts || [];
+        document.getElementById('my-drafts-sub').textContent =
+            `${drafts.length} draft${drafts.length === 1 ? '' : 's'} — only you can see these.`;
+        if (!drafts.length) {
+            body.innerHTML = '<p class="text-sm text-gray-500 text-center py-10">No saved drafts yet. Generated drafts auto-save here.</p>';
+            return;
+        }
+        body.innerHTML = drafts.map(d => {
+            const updated = new Date(d.updated_at);
+            const upStr = isNaN(updated) ? d.updated_at : updated.toLocaleString();
+            return `
+            <div class="border border-gray-200 rounded-lg p-3 mb-2 flex items-start justify-between gap-3 hover:border-indigo-300">
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-gray-900 truncate">${escapeHtml(d.subject || '(no subject)')}</p>
+                    <p class="text-[11px] text-gray-500 mt-0.5">
+                        ${escapeHtml(d.company_symbol || '')} · ${escapeHtml(d.filing_type || '')}
+                        · ${d.body_len || 0} chars · ${d.annexure_count || 0} annexure${d.annexure_count === 1 ? '' : 's'}
+                    </p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Updated ${escapeHtml(upStr)}</p>
+                </div>
+                <div class="flex flex-col gap-1.5 items-end flex-shrink-0">
+                    ${d.is_owner !== false ? `<button onclick="pinDraftToTeams(${d.id}); closeMyDrafts();"
+                            class="text-[11px] font-semibold px-2.5 py-1 rounded border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 whitespace-nowrap">Share with Team</button>` : ''}
+                    <button onclick="loadDraft(${d.id})" class="text-[11px] font-semibold px-2.5 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700">Open</button>
+                    <button onclick="deleteDraftFromList(${d.id})" class="text-[11px] text-red-500 hover:text-red-700">Delete</button>
+                </div>
+            </div>`;
+        }).join('');
+    });
+}
+
+function loadDraft(id) {
+    fetch('/api/drafts/' + id).then(r => r.json()).then(data => {
+        if (data.error) { alert(data.message || 'Could not load'); return; }
+        const d = data.draft;
+        STATE.company = {
+            symbol: d.company_symbol,
+            name: d.company_name,
+        };
+        // Find filing type definition by id
+        const ft = (_allFilingTypes || []).find(t => t.id === d.filing_type) || {
+            id: d.filing_type, label: d.filing_type, subject_default: d.subject,
+        };
+        STATE.filing_type = ft;
+        STATE.subject = d.subject || '';
+        STATE.body = d.body || '';
+        STATE.annexures = d.annexures || [];
+        STATE.new_info = d.new_info || '';
+        STATE.draft_id = d.id;
+
+        // Populate the editor fields, jump to step 4
+        document.getElementById('field-subject').value = STATE.subject;
+        _setEditorPlainText(STATE.body);
+        const m = d.metadata || {};
+        document.getElementById('field-regoffice').value = m.registered_office || '';
+        document.getElementById('field-cin').value = m.cin || '';
+        document.getElementById('field-bse').value = m.bse_code || '';
+        document.getElementById('field-nse').value = m.nse_symbol || d.company_symbol || '';
+        document.getElementById('field-signer').value = m.signer_name || '';
+        document.getElementById('field-designation').value = m.signer_designation || '';
+        renderAnnexureEditors();
+        closeMyDrafts();
+        showStep(4);
+        rescanPlaceholders();
+        loadTeam();
+        const status = document.getElementById('save-draft-status');
+        const lastBy = d.updated_by_email || (d.is_owner ? 'you' : '');
+        const when = d.updated_at ? new Date(d.updated_at).toLocaleString() : '';
+        if (status) {
+            status.textContent = lastBy
+                ? `Loaded draft #${d.id} · last edited by ${lastBy}${when ? ' at ' + when : ''}`
+                : `Loaded draft #${d.id}`;
+        }
+    });
+}
+
+function deleteDraftFromList(id) {
+    if (!confirm('Delete this draft? This cannot be undone.')) return;
+    fetch('/api/drafts/' + id, {method: 'DELETE'}).then(r => r.json()).then(data => {
+        if (data.error) { alert(data.message || 'Delete failed'); return; }
+        // If currently editing this one, clear the in-memory id so the next
+        // save creates a fresh row instead of trying to update a deleted one.
+        if (STATE.draft_id === id) STATE.draft_id = null;
+        renderMyDrafts();
+        loadMyDraftsCount();
+    });
+}
+
+function _renderBodyHtml(text) {
+    // Mirrors the server-side _split_body_into_chunks: prose paragraphs +
+    // markdown pipe-tables. Keeps preview WYSIWYG with the PDF/DOCX output.
+    const blocks = (text || '').split(/\n\s*\n/);
+    return blocks.map(block => {
+        block = block.trim();
+        if (!block) return '';
+        const lines = block.split(/\n/).map(l => l.trim()).filter(Boolean);
+        const allHavePipe = lines.length >= 2 && lines.every(l => l.includes('|'));
+        if (allHavePipe) {
+            const rows = [];
+            for (const ln of lines) {
+                let inner = ln;
+                if (inner.startsWith('|')) inner = inner.slice(1);
+                if (inner.endsWith('|'))  inner = inner.slice(0, -1);
+                const cells = inner.split('|').map(c => c.trim());
+                if (cells.every(c => /^:?-+:?$/.test(c) || c === '')) continue;
+                rows.push(cells);
+            }
+            if (rows.length >= 2) {
+                const header = rows[0];
+                const body = rows.slice(1);
+                return `<table style="width:100%; border-collapse:collapse; margin:0 0 14px 0; font-size:12px;">
+                    <thead><tr style="background:#f1f5f9;">${header.map(h =>
+                        `<th style="border:1px solid #94a3b8; padding:6px 8px; text-align:left;">${escapeHtml(h)}</th>`).join('')}</tr></thead>
+                    <tbody>${body.map(r => `<tr>${r.map(c =>
+                        `<td style="border:1px solid #94a3b8; padding:6px 8px;">${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+                </table>`;
+            }
+        }
+        return `<p style="margin:0 0 14px 0; text-align:justify;">${escapeHtml(block).replace(/\n/g, '<br>')}</p>`;
+    }).join('');
+}
+
+function goToPreview() {
+    STATE.body = _quill ? _getEditorPlainText() : (STATE.body || '');
+    STATE.subject = document.getElementById('field-subject').value;
+    const L = _gatherLetter();
+    const today = new Date().toLocaleDateString('en-IN', {day: '2-digit', month: 'long', year: 'numeric'});
+
+    const bodyHtml = _renderBodyHtml(L.body);
+
+    const annexurePages = (L.annexures || []).filter(a => a.title || a.body).map(a => `
+        <div style="page-break-before: always; border-top: 2px dashed #cbd5e1; margin-top: 32px; padding-top: 28px;">
+            <p style="text-align:center; font-size:11px; color:#666; margin:0 0 8px 0;">${escapeHtml(L.company_name || '')}</p>
+            <h2 style="text-align:center; font-size:15px; font-weight:bold; text-decoration:underline; margin:6px 0 18px 0;">${escapeHtml(a.title || 'Annexure')}</h2>
+            ${_renderBodyHtml(a.body)}
+        </div>`).join('');
+
+    document.getElementById('preview').innerHTML = `
+        <div style="text-align:center; margin-bottom:6px;">
+            <h1 style="font-size:18px; font-weight:bold; margin:0; letter-spacing:0.5px;">${escapeHtml((L.company_name || '').toUpperCase())}</h1>
+            ${L.registered_office ? `<p style="font-size:11px; color:#444; margin:4px 0 0 0;">${escapeHtml(L.registered_office)}</p>` : ''}
+            ${L.cin ? `<p style="font-size:11px; color:#444; margin:2px 0 0 0;">CIN: ${escapeHtml(L.cin)}</p>` : ''}
+        </div>
+        <hr style="border:none; border-top:1px solid #000; margin:10px 0 24px 0;">
+        <p style="margin:0 0 18px 0;">Date: ${today}</p>
+        <table style="width:100%; margin:0 0 18px 0; border-collapse:collapse;">
+            <tr style="vertical-align:top;">
+                <td style="width:50%; padding-right:10px; font-size:13px; line-height:1.45;">
+                    The Manager<br>Listing Department<br>BSE Limited<br>Phiroze Jeejeebhoy Towers, Dalal Street<br>Mumbai – 400 001
+                    ${L.bse_code ? `<br><b>Scrip Code:</b> ${escapeHtml(L.bse_code)}` : ''}
+                </td>
+                <td style="width:50%; padding-left:10px; font-size:13px; line-height:1.45;">
+                    The Manager<br>Listing Department<br>National Stock Exchange of India Limited<br>Exchange Plaza, Bandra Kurla Complex<br>Bandra (East), Mumbai – 400 051
+                    ${L.nse_symbol ? `<br><b>Symbol:</b> ${escapeHtml(L.nse_symbol)}` : ''}
+                </td>
+            </tr>
+        </table>
+        ${L.subject ? `<p style="margin:0 0 16px 0;"><b><u>Subject: ${escapeHtml(L.subject)}</u></b></p>` : ''}
+        <p style="margin:0 0 14px 0;">Dear Sir / Madam,</p>
+        ${bodyHtml}
+        <p style="margin:24px 0 0 0;">Yours faithfully,</p>
+        <p style="margin:8px 0 0 0;"><b>For ${escapeHtml(L.company_name || '')}</b></p>
+        <div style="height:50px;"></div>
+        ${L.signer_name ? `<p style="margin:0;"><b>${escapeHtml(L.signer_name)}</b></p>` : ''}
+        ${L.signer_designation ? `<p style="margin:2px 0 0 0;">${escapeHtml(L.signer_designation)}</p>` : ''}
+        ${annexurePages}
+    `;
+    showStep(5);
+}
+
+function downloadLetter(format) {
+    const L = _gatherLetter();
+    const btn = document.getElementById(format === 'pdf' ? 'dl-pdf' : 'dl-docx');
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Generating…';
+
+    fetch(`/api/draft/export/${format}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(L),
+    }).then(r => {
+        btn.disabled = false; btn.textContent = orig;
+        if (!r.ok) { r.json().then(d => alert(d.message || 'Export failed')); return; }
+        return r.blob().then(blob => {
+            const ext = format === 'pdf' ? 'pdf' : 'docx';
+            const fname = ((L.company_name || 'letter') + '_' + (L.subject || 'sebi-letter')).replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 80) + '.' + ext;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = fname;
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+        });
+    }).catch(() => {
+        btn.disabled = false; btn.textContent = orig;
+        alert('Network error');
+    });
+}
+
+// Init
+showStep(1);
+loadMyDraftsCount();
+loadTeamsOverview();
+</script>
+
+</body>
+</html>

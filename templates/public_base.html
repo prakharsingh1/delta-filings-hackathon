@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <script>
+      // Public pages are light-mode only. Strip any dark class the global analytics script may have added.
+      (function() {
+        document.documentElement.classList.remove('dark');
+        try { localStorage.removeItem('theme'); } catch (e) {}
+      })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{% block meta_description %}Delta Filings — India's modern governance intelligence platform for Company Secretaries, MCA filings, SEBI compliance and CS practice management.{% endblock %}">
+    <title>{% block title %}Delta Filings{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        html, body { font-family: 'Inter', system-ui, sans-serif; }
+        body {
+            background:
+              radial-gradient(1000px 500px at 10% -10%, rgba(99,102,241,0.18), transparent 60%),
+              radial-gradient(900px 500px at 110% 10%, rgba(56,189,248,0.18), transparent 60%),
+              radial-gradient(700px 500px at 50% 120%, rgba(236,72,153,0.10), transparent 60%),
+              #fbfbfe;
+            color: #0f172a;
+            min-height: 100vh;
+        }
+        html.dark body {
+            background:
+              radial-gradient(1100px 600px at 10% -10%, rgba(99,102,241,0.18), transparent 60%),
+              radial-gradient(900px 600px at 110% 10%, rgba(56,189,248,0.12), transparent 60%),
+              #0a0a0a;
+            color: #f5f5f5;
+        }
+        .glass {
+            background: rgba(255,255,255,0.75);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,0.7);
+        }
+        html.dark .glass {
+            background: rgba(20,20,20,0.7);
+            border-color: rgba(255,255,255,0.06);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg,#4f46e5,#6366f1);
+            color: white; font-weight: 600;
+            padding: 11px 20px; border-radius: 10px;
+            box-shadow: 0 10px 25px -10px rgba(79,70,229,0.55);
+            transition: transform .15s ease, box-shadow .15s ease;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 30px -10px rgba(79,70,229,0.65); }
+        .btn-ghost {
+            background: rgba(255,255,255,0.8);
+            color: #1e293b; font-weight: 600;
+            padding: 11px 20px; border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            transition: background .15s ease;
+        }
+        .btn-ghost:hover { background: white; }
+        html.dark .btn-ghost {
+            background: rgba(255,255,255,0.04);
+            color: #f5f5f5;
+            border-color: #262626;
+        }
+        html.dark .btn-ghost:hover { background: rgba(255,255,255,0.08); }
+        .gradient-text {
+            background: linear-gradient(120deg,#4f46e5 0%, #0ea5e9 50%, #ec4899 100%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 11px; font-weight: 600;
+            background: rgba(99,102,241,0.10); color: #4f46e5;
+            padding: 5px 11px; border-radius: 999px;
+            border: 1px solid rgba(99,102,241,0.2);
+        }
+        html.dark .tag {
+            background: rgba(129,140,248,0.14);
+            color: #c7d2fe;
+            border-color: rgba(129,140,248,0.3);
+        }
+        .card-glass {
+            background: white;
+            border: 1px solid #eef1f7;
+            border-radius: 18px;
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
+        .card-glass:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 24px 50px -25px rgba(15,23,42,0.18);
+        }
+        html.dark .card-glass {
+            background: #141414;
+            border-color: #262626;
+        }
+        html.dark .card-glass:hover {
+            box-shadow: 0 24px 50px -10px rgba(0,0,0,0.7), 0 0 0 1px rgba(129,140,248,0.18);
+        }
+        .nav-link { transition: color .15s ease; }
+        .nav-link:hover { color: #0f172a; }
+        html.dark .nav-link { color: #a3a3a3; }
+        html.dark .nav-link:hover { color: #f5f5f5; }
+        html.dark .text-slate-900, html.dark .text-slate-800 { color: #f5f5f5 !important; }
+        html.dark .text-slate-700, html.dark .text-slate-600 { color: #d4d4d4 !important; }
+        html.dark .text-slate-500 { color: #a3a3a3 !important; }
+        html.dark .text-slate-400 { color: #737373 !important; }
+        html.dark .border-slate-200, html.dark .border-slate-100 { border-color: #262626 !important; }
+
+        /* Inputs styled for both themes */
+        .input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            font-size: 14px;
+            color: #0f172a;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .input:focus { outline: none; border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.18); }
+        html.dark .input {
+            background: #1c1c1c;
+            border-color: #2a2a2a;
+            color: #f5f5f5;
+        }
+        html.dark .input:focus { border-color: #818cf8; }
+        .label { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; display: block; }
+        html.dark .label { color: #a3a3a3; }
+
+        /* Result panel */
+        .result {
+            margin-top: 24px;
+            padding: 20px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(56,189,248,0.08));
+            border: 1px solid rgba(99,102,241,0.2);
+        }
+        html.dark .result {
+            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(56,189,248,0.06));
+            border-color: rgba(99,102,241,0.3);
+        }
+
+        /* Article prose */
+        .prose h2 { font-size: 1.65rem; font-weight: 800; margin: 2.2rem 0 0.9rem; letter-spacing: -0.02em; color: #0f172a; }
+        .prose h3 { font-size: 1.2rem; font-weight: 700; margin: 1.6rem 0 0.6rem; color: #1e293b; }
+        .prose p { line-height: 1.78; color: #334155; margin-bottom: 1rem; font-size: 1.0625rem; }
+        .prose p.lead { font-size: 1.2rem; line-height: 1.65; color: #475569; margin-bottom: 1.6rem; }
+        .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 1.2rem; }
+        .prose li { line-height: 1.78; color: #334155; margin-bottom: 0.4rem; font-size: 1.0625rem; }
+        .prose strong { color: #0f172a; font-weight: 700; }
+        html.dark .prose h2, html.dark .prose h3, html.dark .prose strong { color: #f5f5f5; }
+        html.dark .prose p, html.dark .prose li { color: #d4d4d4; }
+        html.dark .prose p.lead { color: #e5e5e5; }
+
+        /* Theme toggle */
+        .theme-toggle-public {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 38px; height: 38px; border-radius: 10px;
+            border: 1px solid #e2e8f0; background: rgba(255,255,255,0.7);
+            color: #475569; cursor: pointer; transition: all .15s ease;
+        }
+        .theme-toggle-public:hover { background: white; color: #0f172a; }
+        html.dark .theme-toggle-public { background: rgba(255,255,255,0.04); border-color: #262626; color: #d4d4d4; }
+        html.dark .theme-toggle-public:hover { background: rgba(255,255,255,0.08); color: #f5f5f5; }
+        .theme-toggle-public .icon-sun { display: none; }
+        html.dark .theme-toggle-public .icon-sun { display: block; }
+        html.dark .theme-toggle-public .icon-moon { display: none; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <!-- ── Nav (shared with home.html) ── -->
+    <header class="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between relative z-10">
+        <a href="/" class="flex items-center gap-2">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30"
+                 style="background: linear-gradient(135deg,#4f46e5,#0ea5e9);">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </div>
+            <div>
+                <div class="font-bold text-slate-900 text-lg leading-tight">Delta Filings</div>
+                <div class="text-[11px] text-slate-500 -mt-0.5">Governance Intelligence</div>
+            </div>
+        </a>
+        <nav class="hidden md:flex items-center gap-7 text-sm text-slate-600 font-medium">
+            <a href="/#features" class="hover:text-slate-900 transition">Features</a>
+            <a href="/#use-cases" class="hover:text-slate-900 transition">Use Cases</a>
+            <a href="/tools" class="hover:text-slate-900 transition">Tools</a>
+            <a href="/blog" class="hover:text-slate-900 transition">Blog</a>
+        </nav>
+        <div class="flex items-center gap-3">
+            <a href="/signin" class="hidden sm:inline-flex btn-ghost text-sm">Sign In</a>
+            <a href="/signup" class="btn-primary text-sm">Get Started</a>
+        </div>
+    </header>
+
+    <main class="relative z-10">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ── Footer ── -->
+    <footer class="border-t border-slate-200 mt-20 pt-10 pb-12 relative z-10">
+        <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-lg flex items-center justify-center"
+                     style="background: linear-gradient(135deg,#4f46e5,#0ea5e9);">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <span>© Delta Filings · Governance Intelligence</span>
+            </div>
+            <div class="flex gap-6">
+                <a href="/tools" class="hover:text-slate-800 transition">Tools</a>
+                <a href="/blog" class="hover:text-slate-800 transition">Blogs</a>
+                <a href="/about" class="hover:text-slate-800 transition">About</a>
+                <a href="/signin" class="hover:text-slate-800 transition">Sign In</a>
+                <a href="/signup" class="hover:text-slate-800 transition">Sign Up</a>
+            </div>
+        </div>
+    </footer>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

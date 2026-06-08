@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIN Search - Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-slate-50 text-gray-900">
+
+<div class="flex h-screen overflow-hidden">
+    {% set active_page = 'din_search' %}
+    {% include 'sidebar.html' %}
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto">
+        <div class="page-header">
+            <h2 class="page-title">DIN Search</h2>
+            <p class="page-subtitle">Find any director across all watchlist companies by DIN number</p>
+        </div>
+
+        <div class="px-8 py-6">
+            <!-- Search Box -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
+                <div class="flex items-end gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">DIN Number</label>
+                        <input type="text" id="din-input" placeholder="e.g. 05251806"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                               maxlength="8" pattern="[0-9]*">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Timeline</label>
+                        <select id="year-filter"
+                                class="px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <option value="all">All Time</option>
+                            <option value="current">Current Year (2026)</option>
+                            <option value="previous">Previous Year (2025)</option>
+                        </select>
+                    </div>
+                    <button onclick="searchDIN()" id="search-btn"
+                        class="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        Search
+                    </button>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-2">Searches NSE governance reports, corporate filings, and (on demand) MCA aggregator data (ZaubaCorp/Tofler). Third-party data is best-effort; verify against MCA filings.</p>
+            </div>
+
+            <!-- Example Directors -->
+            {% if examples %}
+            <div class="mb-6">
+                <h3 class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Try an example</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {% for ex in examples %}
+                    <button type="button"
+                            onclick="runExample('{{ ex.din }}')"
+                            class="text-left bg-white rounded-xl border border-gray-200 shadow-sm p-4 hover:border-blue-400 hover:shadow-md transition-all group">
+                        <div class="flex items-start justify-between mb-2">
+                            <div>
+                                <p class="text-sm font-bold text-gray-900 group-hover:text-blue-700">{{ ex.name }}</p>
+                                <p class="text-[11px] text-gray-500 mt-0.5">{{ ex.title }}</p>
+                            </div>
+                            <span class="text-[9px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ ex.din }}</span>
+                        </div>
+                        <p class="text-[11px] text-gray-600 leading-relaxed mb-2">{{ ex.bio }}</p>
+                        <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+                            <a href="{{ ex.linkedin }}" target="_blank" rel="noopener"
+                               onclick="event.stopPropagation();"
+                               class="text-[11px] text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1">
+                                LinkedIn &#8599;
+                            </a>
+                            <span class="text-[9px] text-gray-400">Click card to search</span>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-2 italic">{{ ex.legal_status }}</p>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Loading -->
+            <div id="search-loading" class="hidden text-center py-12">
+                <div class="spinner"></div>
+                <p class="text-sm text-gray-500 mt-3 search-pulse">Searching NSE governance reports, filings and MCA aggregators… this can take 10–30 seconds.</p>
+            </div>
+
+            <!-- No Results -->
+            <div id="no-results" class="hidden text-center py-16">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <p class="text-gray-400 text-lg font-medium">No results found</p>
+                <p id="no-results-msg" class="text-gray-400 text-sm mt-1">Try a different DIN number</p>
+            </div>
+
+            <!-- Results -->
+            <div id="results-section" class="hidden space-y-6">
+
+                <!-- Director Card -->
+                <div id="director-card" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-blue-200 text-[10px] font-bold uppercase tracking-wider">Director Found</p>
+                                <h3 id="dir-name" class="text-xl font-bold text-white mt-1"></h3>
+                            </div>
+                            <a id="dir-linkedin" href="#" target="_blank"
+                               class="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-medium rounded-lg transition-colors">
+                                LinkedIn &#8599;
+                            </a>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <p class="text-[10px] text-gray-400 font-bold uppercase">DIN</p>
+                                <p id="dir-din" class="text-sm font-bold text-gray-900 mt-0.5"></p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 font-bold uppercase">Position</p>
+                                <p id="dir-category" class="text-sm font-bold text-gray-900 mt-0.5"></p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 font-bold uppercase">Appointed</p>
+                                <p id="dir-appointed" class="text-sm font-bold text-gray-900 mt-0.5"></p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 font-bold uppercase">Ceased</p>
+                                <p id="dir-ceased" class="text-sm font-bold text-gray-900 mt-0.5"></p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 font-bold uppercase">Tenure (months)</p>
+                                <p id="dir-tenure" class="text-sm font-bold text-gray-900 mt-0.5"></p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 font-bold uppercase">Directorships</p>
+                                <p id="dir-ships" class="text-sm font-bold text-gray-900 mt-0.5"></p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 font-bold uppercase">Committee Memberships</p>
+                                <p id="dir-memberships" class="text-sm font-bold text-gray-900 mt-0.5"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Stats -->
+                <div id="summary-stats" class="grid grid-cols-3 gap-4">
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 text-center">
+                        <p class="text-3xl font-bold text-blue-600" id="stat-companies">0</p>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">Companies</p>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 text-center">
+                        <p class="text-3xl font-bold text-purple-600" id="stat-governance">0</p>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">Governance Reports</p>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 text-center">
+                        <p class="text-3xl font-bold text-amber-600" id="stat-filings">0</p>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">Filing Mentions</p>
+                    </div>
+                </div>
+
+                <!-- Governance Appearances -->
+                <div id="gov-results" class="hidden">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Governance Report Appearances</h3>
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b-2 border-gray-200">
+                                    <th class="text-left px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Company</th>
+                                    <th class="text-left px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Quarter</th>
+                                    <th class="text-left px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Role / Committee</th>
+                                    <th class="text-left px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Position</th>
+                                    <th class="text-left px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">Source</th>
+                                    <th class="text-center px-5 py-3 text-[10px] font-bold text-gray-500 uppercase">View</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gov-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- MCA Aggregator Results -->
+                <div id="mca-results" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider">MCA Aggregator Directorships</h3>
+                        <span id="mca-source-label" class="text-[10px] text-gray-400 italic"></span>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-3 flex items-start gap-2">
+                        <svg class="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <p class="text-[11px] text-amber-800 leading-relaxed">
+                            Third-party aggregator data (best-effort). Covers public + private entities that NSE XBRL doesn&#39;t include. Verify against MCA filings before any governance or legal decision.
+                        </p>
+                    </div>
+
+                    <div id="mca-about" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-3">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">About</p>
+                        <p id="mca-about-text" class="text-sm text-gray-700 leading-relaxed"></p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div id="mca-active-wrap" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div class="px-5 py-3 bg-green-50 border-b border-green-100 flex items-center justify-between">
+                                <span class="text-xs font-bold text-green-800 uppercase tracking-wider">Active Directorships</span>
+                                <span id="mca-active-count" class="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold">0</span>
+                            </div>
+                            <div id="mca-active" class="divide-y divide-gray-100"></div>
+                        </div>
+                        <div id="mca-past-wrap" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div class="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                                <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Past Directorships</span>
+                                <span id="mca-past-count" class="text-[10px] bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-bold">0</span>
+                            </div>
+                            <div id="mca-past" class="divide-y divide-gray-100"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filing Mentions -->
+                <div id="filing-results" class="hidden">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Filing Mentions</h3>
+                    <div id="filing-cards" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Enter key triggers search
+document.getElementById('din-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') searchDIN();
+});
+
+// Clicking an example director auto-fills the DIN box and searches.
+function runExample(din) {
+    const input = document.getElementById('din-input');
+    input.value = din;
+    input.focus();
+    searchDIN();
+    // Scroll down so the user sees the results populate.
+    window.scrollTo({ top: input.getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' });
+}
+
+function searchDIN() {
+    const din = document.getElementById('din-input').value.trim();
+    const year = document.getElementById('year-filter').value;
+
+    if (!din || din.length < 5) {
+        alert('Please enter a valid DIN (at least 5 digits).');
+        return;
+    }
+
+    const loading = document.getElementById('search-loading');
+    const noResults = document.getElementById('no-results');
+    const results = document.getElementById('results-section');
+
+    loading.classList.remove('hidden');
+    noResults.classList.add('hidden');
+    results.classList.add('hidden');
+
+    fetch(`/api/din-search?din=${encodeURIComponent(din)}&year=${year}`)
+        .then(r => r.json())
+        .then(data => {
+            loading.classList.add('hidden');
+
+            if (data.error) {
+                noResults.classList.remove('hidden');
+                document.getElementById('no-results-msg').textContent = data.message;
+                return;
+            }
+
+            const hasGov = data.governance && data.governance.length > 0;
+            const hasFilings = data.totalFilings > 0;
+            const hasMca = !!(data.mca && (
+                (data.mca.active_companies || []).length ||
+                (data.mca.past_companies || []).length ||
+                data.mca.name
+            ));
+
+            if (!hasGov && !hasFilings && !hasMca) {
+                noResults.classList.remove('hidden');
+                document.getElementById('no-results-msg').textContent =
+                    `DIN "${din}" not found in NSE governance reports, filings, or MCA aggregators.`;
+                return;
+            }
+
+            results.classList.remove('hidden');
+            renderResults(data);
+        })
+        .catch(err => {
+            loading.classList.add('hidden');
+            noResults.classList.remove('hidden');
+            document.getElementById('no-results-msg').textContent = 'Search failed. Please try again.';
+        });
+}
+
+function renderResults(data) {
+    // Director Card
+    const dirCard = document.getElementById('director-card');
+    if (data.director) {
+        dirCard.classList.remove('hidden');
+        const d = data.director;
+        document.getElementById('dir-name').textContent = d.name || 'Unknown';
+        document.getElementById('dir-din').textContent = d.din;
+        document.getElementById('dir-category').textContent = d.category || '-';
+        document.getElementById('dir-appointed').textContent = d.dateOfAppointment || '-';
+        document.getElementById('dir-ceased').textContent = d.dateOfCessation || '-';
+        document.getElementById('dir-tenure').textContent = d.tenure || '-';
+        document.getElementById('dir-ships').textContent = d.directorships || '-';
+        document.getElementById('dir-memberships').textContent = d.memberships || '-';
+        document.getElementById('dir-linkedin').href = d.linkedin || '#';
+    } else {
+        dirCard.classList.add('hidden');
+    }
+
+    // Summary Stats
+    document.getElementById('stat-companies').textContent = (data.companies || []).length;
+    document.getElementById('stat-governance').textContent = (data.governance || []).length;
+    document.getElementById('stat-filings').textContent = data.totalFilings || 0;
+
+    // Governance Table
+    const govSection = document.getElementById('gov-results');
+    const govApps = data.governance || [];
+    if (govApps.length > 0) {
+        govSection.classList.remove('hidden');
+        const tbody = document.getElementById('gov-table-body');
+        tbody.innerHTML = govApps.map(g => {
+            const roleClass = g.role === 'Board of Directors'
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-purple-100 text-purple-800';
+            return `
+            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                <td class="px-5 py-3 text-sm font-semibold text-gray-900">${escapeHtml(g.symbol)}</td>
+                <td class="px-5 py-3 text-sm text-gray-700">${escapeHtml(g.quarter)}</td>
+                <td class="px-5 py-3">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${roleClass}">${escapeHtml(g.role)}</span>
+                </td>
+                <td class="px-5 py-3 text-sm text-gray-600">${escapeHtml(g.position)}</td>
+                <td class="px-5 py-3 text-[10px] text-gray-400 uppercase">${escapeHtml(g.source)}</td>
+                <td class="px-5 py-3 text-center">
+                    <a href="/company/${g.symbol}" class="text-blue-600 hover:text-blue-700 text-xs font-medium">View &rarr;</a>
+                </td>
+            </tr>`;
+        }).join('');
+    } else {
+        govSection.classList.add('hidden');
+    }
+
+    // MCA Aggregator results
+    renderMCA(data.mca);
+
+    // Filing Mentions
+    const filingSection = document.getElementById('filing-results');
+    const filings = data.filings || {};
+    const filingKeys = Object.keys(filings);
+    if (filingKeys.length > 0) {
+        filingSection.classList.remove('hidden');
+        const container = document.getElementById('filing-cards');
+        container.innerHTML = filingKeys.map(sym => {
+            const compFilings = filings[sym];
+            const rows = compFilings.map(f => {
+                const tags = (f.tags || '').split(',').filter(t => t.trim()).map(t =>
+                    `<span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">${escapeHtml(t.trim())}</span>`
+                ).join(' ');
+                return `
+                <div class="flex items-start justify-between py-3 border-b border-gray-100 last:border-0">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 truncate">${escapeHtml(f.title)}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">${escapeHtml(f.date)} | ${escapeHtml(f.sort_date || '')}</p>
+                        <div class="mt-1 flex flex-wrap gap-1">${tags}</div>
+                    </div>
+                    <a href="/company/${sym}" class="text-blue-600 hover:text-blue-700 text-xs font-medium ml-3 flex-shrink-0">View &rarr;</a>
+                </div>`;
+            }).join('');
+
+            return `
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-gray-900">${escapeHtml(sym)}</span>
+                        <span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">${compFilings.length} filing(s)</span>
+                    </div>
+                    <a href="/company/${sym}" class="text-xs text-blue-600 hover:text-blue-700 font-medium">View all filings &rarr;</a>
+                </div>
+                <div class="px-5">${rows}</div>
+            </div>`;
+        }).join('');
+    } else {
+        filingSection.classList.add('hidden');
+    }
+}
+
+function renderMCA(mca) {
+    const section = document.getElementById('mca-results');
+    if (!mca || (!mca.name && !(mca.active_companies || []).length && !(mca.past_companies || []).length)) {
+        section.classList.add('hidden');
+        return;
+    }
+    section.classList.remove('hidden');
+
+    // Source label
+    const srcLabel = document.getElementById('mca-source-label');
+    const rawSrc = (mca.source || 'third-party').toString();
+    const srcPretty = {
+        'curated':         `Curated snapshot · as of ${mca.curated_as_of || '—'}`,
+        'zaubacorp':       'Source: ZaubaCorp',
+        'tofler':          'Source: Tofler',
+        'instafinancials': 'Source: InstaFinancials',
+        'indiafilings':    'Source: IndiaFilings',
+    }[rawSrc] || `Source: ${rawSrc}`;
+    const when = (rawSrc !== 'curated' && mca.fetched_at)
+        ? ' · fetched ' + new Date(mca.fetched_at).toLocaleDateString()
+        : '';
+    srcLabel.textContent = srcPretty + when;
+
+    // About
+    const aboutWrap = document.getElementById('mca-about');
+    const aboutText = document.getElementById('mca-about-text');
+    if (mca.about) {
+        aboutWrap.classList.remove('hidden');
+        aboutText.textContent = mca.about;
+    } else {
+        aboutWrap.classList.add('hidden');
+    }
+
+    // Active companies
+    const active = mca.active_companies || [];
+    const activeWrap = document.getElementById('mca-active-wrap');
+    if (active.length) {
+        activeWrap.classList.remove('hidden');
+        document.getElementById('mca-active-count').textContent = active.length;
+        document.getElementById('mca-active').innerHTML = active.map(c => `
+            <div class="px-5 py-3 hover:bg-gray-50">
+                <p class="text-sm font-semibold text-gray-900 leading-tight">${escapeHtml(c.company || '')}</p>
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-[11px] text-gray-600">${escapeHtml(c.designation || '-')}</span>
+                    <span class="text-[10px] text-gray-400">Appt: ${escapeHtml(c.appointment_date || '-')}</span>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        activeWrap.classList.add('hidden');
+    }
+
+    // Past companies
+    const past = mca.past_companies || [];
+    const pastWrap = document.getElementById('mca-past-wrap');
+    if (past.length) {
+        pastWrap.classList.remove('hidden');
+        document.getElementById('mca-past-count').textContent = past.length;
+        document.getElementById('mca-past').innerHTML = past.map(c => `
+            <div class="px-5 py-3 hover:bg-gray-50">
+                <p class="text-sm font-semibold text-gray-900 leading-tight">${escapeHtml(c.company || '')}</p>
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-[11px] text-gray-600">${escapeHtml(c.designation || '-')}</span>
+                    <span class="text-[10px] text-gray-400">
+                        ${escapeHtml(c.appointment_date || '-')} → ${escapeHtml(c.cessation_date || '-')}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        pastWrap.classList.add('hidden');
+    }
+}
+</script>
+</body>
+</html>

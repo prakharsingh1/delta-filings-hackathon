@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Delta Filings Flask Server",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/prakharsingh/Documents/Study Files/python things/delta_filings/main.py"],
+      "port": 8080
+    }
+  ]
+}

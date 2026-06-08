@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance - Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+        .status-submitted { background: #ecfdf5; color: #059669; }
+        .status-delayed { background: #fffbeb; color: #d97706; }
+        .status-missed { background: #fef2f2; color: #dc2626; }
+        .status-unverified { background: #f5f3ff; color: #7c3aed; }
+        .status-pending { background: #f1f5f9; color: #64748b; }
+
+        .health-critical { background: #fef2f2; border-color: #fecaca; }
+        .health-critical .health-label { color: #dc2626; }
+        .health-at_risk { background: #fffbeb; border-color: #fde68a; }
+        .health-at_risk .health-label { color: #d97706; }
+        .health-stable { background: #ecfdf5; border-color: #a7f3d0; }
+        .health-stable .health-label { color: #059669; }
+        .health-unknown { background: #f8fafc; border-color: #e2e8f0; }
+        .health-unknown .health-label { color: #94a3b8; }
+
+        .score-ring { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0; }
+        .score-ring::before { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: white; }
+        .score-value { position: relative; z-index: 1; font-size: 16px; font-weight: 800; }
+
+        .countdown-urgent { animation: pulse-urgent 2s infinite; }
+        @keyframes pulse-urgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .compliance-table th { position: sticky; top: 0; background: #f8fafc; z-index: 10; }
+        .tab-btn { padding: 8px 16px; font-size: 13px; font-weight: 500; border-radius: 8px; transition: all 0.15s; cursor: pointer; border: none; background: none; color: #64748b; white-space: nowrap; }
+        .tab-btn.active { background: #4f46e5; color: white; }
+        .tab-btn:hover:not(.active) { background: #f1f5f9; color: #334155; }
+        .mandate-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; transition: all 0.15s; background: white; }
+        .mandate-card:hover { border-color: #c7d2fe; box-shadow: 0 2px 8px rgba(79,70,229,0.08); }
+        .sebi-link { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: #4f46e5; text-decoration: none; padding: 2px 8px; border-radius: 6px; background: #eef2ff; transition: all 0.15s; }
+        .sebi-link:hover { background: #c7d2fe; color: #3730a3; }
+        .validation-ok { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+        .validation-fail { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: #dc2626; background: #fef2f2; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-slate-50 text-gray-900">
+
+<div class="flex h-screen overflow-hidden">
+    {% set active_page = 'compliance' %}
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 overflow-y-auto">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-3">
+                        <h2 class="page-title">Compliance</h2>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 uppercase tracking-wider">Beta</span>
+                    </div>
+                    <p class="page-subtitle">SEBI mandate tracking and compliance monitoring for watchlisted companies</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div id="sync-info" class="text-right">
+                        <div id="last-synced" class="text-[10px] text-gray-400"></div>
+                        <div id="validation-badge"></div>
+                    </div>
+                    <button onclick="refreshCompliance()" id="refresh-btn" class="btn btn-primary">
+                        <svg id="refresh-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Refresh All
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading-state" class="flex items-center justify-center py-20">
+            <div class="text-center">
+                <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <p class="text-sm text-gray-500">Loading compliance data...</p>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard-content" class="hidden">
+            <!-- Stat Cards — reconciled totals -->
+            <div class="px-8 pt-6 grid grid-cols-5 gap-2" id="stats-row"></div>
+
+            <!-- Company Health Cards -->
+            <div class="px-8 pt-5">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Company Compliance Health</div>
+                <div id="score-cards" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3"></div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="px-8 pt-5">
+                <div class="flex items-center gap-1.5 bg-white rounded-xl p-1.5 shadow-sm border border-gray-100 overflow-x-auto">
+                    <button class="tab-btn active" onclick="switchTab('upcoming', this)">Upcoming <span id="tab-count-upcoming" class="text-[10px] opacity-70"></span></button>
+                    <button class="tab-btn" onclick="switchTab('overdue', this)">Overdue / At Risk <span id="tab-count-overdue" class="text-[10px] opacity-70"></span></button>
+                    <button class="tab-btn" onclick="switchTab('completed', this)">Completed <span id="tab-count-completed" class="text-[10px] opacity-70"></span></button>
+                    <button class="tab-btn" onclick="switchTab('unverified', this)">Unverified <span id="tab-count-unverified" class="text-[10px] opacity-70"></span></button>
+                    <button class="tab-btn" onclick="switchTab('all', this)">All Obligations</button>
+                    <button class="tab-btn" onclick="switchTab('mandates', this)">SEBI Mandates</button>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="px-8 py-5">
+                <div id="tab-upcoming" class="tab-content">
+                    <div id="upcoming-list" class="space-y-3"></div>
+                    <div id="upcoming-empty" class="hidden text-center py-12">
+                        <svg class="w-12 h-12 text-green-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <p class="text-gray-500 text-sm">No upcoming obligations in the next 30 days</p>
+                    </div>
+                </div>
+                <div id="tab-overdue" class="tab-content hidden">
+                    <div id="overdue-list" class="space-y-3"></div>
+                    <div id="overdue-empty" class="hidden text-center py-12">
+                        <svg class="w-12 h-12 text-green-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <p class="text-gray-500 text-sm">No overdue obligations — all companies are compliant!</p>
+                    </div>
+                </div>
+                <div id="tab-unverified" class="tab-content hidden">
+                    <div class="mb-3 p-3 rounded-lg bg-violet-50 border border-violet-100 text-xs text-violet-900">
+                        <strong>Heads up:</strong> These obligations are past their SEBI due date, but Delta Filings hasn't ingested any exchange filings from this company around that window yet — so we can't honestly classify them as "missed". Refresh the company's filings feed to verify.
+                    </div>
+                    <div id="unverified-list" class="space-y-3"></div>
+                    <div id="unverified-empty" class="hidden text-center py-12">
+                        <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <p class="text-gray-500 text-sm">No unverified obligations — every past due item has filing coverage.</p>
+                    </div>
+                </div>
+                <div id="tab-completed" class="tab-content hidden">
+                    <div id="completed-list" class="space-y-3"></div>
+                    <div id="completed-empty" class="hidden text-center py-12">
+                        <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        <p class="text-gray-500 text-sm">No completed filings found</p>
+                    </div>
+                </div>
+                <div id="tab-all" class="tab-content hidden">
+                    <div class="flex items-center gap-3 mb-4">
+                        <select id="filter-company" onchange="filterTable()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white"><option value="">All Companies</option></select>
+                        <select id="filter-status" onchange="filterTable()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="submitted">Submitted</option>
+                            <option value="delayed">Delayed</option>
+                            <option value="missed">Missed</option>
+                        </select>
+                        <select id="filter-category" onchange="filterTable()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                            <option value="">All Categories</option>
+                            <option value="Disclosure">Disclosure</option>
+                            <option value="Periodic">Periodic</option>
+                            <option value="Financial">Financial</option>
+                            <option value="Governance">Governance</option>
+                            <option value="Compliance">Compliance</option>
+                            <option value="Investor Relations">Investor Relations</option>
+                            <option value="Insider Trading">Insider Trading</option>
+                        </select>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                            <table class="compliance-table w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Company</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Mandate</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Due Date</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Filing</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Delay</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="obligations-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div id="tab-mandates" class="tab-content hidden">
+                    <p class="text-sm text-gray-500 mb-4">SEBI regulatory mandates tracked by Compliance. Each mandate links to the official SEBI regulation source.</p>
+                    <div id="mandates-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+let _dashData = null;
+
+// ── Load ──
+let _enfPollTimer = null;
+
+function loadDashboard() {
+    fetch('/api/compliance')
+        .then(r => r.json())
+        .then(data => {
+            _dashData = data;
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('dashboard-content').classList.remove('hidden');
+
+            renderSyncInfo(data);
+            renderStats(data);
+            renderScoreCards(data);
+            renderUpcoming(data.upcoming || []);
+            renderOverdue(data.overdue || []);
+            renderCompleted(data.completed || []);
+            renderUnverified(data.unverified || []);
+            renderAllTable(data.all || []);
+            renderMandates(data.mandates || []);
+            populateFilters(data.all || []);
+            updateTabCounts(data);
+
+            // If any company's SEBI history or compliance obligations are
+            // still being generated in the background, poll until they
+            // resolve so the cards update live.
+            const stillLoading = Object.values(data.company_scores || {})
+                .some(c => (c.enforcement && c.enforcement.loading) || c.compliance_loading);
+            if (_enfPollTimer) { clearTimeout(_enfPollTimer); _enfPollTimer = null; }
+            if (stillLoading) {
+                _enfPollTimer = setTimeout(loadDashboard, 6000);
+            }
+        })
+        .catch(err => {
+            document.getElementById('loading-state').innerHTML = `
+                <div class="text-center py-20">
+                    <svg class="w-12 h-12 text-red-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                    <p class="text-gray-500 text-sm">Failed to load compliance data</p>
+                    <button onclick="loadDashboard()" class="btn btn-primary mt-4 text-sm">Retry</button>
+                </div>`;
+        });
+}
+
+function refreshCompliance() {
+    const btn = document.getElementById('refresh-btn');
+    const icon = document.getElementById('refresh-icon');
+    btn.disabled = true; icon.classList.add('animate-spin');
+    fetch('/api/compliance/refresh', { method: 'POST' })
+        .then(r => r.json())
+        .then(() => { loadDashboard(); btn.disabled = false; icon.classList.remove('animate-spin'); })
+        .catch(() => { btn.disabled = false; icon.classList.remove('animate-spin'); });
+}
+
+// ── Sync & Validation Info ──
+function renderSyncInfo(data) {
+    const syncEl = document.getElementById('last-synced');
+    const valEl = document.getElementById('validation-badge');
+
+    if (data.last_synced) {
+        const d = new Date(data.last_synced);
+        syncEl.textContent = 'Last synced: ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    } else {
+        syncEl.textContent = 'Not synced yet';
+    }
+
+    const v = data.validation || {};
+    if (v.is_valid) {
+        valEl.innerHTML = '<span class="validation-ok"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Data verified</span>';
+    } else {
+        valEl.innerHTML = `<span class="validation-fail"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/></svg> Data mismatch (${v.bucket_sum || '?'}/${v.total || '?'})</span>`;
+    }
+}
+
+// ── Stats Row — reconciled totals ──
+function renderStats(data) {
+    const v = data.validation || {};
+    const total = v.total || 0;
+    const upcoming = v.upcoming_count || 0;
+    const overdue = v.overdue_count || 0;
+    const completed = v.completed_count || 0;
+    const future = v.future_count || 0;
+
+    document.getElementById('stats-row').innerHTML = `
+        ${statCard('Total', total, '#4f46e5', '#eef2ff', 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2')}
+        ${statCard('Upcoming', upcoming, '#d97706', '#fffbeb', 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', '30 days')}
+        ${statCard('Overdue', overdue, overdue > 0 ? '#dc2626' : '#059669', overdue > 0 ? '#fef2f2' : '#ecfdf5', overdue > 0 ? 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z' : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', 'at risk')}
+        ${statCard('Completed', completed, '#059669', '#ecfdf5', 'M5 13l4 4L19 7')}
+        ${statCard('Future', future, '#6366f1', '#eef2ff', 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', '>30 days')}`;
+}
+
+function statCard(label, value, color, bg, icon, subtitle) {
+    const sub = subtitle ? `<span class="text-[9px] font-normal text-gray-400 lowercase ml-1">${subtitle}</span>` : '';
+    return `<div class="bg-white rounded-xl border border-gray-200 px-3 py-3 shadow-sm">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${bg}">
+                <svg class="w-4 h-4" style="color:${color}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${icon}"/></svg>
+            </div>
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider leading-tight">${label}${sub}</p>
+                <p class="text-xl font-bold" style="color:${color}">${value}</p>
+            </div>
+        </div>
+    </div>`;
+}
+
+// ── Company Score Cards ──
+function renderScoreCards(data) {
+    const scores = data.company_scores || {};
+    const container = document.getElementById('score-cards');
+    const entries = Object.entries(scores);
+
+    if (!entries.length) { container.innerHTML = '<p class="text-sm text-gray-400 col-span-full">No companies on watchlist</p>'; return; }
+
+    container.innerHTML = entries.map(([symbol, info]) => {
+        const score = info.score;
+        const history = info.history || {};
+        const tag = info.health_tag || 'unknown';
+        const total = history.total || 0;
+        const resolved = history.resolved || 0;
+
+        const tagLabels = { critical: 'Critical', at_risk: 'At Risk', stable: 'Stable', unknown: 'No Data' };
+        const tagColors = { critical: '#dc2626', at_risk: '#d97706', stable: '#059669', unknown: '#94a3b8' };
+
+        const displayScore = score !== null ? score : '—';
+        const ringColor = score !== null ? tagColors[tag] : '#e2e8f0';
+        const ringDeg = score !== null ? (score * 3.6) : 0;
+
+        const sub = history.submitted || 0;
+        const del = history.delayed || 0;
+        const mis = history.missed || 0;
+        const pen = history.pending || 0;
+        const unv = history.unverified || 0;
+        const checksum = sub + del + mis + pen + unv;
+        const reconciled = checksum === total;
+
+        const enf = info.enforcement || { total: 0, high: 0, medium: 0, low: 0, last_action_date: null };
+        const enfBanner = renderEnforcementBanner(symbol, enf);
+
+        return `
+        <div class="rounded-xl border p-3 shadow-sm health-${tag}">
+            <div class="flex items-center gap-2.5">
+                <div class="score-ring" style="background: conic-gradient(${ringColor} ${ringDeg}deg, #f1f5f9 0)">
+                    <span class="score-value" style="color:${ringColor}">${displayScore}</span>
+                </div>
+                <div class="flex-1 min-w-0 overflow-hidden">
+                    <div class="flex items-center gap-1.5">
+                        <a href="/company/${symbol}" class="font-bold text-gray-900 text-xs hover:text-indigo-600 truncate">${symbol}</a>
+                        <span class="health-label text-[9px] font-bold uppercase flex-shrink-0">${tagLabels[tag]}</span>
+                    </div>
+                    <p class="text-[9px] text-gray-400 mt-0.5 truncate">${total} total &middot; ${resolved} resolved</p>
+                    <div class="flex gap-1 mt-1 text-[9px] flex-wrap">
+                        <span class="text-green-600 font-bold">${sub}</span><span class="text-gray-300">ok</span>
+                        <span class="text-amber-600 font-bold">${del}</span><span class="text-gray-300">late</span>
+                        <span class="text-red-600 font-bold">${mis}</span><span class="text-gray-300">miss</span>
+                    </div>
+                    ${enfBanner}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── SEBI Enforcement Banner (per-card) ──
+function renderEnforcementBanner(symbol, enf) {
+    const high = enf.high || 0;
+    const total = enf.total || 0;
+    if (enf.loading) {
+        return `<span class="mt-1.5 inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600">
+            <svg class="w-2.5 h-2.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            Pulling SEBI history…
+        </span>`;
+    }
+    if (total === 0) {
+        return `<button onclick="openEnforcementModal('${symbol}')"
+                    class="mt-1.5 inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">
+            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            No SEBI actions
+        </button>`;
+    }
+    if (high > 0) {
+        return `<button onclick="openEnforcementModal('${symbol}')"
+                    class="mt-1.5 inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-red-50 text-red-700 hover:bg-red-100 transition">
+            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            ${high} SEBI order${high === 1 ? '' : 's'}
+        </button>`;
+    }
+    // medium/low only — possibly related entities
+    return `<button onclick="openEnforcementModal('${symbol}')"
+                class="mt-1.5 inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 hover:bg-amber-100 transition">
+        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+        ${total} possibly related
+    </button>`;
+}
+
+// ── SEBI Enforcement Modal ──
+function openEnforcementModal(symbol) {
+    let modal = document.getElementById('enf-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'enf-modal';
+        modal.className = 'fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl w-[min(720px,92vw)] max-h-[85vh] overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h3 id="enf-modal-title" class="text-base font-bold text-gray-900"></h3>
+                        <p id="enf-modal-sub" class="text-xs text-gray-500 mt-0.5"></p>
+                    </div>
+                    <button onclick="closeEnforcementModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+                </div>
+                <div id="enf-modal-body" class="flex-1 overflow-y-auto p-5"></div>
+            </div>`;
+        modal.addEventListener('click', e => { if (e.target === modal) closeEnforcementModal(); });
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    document.getElementById('enf-modal-title').textContent = `SEBI Enforcement History — ${symbol}`;
+    document.getElementById('enf-modal-sub').textContent = 'Loading from sebi.gov.in…';
+    document.getElementById('enf-modal-body').innerHTML = `
+        <div class="flex items-center justify-center py-10">
+            <svg class="animate-spin h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+        </div>`;
+
+    fetch(`/api/compliance/enforcement/${encodeURIComponent(symbol)}`)
+        .then(r => r.json())
+        .then(data => renderEnforcementModalBody(symbol, data))
+        .catch(() => {
+            document.getElementById('enf-modal-body').innerHTML =
+                '<p class="text-sm text-red-600">Failed to load enforcement history. Try again.</p>';
+        });
+}
+
+function closeEnforcementModal() {
+    const m = document.getElementById('enf-modal');
+    if (m) m.classList.add('hidden');
+}
+
+function renderEnforcementModalBody(symbol, data) {
+    const sub = document.getElementById('enf-modal-sub');
+    const body = document.getElementById('enf-modal-body');
+    const total = data.total || 0;
+    const high = data.high_confidence || 0;
+    const med = data.medium_confidence || 0;
+    const low = data.low_confidence || 0;
+    const last = data.last_action_date;
+
+    if (total === 0) {
+        sub.textContent = 'Source: sebi.gov.in/enforcement/orders';
+        body.innerHTML = `
+            <div class="text-center py-12">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 mb-4">
+                    <svg class="w-8 h-8 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                </div>
+                <p class="text-base font-semibold text-gray-900">No SEBI enforcement actions on record</p>
+                <p class="text-xs text-gray-500 mt-1">Searched Adjudication, Settlement, Chairperson, Quasi-Judicial &amp; SAT orders.</p>
+                <button onclick="forceRefreshEnforcement('${symbol}')" class="mt-4 text-xs text-indigo-600 hover:underline">Re-check now</button>
+            </div>`;
+        return;
+    }
+
+    sub.innerHTML = `${high} confirmed &middot; ${med} contextual &middot; ${low} ambiguous` +
+        (last ? ` &middot; latest ${last}` : '') +
+        ` &middot; <button onclick="forceRefreshEnforcement('${symbol}')" class="text-indigo-600 hover:underline">refresh</button>`;
+
+    const groups = { high: [], medium: [], low: [] };
+    for (const a of (data.actions || [])) {
+        groups[a.confidence || 'low']?.push(a);
+    }
+
+    const sectionHTML = (label, list, badgeClass, helpText) => {
+        if (!list.length) return '';
+        return `
+            <div class="mb-5">
+                <div class="flex items-center gap-2 mb-2">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-700">${label}</h4>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded ${badgeClass}">${list.length}</span>
+                </div>
+                ${helpText ? `<p class="text-[11px] text-gray-500 mb-2">${helpText}</p>` : ''}
+                <ul class="space-y-2">
+                    ${list.map(a => `
+                        <li class="border border-gray-200 rounded-lg p-3 hover:border-indigo-200 transition">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <a href="${a.url}" target="_blank" rel="noopener" class="text-sm font-semibold text-gray-900 hover:text-indigo-600 block">${escapeHTML(a.title)}</a>
+                                    <p class="text-[11px] text-gray-500 mt-1">${a.category_label || a.category} &middot; ${a.order_date || 'date unknown'}</p>
+                                </div>
+                                <a href="${a.url}" target="_blank" rel="noopener" class="text-indigo-600 hover:text-indigo-800 flex-shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                </a>
+                            </div>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>`;
+    };
+
+    body.innerHTML =
+        sectionHTML('Confirmed actions against ' + symbol, groups.high, 'bg-red-100 text-red-700',
+                    'These orders name the company directly as the subject of SEBI action.') +
+        sectionHTML('Contextual mentions', groups.medium, 'bg-amber-100 text-amber-700',
+                    'The company name appears in the order, but not as the primary subject.') +
+        sectionHTML('Ambiguous', groups.low, 'bg-gray-100 text-gray-600',
+                    'Search match by partial name — verify before relying on these.');
+}
+
+function forceRefreshEnforcement(symbol) {
+    const sub = document.getElementById('enf-modal-sub');
+    if (sub) sub.textContent = 'Refreshing from sebi.gov.in…';
+    fetch(`/api/compliance/enforcement/${encodeURIComponent(symbol)}/refresh`, { method: 'POST' })
+        .then(r => r.json())
+        .then(resp => { if (resp.data) renderEnforcementModalBody(symbol, resp.data); })
+        .then(() => loadDashboard());
+}
+
+function escapeHTML(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Obligation Card ──
+function obligationCard(ob) {
+    const statusColors = { pending: 'status-pending', submitted: 'status-submitted', delayed: 'status-delayed', missed: 'status-missed', unverified: 'status-unverified' };
+
+    let countdown = '';
+    const dr = ob.days_remaining;
+    if (ob.status === 'unverified' && dr !== null && dr < 0) {
+        countdown = `<span class="text-violet-600 text-xs font-medium">${Math.abs(dr)}d past due · no filing data</span>`;
+    } else if ((ob.status === 'pending' || ob.status === 'missed') && dr !== null) {
+        if (dr < 0) countdown = `<span class="text-red-600 font-bold text-xs countdown-urgent">${Math.abs(dr)}d overdue</span>`;
+        else if (dr === 0) countdown = '<span class="text-red-600 font-bold text-xs countdown-urgent">Due today!</span>';
+        else if (dr <= 7) countdown = `<span class="text-amber-600 font-bold text-xs countdown-urgent">${dr}d remaining</span>`;
+        else countdown = `<span class="text-gray-500 text-xs">${dr}d remaining</span>`;
+    }
+
+    const filingLink = ob.filing_id ? `<a href="/company/${ob.symbol}" class="text-indigo-600 hover:underline text-xs font-medium">Filing #${ob.filing_id}</a>` : '';
+    const delayBadge = ob.status === 'delayed' && ob.delay_days > 0 ? `<span class="text-amber-600 text-xs font-medium">+${ob.delay_days}d late</span>` : '';
+
+    // SEBI source link
+    const sebiLink = ob.sebi_source ? `<a href="${ob.sebi_source}" target="_blank" rel="noopener" class="sebi-link" title="${ob.section_ref || ''}">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        SEBI Source</a>` : '';
+
+    return `
+    <div class="mandate-card">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${ob.symbol}</span>
+                    <span class="text-xs font-medium text-gray-400">${ob.mandate_category}</span>
+                    ${sebiLink}
+                </div>
+                <p class="font-semibold text-gray-900 text-sm mt-1.5">${ob.mandate_name}</p>
+                <p class="text-xs text-gray-400 mt-0.5">${ob.regulation} &middot; ${ob.period}${ob.section_ref ? ' &middot; ' + ob.section_ref : ''}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <span class="${statusColors[ob.status] || 'status-pending'} status-badge">${ob.status}</span>
+                <div class="mt-2">${countdown}</div>
+            </div>
+        </div>
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+            <div class="flex items-center gap-4">
+                <span class="text-xs text-gray-500">Due: <strong class="text-gray-700">${formatDate(ob.due_date)}</strong></span>
+                ${ob.filed_date ? `<span class="text-xs text-gray-500">Filed: <strong class="text-gray-700">${formatDate(ob.filed_date)}</strong></span>` : ''}
+                ${delayBadge}
+            </div>
+            <div class="flex items-center gap-3">${filingLink}</div>
+        </div>
+    </div>`;
+}
+
+// ── Render Sections ──
+function renderList(items, listId, emptyId) {
+    const el = document.getElementById(listId);
+    const empty = document.getElementById(emptyId);
+    if (!items.length) { el.innerHTML = ''; empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+    el.innerHTML = items.map(o => obligationCard(o)).join('');
+}
+function renderUpcoming(items) { renderList(items, 'upcoming-list', 'upcoming-empty'); }
+function renderOverdue(items) { renderList(items, 'overdue-list', 'overdue-empty'); }
+function renderCompleted(items) { renderList(items, 'completed-list', 'completed-empty'); }
+function renderUnverified(items) { renderList(items, 'unverified-list', 'unverified-empty'); }
+
+function renderAllTable(items) {
+    const tbody = document.getElementById('obligations-tbody');
+    tbody.innerHTML = items.map(ob => {
+        const sc = { pending: 'status-pending', submitted: 'status-submitted', delayed: 'status-delayed', missed: 'status-missed' };
+        let delayCell = '-';
+        if (ob.status === 'delayed' && ob.delay_days > 0) delayCell = `<span class="text-amber-600 font-medium">+${ob.delay_days}d</span>`;
+        else if (ob.status === 'missed') { const dr = ob.days_remaining; delayCell = `<span class="text-red-600 font-medium">${dr !== null ? Math.abs(dr) + 'd overdue' : 'Overdue'}</span>`; }
+
+        const filingCell = ob.filing_id ? `<a href="/company/${ob.symbol}" class="text-indigo-600 hover:underline">#${ob.filing_id}</a>` : '<span class="text-gray-300">-</span>';
+        const sourceCell = ob.sebi_source ? `<a href="${ob.sebi_source}" target="_blank" rel="noopener" class="sebi-link" title="${ob.section_ref || ''}"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>SEBI</a>` : '<span class="text-gray-300">-</span>';
+
+        return `<tr class="border-b border-gray-100 hover:bg-slate-50 obligation-row"
+                    data-company="${ob.symbol}" data-status="${ob.status}" data-category="${ob.mandate_category}">
+            <td class="px-4 py-3"><a href="/company/${ob.symbol}" class="font-semibold text-indigo-600 hover:underline">${ob.symbol}</a></td>
+            <td class="px-4 py-3">
+                <div class="font-medium text-gray-900 text-xs">${ob.mandate_name}</div>
+                <div class="text-[10px] text-gray-400">${ob.regulation}</div>
+            </td>
+            <td class="px-4 py-3 text-gray-600 text-xs">${ob.period}</td>
+            <td class="px-4 py-3 text-gray-600 text-xs">${formatDate(ob.due_date)}</td>
+            <td class="px-4 py-3"><span class="${sc[ob.status]} status-badge">${ob.status}</span></td>
+            <td class="px-4 py-3 text-xs">${filingCell}</td>
+            <td class="px-4 py-3 text-xs">${delayCell}</td>
+            <td class="px-4 py-3">${sourceCell}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderMandates(mandates) {
+    document.getElementById('mandates-grid').innerHTML = mandates.map(m => {
+        const freqBadge = {
+            quarterly: '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">Quarterly</span>',
+            annual: '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-700">Annual</span>',
+            event_based: '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">Event-Based</span>',
+        };
+        const sebiBtn = m.sebi_source ? `<a href="${m.sebi_source}" target="_blank" rel="noopener" class="sebi-link mt-3 inline-flex">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            View SEBI Source</a>` : '';
+        const circularRef = m.sebi_circular ? `<p class="text-[10px] text-gray-400 mt-1">Circular: ${m.sebi_circular}</p>` : '';
+
+        return `
+        <div class="mandate-card">
+            <div class="flex items-start justify-between mb-2">
+                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${m.id}</span>
+                ${freqBadge[m.frequency] || ''}
+            </div>
+            <p class="font-semibold text-gray-900 text-sm">${m.name}</p>
+            <p class="text-xs text-gray-400 mt-0.5">${m.regulation}${m.section_ref ? ' &middot; ' + m.section_ref : ''}</p>
+            <p class="text-xs text-gray-500 mt-2 leading-relaxed">${m.description}</p>
+            ${circularRef}
+            <div class="flex flex-wrap gap-1 mt-2">
+                ${(m.keywords || []).slice(0, 4).map(k => `<span class="text-[10px] px-1.5 py-0.5 bg-slate-100 text-gray-500 rounded">${k}</span>`).join('')}
+            </div>
+            ${sebiBtn}
+        </div>`;
+    }).join('');
+}
+
+// ── Tab Switching ──
+function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.remove('hidden');
+    if (btn) btn.classList.add('active');
+}
+
+function updateTabCounts(data) {
+    const v = data.validation || {};
+    document.getElementById('tab-count-upcoming').textContent = v.upcoming_count ? `(${v.upcoming_count})` : '';
+    document.getElementById('tab-count-overdue').textContent = v.overdue_count ? `(${v.overdue_count})` : '';
+    document.getElementById('tab-count-completed').textContent = v.completed_count ? `(${v.completed_count})` : '';
+    const uv = document.getElementById('tab-count-unverified');
+    if (uv) uv.textContent = v.unverified_count ? `(${v.unverified_count})` : '';
+}
+
+// ── Filters ──
+function populateFilters(items) {
+    const companies = [...new Set(items.map(o => o.symbol))].sort();
+    const sel = document.getElementById('filter-company');
+    companies.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+}
+function filterTable() {
+    const company = document.getElementById('filter-company').value;
+    const status = document.getElementById('filter-status').value;
+    const category = document.getElementById('filter-category').value;
+    document.querySelectorAll('.obligation-row').forEach(row => {
+        row.style.display = (!company || row.dataset.company === company)
+            && (!status || row.dataset.status === status)
+            && (!category || row.dataset.category === category) ? '' : 'none';
+    });
+}
+
+// ── Helpers ──
+function formatDate(dateStr) {
+    if (!dateStr) return '<span class="text-gray-300">-</span>';
+    try { return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
+    catch { return dateStr; }
+}
+
+// ── Init ──
+loadDashboard();
+</script>
+</body>
+</html>

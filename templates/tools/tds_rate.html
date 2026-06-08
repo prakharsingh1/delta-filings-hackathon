@@ -1,0 +1,96 @@
+{% extends 'public_base.html' %}
+{% block title %}TDS Rate Finder & Calculator · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="md:col-span-2">
+                <label class="label">Payment type (Section)</label>
+                <select id="section" class="input">
+                    {% for s in sections %}<option value="{{ loop.index0 }}">{{ s.section }} — {{ s.label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label">Recipient type</label>
+                <select id="recipient" class="input">
+                    <option value="ind">Individual / HUF</option>
+                    <option value="other">Other (Company, Firm, etc.)</option>
+                </select>
+            </div>
+            <div>
+                <label class="label">Payment amount (₹)</label>
+                <input id="amount" type="number" min="0" step="100" value="100000" class="input">
+            </div>
+        </div>
+
+        <div class="result mt-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Applicable TDS rate</div>
+                    <div class="mt-1 text-3xl font-extrabold text-slate-900" id="rate">—</div>
+                </div>
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">TDS to deduct</div>
+                    <div class="mt-1 text-3xl font-extrabold text-slate-900" id="tds">—</div>
+                </div>
+            </div>
+            <div class="mt-3 text-xs text-slate-600" id="note"></div>
+            <div class="mt-2 text-xs text-slate-500" id="threshold"></div>
+        </div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Rates shown apply for FY 2026-27 / AY 2027-28 for residents. Non-resident payments carry separate rates under Sections 195 / 196A. PAN non-submission attracts higher TDS at the maximum of (a) twice the prescribed rate, (b) 20% under Section 206AA. Verify with your tax advisor for transaction-specific applicability.
+    </div>
+</section>
+
+<script>
+const SECTIONS = {{ sections | tojson }};
+
+function compute() {
+    const s = SECTIONS[parseInt(document.getElementById('section').value)];
+    const recipient = document.getElementById('recipient').value;
+    const amount = Math.max(0, parseFloat(document.getElementById('amount').value || 0));
+
+    const rate = recipient === 'ind' ? s.rate_ind : s.rate_other;
+    const rateEl = document.getElementById('rate');
+    const tdsEl = document.getElementById('tds');
+    const noteEl = document.getElementById('note');
+    const thrEl = document.getElementById('threshold');
+
+    if (typeof rate === 'number') {
+        rateEl.textContent = (rate * 100).toFixed(rate < 0.01 ? 2 : 1) + '%';
+        const tds = amount * rate;
+        tdsEl.textContent = '₹' + Math.round(tds).toLocaleString('en-IN');
+        noteEl.textContent = `Section ${s.section}: ${s.label}.`;
+
+        const t = s.threshold;
+        if (typeof t === 'number') {
+            if (amount < t) {
+                thrEl.innerHTML = `<span style="color:#059669;">Below threshold of ₹${t.toLocaleString('en-IN')} — TDS may not apply if the payment stays below this limit for the year.</span>`;
+            } else {
+                thrEl.innerHTML = `Threshold for the section: ₹${t.toLocaleString('en-IN')} (annual aggregate, in most cases).`;
+            }
+        } else {
+            thrEl.textContent = `Threshold: ${t}.`;
+        }
+    } else {
+        rateEl.textContent = rate; // 'Slab'
+        tdsEl.textContent = '—';
+        noteEl.textContent = `Section ${s.section}: ${s.label}. TDS computed at applicable income-tax slab rates after considering exemptions and deductions declared by the employee.`;
+        thrEl.textContent = `Threshold: ${s.threshold}.`;
+    }
+}
+['section','recipient','amount'].forEach(id => document.getElementById(id).addEventListener('input', compute));
+compute();
+</script>
+{% endblock %}

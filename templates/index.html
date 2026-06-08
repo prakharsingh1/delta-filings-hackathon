@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ selected }} - Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+
+    {% set active_page = 'company' %}
+    {% include 'sidebar.html' %}
+
+    <!-- Floating refresh action (bottom-right) -->
+    <div style="position:fixed;bottom:24px;right:24px;z-index:40;">
+        <button onclick="refreshFilings()" id="refresh-btn"
+            class="btn btn-primary justify-center shadow-lg">
+            <svg id="refresh-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                         0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span id="refresh-text">Refresh Filings</span>
+        </button>
+    </div>
+
+    <!-- Main -->
+    <main class="flex-1 overflow-y-auto">
+        <header class="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-10">
+            <div class="flex items-center justify-between gap-4 mb-3">
+                <div class="flex-shrink-0">
+                    <h2 class="text-2xl font-bold text-gray-900">{{ selected }}</h2>
+                    <p class="text-sm text-gray-500 mt-0.5" id="filing-count">{{ total }} filing{{ 's' if total != 1 }} &middot; Page {{ page }} of {{ total_pages }}</p>
+                </div>
+                <!-- Search Bar -->
+                <div class="flex-1 max-w-md">
+                    <div class="relative">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Search all filings by title, tags, content..."
+                               class="w-full pl-10 pr-10 py-2 text-sm border border-gray-200 rounded-lg
+                                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               oninput="debounceSearch()">
+                        <button id="search-clear" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 flex-shrink-0">
+                    <div id="loading" class="hidden flex items-center gap-2 text-sm text-blue-600">
+                        <div class="spinner"></div>
+                        <span>Fetching...</span>
+                    </div>
+                    <div id="toast" class="hidden text-sm font-medium px-4 py-2 rounded-lg"></div>
+                </div>
+            </div>
+            <!-- Tag Filters -->
+            <div id="tag-filters" class="flex flex-wrap gap-2 items-center">
+                <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Filter:</span>
+                <button onclick="setTagFilter('')" class="tag-filter-btn active text-xs px-3 py-1 rounded-full border transition-colors" data-tag="">All</button>
+                <!-- filled by JS -->
+            </div>
+        </header>
+
+        <!-- Tab Bar -->
+        <div class="bg-white border-b border-gray-200 px-8 sticky top-[73px] z-[9]">
+            <div class="flex gap-0">
+                <button id="tab-announcements" onclick="switchTab('announcements')"
+                    class="tab-btn active px-5 py-3 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition-colors">
+                    Announcements
+                </button>
+                <button id="tab-governance" onclick="switchTab('governance')"
+                    class="tab-btn px-5 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition-colors">
+                    Compare
+                </button>
+            </div>
+        </div>
+
+        <!-- Announcements Tab Panel -->
+        <div id="panel-announcements" class="p-8 space-y-4">
+            {% if backfill_started %}
+            <div id="backfill-banner" class="hidden rounded-xl px-4 py-2.5 flex items-center gap-3 text-xs">
+                <span id="backfill-icon" class="flex-shrink-0"></span>
+                <span id="backfill-banner-text"></span>
+                <button onclick="window.location.reload()" id="backfill-banner-reload"
+                        class="hidden ml-auto text-[11px] font-semibold px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">Refresh page</button>
+            </div>
+            <script>
+            (function() {
+                const initialTotal = {{ total|default(0)|int }};
+                const banner = document.getElementById('backfill-banner');
+                const text = document.getElementById('backfill-banner-text');
+                const icon = document.getElementById('backfill-icon');
+                const reload = document.getElementById('backfill-banner-reload');
+                if (!banner) return;
+
+                const ICON_SPINNER = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>`;
+                const ICON_CHECK = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>`;
+
+                const setLoading = (msg) => {
+                    banner.className = 'rounded-xl px-4 py-2.5 flex items-center gap-3 text-xs bg-blue-50 border border-blue-200 text-blue-800';
+                    icon.innerHTML = ICON_SPINNER;
+                    text.textContent = msg;
+                };
+                const setDone = (msg) => {
+                    banner.className = 'rounded-xl px-4 py-2.5 flex items-center gap-3 text-xs bg-emerald-50 border border-emerald-200 text-emerald-800';
+                    icon.innerHTML = ICON_CHECK;
+                    text.textContent = msg;
+                };
+
+                setLoading('Pulling full filing history from NSE…');
+                banner.classList.remove('hidden');
+
+                let lastSeen = initialTotal;
+                let stableTicks = 0;
+                let polls = 0;
+                const MAX_POLLS = 60;  // ~4 minutes at 4s interval — well past worst-case backfill
+
+                const poll = () => {
+                    polls++;
+                    fetch(`/api/filings_list/{{ selected }}`).then(r => r.json()).then(data => {
+                        const n = (data.filings || []).length;
+                        if (n > lastSeen) {
+                            const delta = n - initialTotal;
+                            setLoading(`${delta} new filings pulled so far — ${n} total cached. Still scanning…`);
+                            reload.classList.remove('hidden');
+                            lastSeen = n;
+                            stableTicks = 0;
+                        } else {
+                            stableTicks++;
+                        }
+                        // Stop conditions:
+                        //  - 3 consecutive ticks (~12s) with no growth, OR
+                        //  - hit MAX_POLLS hard cap.
+                        if (stableTicks >= 3 || polls >= MAX_POLLS) {
+                            if (n === initialTotal) {
+                                banner.classList.add('hidden');
+                            } else {
+                                const delta = n - initialTotal;
+                                setDone(`Backfill complete — ${delta} new filings pulled (${n} total). Refresh page to view.`);
+                                reload.classList.remove('hidden');
+                            }
+                            return;
+                        }
+                        setTimeout(poll, 4000);
+                    }).catch(() => { if (polls < MAX_POLLS) setTimeout(poll, 6000); });
+                };
+                setTimeout(poll, 4000);
+            })();
+            </script>
+            {% endif %}
+            <div id="filings-list">
+            {% if filings %}
+                {% for f in filings %}
+                <div class="filing-card bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4
+                            {% if f.is_new %}border-l-4 border-l-green-500{% endif %}"
+                     data-id="{{ f.id }}" data-tags="{{ f.tags|lower }}">
+                    <div class="flex items-start justify-between gap-4 mb-1">
+                        <div class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer" onclick="openViewer({{ f.id }})">
+                            {% if f.is_new %}
+                            <span class="bg-green-100 text-green-700 text-[10px] font-bold uppercase px-2 py-0.5 rounded flex-shrink-0">New</span>
+                            {% endif %}
+                            <h3 class="text-sm font-semibold text-gray-900 truncate">{{ f.title }}</h3>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <button onclick="summarizeFiling({{ f.id }}, this)"
+                                class="summarize-btn text-xs font-medium px-2.5 py-1 rounded-lg border
+                                       border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
+                                title="AI Summary">
+                                &#x2728; Summarize
+                            </button>
+                            <button onclick="viewChanges({{ f.id }})"
+                                class="view-changes-btn text-xs font-medium px-2.5 py-1 rounded-lg border
+                                       border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
+                                View Changes
+                            </button>
+                            <span class="text-xs text-gray-400 whitespace-nowrap">{{ f.date }}</span>
+                        </div>
+                    </div>
+                    {% if f.description %}
+                    <p class="text-xs text-gray-500 mt-1 mb-2 line-clamp-2">{{ f.description }}</p>
+                    {% endif %}
+                    <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                        {% if f.tags %}
+                            {% for tag in f.tags.split(',') if tag.strip() %}
+                            <span class="tag tag-{{ tag.strip().lower().split()[0] }} cursor-pointer" onclick="setTagFilter('{{ tag.strip() }}')">{{ tag.strip() }}</span>
+                            {% endfor %}
+                        {% endif %}
+                        {% if f.has_xbrl %}
+                        <span class="tag tag-xbrl cursor-pointer" onclick="viewXbrl({{ f.id }})">XBRL</span>
+                        {% endif %}
+                    </div>
+                    <div id="summary-{{ f.id }}" class="hidden mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="summary-label"><span class="text-[10px] font-bold text-amber-700 uppercase">&#x2728; Summary</span></span>
+                            <button onclick="summarizeFiling({{ f.id }}, null, true)" class="text-[10px] text-amber-500 hover:text-amber-700 font-medium regen-btn hidden">&#x21bb; Regenerate</button>
+                        </div>
+                        <div class="summary-text text-xs text-gray-700 leading-relaxed whitespace-pre-line"></div>
+                    </div>
+                    {% if not f.has_text %}
+                    <p class="text-xs text-gray-400 italic mt-2">PDF text pending — click to extract</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-20" id="empty-state">
+                    <p class="text-gray-400 text-lg">No filings yet for {{ selected }}.</p>
+                    <p class="text-gray-400 text-sm mt-1">Hit <strong>Refresh</strong> to fetch.</p>
+                </div>
+            {% endif %}
+
+            <!-- Server-side pagination -->
+            {% if total_pages > 1 %}
+            <div class="flex items-center justify-center gap-2 mt-6 mb-2" id="server-pagination">
+                {% if page > 1 %}
+                <a href="/company/{{ selected }}?page={{ page - 1 }}"
+                   class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                    &laquo; Prev
+                </a>
+                {% endif %}
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}
+                    <span class="px-3 py-1.5 text-sm font-bold rounded-lg bg-blue-600 text-white">{{ p }}</span>
+                    {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                    <a href="/company/{{ selected }}?page={{ p }}"
+                       class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                        {{ p }}
+                    </a>
+                    {% elif p == page - 3 or p == page + 3 %}
+                    <span class="text-gray-400 px-1">&hellip;</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page < total_pages %}
+                <a href="/company/{{ selected }}?page={{ page + 1 }}"
+                   class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                    Next &raquo;
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+            </div>
+
+            <!-- Search/filter results (rendered by JS) -->
+            <div id="search-results" class="hidden">
+                <div id="search-results-list" class="space-y-4"></div>
+                <div id="search-pagination" class="flex items-center justify-center gap-2 mt-6"></div>
+            </div>
+        </div>
+
+        <!-- Compare Tab Panel -->
+        <div id="panel-governance" class="hidden p-8 max-w-5xl mx-auto">
+
+            <!-- ── Primary: Compare any two filings ── -->
+            <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-6">
+                <div class="flex items-baseline justify-between mb-1">
+                    <h3 class="text-base font-bold text-gray-900">Compare two filings</h3>
+                    <span id="any-compare-count" class="text-[11px] text-gray-400"></span>
+                </div>
+                <p class="text-xs text-gray-500 mb-4">Pick any two announcements — get a side-by-side diff of what changed.</p>
+                <div class="grid md:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-[10px] font-medium text-gray-500 block mb-1">Older / baseline</label>
+                        <input type="text" id="any-compare-a-input" autocomplete="off"
+                               placeholder="Search by date or title…"
+                               class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+                                      focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                        <div id="any-compare-a-list" class="hidden mt-1 max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-sm"></div>
+                        <p id="any-compare-a-selected" class="text-[11px] text-blue-700 font-medium mt-1.5 hidden"></p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-medium text-gray-500 block mb-1">Newer / comparison</label>
+                        <input type="text" id="any-compare-b-input" autocomplete="off"
+                               placeholder="Search by date or title…"
+                               class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+                                      focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                        <div id="any-compare-b-list" class="hidden mt-1 max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-sm"></div>
+                        <p id="any-compare-b-selected" class="text-[11px] text-blue-700 font-medium mt-1.5 hidden"></p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span id="any-compare-status" class="text-[11px] text-gray-500"></span>
+                    <button onclick="runAnyCompare()" id="any-compare-btn"
+                            class="text-sm font-semibold px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        Compare
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── Secondary: Governance snapshot (XBRL) ── -->
+            <div class="bg-white border border-gray-200 rounded-2xl shadow-sm">
+                <button type="button" onclick="toggleGovPanel()" id="gov-toggle"
+                        class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 rounded-t-2xl">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900">Governance snapshot</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">Board, committees, KMP — from NSE XBRL filings. <span id="gov-report-count" class="text-gray-400"></span></p>
+                    </div>
+                    <svg id="gov-chevron" class="w-5 h-5 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+
+                <div id="gov-section-body" class="hidden px-6 pb-6 border-t border-gray-100">
+                    <div id="gov-loading" class="flex items-center justify-center py-12">
+                        <div class="spinner"></div>
+                        <span class="ml-3 text-sm text-gray-500">Loading…</span>
+                    </div>
+                    <div id="gov-content" class="hidden">
+                        <!-- Single, unified controls row -->
+                        <div class="flex items-end gap-3 flex-wrap py-4">
+                            <div class="flex-1 min-w-[240px]">
+                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Quarter</label>
+                                <select id="gov-report-select" onchange="loadGovernanceReport()"
+                                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                            </div>
+                            <button onclick="compareWithPreviousQuarter()" id="gov-compare-prev-btn"
+                                    class="text-xs font-semibold px-3.5 py-2 rounded-lg border border-violet-200 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors whitespace-nowrap"
+                                    title="Side-by-side diff with the previous quarter's report">
+                                ↔ Compare with previous
+                            </button>
+                            <button onclick="openGovCompareCustom()" id="gov-compare-custom-btn"
+                                    class="text-[11px] text-violet-600 hover:underline whitespace-nowrap">
+                                or pick a different quarter…
+                            </button>
+                        </div>
+
+                        <!-- Inline compare-with picker, hidden by default -->
+                        <div id="gov-compare-custom" class="hidden mb-3 p-3 rounded-lg border border-violet-100 bg-violet-50/40 flex items-end gap-3 flex-wrap">
+                            <div class="flex-1 min-w-[200px]">
+                                <label class="text-[10px] font-medium text-gray-500 block mb-1">Compare currently-selected with…</label>
+                                <select id="gov-compare-other"
+                                        class="w-full px-3 py-2 text-xs border border-violet-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"></select>
+                            </div>
+                            <button onclick="openGovCompareInline()"
+                                    class="text-xs font-semibold px-4 py-2 rounded-lg bg-violet-600 text-white hover:bg-violet-700">Compare</button>
+                            <button onclick="document.getElementById('gov-compare-custom').classList.add('hidden')"
+                                    class="text-[11px] text-gray-500 hover:text-gray-700">cancel</button>
+                        </div>
+
+                        <div id="gov-report-loading" class="hidden flex items-center justify-center py-10">
+                            <div class="spinner"></div>
+                            <span class="ml-3 text-sm text-gray-500">Loading report…</span>
+                        </div>
+                        <div id="gov-report-content" class="space-y-4"></div>
+                    </div>
+                    <div id="gov-empty" class="hidden text-center py-16">
+                        <p class="text-gray-400 text-sm">No XBRL governance reports available for this company.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Document Viewer Modal -->
+<div id="viewer-modal" class="modal-overlay hidden">
+    <div class="modal-content modal-wide">
+        <div class="modal-header">
+            <div class="flex-1 min-w-0">
+                <h3 id="viewer-title" class="text-lg font-bold text-gray-900 truncate"></h3>
+                <p id="viewer-desc" class="text-sm text-gray-500 mt-0.5"></p>
+                <p id="viewer-date" class="text-xs text-gray-400 mt-0.5"></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a id="viewer-pdf-link" href="#" target="_blank"
+                   class="hidden text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200
+                          text-gray-600 hover:bg-gray-100 transition-colors">Open PDF</a>
+                <button onclick="summarizeFromViewer()"
+                    class="text-xs font-medium px-3 py-1.5 rounded-lg border border-amber-200
+                           text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">Summarize</button>
+                <button onclick="showDiffFromViewer()"
+                    class="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-200
+                           text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">View Changes</button>
+                <button onclick="closeViewer()"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        <div id="viewer-tags" class="px-6 pb-2 flex flex-wrap gap-1.5"></div>
+        <div id="viewer-summary" class="hidden mx-6 mb-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+            <div class="flex items-center gap-1.5 mb-1.5">
+                <span class="text-[10px] font-bold text-amber-700 uppercase">&#x2728; AI Summary</span>
+            </div>
+            <div id="viewer-summary-text" class="text-xs text-gray-700 leading-relaxed whitespace-pre-line"></div>
+        </div>
+        <div class="modal-body">
+            <div id="viewer-loading" class="flex items-center justify-center py-12">
+                <div class="spinner"></div>
+                <span class="ml-3 text-sm text-gray-500">Loading document...</span>
+            </div>
+            <div id="viewer-text" class="hidden">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Extracted Document Text (Word-for-Word)</span>
+                    <span id="viewer-char-count" class="text-[10px] text-gray-400"></span>
+                </div>
+                <pre class="filing-text"></pre>
+            </div>
+            <div id="viewer-notext" class="hidden text-center py-12">
+                <p class="text-gray-400 text-lg">Document not available</p>
+                <p class="text-gray-400 text-sm mt-1">No text could be extracted from this filing.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Diff Viewer Modal -->
+<div id="diff-modal" class="modal-overlay hidden">
+    <div class="modal-content modal-wide">
+        <div class="modal-header">
+            <div class="flex-1 min-w-0">
+                <h3 class="text-lg font-bold text-gray-900">Changes</h3>
+                <p id="diff-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openFilingPicker()"
+                    class="text-xs font-medium px-3 py-1.5 rounded-lg border border-violet-200
+                           text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors"
+                    title="Choose which filing to compare against">
+                    Compare With...
+                </button>
+                <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                    <button id="btn-inline" onclick="switchDiffMode('inline')"
+                        class="px-3 py-1.5 font-medium bg-blue-600 text-white">Inline</button>
+                    <button id="btn-sbs" onclick="switchDiffMode('sbs')"
+                        class="px-3 py-1.5 font-medium text-gray-600 hover:bg-gray-50">Side by Side</button>
+                </div>
+                <button onclick="closeDiff()"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div id="diff-loading" class="flex items-center justify-center py-12">
+                <div class="spinner"></div>
+                <span class="ml-3 text-sm text-gray-500">Computing differences...</span>
+            </div>
+            <div id="diff-error" class="hidden text-center py-12">
+                <p id="diff-error-msg" class="text-gray-400 text-lg"></p>
+            </div>
+            <div id="diff-inline" class="hidden diff-container"></div>
+            <div id="diff-sbs" class="hidden diff-container"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Filing Picker Modal (for manual comparison) -->
+<div id="picker-modal" class="modal-overlay hidden" style="z-index:60">
+    <div class="modal-content" style="max-width:600px">
+        <div class="modal-header">
+            <div class="flex-1 min-w-0">
+                <h3 class="text-lg font-bold text-gray-900">Choose Filing to Compare</h3>
+                <p id="picker-subtitle" class="text-sm text-gray-500 mt-0.5">Select a filing to compare against</p>
+            </div>
+            <button onclick="closePicker()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <!-- Search within picker -->
+        <div class="px-6 pt-3 pb-2">
+            <input type="text" id="picker-search" placeholder="Filter by title, tag, date..."
+                   class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                   oninput="filterPicker()">
+        </div>
+        <div class="modal-body" style="max-height:55vh">
+            <div id="picker-loading" class="flex items-center justify-center py-12">
+                <div class="spinner"></div>
+                <span class="ml-3 text-sm text-gray-500">Loading filings...</span>
+            </div>
+            <div id="picker-list" class="hidden space-y-1"></div>
+        </div>
+    </div>
+</div>
+
+<!-- XBRL Modal -->
+<div id="xbrl-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="flex-1 min-w-0">
+                <h3 class="text-lg font-bold text-gray-900">XBRL Data</h3>
+                <p id="xbrl-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
+            </div>
+            <button onclick="closeXbrl()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="xbrl-loading" class="flex items-center justify-center py-12">
+                <div class="spinner"></div>
+                <span class="ml-3 text-sm text-gray-500">Extracting XBRL data...</span>
+            </div>
+            <div id="xbrl-content" class="hidden"></div>
+            <div id="xbrl-error" class="hidden text-center py-12">
+                <p id="xbrl-error-msg" class="text-gray-400 text-lg"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Governance Compare Modal -->
+<div id="gov-compare-modal" class="modal-overlay hidden">
+    <div class="modal-content modal-wide">
+        <div class="modal-header">
+            <div class="flex-1 min-w-0">
+                <h3 class="text-lg font-bold text-gray-900">Governance Report Comparison</h3>
+                <p id="gov-compare-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
+            </div>
+            <button onclick="closeGovCompare()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="gov-compare-loading" class="flex items-center justify-center py-12">
+                <div class="spinner"></div>
+                <span class="ml-3 text-sm text-gray-500">Comparing reports...</span>
+            </div>
+            <div id="gov-compare-content" class="hidden space-y-4"></div>
+            <div id="gov-compare-error" class="hidden text-center py-12">
+                <p class="text-gray-400 text-lg">Could not compare reports.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const SELECTED = '{{ selected }}';
+const TOTAL = {{ total }};
+const TOTAL_PAGES = {{ total_pages }};
+let currentViewerId = null;
+let cachedDiffData = {};
+let searchTimer = null;
+let activeTagFilter = '';
+let searchPage = 1;
+
+/* ═════════════════════════════════════════════
+   TAG FILTERS
+   ═════════════════════════════════════════════ */
+function loadTagFilters() {
+    fetch(`/api/tags/${SELECTED}`)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('tag-filters');
+            for (const t of data.tags) {
+                const cls = t.name.toLowerCase().split(' ')[0];
+                const btn = document.createElement('button');
+                btn.className = 'tag-filter-btn text-xs px-3 py-1 rounded-full border transition-colors';
+                btn.dataset.tag = t.name;
+                btn.innerHTML = `<span class="tag-dot tag-dot-${cls}"></span>${t.name} <span class="text-gray-400 ml-0.5">${t.count}</span>`;
+                btn.onclick = () => setTagFilter(t.name);
+                container.appendChild(btn);
+            }
+        });
+}
+
+function setTagFilter(tag) {
+    activeTagFilter = (activeTagFilter === tag) ? '' : tag;
+    document.querySelectorAll('.tag-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tag === activeTagFilter);
+    });
+    if (!activeTagFilter) {
+        document.querySelector('.tag-filter-btn[data-tag=""]').classList.add('active');
+    } else {
+        document.querySelector('.tag-filter-btn[data-tag=""]').classList.remove('active');
+    }
+    searchPage = 1;
+    performSearch();
+}
+
+/* ═════════════════════════════════════════════
+   SEARCH — server-side with pagination
+   ═════════════════════════════════════════════ */
+function debounceSearch() {
+    clearTimeout(searchTimer);
+    const val = document.getElementById('search-input').value;
+    document.getElementById('search-clear').classList.toggle('hidden', !val);
+    searchPage = 1;
+    searchTimer = setTimeout(() => performSearch(), 300);
+}
+
+function clearSearch() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-clear').classList.add('hidden');
+    activeTagFilter = '';
+    searchPage = 1;
+    document.querySelectorAll('.tag-filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector('.tag-filter-btn[data-tag=""]').classList.add('active');
+    document.getElementById('filings-list').classList.remove('hidden');
+    const sp = document.getElementById('server-pagination');
+    if (sp) sp.classList.remove('hidden');
+    document.getElementById('search-results').classList.add('hidden');
+    document.getElementById('filing-count').textContent = `${TOTAL} filings \u00b7 Page {{ page }} of ${TOTAL_PAGES}`;
+}
+
+function goSearchPage(p) {
+    searchPage = p;
+    performSearch();
+}
+
+function performSearch() {
+    const query = document.getElementById('search-input').value.trim();
+    const tag = activeTagFilter;
+
+    if (!query && !tag) {
+        document.getElementById('filings-list').classList.remove('hidden');
+        const sp = document.getElementById('server-pagination');
+        if (sp) sp.classList.remove('hidden');
+        document.getElementById('search-results').classList.add('hidden');
+        document.getElementById('filing-count').textContent = `${TOTAL} filings \u00b7 Page {{ page }} of ${TOTAL_PAGES}`;
+        return;
+    }
+
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (tag) params.set('tag', tag);
+    params.set('page', searchPage);
+
+    document.getElementById('filings-list').classList.add('hidden');
+    const sp = document.getElementById('server-pagination');
+    if (sp) sp.classList.add('hidden');
+    const resultsEl = document.getElementById('search-results');
+    resultsEl.classList.remove('hidden');
+    document.getElementById('search-results-list').innerHTML = '<div class="flex items-center gap-2 py-8 justify-center"><div class="spinner"></div><span class="text-sm text-gray-500">Searching...</span></div>';
+    document.getElementById('search-pagination').innerHTML = '';
+
+    fetch(`/api/search/${SELECTED}?${params}`)
+        .then(r => r.json())
+        .then(data => {
+            const label = [];
+            if (data.query) label.push(`"${data.query}"`);
+            if (data.tag) label.push(`tag: ${data.tag}`);
+            const pageInfo = data.total_pages > 1 ? ` \u00b7 Page ${data.page} of ${data.total_pages}` : '';
+            document.getElementById('filing-count').textContent =
+                `${data.count} result${data.count !== 1 ? 's' : ''}${label.length ? ' for ' + label.join(', ') : ''}${pageInfo}`;
+
+            const listEl = document.getElementById('search-results-list');
+            if (!data.results.length) {
+                listEl.innerHTML = '<div class="text-center py-16"><p class="text-gray-400 text-lg">No filings match your search.</p></div>';
+                return;
+            }
+
+            listEl.innerHTML = data.results.map(f => renderFilingCard(f)).join('');
+
+            // Render pagination
+            if (data.total_pages > 1) {
+                document.getElementById('search-pagination').innerHTML = renderPagination(data.page, data.total_pages);
+            }
+        })
+        .catch(() => {
+            document.getElementById('search-results-list').innerHTML = '<div class="text-center py-8"><p class="text-red-400">Search failed.</p></div>';
+        });
+}
+
+function renderPagination(current, total) {
+    let html = '';
+    if (current > 1) {
+        html += `<button onclick="goSearchPage(${current - 1})" class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100">&laquo; Prev</button>`;
+    }
+    for (let p = 1; p <= total; p++) {
+        if (p === current) {
+            html += `<span class="px-3 py-1.5 text-sm font-bold rounded-lg bg-blue-600 text-white">${p}</span>`;
+        } else if (p === 1 || p === total || (p >= current - 2 && p <= current + 2)) {
+            html += `<button onclick="goSearchPage(${p})" class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100">${p}</button>`;
+        } else if (p === current - 3 || p === current + 3) {
+            html += `<span class="text-gray-400 px-1">&hellip;</span>`;
+        }
+    }
+    if (current < total) {
+        html += `<button onclick="goSearchPage(${current + 1})" class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100">Next &raquo;</button>`;
+    }
+    return html;
+}
+
+function renderFilingCard(f) {
+    const newBadge = f.is_new ? '<span class="bg-green-100 text-green-700 text-[10px] font-bold uppercase px-2 py-0.5 rounded flex-shrink-0">New</span>' : '';
+    const borderNew = f.is_new ? 'border-l-4 border-l-green-500' : '';
+    const desc = f.description ? `<p class="text-xs text-gray-500 mt-1 mb-2 line-clamp-2">${escapeHtml(f.description)}</p>` : '';
+
+    let tags = '';
+    if (f.tags) {
+        tags = f.tags.split(',').filter(t => t.trim()).map(t => {
+            const cls = t.trim().toLowerCase().split(' ')[0];
+            return `<span class="tag tag-${cls} cursor-pointer" onclick="setTagFilter('${escapeAttr(t.trim())}')">${escapeHtml(t.trim())}</span>`;
+        }).join('');
+    }
+    if (f.has_xbrl) {
+        tags += `<span class="tag tag-xbrl cursor-pointer" onclick="viewXbrl(${f.id})">XBRL</span>`;
+    }
+
+    const noText = f.has_text ? '' : '<p class="text-xs text-gray-400 italic mt-2">PDF text pending — click to extract</p>';
+
+    return `
+    <div class="filing-card bg-white rounded-xl border border-gray-200 shadow-sm p-5 ${borderNew}" data-id="${f.id}" data-tags="${(f.tags||'').toLowerCase()}">
+        <div class="flex items-start justify-between gap-4 mb-1">
+            <div class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer" onclick="openViewer(${f.id})">
+                ${newBadge}
+                <h3 class="text-sm font-semibold text-gray-900 truncate">${escapeHtml(f.title)}</h3>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button onclick="summarizeFiling(${f.id}, this)" class="summarize-btn text-xs font-medium px-2.5 py-1 rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">&#x2728; Summarize</button>
+                <button onclick="viewChanges(${f.id})" class="view-changes-btn text-xs font-medium px-2.5 py-1 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">View Changes</button>
+                <span class="text-xs text-gray-400 whitespace-nowrap">${escapeHtml(f.date)}</span>
+            </div>
+        </div>
+        ${desc}
+        <div class="flex flex-wrap items-center gap-1.5 mt-2">${tags}</div>
+        <div id="summary-${f.id}" class="hidden mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+            <div class="flex items-center gap-1.5 mb-1.5"><span class="text-[10px] font-bold text-amber-700 uppercase">&#x2728; Summary</span></div>
+            <div class="summary-text text-xs text-gray-700 leading-relaxed whitespace-pre-line"></div>
+        </div>
+        ${noText}
+    </div>`;
+}
+
+/* ═════════════════════════════════════════════
+   DOCUMENT VIEWER
+   ═════════════════════════════════════════════ */
+function openViewer(id) {
+    currentViewerId = id;
+    const modal = document.getElementById('viewer-modal');
+    const loading = document.getElementById('viewer-loading');
+    const textEl = document.getElementById('viewer-text');
+    const notext = document.getElementById('viewer-notext');
+    const summaryEl = document.getElementById('viewer-summary');
+
+    modal.classList.remove('hidden');
+    loading.classList.remove('hidden');
+    textEl.classList.add('hidden');
+    notext.classList.add('hidden');
+    summaryEl.classList.add('hidden');
+    document.getElementById('viewer-title').textContent = 'Loading...';
+    document.getElementById('viewer-desc').textContent = '';
+    document.getElementById('viewer-date').textContent = '';
+    document.getElementById('viewer-tags').innerHTML = '';
+    document.getElementById('viewer-pdf-link').classList.add('hidden');
+
+    fetch(`/api/filing/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            loading.classList.add('hidden');
+            document.getElementById('viewer-title').textContent = data.title;
+            document.getElementById('viewer-desc').textContent = data.description || '';
+            document.getElementById('viewer-date').textContent = data.date;
+
+            if (data.pdf_link) {
+                const pdfLink = document.getElementById('viewer-pdf-link');
+                pdfLink.href = data.pdf_link;
+                pdfLink.classList.remove('hidden');
+            }
+
+            let tagsHtml = '';
+            if (data.tags) {
+                tagsHtml += data.tags.split(',').filter(t => t.trim()).map(t => {
+                    const cls = t.trim().toLowerCase().split(' ')[0];
+                    return `<span class="tag tag-${cls}">${escapeHtml(t.trim())}</span>`;
+                }).join('');
+            }
+            if (data.has_xbrl) tagsHtml += `<span class="tag tag-xbrl cursor-pointer" onclick="closeViewer();viewXbrl(${id})">XBRL</span>`;
+            document.getElementById('viewer-tags').innerHTML = tagsHtml;
+
+            if (data.summary) {
+                document.getElementById('viewer-summary-text').textContent = data.summary;
+                summaryEl.classList.remove('hidden');
+            }
+
+            if (data.has_text) {
+                textEl.querySelector('pre').textContent = data.text;
+                document.getElementById('viewer-char-count').textContent = data.text.length.toLocaleString() + ' characters extracted';
+                textEl.classList.remove('hidden');
+            } else {
+                notext.classList.remove('hidden');
+            }
+        })
+        .catch(() => { loading.classList.add('hidden'); notext.classList.remove('hidden'); });
+}
+
+function closeViewer() { document.getElementById('viewer-modal').classList.add('hidden'); currentViewerId = null; }
+function showDiffFromViewer() { if (currentViewerId) viewChanges(currentViewerId); }
+
+function summarizeFromViewer() {
+    if (!currentViewerId) return;
+    const summaryEl = document.getElementById('viewer-summary');
+    const textEl = document.getElementById('viewer-summary-text');
+    textEl.innerHTML = '<span class="text-amber-600 animate-pulse">Generating summary...</span>';
+    summaryEl.classList.remove('hidden');
+    fetch(`/api/summarize/${currentViewerId}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => { textEl.textContent = data.error ? (data.message || 'Could not generate summary.') : data.summary; })
+        .catch(() => { textEl.textContent = 'Failed to generate summary.'; });
+}
+
+/* ═════════════════════════════════════════════
+   AI SUMMARIZE (inline card)
+   ═════════════════════════════════════════════ */
+function summarizeFiling(id, btn, force=false) {
+    const container = document.getElementById(`summary-${id}`);
+    if (!container) return;
+    const textEl = container.querySelector('.summary-text');
+    const regenBtn = container.querySelector('.regen-btn');
+
+    // Toggle off if already visible (unless force regenerating)
+    if (!force && !container.classList.contains('hidden')) { container.classList.add('hidden'); return; }
+
+    container.classList.remove('hidden');
+    textEl.innerHTML = '<span class="text-amber-600 animate-pulse">Generating summary...</span>';
+    if (regenBtn) regenBtn.classList.add('hidden');
+    if (btn) { btn.disabled = true; btn.classList.add('opacity-60'); }
+
+    const url = `/api/summarize/${id}` + (force ? '?force=1' : '');
+    fetch(url, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (btn) { btn.disabled = false; btn.classList.remove('opacity-60'); }
+            if (data.error) {
+                textEl.textContent = data.message || 'Could not generate summary.';
+            } else {
+                textEl.textContent = data.summary;
+                // Show AI badge if it was an AI-generated summary
+                const badge = container.querySelector('.ai-badge');
+                if (data.ai && !badge) {
+                    const span = document.createElement('span');
+                    span.className = 'ai-badge text-[9px] font-medium text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded ml-2';
+                    span.textContent = '✦ AI Summary';
+                    container.querySelector('.summary-label')?.appendChild(span);
+                }
+                if (force) {
+                    // Flash to indicate regeneration happened
+                    container.style.transition = 'background 0.3s';
+                    container.style.background = '#fef9c3';
+                    setTimeout(() => { container.style.background = ''; }, 1500);
+                }
+            }
+            if (regenBtn) regenBtn.classList.remove('hidden');
+        })
+        .catch(() => {
+            if (btn) { btn.disabled = false; btn.classList.remove('opacity-60'); }
+            textEl.textContent = 'Failed.';
+        });
+}
+
+/* ═════════════════════════════════════════════
+   XBRL
+   ═════════════════════════════════════════════ */
+function viewXbrl(id) {
+    const modal = document.getElementById('xbrl-modal');
+    const loading = document.getElementById('xbrl-loading');
+    const content = document.getElementById('xbrl-content');
+    const errorEl = document.getElementById('xbrl-error');
+    modal.classList.remove('hidden'); loading.classList.remove('hidden');
+    content.classList.add('hidden'); errorEl.classList.add('hidden');
+
+    fetch(`/api/xbrl/${id}`).then(r => r.json()).then(data => {
+        loading.classList.add('hidden');
+        if (data.error) {
+            document.getElementById('xbrl-error-msg').innerHTML = `<p class="text-gray-500">${data.message}</p>` + (data.has_flag ? '<p class="text-xs text-gray-400 mt-2">XBRL flag indicates this filing was submitted with XBRL tagging on NSE portal.</p>' : '');
+            errorEl.classList.remove('hidden'); return;
+        }
+        let html = '';
+        for (const xf of data.xbrl_data) {
+            html += `<div class="mb-4"><h4 class="text-sm font-semibold text-gray-700 mb-2">${xf.file_name}</h4>`;
+            if (xf.facts && xf.facts.length) {
+                html += '<table class="w-full text-xs border-collapse"><thead><tr><th class="text-left p-2 border-b border-gray-200 text-gray-500">Field</th><th class="text-left p-2 border-b border-gray-200 text-gray-500">Value</th><th class="text-left p-2 border-b border-gray-200 text-gray-500">Context</th></tr></thead><tbody>';
+                for (const fact of xf.facts) html += `<tr class="hover:bg-gray-50"><td class="p-2 border-b border-gray-100 font-mono text-blue-700">${fact.field}</td><td class="p-2 border-b border-gray-100">${fact.value}</td><td class="p-2 border-b border-gray-100 text-gray-400">${fact.context}</td></tr>`;
+                html += '</tbody></table>';
+            }
+            if (xf.raw_preview) html += `<details class="mt-2"><summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Raw XML preview</summary><pre class="mt-1 p-3 bg-gray-50 rounded text-[10px] text-gray-600 overflow-x-auto">${escapeHtml(xf.raw_preview)}</pre></details>`;
+            html += '</div>';
+        }
+        content.innerHTML = html; content.classList.remove('hidden');
+    }).catch(() => { loading.classList.add('hidden'); document.getElementById('xbrl-error-msg').textContent = 'Failed.'; errorEl.classList.remove('hidden'); });
+}
+function closeXbrl() { document.getElementById('xbrl-modal').classList.add('hidden'); }
+
+/* ═════════════════════════════════════════════
+   DIFF VIEWER
+   ═════════════════════════════════════════════ */
+let currentDiffFilingId = null;       // the filing whose "View Changes" was clicked
+let pickerFilingsList = [];           // cached list for the picker
+
+function viewChanges(id) {
+    currentDiffFilingId = id;
+    _loadDiff(`/api/compare/${id}`);
+}
+
+function compareManual(idA, idB) {
+    _loadDiff(`/api/compare/${idA}/${idB}`);
+}
+
+function _loadDiff(url) {
+    const modal = document.getElementById('diff-modal');
+    const loading = document.getElementById('diff-loading');
+    const errorEl = document.getElementById('diff-error');
+    const inlineEl = document.getElementById('diff-inline');
+    const sbsEl = document.getElementById('diff-sbs');
+    modal.classList.remove('hidden'); loading.classList.remove('hidden');
+    errorEl.classList.add('hidden'); inlineEl.classList.add('hidden'); sbsEl.classList.add('hidden');
+
+    fetch(url).then(r => r.json()).then(data => {
+        loading.classList.add('hidden');
+        if (data.error) { document.getElementById('diff-error-msg').textContent = data.message; errorEl.classList.remove('hidden'); return; }
+        cachedDiffData = data;
+        const reasonBadge = data.match_reason ? `<span class="inline-block ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-100 text-indigo-700">${escapeHtml(data.match_reason)}</span>` : '';
+        document.getElementById('diff-subtitle').innerHTML =
+            `<span class="text-gray-800 font-medium">${escapeHtml(data.current.title)}</span> <span class="text-gray-400">(${data.current.date})</span>` +
+            `<span class="text-gray-400 mx-2">vs</span>` +
+            `<span class="text-gray-800 font-medium">${escapeHtml(data.previous.title)}</span> <span class="text-gray-400">(${data.previous.date})</span>` + reasonBadge;
+        inlineEl.innerHTML = data.inline_diff; sbsEl.innerHTML = data.side_by_side_diff;
+        switchDiffMode('inline');
+    }).catch(() => { loading.classList.add('hidden'); document.getElementById('diff-error-msg').textContent = 'Failed to load comparison.'; errorEl.classList.remove('hidden'); });
+}
+
+function switchDiffMode(mode) {
+    const inl = document.getElementById('diff-inline'), sbs = document.getElementById('diff-sbs');
+    const bi = document.getElementById('btn-inline'), bs = document.getElementById('btn-sbs');
+    if (mode === 'inline') { inl.classList.remove('hidden'); sbs.classList.add('hidden'); bi.className = 'px-3 py-1.5 font-medium bg-blue-600 text-white'; bs.className = 'px-3 py-1.5 font-medium text-gray-600 hover:bg-gray-50'; }
+    else { inl.classList.add('hidden'); sbs.classList.remove('hidden'); bs.className = 'px-3 py-1.5 font-medium bg-blue-600 text-white'; bi.className = 'px-3 py-1.5 font-medium text-gray-600 hover:bg-gray-50'; }
+}
+
+function closeDiff() { document.getElementById('diff-modal').classList.add('hidden'); cachedDiffData = {}; }
+
+/* ═════════════════════════════════════════════
+   COMPARE-ANY-TWO — picker on the Compare tab
+   Powered by /api/filings_list/<symbol>; filters as you type by date or
+   title; clicking selects, hitting "Compare Filings" reuses the existing
+   compareManual() → /api/compare/<a>/<b> flow that the picker modal
+   already wires up.
+   ═════════════════════════════════════════════ */
+let _anyCompareFilings = [];
+let _anyCompareA = null;
+let _anyCompareB = null;
+
+function loadAnyCompareFilings() {
+    if (_anyCompareFilings.length) return;
+    fetch(`/api/filings_list/${SELECTED}`).then(r => r.json()).then(data => {
+        _anyCompareFilings = (data.filings || []).slice().sort((x, y) => {
+            return (y.sort_date || y.date || '').localeCompare(x.sort_date || x.date || '');
+        });
+        document.getElementById('any-compare-count').textContent =
+            `${_anyCompareFilings.length} filings on file`;
+    });
+}
+
+function _matchesQuery(f, q) {
+    if (!q) return true;
+    const hay = ((f.title || '') + ' ' + (f.date || '') + ' ' + (f.tags || '') + ' ' + (f.sort_date || '')).toLowerCase();
+    return hay.includes(q);
+}
+
+function _renderAnyCompareList(side) {
+    const inputEl = document.getElementById(`any-compare-${side}-input`);
+    const listEl  = document.getElementById(`any-compare-${side}-list`);
+    const q = (inputEl.value || '').toLowerCase().trim();
+
+    const matches = _anyCompareFilings.filter(f => _matchesQuery(f, q)).slice(0, 60);
+    if (!matches.length) {
+        listEl.innerHTML = '<p class="px-3 py-3 text-xs text-gray-400">No matching filings.</p>';
+        listEl.classList.remove('hidden');
+        return;
+    }
+    listEl.innerHTML = matches.map(f => {
+        const noText = f.has_text ? '' : ' <span class="text-[9px] text-gray-400">(no text)</span>';
+        return `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                     onclick="pickAnyCompare('${side}', ${f.id})">
+            <p class="text-xs font-medium text-gray-900 truncate">${escapeHtml(f.title)}${noText}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">${escapeHtml(f.date || '')}</p>
+        </div>`;
+    }).join('');
+    listEl.classList.remove('hidden');
+}
+
+function pickAnyCompare(side, filingId) {
+    const f = _anyCompareFilings.find(x => x.id === filingId);
+    if (!f) return;
+    if (side === 'a') _anyCompareA = f; else _anyCompareB = f;
+    document.getElementById(`any-compare-${side}-input`).value = `${f.date} — ${f.title}`;
+    document.getElementById(`any-compare-${side}-list`).classList.add('hidden');
+    const sel = document.getElementById(`any-compare-${side}-selected`);
+    sel.textContent = `Selected: filing #${f.id}`;
+    sel.classList.remove('hidden');
+    _refreshAnyCompareStatus();
+}
+
+function _refreshAnyCompareStatus() {
+    const status = document.getElementById('any-compare-status');
+    const btn = document.getElementById('any-compare-btn');
+    if (!_anyCompareA || !_anyCompareB) {
+        status.textContent = 'Pick a filing on each side.';
+        btn.disabled = true; return;
+    }
+    if (_anyCompareA.id === _anyCompareB.id) {
+        status.innerHTML = '<span class="text-amber-600">Pick two different filings.</span>';
+        btn.disabled = true; return;
+    }
+    if (!_anyCompareA.has_text || !_anyCompareB.has_text) {
+        status.innerHTML = '<span class="text-amber-600">One of the filings has no extracted text — diff will trigger on-demand extraction.</span>';
+    } else {
+        status.textContent = 'Ready.';
+    }
+    btn.disabled = false;
+}
+
+function runAnyCompare() {
+    if (!_anyCompareA || !_anyCompareB) return;
+    // Order older→newer for the diff baseline regardless of which slot user used.
+    const a = _anyCompareA, b = _anyCompareB;
+    const aDate = a.sort_date || a.date || '';
+    const bDate = b.sort_date || b.date || '';
+    const [older, newer] = aDate <= bDate ? [a, b] : [b, a];
+    compareManual(older.id, newer.id);
+}
+
+// Live autocomplete bindings — set up after DOM ready below.
+function _wireAnyCompareInputs() {
+    ['a', 'b'].forEach(side => {
+        const inp = document.getElementById(`any-compare-${side}-input`);
+        if (!inp) return;
+        inp.addEventListener('focus', () => { loadAnyCompareFilings(); _renderAnyCompareList(side); });
+        inp.addEventListener('input', () => { _renderAnyCompareList(side); });
+        inp.addEventListener('blur', () => {
+            // Delay so click-on-list-item has a chance to register first.
+            setTimeout(() => document.getElementById(`any-compare-${side}-list`).classList.add('hidden'), 200);
+        });
+    });
+}
+document.addEventListener('DOMContentLoaded', _wireAnyCompareInputs);
+
+/* ═════════════════════════════════════════════
+   FILING PICKER — manual comparison selector
+   ═════════════════════════════════════════════ */
+function openFilingPicker() {
+    if (!currentDiffFilingId) return;
+    const modal = document.getElementById('picker-modal');
+    const loading = document.getElementById('picker-loading');
+    const listEl = document.getElementById('picker-list');
+    modal.classList.remove('hidden'); loading.classList.remove('hidden'); listEl.classList.add('hidden');
+    document.getElementById('picker-search').value = '';
+
+    document.getElementById('picker-subtitle').textContent =
+        `Comparing against filing #${currentDiffFilingId} — pick any filing below`;
+
+    fetch(`/api/filings_list/${SELECTED}`).then(r => r.json()).then(data => {
+        loading.classList.add('hidden');
+        pickerFilingsList = data.filings.filter(f => f.id !== currentDiffFilingId);
+        renderPickerList(pickerFilingsList);
+        listEl.classList.remove('hidden');
+    }).catch(() => { loading.classList.add('hidden'); });
+}
+
+function filterPicker() {
+    const q = document.getElementById('picker-search').value.toLowerCase().trim();
+    if (!q) { renderPickerList(pickerFilingsList); return; }
+    const filtered = pickerFilingsList.filter(f =>
+        f.title.toLowerCase().includes(q) ||
+        f.date.toLowerCase().includes(q) ||
+        (f.tags || '').toLowerCase().includes(q) ||
+        (f.sort_date || '').includes(q)
+    );
+    renderPickerList(filtered);
+}
+
+function renderPickerList(filings) {
+    const listEl = document.getElementById('picker-list');
+    if (!filings.length) {
+        listEl.innerHTML = '<p class="text-center text-gray-400 py-8">No matching filings.</p>';
+        return;
+    }
+
+    // Group by month
+    const groups = {};
+    for (const f of filings) {
+        const sd = f.sort_date || f.date;
+        let monthKey = 'Unknown';
+        if (sd.length >= 7) {
+            // sort_date is "2026-03-20 ..." or date is "20-Mar-2026 ..."
+            const d = new Date(sd);
+            if (!isNaN(d)) {
+                monthKey = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+            } else {
+                monthKey = sd.substring(0, 7);
+            }
+        }
+        if (!groups[monthKey]) groups[monthKey] = [];
+        groups[monthKey].push(f);
+    }
+
+    let html = '';
+    for (const [month, items] of Object.entries(groups)) {
+        html += `<div class="mb-4">
+            <div class="sticky top-0 bg-white z-10 py-1.5 px-2 border-b border-gray-100">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">${escapeHtml(month)}</span>
+                <span class="text-[10px] text-gray-300 ml-1">(${items.length})</span>
+            </div>`;
+        for (const f of items) {
+            const noTextCls = f.has_text ? '' : 'opacity-50';
+            const noTextBadge = f.has_text ? '' : '<span class="text-[9px] text-gray-400 ml-1">(no text)</span>';
+            const tagBadges = (f.tags || '').split(',').filter(t => t.trim()).slice(0, 3).map(t => {
+                const cls = t.trim().toLowerCase().split(' ')[0];
+                return `<span class="tag tag-${cls}" style="font-size:9px;padding:1px 5px">${escapeHtml(t.trim())}</span>`;
+            }).join('');
+
+            html += `
+            <div class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-violet-50 cursor-pointer transition-colors ${noTextCls}"
+                 onclick="pickFiling(${f.id})">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm text-gray-800 font-medium truncate">${escapeHtml(f.title)}${noTextBadge}</p>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-[10px] text-gray-400">${escapeHtml(f.date)}</span>
+                        <div class="flex gap-1">${tagBadges}</div>
+                    </div>
+                </div>
+                <svg class="w-4 h-4 text-violet-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>`;
+        }
+        html += '</div>';
+    }
+    listEl.innerHTML = html;
+}
+
+function pickFiling(targetId) {
+    closePicker();
+    compareManual(currentDiffFilingId, targetId);
+}
+
+function closePicker() { document.getElementById('picker-modal').classList.add('hidden'); }
+
+/* ═════════════════════════════════════════════
+   UTILS
+   ═════════════════════════════════════════════ */
+function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+function escapeAttr(t) { return t.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        if (!document.getElementById('gov-compare-modal').classList.contains('hidden')) closeGovCompare();
+        else if (!document.getElementById('picker-modal').classList.contains('hidden')) closePicker();
+        else if (!document.getElementById('xbrl-modal').classList.contains('hidden')) closeXbrl();
+        else if (!document.getElementById('diff-modal').classList.contains('hidden')) closeDiff();
+        else if (!document.getElementById('viewer-modal').classList.contains('hidden')) closeViewer();
+    }
+});
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', e => {
+        if (e.target === el) {
+            if (el.id === 'gov-compare-modal') closeGovCompare();
+            else if (el.id === 'picker-modal') closePicker();
+            else if (el.id === 'xbrl-modal') closeXbrl();
+            else if (el.id === 'diff-modal') closeDiff();
+            else closeViewer();
+        }
+    });
+});
+
+/* ═════════════════════════════════════════════
+   REFRESH
+   ═════════════════════════════════════════════ */
+function refreshFilings() {
+    const btn = document.getElementById('refresh-btn');
+    const text = document.getElementById('refresh-text');
+    const icon = document.getElementById('refresh-icon');
+    const loading = document.getElementById('loading');
+    const toast = document.getElementById('toast');
+    btn.disabled = true; btn.classList.add('opacity-60');
+    text.textContent = 'Fetching...'; icon.classList.add('animate-spin');
+    loading.classList.remove('hidden'); toast.classList.add('hidden');
+
+    fetch(`/api/refresh/${SELECTED}`, { method: 'POST' }).then(r => r.json()).then(data => {
+        loading.classList.add('hidden');
+        if (data.status === 'ok') {
+            toast.textContent = data.new_count > 0 ? `${data.new_count} new filing(s) found` : 'No new filings';
+            toast.className = 'text-sm font-medium px-4 py-2 rounded-lg ' + (data.new_count > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500');
+            setTimeout(() => window.location.reload(), 800);
+        } else { alert('Error: ' + (data.message || 'unknown')); reset(); }
+    }).catch(() => { alert('Network error'); reset(); });
+
+    function reset() { btn.disabled = false; btn.classList.remove('opacity-60'); text.textContent = 'Refresh'; icon.classList.remove('animate-spin'); loading.classList.add('hidden'); }
+}
+
+/* ═════════════════════════════════════════════
+   TAB SWITCHING
+   ═════════════════════════════════════════════ */
+let activeTab = 'announcements';
+// Honor ?tab=compare (or ?tab=governance) from URL on initial load — used by
+// the sidebar "Announcements" / "Compare" shortcuts.
+(function preselectTabFromUrl() {
+    try {
+        const p = new URLSearchParams(window.location.search).get('tab');
+        if (p === 'compare' || p === 'governance') activeTab = 'governance';
+        else if (p === 'announcements') activeTab = 'announcements';
+    } catch (e) { /* ignore */ }
+})();
+let govReportsList = [];
+let govReportsCache = {};
+
+function govLabel(r) {
+    let label = `Q: ${r.quarter}`;
+    if (r.revised) label += ' (Revised)';
+    if (r.submissionDate) label += ` — Filed ${r.submissionDate}`;
+    return label;
+}
+
+function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active', 'border-blue-600', 'text-blue-600', 'font-semibold');
+        b.classList.add('text-gray-500', 'border-transparent', 'font-medium');
+    });
+    const activeBtn = document.getElementById(`tab-${tab}`);
+    activeBtn.classList.add('active', 'border-blue-600', 'text-blue-600', 'font-semibold');
+    activeBtn.classList.remove('text-gray-500', 'border-transparent', 'font-medium');
+
+    document.getElementById('panel-announcements').classList.toggle('hidden', tab !== 'announcements');
+    document.getElementById('panel-governance').classList.toggle('hidden', tab !== 'governance');
+    // Governance XBRL list is loaded lazily — only when the user opens the
+    // collapsible "Governance snapshot" section, not on tab switch.
+}
+
+// Lazy-load: only hit the API when the user expands the Governance panel.
+// Renamed from toggleGovSection() to avoid colliding with the per-section
+// expander defined further down (which takes an id argument).
+let _govLoaded = false;
+function toggleGovPanel() {
+    const body = document.getElementById('gov-section-body');
+    const chev = document.getElementById('gov-chevron');
+    const willOpen = body.classList.contains('hidden');
+    body.classList.toggle('hidden');
+    if (chev) chev.style.transform = willOpen ? 'rotate(180deg)' : '';
+    if (willOpen && !_govLoaded) {
+        _govLoaded = true;
+        loadGovernanceList();
+    }
+}
+
+function loadGovernanceList() {
+    const loading = document.getElementById('gov-loading');
+    const content = document.getElementById('gov-content');
+    const empty = document.getElementById('gov-empty');
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+    empty.classList.add('hidden');
+
+    fetch(`/api/governance/${SELECTED}`)
+        .then(r => r.json())
+        .then(data => {
+            loading.classList.add('hidden');
+            govReportsList = data.reports || [];
+            if (!govReportsList.length) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            // ONE select with ALL reports (no more paginated dropdown).
+            const optionsHtml = govReportsList.map(r =>
+                `<option value="${r.recordId}">${govLabel(r)}</option>`
+            ).join('');
+            document.getElementById('gov-report-select').innerHTML = optionsHtml;
+            document.getElementById('gov-compare-other').innerHTML = optionsHtml;
+
+            // Header count
+            document.getElementById('gov-report-count').textContent =
+                `(${govReportsList.length} quarterly reports — latest ${govReportsList[0].quarter})`;
+
+            // Disable "Compare with previous" if there's only one report
+            const prevBtn = document.getElementById('gov-compare-prev-btn');
+            if (prevBtn) prevBtn.disabled = govReportsList.length < 2;
+
+            content.classList.remove('hidden');
+            loadGovernanceReport();
+        })
+        .catch(() => {
+            loading.classList.add('hidden');
+            empty.classList.remove('hidden');
+        });
+}
+
+function loadGovernanceReport() {
+    const recId = document.getElementById('gov-report-select').value;
+    if (!recId) return;
+
+    const reportLoading = document.getElementById('gov-report-loading');
+    const reportContent = document.getElementById('gov-report-content');
+    reportLoading.classList.remove('hidden');
+    reportContent.innerHTML = '';
+
+    // Check cache
+    if (govReportsCache[recId]) {
+        reportLoading.classList.add('hidden');
+        renderGovernanceReport(govReportsCache[recId]);
+        return;
+    }
+
+    fetch(`/api/governance/${SELECTED}/${recId}`)
+        .then(r => r.json())
+        .then(data => {
+            reportLoading.classList.add('hidden');
+            if (data.error) {
+                reportContent.innerHTML = `<div class="text-center py-8"><p class="text-red-400">${data.message}</p></div>`;
+                return;
+            }
+            govReportsCache[recId] = data.report;
+            renderGovernanceReport(data.report);
+        })
+        .catch(() => {
+            reportLoading.classList.add('hidden');
+            reportContent.innerHTML = '<div class="text-center py-8"><p class="text-red-400">Failed to load report.</p></div>';
+        });
+}
+
+function renderGovernanceReport(report) {
+    const container = document.getElementById('gov-report-content');
+    if (!report || !report.sections || !report.sections.length) {
+        container.innerHTML = '<div class="text-center py-8"><p class="text-gray-400">No data in this report.</p></div>';
+        return;
+    }
+
+    container.innerHTML = report.sections.map((section, idx) => {
+        let bodyHtml = '';
+
+        if (section.type === 'table' && section.rows) {
+            const headers = (section.columns || []).map(c =>
+                `<th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200 bg-gray-50">${escapeHtml(c)}</th>`
+            ).join('');
+            const rows = section.rows.map(row =>
+                '<tr class="hover:bg-gray-50">' + row.map(cell =>
+                    `<td class="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-100">${escapeHtml(String(cell || '-'))}</td>`
+                ).join('') + '</tr>'
+            ).join('');
+            bodyHtml = `<div class="overflow-x-auto"><table class="w-full border-collapse"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div>`;
+        } else if (section.type === 'text') {
+            bodyHtml = `<pre class="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed p-4 bg-gray-50 rounded-lg">${escapeHtml(section.text || '')}</pre>`;
+        } else if (section.type === 'key_value' && section.items) {
+            bodyHtml = section.items.map(item => {
+                if (item.field) {
+                    return `<div class="flex items-start gap-3 py-2 border-b border-gray-100"><span class="text-xs font-medium text-gray-500 w-48 flex-shrink-0">${escapeHtml(item.field)}</span><span class="text-xs text-gray-800">${escapeHtml(item.value || '-')}</span></div>`;
+                }
+                return `<div class="py-2 border-b border-gray-100 text-xs text-gray-700">${escapeHtml(JSON.stringify(item))}</div>`;
+            }).join('');
+            bodyHtml = `<div class="p-4">${bodyHtml}</div>`;
+        }
+
+        return `
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <button onclick="toggleGovSection('gov-section-${idx}')"
+                class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-sm font-bold text-gray-900">${escapeHtml(section.title)}</h3>
+                    <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">${escapeHtml(section.summary || '')}</span>
+                </div>
+                <svg class="w-4 h-4 text-gray-400 gov-chevron transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
+            <div id="gov-section-${idx}" class="${idx === 0 ? '' : 'hidden'}">
+                ${bodyHtml}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toggleGovSection(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('hidden');
+}
+
+/* Governance Compare */
+// One-click: compare currently-selected report with the next-older one.
+function compareWithPreviousQuarter() {
+    if (!govReportsList || govReportsList.length < 2) return;
+    const currentId = document.getElementById('gov-report-select').value;
+    const idx = govReportsList.findIndex(r => String(r.recordId) === String(currentId));
+    if (idx < 0) return;
+    // Newer is at lower index; older is the next index.
+    const olderIdx = idx + 1;
+    if (olderIdx >= govReportsList.length) {
+        alert('This is the oldest report on file — no previous quarter to compare with.');
+        return;
+    }
+    _runGovCompare(govReportsList[olderIdx].recordId, govReportsList[idx].recordId);
+}
+
+// Reveal the inline picker so user can compare with a specific older quarter.
+function openGovCompareCustom() {
+    const panel = document.getElementById('gov-compare-custom');
+    const sel = document.getElementById('gov-compare-other');
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) {
+        // Default the picker to the previous quarter.
+        const currentId = document.getElementById('gov-report-select').value;
+        const idx = govReportsList.findIndex(r => String(r.recordId) === String(currentId));
+        if (idx >= 0 && idx + 1 < govReportsList.length) {
+            sel.value = govReportsList[idx + 1].recordId;
+        }
+    }
+}
+function openGovCompareInline() {
+    const otherId = document.getElementById('gov-compare-other').value;
+    const currentId = document.getElementById('gov-report-select').value;
+    if (!otherId || !currentId || otherId === currentId) {
+        alert('Pick a different quarter to compare with.');
+        return;
+    }
+    // Order: older as A, newer as B.
+    const idxA = govReportsList.findIndex(r => String(r.recordId) === String(otherId));
+    const idxB = govReportsList.findIndex(r => String(r.recordId) === String(currentId));
+    const [olderId, newerId] = idxA > idxB ? [otherId, currentId] : [currentId, otherId];
+    _runGovCompare(olderId, newerId);
+}
+
+// Backward-compatible inner: opens the existing modal with the structured
+// XBRL diff. Same machinery as before; just driven by simpler entry points.
+function _runGovCompare(idA, idB) {
+    if (!idA || !idB) {
+        alert('Please select two reports to compare.');
+        return;
+    }
+    if (idA === idB) {
+        alert('Please select two different reports to compare.');
+        return;
+    }
+    const modal = document.getElementById('gov-compare-modal');
+    const loading = document.getElementById('gov-compare-loading');
+    const content = document.getElementById('gov-compare-content');
+    const error = document.getElementById('gov-compare-error');
+    modal.classList.remove('hidden');
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+    error.classList.add('hidden');
+
+    const labelA = govReportsList.find(r => r.recordId === idA);
+    const labelB = govReportsList.find(r => r.recordId === idB);
+    document.getElementById('gov-compare-subtitle').textContent =
+        `${labelA ? labelA.quarter : idA} vs ${labelB ? labelB.quarter : idB}`;
+
+    fetch(`/api/governance/compare/${SELECTED}/${idA}/${idB}`)
+        .then(r => r.json())
+        .then(data => {
+            loading.classList.add('hidden');
+            if (data.error) {
+                error.classList.remove('hidden');
+                return;
+            }
+            renderGovCompare(data);
+            content.classList.remove('hidden');
+        })
+        .catch(() => {
+            loading.classList.add('hidden');
+            error.classList.remove('hidden');
+        });
+}
+
+function formatCompareItem(item) {
+    // Highlight NEW/DEPARTED/REMOVED/CHANGED/ROLE CHANGED keywords
+    let html = escapeHtml(item);
+
+    // Make LinkedIn URLs clickable
+    html = html.replace(
+        /LinkedIn:\s*(https:\/\/www\.linkedin\.com\/[^\s]+)/g,
+        'LinkedIn: <a href="$1" target="_blank" class="text-blue-600 hover:underline">View Profile &rarr;</a>'
+    );
+
+    // Bold key labels
+    html = html.replace(/^(NEW DIRECTOR|DEPARTED|NEW MEMBER|REMOVED|CHANGED|ROLE CHANGED|NEW in Report B|REMOVED in Report B):/,
+        '<span class="font-bold">$1</span>:');
+
+    // Color-code field labels
+    html = html.replace(/\| (Position|Role|Category|Date of Appointment|Effective date of cessation|Cessation|Appointed|DIN|Role held|Position held|Tenure|Directorships|Committee Memberships):/g,
+        '| <span class="text-gray-500 font-medium">$1:</span>');
+
+    // Highlight arrows for changes
+    html = html.replace(/-&gt;/g, '<span class="text-blue-600 font-bold">&rarr;</span>');
+
+    return html;
+}
+
+function renderGovCompare(data) {
+    const container = document.getElementById('gov-compare-content');
+    const changes = data.changes || [];
+
+    if (!changes.length) {
+        container.innerHTML = '<div class="text-center py-8"><p class="text-gray-400">No changes detected between these reports.</p></div>';
+        return;
+    }
+
+    container.innerHTML = changes.map(change => {
+        const typeColors = {
+            addition: 'bg-green-50 border-green-200',
+            removal: 'bg-red-50 border-red-200',
+            change: 'bg-amber-50 border-amber-200',
+            unchanged: 'bg-gray-50 border-gray-200',
+        };
+        const typeIcons = {
+            addition: '<span class="text-green-600 text-lg font-bold">+</span>',
+            removal: '<span class="text-red-600 text-lg font-bold">&minus;</span>',
+            change: '<span class="text-amber-600 text-lg font-bold">~</span>',
+            unchanged: '<span class="text-gray-400 text-lg">=</span>',
+        };
+        const typeBadges = {
+            addition: '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">ADDED</span>',
+            removal: '<span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">REMOVED</span>',
+            change: '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">CHANGED</span>',
+            unchanged: '<span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">NO CHANGE</span>',
+        };
+        const colorClass = typeColors[change.type] || typeColors.unchanged;
+        const icon = typeIcons[change.type] || typeIcons.unchanged;
+        const badge = typeBadges[change.type] || typeBadges.unchanged;
+
+        const items = (change.items || []).map(item => {
+            // Style different item types
+            let liClass = 'text-sm text-gray-700 py-1.5 border-b border-gray-100 last:border-0';
+            if (item.startsWith('NEW DIRECTOR:') || item.startsWith('NEW MEMBER:'))
+                liClass += ' bg-green-50 px-3 rounded-lg my-1 border-0';
+            else if (item.startsWith('DEPARTED:') || item.startsWith('REMOVED:'))
+                liClass += ' bg-red-50 px-3 rounded-lg my-1 border-0';
+            else if (item.startsWith('CHANGED:') || item.startsWith('ROLE CHANGED:'))
+                liClass += ' bg-blue-50 px-3 rounded-lg my-1 border-0';
+
+            return `<li class="${liClass}">${formatCompareItem(item)}</li>`;
+        }).join('');
+
+        return `
+        <div class="rounded-xl border ${colorClass} p-5 shadow-sm">
+            <div class="flex items-center gap-2 mb-3">
+                ${icon}
+                <h4 class="text-sm font-bold text-gray-900">${escapeHtml(change.section)}</h4>
+                ${badge}
+            </div>
+            <ul class="space-y-0.5">${items}</ul>
+        </div>`;
+    }).join('');
+}
+
+function closeGovCompare() {
+    document.getElementById('gov-compare-modal').classList.add('hidden');
+}
+
+/* ═════════════════════════════════════════════
+   INIT — load tag filters
+   ═════════════════════════════════════════════ */
+loadTagFilters();
+
+// Kick the UI into the tab resolved from ?tab= (defaults to announcements).
+// This runs after all tab helpers above are declared.
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof switchTab === 'function' && activeTab && activeTab !== 'announcements') {
+        switchTab(activeTab);
+    }
+});
+</script>
+</body>
+</html>

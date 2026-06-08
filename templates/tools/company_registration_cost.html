@@ -1,0 +1,144 @@
+{% extends 'public_base.html' %}
+{% block title %}Company Registration Cost Calculator · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">Entity type</label>
+                <select id="type" class="input">
+                    <option value="private-ltd">Private Limited Company</option>
+                    <option value="opc">One Person Company (OPC)</option>
+                    <option value="llp">Limited Liability Partnership (LLP)</option>
+                </select>
+            </div>
+            <div>
+                <label class="label">Number of directors / partners</label>
+                <input id="directors" type="number" min="1" max="15" value="2" class="input">
+            </div>
+            <div id="capital-wrap">
+                <label class="label">Authorised share capital (₹)</label>
+                <input id="capital" type="number" min="0" step="1000" value="100000" class="input">
+            </div>
+            <div id="llp-contrib-wrap" style="display:none;">
+                <label class="label">LLP capital contribution (₹)</label>
+                <input id="llp-contrib" type="number" min="0" step="1000" value="100000" class="input">
+            </div>
+        </div>
+
+        <div class="result mt-6">
+            <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Estimated total cost</div>
+            <div class="mt-2 text-4xl font-extrabold text-slate-900" id="total">₹0</div>
+            <div class="mt-2 text-sm text-slate-600" id="range-note"></div>
+        </div>
+
+        <div class="mt-6">
+            <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Breakdown</div>
+            <div id="breakdown" class="space-y-2 text-sm"></div>
+        </div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Government-side fees follow Companies (Registration Offices and Fees) Rules, 2014. SPICe+ filing fee is zero where authorised capital is ≤ ₹15 lakh for Private Limited and OPC. State-specific stamp duty on MOA/AOA varies — the figure shown is a typical Maharashtra/Delhi reference. Professional fees are quoted as a typical industry range. Use the Stamp Duty calculator for state-specific MOA stamp computation.
+    </div>
+</section>
+
+<script>
+const COST = {{ cost_table | tojson }};
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+function compute() {
+    const type = document.getElementById('type').value;
+    const dirs = Math.max(1, parseInt(document.getElementById('directors').value || 1));
+    const capital = Math.max(0, parseFloat(document.getElementById('capital').value || 0));
+    const llpContrib = Math.max(0, parseFloat(document.getElementById('llp-contrib').value || 0));
+
+    document.getElementById('capital-wrap').style.display = (type === 'llp') ? 'none' : '';
+    document.getElementById('llp-contrib-wrap').style.display = (type === 'llp') ? '' : 'none';
+
+    const c = COST[type];
+    const rows = [];
+    let total = 0;
+
+    if (type === 'private-ltd' || type === 'opc') {
+        const dscCost = c.dsc_per_director * dirs;
+        rows.push({label: `DSC × ${dirs} (Class 3, 2 yrs)`, amount: dscCost});
+        total += dscCost;
+
+        const extraDins = Math.max(0, dirs - c.din_max_in_spice);
+        const dinCost = extraDins * c.din_per_director;
+        if (dinCost > 0) {
+            rows.push({label: `DIN application for ${extraDins} director(s) beyond ${c.din_max_in_spice}`, amount: dinCost});
+            total += dinCost;
+        } else {
+            rows.push({label: `DIN — included in SPICe+ for first ${c.din_max_in_spice} directors`, amount: 0});
+        }
+
+        rows.push({label: 'SPICe+ Part A (name reservation)', amount: c.name_reservation_runner});
+        total += c.name_reservation_runner;
+
+        const spiceFee = capital <= (c.spice_filing_fee_zero_threshold_cr * 10000000) ? 0 : c.spice_filing_fee_above;
+        rows.push({label: `SPICe+ filing fee (capital ${spiceFee === 0 ? '≤ ₹15 lakh' : '> ₹15 lakh'})`, amount: spiceFee});
+        total += spiceFee;
+
+        rows.push({label: 'MOA/AOA stamp duty (typical, state-specific)', amount: c.moa_stamp_duty_default});
+        total += c.moa_stamp_duty_default;
+
+        const profLow = c.professional_fee_range[0];
+        const profHigh = c.professional_fee_range[1];
+        const profMid = (profLow + profHigh) / 2;
+        rows.push({label: `Professional fees (typical range ${fmt(profLow)} – ${fmt(profHigh)})`, amount: profMid});
+        total += profMid;
+    } else if (type === 'llp') {
+        const dscCost = c.dsc_per_director * dirs;
+        rows.push({label: `DSC × ${dirs} (Class 3, 2 yrs)`, amount: dscCost});
+        total += dscCost;
+
+        const dpinCost = c.dpin_per_partner * dirs;
+        rows.push({label: `DPIN × ${dirs}`, amount: dpinCost});
+        total += dpinCost;
+
+        rows.push({label: 'RUN-LLP (name reservation)', amount: c.name_reservation_run_llp});
+        total += c.name_reservation_run_llp;
+
+        let fillip;
+        if (llpContrib <= 100000) fillip = c.fillip_filing_fee_under_1l;
+        else if (llpContrib <= 500000) fillip = c.fillip_filing_fee_1l_to_5l;
+        else if (llpContrib <= 1000000) fillip = c.fillip_filing_fee_5l_to_10l;
+        else fillip = c.fillip_filing_fee_5l_to_10l + 200;
+        rows.push({label: `FiLLiP filing fee (contribution ${fmt(llpContrib)})`, amount: fillip});
+        total += fillip;
+
+        rows.push({label: 'LLP agreement stamp duty (typical)', amount: c.llp_agreement_stamp_default});
+        total += c.llp_agreement_stamp_default;
+
+        const profLow = c.professional_fee_range[0];
+        const profHigh = c.professional_fee_range[1];
+        const profMid = (profLow + profHigh) / 2;
+        rows.push({label: `Professional fees (typical range ${fmt(profLow)} – ${fmt(profHigh)})`, amount: profMid});
+        total += profMid;
+    }
+
+    document.getElementById('total').textContent = fmt(total);
+    document.getElementById('range-note').textContent = `Range varies by state stamp duty and the professional firm engaged. Add 18% GST on professional fees.`;
+
+    document.getElementById('breakdown').innerHTML = rows.map(r =>
+        `<div class="flex justify-between gap-3 py-1.5 border-b border-slate-100">
+            <span class="text-slate-600">${r.label}</span>
+            <span class="font-semibold text-slate-900">${fmt(r.amount)}</span>
+         </div>`).join('');
+}
+['type','directors','capital','llp-contrib'].forEach(id => document.getElementById(id).addEventListener('input', compute));
+compute();
+</script>
+{% endblock %}

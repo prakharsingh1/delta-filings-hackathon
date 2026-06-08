@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchlist - Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-slate-50 text-gray-900">
+
+<div class="flex h-screen overflow-hidden">
+    {% set active_page = 'watchlist' %}
+    {% include 'sidebar.html' %}
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="page-title">Watchlist</h2>
+                    <p class="page-subtitle">{{ watchlist|length }} companies you're tracking</p>
+                </div>
+                <a href="/dashboard" class="btn btn-secondary text-sm">← Back to dashboard</a>
+            </div>
+        </div>
+
+        <div class="p-6 max-w-5xl mx-auto">
+            <!-- Add company -->
+            <div class="mb-6 relative" id="wl-add-wrapper">
+                <div class="relative">
+                    <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <input type="text" id="wl-add-input" placeholder="Add company to watchlist..."
+                           class="w-full pl-11 pr-4 py-3 text-sm border border-dashed border-gray-300 rounded-xl
+                                  focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                                  bg-white placeholder-gray-400"
+                           oninput="wlOnSearch()" autocomplete="off">
+                </div>
+                <div id="wl-add-suggestions" class="hidden absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto"></div>
+                <div id="wl-add-status" class="hidden mt-2 text-xs"></div>
+            </div>
+
+            {% if watchlist %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for w in watchlist %}
+                {% set sym = w.symbol if w is mapping else w %}
+                <div class="wl-card group">
+                    <a href="/company/{{ sym }}" class="flex items-start gap-3 flex-1 min-w-0">
+                        <span class="wl-card-dot" style="background: {{ ['#3b82f6','#22c55e','#f59e0b','#ec4899','#8b5cf6'][loop.index0 % 5] }}"></span>
+                        <div class="min-w-0">
+                            <div class="font-bold text-gray-900 truncate">{{ sym }}</div>
+                            {% if w is mapping and w.name %}
+                            <div class="text-xs text-gray-500 truncate mt-0.5">{{ w.name }}</div>
+                            {% endif %}
+                            {% if company_counts is defined and sym in company_counts %}
+                            <div class="text-[11px] text-indigo-600 font-medium mt-1.5">{{ company_counts[sym] }} filings</div>
+                            {% endif %}
+                        </div>
+                    </a>
+                    <button onclick="removeCompany('{{ sym }}')" title="Remove from watchlist"
+                            class="wl-card-remove opacity-0 group-hover:opacity-100">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-20 text-gray-400">
+                <p class="text-sm">Your watchlist is empty. Add a company from the sidebar.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+
+<style>
+    .wl-card {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 12px; padding: 16px 18px;
+        background: #fff; border: 1px solid var(--border, #e5e7eb);
+        border-radius: 14px; transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
+    }
+    .wl-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.07); transform: translateY(-2px); border-color: #c7d2fe; }
+    .wl-card-dot { width: 12px; height: 12px; border-radius: 9999px; flex-shrink: 0; margin-top: 4px; }
+    .wl-card-remove {
+        flex-shrink: 0; color: #9ca3af; padding: 4px; border-radius: 8px;
+        transition: color .15s ease, background .15s ease;
+    }
+    .wl-card-remove:hover { color: #e11d48; background: #fef2f2; }
+    html.dark .wl-card { background: var(--surface, #141414); border-color: var(--border, #262626); }
+    html.dark .wl-card:hover { border-color: #4f46e5; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+    html.dark #wl-add-input { background: var(--surface, #141414); border-color: var(--border, #333); color: var(--text, #f5f5f5); }
+    html.dark #wl-add-suggestions { background: var(--surface, #1c1c1c); border-color: var(--border, #333); }
+</style>
+
+<script>
+/* Add-company widget for the full watchlist page. Self-contained (own IDs)
+   so it never collides with the identical widget inside the sidebar. */
+const WL_EXISTING = {{ (companies if companies is defined else []) | tojson }};
+let _wlTimer = null, _wlSuggestions = [];
+
+function wlOnSearch() {
+    clearTimeout(_wlTimer);
+    const q = document.getElementById('wl-add-input').value.trim();
+    if (q.length < 2) { wlCloseSuggestions(); return; }
+    _wlTimer = setTimeout(() => {
+        fetch(`/api/symbol_search?q=${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(data => { _wlSuggestions = data.results || []; wlRender(q); })
+            .catch(() => wlCloseSuggestions());
+    }, 250);
+}
+
+function wlRender(query) {
+    const el = document.getElementById('wl-add-suggestions');
+    if (!_wlSuggestions.length) {
+        el.innerHTML = `<div class="px-4 py-3 text-xs text-gray-400">No matches for "${query}"</div>`;
+        el.classList.remove('hidden');
+        return;
+    }
+    const existing = new Set(WL_EXISTING.map(c => c.toUpperCase()));
+    el.innerHTML = _wlSuggestions.map(s => {
+        const already = existing.has(s.symbol.toUpperCase());
+        const badge = already ? '<span class="text-[9px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-medium">On watchlist</span>' : '';
+        const click = already ? '' : `onclick="wlAdd('${s.symbol}', '${s.name.replace(/'/g, "\\'")}')"`;
+        const cls = already ? 'cursor-default opacity-60' : 'cursor-pointer hover:bg-indigo-50';
+        return `<div class="px-4 py-2.5 ${cls} transition-colors border-b border-gray-50 last:border-0" ${click}>
+            <div class="flex items-center justify-between"><span class="text-sm font-bold text-gray-900">${s.symbol}</span>${badge}</div>
+            <p class="text-[11px] text-gray-500 mt-0.5 truncate">${s.name}</p></div>`;
+    }).join('');
+    el.classList.remove('hidden');
+}
+
+function wlCloseSuggestions() { document.getElementById('wl-add-suggestions').classList.add('hidden'); }
+
+document.addEventListener('click', e => {
+    if (!document.getElementById('wl-add-wrapper').contains(e.target)) wlCloseSuggestions();
+});
+
+function wlAdd(symbol, name) {
+    wlCloseSuggestions();
+    const input = document.getElementById('wl-add-input');
+    const statusEl = document.getElementById('wl-add-status');
+    input.value = ''; input.disabled = true;
+    statusEl.textContent = `Adding ${symbol}...`;
+    statusEl.className = 'mt-2 text-xs text-blue-600 animate-pulse';
+    statusEl.classList.remove('hidden');
+    fetch('/api/watchlist', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({symbol, name}) })
+        .then(r => r.json()).then(data => {
+            input.disabled = false;
+            if (data.error) { statusEl.textContent = data.message; statusEl.className = 'mt-2 text-xs text-amber-600'; setTimeout(() => statusEl.classList.add('hidden'), 2500); }
+            else { statusEl.textContent = `Added ${symbol} (${data.new_count} filings). Reloading…`; statusEl.className = 'mt-2 text-xs text-green-600 font-medium'; setTimeout(() => window.location.reload(), 900); }
+        }).catch(() => { input.disabled = false; statusEl.textContent = 'Network error'; statusEl.className = 'mt-2 text-xs text-red-500'; });
+}
+</script>
+</body>
+</html>
