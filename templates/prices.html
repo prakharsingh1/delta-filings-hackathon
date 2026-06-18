@@ -723,7 +723,9 @@ function renderRating(rating) {
     if (!box) return;
     if (!rating || rating.score == null) {
         box.innerHTML = `<div class="bg-white border border-gray-200 rounded-lg p-3 text-center">
-            <p class="text-xs text-gray-400">Analyst &amp; technical rating not available for this stock.</p></div>`;
+            <p class="text-xs text-gray-500 font-medium">Rating temporarily unavailable</p>
+            <p class="text-[10px] text-gray-400 mt-1">Our market-data source is rate-limiting requests right now.
+            It retries automatically — check back in a few minutes.</p></div>`;
         return;
     }
 
@@ -791,9 +793,15 @@ function renderRating(rating) {
             <div class="flex flex-wrap gap-1.5">${items.join('')}</div></div>`;
     }
 
-    const sourceNote = (rating.source === 'analyst' && a)
-        ? `Consensus of ${a.count} analyst${a.count === 1 ? '' : 's'} (via Yahoo Finance)`
-        : 'Computed from price technicals (no analyst coverage found)';
+    const viaLabel = a && a.via === 'tradingview' ? 'via TradingView' : 'via Yahoo Finance';
+    let sourceNote = (rating.source === 'analyst' && a)
+        ? `Consensus of ${a.count} analyst${a.count === 1 ? '' : 's'} (${viaLabel})`
+        : (rating.source === 'lite'
+            ? 'Quick signal from 52-week position — full technicals load shortly'
+            : 'Computed from price technicals (no analyst coverage found)');
+    if (rating.stale && rating.as_of) {
+        sourceNote = `<span class="text-amber-600 font-semibold">as of ${rating.as_of}</span> · ${sourceNote}`;
+    }
 
     box.innerHTML = `
         <div class="bg-white border border-gray-200 rounded-lg p-4">

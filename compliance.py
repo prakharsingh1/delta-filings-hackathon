@@ -3,6 +3,7 @@
 import sqlite3
 import os
 import json
+import calendar as _cal
 from datetime import datetime, date, timedelta
 from database import get_connection, get_watchlist, get_all_watchlist_symbols, get_cached_filings
 from compliance_verification import verify_obligation
@@ -10,175 +11,518 @@ from sebi_link_resolver import get_regulation_url, SEBI_REGULATIONS_INDEX
 
 # ── SEBI Mandates Registry ──
 # Each mandate defines: what, when, source link, applicable regulations
+# Stable source URLs for the non-SEBI regimes (SEBI links resolve dynamically
+# via sebi_source_key in get_all_mandates).
+_MCA_SRC = "https://www.mca.gov.in/content/mca/global/en/mca/e-filing/company-forms-download.html"
+_RBI_FIRMS = "https://firms.rbi.org.in/firms/"
+_RBI_FEMA = "https://www.rbi.org.in/Scripts/BS_FemaNotifications.aspx"
+_IT_SRC = "https://www.incometax.gov.in/iec/foportal/"
+_EPFO_SRC = "https://www.epfindia.gov.in/"
+_POSH_SRC = "https://wcd.nic.in/act/sexual-harassment-women-workplace-prevention-prohibition-and-redressal-act-2013"
+
+# ───────────────────────────────────────────────────────────────────────────
+# COMPLIANCE MANDATE CATALOG
+# The full universe of statutory filings an Indian company may owe — SEBI
+# (LODR / PIT / SAST), MCA / Companies Act (ROC e-forms), FEMA / RBI, and
+# Tax & Labour. This is the reference a Company Secretary works from.
+#
+# Each mandate: id, name, regulation, form (e-form / mode), description,
+# frequency, due rule, category, regime, applies_to, penalty, section_ref,
+# and a source (sebi_source_key for SEBI, else a direct `source` URL).
+# Frequencies that generate dated obligations: quarterly, half_yearly, annual.
+# event_based / monthly / ongoing are catalog-only (no auto due date).
+# ───────────────────────────────────────────────────────────────────────────
 SEBI_MANDATES = [
+    # ════════ SEBI · LODR (listed companies) ════════
     {
-        "id": "LODR-REG27",
-        "name": "Regulation 27 — Corporate Governance Report",
-        "regulation": "SEBI LODR Regulation 27",
-        "description": "Filed as part of the consolidated Integrated Filing- Governance within 30 days of quarter end (SEBI Circular Dec 2024 merged Regs 13/27/31/32).",
-        "frequency": "quarterly",
-        "due_days_after_quarter": 30,
-        "category": "Governance",
+        "id": "LODR-REG27", "name": "Reg 27 — Corporate Governance Report",
+        "regulation": "SEBI LODR Reg 27", "form": "Integrated Filing (Governance)",
+        "description": "Quarterly corporate governance report, filed as part of the consolidated Integrated Filing-Governance within 30 days of quarter end (SEBI Dec-2024 circular merged Regs 13/27/31/32).",
+        "frequency": "quarterly", "due_days_after_quarter": 30,
+        "category": "Governance", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "₹2,000/day (per stock exchange) under SOP for non-compliance.",
         "filed_via": "Integrated Filing- Governance",
-        "keywords": ["corporate governance", "regulation 27", "reg. 27", "reg 27", "governance report", "cg report", "compliance report", "compliance certificate"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2024/185",
+        "keywords": ["corporate governance", "regulation 27", "reg 27", "governance report", "cg report", "compliance certificate"],
+        "sebi_source_key": "lodr", "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2024/185",
         "section_ref": "Chapter IV, Regulation 27",
     },
     {
-        "id": "LODR-REG30",
-        "name": "Regulation 30 — Material Events Disclosure",
-        "regulation": "SEBI LODR Regulation 30",
-        "description": "Disclosure of material events or information to stock exchanges within 24 hours of occurrence.",
-        "frequency": "event_based",
-        "category": "Disclosure",
-        "keywords": ["regulation 30", "material event", "disclosure", "intimation"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2023/123",
-        "section_ref": "Chapter IV, Regulation 30",
-    },
-    {
-        "id": "LODR-REG31",
-        "name": "Regulation 31 — Shareholding Pattern",
-        "regulation": "SEBI LODR Regulation 31",
-        "description": "Filed as part of the consolidated Integrated Filing- Governance within 30 days of quarter end (SEBI Dec 2024 consolidation).",
-        "frequency": "quarterly",
-        "due_days_after_quarter": 30,
-        "category": "Periodic",
-        "filed_via": "Integrated Filing- Governance",
-        "keywords": ["shareholding pattern", "regulation 31", "shareholding"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2024/185",
-        "section_ref": "Chapter IV, Regulation 31",
-    },
-    {
-        "id": "LODR-REG33",
-        "name": "Regulation 33 — Financial Results",
-        "regulation": "SEBI LODR Regulation 33",
-        "description": "Submission of quarterly/annual financial results within 45/60 days of quarter/year end.",
-        "frequency": "quarterly",
-        "due_days_after_quarter": 45,
-        "due_days_annual": 60,
-        "category": "Financial",
+        "id": "LODR-REG33", "name": "Reg 33 — Financial Results",
+        "regulation": "SEBI LODR Reg 33", "form": "Quarterly/Annual results to exchanges",
+        "description": "Quarterly results within 45 days of quarter end; audited annual results within 60 days of year end.",
+        "frequency": "quarterly", "due_days_after_quarter": 45, "due_days_annual": 60,
+        "category": "Financial", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "₹5,000/day per exchange (SOP).",
         "keywords": ["financial result", "quarterly result", "annual result", "regulation 33"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2023/167",
+        "sebi_source_key": "lodr", "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2023/167",
         "section_ref": "Chapter IV, Regulation 33",
     },
     {
-        "id": "LODR-REG13",
-        "name": "Regulation 13 — Investor Grievance Statement",
-        "regulation": "SEBI LODR Regulation 13",
-        "description": "Statement of investor complaints, filed as part of the consolidated Integrated Filing- Governance within 30 days of quarter end (SEBI Dec 2024 consolidation).",
-        "frequency": "quarterly",
-        "due_days_after_quarter": 30,
-        "category": "Investor Relations",
+        "id": "LODR-REG31", "name": "Reg 31 — Shareholding Pattern",
+        "regulation": "SEBI LODR Reg 31", "form": "Integrated Filing (Governance)",
+        "description": "Shareholding pattern within 21 days of quarter end (now part of the consolidated Integrated Filing-Governance).",
+        "frequency": "quarterly", "due_days_after_quarter": 21,
+        "category": "Periodic", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "₹2,000/day per exchange (SOP).",
         "filed_via": "Integrated Filing- Governance",
-        "keywords": ["investor complaint", "grievance", "regulation 13", "investor grievance"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2024/185",
+        "keywords": ["shareholding pattern", "regulation 31", "shareholding"],
+        "sebi_source_key": "lodr", "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2024/185",
+        "section_ref": "Chapter IV, Regulation 31",
+    },
+    {
+        "id": "LODR-REG13", "name": "Reg 13(3) — Investor Grievance Report",
+        "regulation": "SEBI LODR Reg 13", "form": "Integrated Filing (Governance)",
+        "description": "Statement of investor complaints within 21 days of quarter end (part of Integrated Filing-Governance).",
+        "frequency": "quarterly", "due_days_after_quarter": 21,
+        "category": "Investor Relations", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "₹1,000/day per exchange (SOP).",
+        "filed_via": "Integrated Filing- Governance",
+        "keywords": ["investor complaint", "grievance", "regulation 13"],
+        "sebi_source_key": "lodr", "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2024/185",
         "section_ref": "Chapter III, Regulation 13",
     },
     {
-        "id": "LODR-REG74",
-        "name": "Regulation 74 — Registrar Certificate",
-        "regulation": "SEBI LODR Regulation 74",
-        "description": "Certificate from RTA regarding timely dematerialization of shares, within 30 days of quarter end.",
-        "frequency": "quarterly",
-        "due_days_after_quarter": 30,
-        "category": "Compliance",
-        "keywords": ["regulation 74", "registrar", "certificate", "dematerialization", "demat"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "",
-        "section_ref": "Chapter IX, Regulation 74",
+        "id": "LODR-REG74", "name": "Reg 74(5) — RTA / Demat Certificate",
+        "regulation": "SEBI LODR Reg 74", "form": "RTA certificate to exchanges",
+        "description": "Certificate from the Registrar & Transfer Agent on timely dematerialisation of shares, within 30 days of quarter end.",
+        "frequency": "quarterly", "due_days_after_quarter": 30,
+        "category": "Compliance", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "Advisory/penal action by exchange.",
+        "keywords": ["regulation 74", "registrar", "dematerialization", "demat"],
+        "sebi_source_key": "lodr", "section_ref": "Chapter IX, Regulation 74",
     },
     {
-        "id": "LODR-REG29",
-        "name": "Regulation 29 — Board Meeting Intimation",
-        "regulation": "SEBI LODR Regulation 29",
-        "description": "Prior intimation of board meetings at least 2 working days before (5 days for financial results).",
-        "frequency": "event_based",
-        "category": "Disclosure",
-        "keywords": ["board meeting intimation", "regulation 29", "prior intimation", "intimation of board"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "",
-        "section_ref": "Chapter IV, Regulation 29",
+        "id": "LODR-REG76-RSCA", "name": "Reg 76 — Reconciliation of Share Capital Audit",
+        "regulation": "SEBI (D&P) Reg 76", "form": "RSCA report (by PCS)",
+        "description": "Reconciliation of Share Capital Audit report by a Practising Company Secretary, within 30 days of quarter end.",
+        "frequency": "quarterly", "due_days_after_quarter": 30,
+        "category": "Compliance", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "Exchange penal action.",
+        "keywords": ["reconciliation of share capital", "rsca", "regulation 76"],
+        "sebi_source_key": "lodr", "section_ref": "SEBI (D&P) Reg 76",
     },
     {
-        "id": "LODR-REG39",
-        "name": "Regulation 39 — Loss of Share Certificate",
-        "regulation": "SEBI LODR Regulation 39",
-        "description": "Disclosure of information regarding loss of share certificates and issue of duplicate certificates.",
-        "frequency": "event_based",
-        "category": "Compliance",
-        "keywords": ["loss of share", "duplicate certificate", "regulation 39"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "",
-        "section_ref": "Chapter V, Regulation 39",
+        "id": "LODR-REG23-RPT", "name": "Reg 23(9) — Related Party Transactions",
+        "regulation": "SEBI LODR Reg 23(9)", "form": "RPT disclosure to exchanges",
+        "description": "Disclosure of related-party transactions on a consolidated basis, within 15 days of the half-year (aligned to financial results from FY24).",
+        "frequency": "half_yearly", "due_days_after_half": 15,
+        "category": "Governance", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "₹2,000/day per exchange (SOP).",
+        "keywords": ["related party", "rpt", "regulation 23"],
+        "sebi_source_key": "lodr", "section_ref": "Chapter IV, Regulation 23(9)",
     },
     {
-        "id": "LODR-REG44",
-        "name": "Regulation 44 — Voting Results",
-        "regulation": "SEBI LODR Regulation 44",
-        "description": "Disclosure of voting results within 2 working days of AGM/EGM/postal ballot.",
-        "frequency": "event_based",
-        "category": "Governance",
-        "keywords": ["voting result", "regulation 44", "scrutinizer report", "e-voting", "postal ballot result"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "",
-        "section_ref": "Chapter V, Regulation 44",
+        "id": "LODR-REG24A", "name": "Reg 24A — Secretarial Compliance Report",
+        "regulation": "SEBI LODR Reg 24A", "form": "ASCR + Secretarial Audit (MR-3)",
+        "description": "Annual Secretarial Compliance Report by a PCS, within 60 days of year end; secretarial audit report annexed to the board's report.",
+        "frequency": "annual", "due_month": 5, "due_day": 30,
+        "category": "Governance", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "₹2,000/day per exchange (SOP).",
+        "keywords": ["secretarial audit", "ascr", "regulation 24a", "mr-3"],
+        "sebi_source_key": "lodr", "section_ref": "Chapter IV, Regulation 24A",
     },
     {
-        "id": "INSIDER-REG7",
-        "name": "Regulation 7 — Insider Trading Disclosures",
-        "regulation": "SEBI PIT Regulation 7",
-        "description": "Disclosure of trading by insiders within 2 trading days of the trade.",
+        "id": "LODR-REG34-AR", "name": "Reg 34 — Annual Report",
+        "regulation": "SEBI LODR Reg 34", "form": "Annual report to exchanges + members",
+        "description": "Annual report submitted to exchanges within 21 working days of the AGM, and sent to members ≥21 days before the AGM.",
+        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "category": "Periodic", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "₹2,000/day per exchange (SOP).",
+        "keywords": ["annual report", "regulation 34"],
+        "sebi_source_key": "lodr", "section_ref": "Chapter IV, Regulation 34",
+    },
+    {
+        "id": "LODR-REG30", "name": "Reg 30 — Material Event Disclosure",
+        "regulation": "SEBI LODR Reg 30", "form": "Disclosure to exchanges",
+        "description": "Disclosure of material events/information — within 30 min (board outcomes), 12 h, or 24 h depending on the event; materiality at 2% turnover / 2% net worth / 5% PAT.",
         "frequency": "event_based",
-        "category": "Insider Trading",
-        "keywords": ["insider trading", "trading window", "regulation 7", "pit regulation"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "pit",
-        "sebi_circular": "SEBI/HO/ISD/ISD-SEC-4/P/CIR/2023/0136",
+        "category": "Disclosure", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "₹10,000 per instance + ₹1,000/day continuing (SOP).",
+        "keywords": ["regulation 30", "material event", "disclosure", "intimation"],
+        "sebi_source_key": "lodr", "sebi_circular": "SEBI/HO/CFD/CFD-PoD-1/P/CIR/2023/123",
+        "section_ref": "Chapter IV, Regulation 30",
+    },
+    {
+        "id": "LODR-REG29", "name": "Reg 29 — Board Meeting Prior Intimation",
+        "regulation": "SEBI LODR Reg 29", "form": "Prior intimation to exchanges",
+        "description": "Prior intimation of board meetings — ≥2 working days normally; ≥5 days when financial results are considered.",
+        "frequency": "event_based",
+        "category": "Disclosure", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "₹1,000/day per exchange (SOP).",
+        "keywords": ["board meeting intimation", "regulation 29", "prior intimation"],
+        "sebi_source_key": "lodr", "section_ref": "Chapter IV, Regulation 29",
+    },
+    {
+        "id": "LODR-REG44", "name": "Reg 44(3) — Voting Results",
+        "regulation": "SEBI LODR Reg 44", "form": "Voting results + scrutinizer report",
+        "description": "Voting results with scrutinizer's report within 2 working days of an AGM/EGM/postal ballot.",
+        "frequency": "event_based",
+        "category": "Governance", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "Exchange penal action.",
+        "keywords": ["voting result", "regulation 44", "scrutinizer", "e-voting"],
+        "sebi_source_key": "lodr", "section_ref": "Chapter V, Regulation 44",
+    },
+    {
+        "id": "LODR-AGM", "name": "Annual General Meeting (listed)",
+        "regulation": "SEBI LODR / Companies Act s.96", "form": "AGM",
+        "description": "Hold the AGM within 6 months of financial-year end (by 30 September for a March year-end).",
+        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "category": "Governance", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "Tribunal action; company + officers liable under s.99 (up to ₹1 lakh + ₹5,000/day).",
+        "keywords": ["annual general meeting", "agm"],
+        "sebi_source_key": "lodr", "section_ref": "Reg 44 r/w Companies Act s.96",
+    },
+
+    {
+        "id": "LODR-BRSR", "name": "BRSR — Business Responsibility & Sustainability Report",
+        "regulation": "SEBI LODR Reg 34(2)(f)", "form": "BRSR (in annual report)",
+        "description": "ESG disclosure across 9 NGRBC principles, mandatory for the top 1,000 listed companies by market cap, as part of the annual report.",
+        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "category": "Governance", "regime": "SEBI", "applies_to": "Top 1,000 listed companies",
+        "penalty": "₹2,000/day per exchange (SOP).",
+        "keywords": ["brsr", "business responsibility", "sustainability", "esg"],
+        "sebi_source_key": "lodr", "section_ref": "Reg 34(2)(f)",
+    },
+    {
+        "id": "LODR-BRSR-CORE", "name": "BRSR Core — Reasonable Assurance",
+        "regulation": "SEBI LODR (BRSR Core)", "form": "Assured BRSR Core KPIs",
+        "description": "Reasonable assurance of 9 BRSR Core attributes (incl. GHG emissions intensity, water, energy, waste) — top 250 listed cos, expanding by market cap. Value-chain disclosure phased in.",
+        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "category": "Governance", "regime": "SEBI", "applies_to": "Top 250 listed (phased)",
+        "penalty": "₹2,000/day per exchange (SOP).",
+        "keywords": ["brsr core", "assurance", "ghg", "esg", "value chain"],
+        "sebi_source_key": "lodr", "section_ref": "BRSR Core framework (2023)",
+    },
+
+    # ════════ SEBI · PIT (insider trading) ════════
+    {
+        "id": "PIT-REG7", "name": "PIT Reg 7 — Insider Trade Disclosures",
+        "regulation": "SEBI PIT Reg 7", "form": "Form C / system-driven disclosure",
+        "description": "Disclosure of trades by designated persons & promoters above ₹10 lakh within 2 trading days; the company reports to exchanges within 2 trading days.",
+        "frequency": "event_based",
+        "category": "Insider Trading", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "Up to ₹10 lakh under s.15A SEBI Act.",
+        "keywords": ["insider trading", "regulation 7", "pit", "form c"],
+        "sebi_source_key": "pit", "sebi_circular": "SEBI/HO/ISD/ISD-SEC-4/P/CIR/2023/0136",
         "section_ref": "Chapter III, Regulation 7",
     },
     {
-        "id": "LODR-AGM",
-        "name": "Annual General Meeting",
-        "regulation": "SEBI LODR / Companies Act 2013",
-        "description": "Annual General Meeting to be held within 6 months of financial year end (by September 30).",
-        "frequency": "annual",
-        "due_month": 9,
-        "due_day": 30,
-        "category": "Governance",
-        "keywords": ["annual general meeting", "agm", "notice of agm"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "",
-        "section_ref": "Regulation 44 read with Companies Act Section 96",
+        "id": "PIT-SDD", "name": "PIT Reg 3 — Structured Digital Database",
+        "regulation": "SEBI PIT Reg 3(5)/(6)", "form": "Internal SDD (tamper-proof)",
+        "description": "Maintain a tamper-proof Structured Digital Database of UPSI sharing with PAN/identifiers; preserved 8 years. Audited under the annual PIT compliance review.",
+        "frequency": "ongoing",
+        "category": "Insider Trading", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "Up to ₹10 lakh; adverse PIT audit findings.",
+        "keywords": ["structured digital database", "sdd", "upsi", "regulation 3"],
+        "sebi_source_key": "pit", "section_ref": "Chapter II, Regulation 3(5)-(6)",
     },
     {
-        "id": "LODR-AR",
-        "name": "Annual Report Filing",
-        "regulation": "SEBI LODR Regulation 34",
-        "description": "Annual report to be sent to shareholders within 21 days before AGM.",
-        "frequency": "annual",
-        "due_month": 9,
-        "due_day": 9,
-        "category": "Periodic",
-        "keywords": ["annual report", "regulation 34"],
-        "applies_to": "all_listed",
-        "sebi_source_key": "lodr",
-        "sebi_circular": "",
-        "section_ref": "Chapter IV, Regulation 34",
+        "id": "PIT-TRADING-WINDOW", "name": "PIT — Trading Window Closure",
+        "regulation": "SEBI PIT (Code of Conduct)", "form": "Window closure intimation",
+        "description": "Close the trading window for designated persons from the quarter-end until 48 hours after results are made public; intimate the exchange/depository.",
+        "frequency": "quarterly", "due_days_after_quarter": 0,
+        "category": "Insider Trading", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "Contra-trade reversal + up to ₹10 lakh.",
+        "keywords": ["trading window", "window closure", "code of conduct"],
+        "sebi_source_key": "pit", "section_ref": "Schedule B, Code of Conduct",
+    },
+
+    # ════════ SEBI · SAST (takeover) ════════
+    {
+        "id": "SAST-REG30", "name": "SAST Reg 30(1) — Annual Shareholding Disclosure",
+        "regulation": "SEBI SAST Reg 30", "form": "Disclosure to company + exchanges",
+        "description": "Promoters/PACs holding ≥25% disclose aggregate shareholding & voting rights as on 31 March, within 7 working days of year end.",
+        "frequency": "annual", "due_month": 4, "due_day": 7,
+        "category": "Disclosure", "regime": "SEBI", "applies_to": "Listed companies",
+        "penalty": "Up to ₹1 lakh/day, max ₹1 crore (s.15A).",
+        "keywords": ["sast", "takeover", "regulation 30", "shareholding disclosure"],
+        "sebi_source_key": "sast", "section_ref": "Chapter V, Regulation 30",
+    },
+
+    # ════════ MCA · Companies Act 2013 — ROC e-forms ════════
+    {
+        "id": "MCA-AOC4", "name": "AOC-4 — Financial Statements",
+        "regulation": "Companies Act s.137", "form": "AOC-4 / AOC-4 XBRL / AOC-4 CFS",
+        "description": "File audited financial statements with the ROC within 30 days of the AGM. Listed cos & prescribed classes file AOC-4 XBRL; companies with subsidiaries also file AOC-4 CFS.",
+        "frequency": "annual", "due_month": 10, "due_day": 30,
+        "category": "Financial", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹100/day (no cap) + officer penalty up to ₹50,000.",
+        "keywords": ["aoc-4", "financial statement", "section 137"],
+        "source": _MCA_SRC, "section_ref": "Section 137",
+    },
+    {
+        "id": "MCA-MGT7", "name": "MGT-7 / MGT-7A — Annual Return",
+        "regulation": "Companies Act s.92", "form": "MGT-7 (MGT-7A for OPC/small)",
+        "description": "File the annual return with the ROC within 60 days of the AGM. OPCs & small companies file the abridged MGT-7A.",
+        "frequency": "annual", "due_month": 11, "due_day": 29,
+        "category": "Periodic", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹100/day (no cap) + officer penalty up to ₹5 lakh.",
+        "keywords": ["mgt-7", "annual return", "section 92"],
+        "source": _MCA_SRC, "section_ref": "Section 92",
+    },
+    {
+        "id": "MCA-MGT8", "name": "MGT-8 — Annual Return Certification",
+        "regulation": "Companies Act s.92(2)", "form": "MGT-8 (PCS certificate)",
+        "description": "PCS certification of the annual return for listed cos and companies with paid-up capital ≥₹10 cr or turnover ≥₹50 cr; annexed to MGT-7.",
+        "frequency": "annual", "due_month": 11, "due_day": 29,
+        "category": "Governance", "regime": "MCA", "applies_to": "Listed / large companies",
+        "penalty": "PCS penalty up to ₹2 lakh for false certification.",
+        "keywords": ["mgt-8", "annual return certification"],
+        "source": _MCA_SRC, "section_ref": "Section 92(2)",
+    },
+    {
+        "id": "MCA-ADT1", "name": "ADT-1 — Auditor Appointment",
+        "regulation": "Companies Act s.139", "form": "ADT-1",
+        "description": "Intimate the ROC of the appointment/reappointment of statutory auditor within 15 days of the AGM.",
+        "frequency": "annual", "due_month": 10, "due_day": 15,
+        "category": "Compliance", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹100/day + officer penalty.",
+        "keywords": ["adt-1", "auditor appointment", "section 139"],
+        "source": _MCA_SRC, "section_ref": "Section 139",
+    },
+    {
+        "id": "MCA-DIR3KYC", "name": "DIR-3 KYC — Director KYC",
+        "regulation": "Companies Act / Rule 12A", "form": "DIR-3 KYC / KYC-Web",
+        "description": "Every DIN holder files annual KYC by 30 September. DIN is deactivated on default (₹5,000 reactivation fee).",
+        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "category": "Compliance", "regime": "MCA", "applies_to": "All DIN holders",
+        "penalty": "₹5,000 per DIN to reactivate.",
+        "keywords": ["dir-3 kyc", "director kyc", "din"],
+        "source": _MCA_SRC, "section_ref": "Rule 12A",
+    },
+    {
+        "id": "MCA-DPT3", "name": "DPT-3 — Return of Deposits",
+        "regulation": "Companies Act / Rule 16", "form": "DPT-3",
+        "description": "Annual return of deposits & outstanding loans/money not treated as deposits as on 31 March, filed by 30 June.",
+        "frequency": "annual", "due_month": 6, "due_day": 30,
+        "category": "Financial", "regime": "MCA", "applies_to": "All companies (except govt.)",
+        "penalty": "Up to ₹5,000 + ₹500/day continuing.",
+        "keywords": ["dpt-3", "return of deposits", "rule 16"],
+        "source": _MCA_SRC, "section_ref": "Rule 16, Deposit Rules",
+    },
+    {
+        "id": "MCA-MSME1", "name": "MSME-1 — Half-Yearly MSME Dues",
+        "regulation": "Companies Act s.405", "form": "MSME-1",
+        "description": "Half-yearly return of outstanding dues to MSME suppliers beyond 45 days — by 30 April (Oct-Mar) and 31 October (Apr-Sep).",
+        "frequency": "half_yearly", "due_dates": [[4, 30], [10, 31]],
+        "category": "Compliance", "regime": "MCA", "applies_to": "Companies with MSME dues",
+        "penalty": "Up to ₹25,000 (company) + officer penalty.",
+        "keywords": ["msme-1", "msme dues", "section 405"],
+        "source": _MCA_SRC, "section_ref": "Section 405",
+    },
+    {
+        "id": "MCA-PAS6", "name": "PAS-6 — Share Capital Reconciliation",
+        "regulation": "Companies Act / Rule 9A", "form": "PAS-6 (PCS/PCA certified)",
+        "description": "Half-yearly reconciliation of share capital audit for unlisted public companies, within 60 days of each half-year.",
+        "frequency": "half_yearly", "due_dates": [[5, 30], [11, 29]],
+        "category": "Compliance", "regime": "MCA", "applies_to": "Unlisted public companies",
+        "penalty": "₹10,000 + ₹1,000/day continuing.",
+        "keywords": ["pas-6", "share capital reconciliation", "rule 9a"],
+        "source": _MCA_SRC, "section_ref": "Rule 9A, PAS Rules",
+    },
+    {
+        "id": "MCA-CSR2", "name": "CSR-2 — CSR Report",
+        "regulation": "Companies Act s.135", "form": "CSR-2",
+        "description": "Annual report on CSR spending, filed with the ROC by 31 December (separate from AOC-4).",
+        "frequency": "annual", "due_month": 12, "due_day": 31,
+        "category": "Governance", "regime": "MCA", "applies_to": "CSR-applicable companies",
+        "penalty": "2× unspent (max ₹1 cr) on company; officer up to ₹2 lakh (s.135(7)).",
+        "keywords": ["csr-2", "corporate social responsibility", "section 135"],
+        "source": _MCA_SRC, "section_ref": "Section 135",
+    },
+    {
+        "id": "MCA-BOARD", "name": "Board Meetings (min. 4/year)",
+        "regulation": "Companies Act s.173", "form": "Board meeting + minutes (SS-1)",
+        "description": "Hold at least 4 board meetings a year with a gap of ≤120 days between two meetings; minutes per Secretarial Standard SS-1.",
+        "frequency": "quarterly", "due_days_after_quarter": 30,
+        "category": "Governance", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹25,000 per officer in default.",
+        "keywords": ["board meeting", "section 173", "ss-1", "minutes"],
+        "source": _MCA_SRC, "section_ref": "Section 173",
+    },
+    {
+        "id": "MCA-DIR12", "name": "DIR-12 — Change in Directors",
+        "regulation": "Companies Act s.168/170", "form": "DIR-12",
+        "description": "File appointment/resignation/change in directors or KMP with the ROC within 30 days of the event.",
+        "frequency": "event_based",
+        "category": "Governance", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹100/day (no cap).",
+        "keywords": ["dir-12", "change in directors", "kmp"],
+        "source": _MCA_SRC, "section_ref": "Sections 168/170",
+    },
+    {
+        "id": "MCA-MGT14", "name": "MGT-14 — Filing of Resolutions",
+        "regulation": "Companies Act s.117", "form": "MGT-14",
+        "description": "File specified board/special resolutions & agreements with the ROC within 30 days of passing.",
+        "frequency": "event_based",
+        "category": "Governance", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹10,000 + ₹100/day (max ₹2 lakh company / ₹50,000 officer).",
+        "keywords": ["mgt-14", "resolutions", "section 117"],
+        "source": _MCA_SRC, "section_ref": "Section 117",
+    },
+    {
+        "id": "MCA-PAS3", "name": "PAS-3 — Return of Allotment",
+        "regulation": "Companies Act s.39", "form": "PAS-3",
+        "description": "File the return of allotment of shares with the ROC within 30 days (15 days for some classes) of allotment.",
+        "frequency": "event_based",
+        "category": "Financial", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹1,000/day (max ₹25 lakh) on company & officers.",
+        "keywords": ["pas-3", "return of allotment", "section 39"],
+        "source": _MCA_SRC, "section_ref": "Section 39",
+    },
+    {
+        "id": "MCA-BEN2", "name": "BEN-2 — Significant Beneficial Owner",
+        "regulation": "Companies Act s.90", "form": "BEN-2 (after BEN-1)",
+        "description": "File the SBO return with the ROC within 30 days of receiving a BEN-1 declaration; maintain the BEN-3 register.",
+        "frequency": "event_based",
+        "category": "Governance", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹1 lakh + ₹500/day continuing.",
+        "keywords": ["ben-2", "significant beneficial owner", "sbo", "section 90"],
+        "source": _MCA_SRC, "section_ref": "Section 90",
+    },
+    {
+        "id": "MCA-CHG1", "name": "CHG-1 / CHG-4 — Charge Creation / Satisfaction",
+        "regulation": "Companies Act s.77/82", "form": "CHG-1 / CHG-4",
+        "description": "Register creation/modification of a charge within 30 days (CHG-1); register satisfaction within 30 days (CHG-4).",
+        "frequency": "event_based",
+        "category": "Financial", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "Up to ₹5 lakh (company) / ₹50,000 (officer).",
+        "keywords": ["chg-1", "chg-4", "charge", "section 77"],
+        "source": _MCA_SRC, "section_ref": "Sections 77/82",
+    },
+    {
+        "id": "MCA-SH7", "name": "SH-7 — Increase in Authorised Capital",
+        "regulation": "Companies Act s.64", "form": "SH-7",
+        "description": "File notice of alteration of share capital (e.g. increase in authorised capital) with the ROC within 30 days.",
+        "frequency": "event_based",
+        "category": "Financial", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹1,000/day (max ₹5 lakh).",
+        "keywords": ["sh-7", "authorised capital", "section 64"],
+        "source": _MCA_SRC, "section_ref": "Section 64",
+    },
+    {
+        "id": "MCA-INC22", "name": "INC-22 — Change of Registered Office",
+        "regulation": "Companies Act s.12", "form": "INC-22",
+        "description": "File change of registered office with the ROC within 30 days of the change.",
+        "frequency": "event_based",
+        "category": "Compliance", "regime": "MCA", "applies_to": "All companies",
+        "penalty": "₹1,000/day (max ₹1 lakh).",
+        "keywords": ["inc-22", "registered office", "section 12"],
+        "source": _MCA_SRC, "section_ref": "Section 12",
+    },
+    {
+        "id": "MCA-CRA4", "name": "CRA-2 / CRA-4 — Cost Audit",
+        "regulation": "Companies Act s.148", "form": "CRA-2 (appt.) / CRA-4 (report)",
+        "description": "For specified industries above thresholds: appoint cost auditor (CRA-2) and file the cost audit report (CRA-4) within 30 days of receipt.",
+        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "category": "Financial", "regime": "MCA", "applies_to": "Cost-audit-applicable companies",
+        "penalty": "Up to ₹5 lakh (company) / ₹1 lakh (officer).",
+        "keywords": ["cra-4", "cost audit", "section 148"],
+        "source": _MCA_SRC, "section_ref": "Section 148",
+    },
+
+    # ════════ FEMA · RBI ════════
+    {
+        "id": "FEMA-FCGPR", "name": "FC-GPR — Foreign Investment Allotment",
+        "regulation": "FEMA NDI Rules", "form": "FC-GPR (FIRMS portal)",
+        "description": "Report allotment of shares to a non-resident on the RBI FIRMS portal within 30 days of allotment.",
+        "frequency": "event_based",
+        "category": "Compliance", "regime": "FEMA", "applies_to": "Companies with FDI",
+        "penalty": "Up to 3× the amount involved + ₹5,000/day (compounding).",
+        "keywords": ["fc-gpr", "fdi", "foreign investment", "firms"],
+        "source": _RBI_FIRMS, "section_ref": "FEMA (NDI) Rules 2019",
+    },
+    {
+        "id": "FEMA-FCTRS", "name": "FC-TRS — Transfer with Non-Resident",
+        "regulation": "FEMA NDI Rules", "form": "FC-TRS (FIRMS portal)",
+        "description": "Report a transfer of shares between a resident and a non-resident within 60 days of transfer/remittance.",
+        "frequency": "event_based",
+        "category": "Compliance", "regime": "FEMA", "applies_to": "Companies with FDI",
+        "penalty": "Up to 3× the amount involved (compounding).",
+        "keywords": ["fc-trs", "transfer of shares", "firms"],
+        "source": _RBI_FIRMS, "section_ref": "FEMA (NDI) Rules 2019",
+    },
+    {
+        "id": "FEMA-FLA", "name": "FLA Return — Foreign Liabilities & Assets",
+        "regulation": "FEMA", "form": "FLA (RBI FLAIR portal)",
+        "description": "Annual return of foreign liabilities & assets, by 15 July, by every company that has FDI or has invested abroad.",
+        "frequency": "annual", "due_month": 7, "due_day": 15,
+        "category": "Compliance", "regime": "FEMA", "applies_to": "Companies with FDI/ODI",
+        "penalty": "Up to 3× the amount / ₹2 lakh (compounding).",
+        "keywords": ["fla", "foreign liabilities and assets", "flair"],
+        "source": "https://flair.rbi.org.in/", "section_ref": "FEMA",
+    },
+    {
+        "id": "FEMA-APR", "name": "APR — Annual Performance Report (ODI)",
+        "regulation": "FEMA OI Rules", "form": "APR (FIRMS portal)",
+        "description": "Annual Performance Report for overseas investments, by 31 December each year.",
+        "frequency": "annual", "due_month": 12, "due_day": 31,
+        "category": "Compliance", "regime": "FEMA", "applies_to": "Companies with ODI",
+        "penalty": "Up to 3× the amount (compounding).",
+        "keywords": ["apr", "overseas investment", "odi"],
+        "source": _RBI_FIRMS, "section_ref": "FEMA (OI) Rules 2022",
+    },
+    {
+        "id": "FEMA-ECB2", "name": "ECB-2 — Monthly ECB Return",
+        "regulation": "FEMA Borrowing Regs", "form": "ECB-2 (via AD bank)",
+        "description": "Monthly return on external commercial borrowings, by the 7th of the following month, for companies with an ECB.",
+        "frequency": "monthly",
+        "category": "Financial", "regime": "FEMA", "applies_to": "Companies with ECB",
+        "penalty": "Late submission fee + compounding.",
+        "keywords": ["ecb-2", "external commercial borrowing"],
+        "source": _RBI_FEMA, "section_ref": "FEMA Borrowing Regulations",
+    },
+
+    # ════════ Tax & Labour ════════
+    {
+        "id": "TAX-TDS", "name": "TDS Returns (24Q / 26Q / 27Q)",
+        "regulation": "Income-tax Act s.200", "form": "24Q / 26Q / 27Q",
+        "description": "Quarterly TDS returns by the last day of the month following the quarter (Q4 by 31 May).",
+        "frequency": "quarterly", "due_days_after_quarter": 31,
+        "category": "Financial", "regime": "Tax & Labour", "applies_to": "All deductors",
+        "penalty": "₹200/day (s.234E) + penalty u/s 271H.",
+        "keywords": ["tds", "24q", "26q", "tds return"],
+        "source": _IT_SRC, "section_ref": "Section 200(3)",
+    },
+    {
+        "id": "TAX-AUDIT", "name": "Tax Audit (Form 3CA/3CB-3CD)",
+        "regulation": "Income-tax Act s.44AB", "form": "3CA/3CB + 3CD",
+        "description": "Tax audit report for businesses above the turnover threshold, by 30 September (then ITR by 31 October).",
+        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "category": "Financial", "regime": "Tax & Labour", "applies_to": "Cos above s.44AB threshold",
+        "penalty": "0.5% of turnover (max ₹1.5 lakh) u/s 271B.",
+        "keywords": ["tax audit", "3cd", "section 44ab"],
+        "source": _IT_SRC, "section_ref": "Section 44AB",
+    },
+    {
+        "id": "TAX-ITR", "name": "Income Tax Return (ITR-6)",
+        "regulation": "Income-tax Act s.139", "form": "ITR-6",
+        "description": "Corporate income-tax return — by 31 October for audited companies (30 November if transfer-pricing applies).",
+        "frequency": "annual", "due_month": 10, "due_day": 31,
+        "category": "Financial", "regime": "Tax & Labour", "applies_to": "All companies",
+        "penalty": "Up to ₹10,000 (s.234F) + interest.",
+        "keywords": ["itr", "income tax return", "itr-6"],
+        "source": _IT_SRC, "section_ref": "Section 139",
+    },
+    {
+        "id": "LABOUR-POSH", "name": "POSH Annual Return",
+        "regulation": "POSH Act s.21", "form": "Annual report to District Officer",
+        "description": "Internal Committee files its annual report on sexual-harassment complaints with the District Officer by 31 December (calendar year).",
+        "frequency": "annual", "due_month": 12, "due_day": 31,
+        "category": "Compliance", "regime": "Tax & Labour", "applies_to": "Employers with ≥10 staff",
+        "penalty": "Up to ₹50,000; repeat → 2× + licence cancellation.",
+        "keywords": ["posh", "annual return", "internal committee"],
+        "source": _POSH_SRC, "section_ref": "Section 21, POSH Act 2013",
+    },
+    {
+        "id": "LABOUR-PFESI", "name": "PF & ESI Monthly Returns",
+        "regulation": "EPF & ESI Acts", "form": "ECR (EPFO) / ESI return",
+        "description": "Monthly PF Electronic Challan-cum-Return and ESI contribution by the 15th of the following month.",
+        "frequency": "monthly",
+        "category": "Compliance", "regime": "Tax & Labour", "applies_to": "Covered employers",
+        "penalty": "Interest @12% p.a. + damages up to 25% p.a.",
+        "keywords": ["pf", "esi", "ecr", "provident fund"],
+        "source": _EPFO_SRC, "section_ref": "EPF Act / ESI Act",
     },
 ]
 
@@ -188,6 +532,281 @@ def get_mandate_by_id(mandate_id):
         if m["id"] == mandate_id:
             return m
     return None
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# SECTOR-SPECIFIC COMPLIANCE
+# Beyond the universal MCA + SEBI filings, each industry carries its own
+# regulator-specific obligations (environmental, energy, financial-sector,
+# food, telecom, etc.). Keyed by the industry label used in INDUSTRY_PROFILES.
+# These are catalog/reference items (due dates vary by licence/state), shown in
+# the per-company "By Company" view so a CS sees the A-to-Z picture.
+# ───────────────────────────────────────────────────────────────────────────
+_ENV_SRC = "https://cpcb.nic.in/"
+_BEE_SRC = "https://beeindia.gov.in/"
+
+# Reusable environmental block for manufacturing-heavy sectors.
+_ENV_COMMON = [
+    {"name": "Consent to Operate (CTO)", "form": "CTO renewal — SPCB",
+     "regulation": "Water Act 1974 & Air Act 1981", "frequency": "annual",
+     "description": "Consent to Operate from the State Pollution Control Board under the Water & Air Acts; renewed periodically (often annually/biennially) per plant.",
+     "penalty": "Closure notice + prosecution under the Water/Air Acts.", "source": _ENV_SRC},
+    {"name": "Hazardous Waste Annual Return (Form 4)", "form": "Form 4 — SPCB",
+     "regulation": "Hazardous & Other Wastes Rules 2016", "frequency": "annual",
+     "description": "Annual return of hazardous-waste generation, storage & disposal to the SPCB, by 30 June.",
+     "penalty": "Prosecution under the Environment (Protection) Act.", "source": _ENV_SRC},
+    {"name": "Environmental Statement (Form V)", "form": "Form V — SPCB",
+     "regulation": "Environment (Protection) Rules 1986", "frequency": "annual",
+     "description": "Annual environmental statement on water/energy/raw-material consumption & pollution, by 30 September.",
+     "penalty": "EP Act penalties.", "source": _ENV_SRC},
+    {"name": "Factories Act Annual Return", "form": "Form 21/22 — Factory Inspectorate",
+     "regulation": "Factories Act 1948", "frequency": "annual",
+     "description": "Annual & half-yearly returns on workers, hours, accidents; factory licence renewal.",
+     "penalty": "Fine + imprisonment for occupier under s.92.", "source": "https://labour.gov.in/"},
+]
+_EPR_PLASTIC = {"name": "EPR — Plastic Packaging", "form": "EPR annual return — CPCB portal",
+     "regulation": "Plastic Waste Management Rules 2016", "frequency": "annual",
+     "description": "Extended Producer Responsibility targets & annual return for plastic packaging on the CPCB EPR portal.",
+     "penalty": "Environmental compensation by CPCB.", "source": _ENV_SRC}
+_CCTS = {"name": "Carbon Credit Trading Scheme (CCTS)", "form": "CCTS / ESCerts — BEE & Grid India",
+     "regulation": "CCTS 2023 / Energy Conservation Act", "frequency": "annual",
+     "description": "Obligated/energy-intensive entities meet GHG-intensity targets and trade Carbon Credit Certificates; legacy PAT cycle issues Energy Saving Certificates (ESCerts).",
+     "penalty": "Environmental compensation per CCTS rules.", "source": _BEE_SRC}
+
+SECTOR_MANDATES = {
+    "Chemicals": _ENV_COMMON + [
+        _EPR_PLASTIC, _CCTS,
+        {"name": "PESO Licence", "form": "Licence — PESO/Chief Controller of Explosives",
+         "regulation": "Explosives Act / Petroleum Act", "frequency": "annual",
+         "description": "Licence for storage of solvents, petroleum & explosive/flammable chemicals; periodic renewal & inspection.",
+         "penalty": "Suspension of licence + prosecution.", "source": "https://peso.gov.in/"},
+        {"name": "MSIHC Rules — Major Accident Hazard", "form": "Safety report / on-site plan — SPCB",
+         "regulation": "MSIHC Rules 1989", "frequency": "annual",
+         "description": "Manufacture, Storage & Import of Hazardous Chemicals — safety reports, on-site emergency plans for MAH installations.",
+         "penalty": "EP Act prosecution.", "source": _ENV_SRC},
+    ],
+    "Energy": [_CCTS] + [
+        {"name": "Renewable Purchase Obligation (RPO)", "form": "RPO compliance report — SERC",
+         "regulation": "Electricity Act 2003 / SERC RPO Regs", "frequency": "annual",
+         "description": "Obligated entities meet their renewable purchase quota via green power or RECs; annual compliance report to the State Electricity Regulatory Commission.",
+         "penalty": "RPO regulatory charges / penalties by SERC.", "source": "https://cercind.gov.in/"},
+        {"name": "Renewable Energy Certificates (REC)", "form": "REC issuance/redemption — Grid India",
+         "regulation": "CERC REC Regulations", "frequency": "monthly",
+         "description": "Issuance, trading & redemption of RECs on power exchanges for renewable generators/obligated entities.",
+         "penalty": "Forfeiture / regulatory action.", "source": "https://cercind.gov.in/"},
+        {"name": "CEA Returns & CERC/SERC Tariff Filings", "form": "Tariff petitions / CEA returns",
+         "regulation": "Electricity Act 2003", "frequency": "annual",
+         "description": "Tariff determination petitions, true-up filings, and Central Electricity Authority statistical/safety returns.",
+         "penalty": "Regulatory disallowance.", "source": "https://cea.nic.in/"},
+    ],
+    "Power": "Energy",   # alias — resolved below
+    "Cement": _ENV_COMMON + [
+        _CCTS,
+        {"name": "Mining Lease & Mineral Returns", "form": "Monthly/annual returns — IBM",
+         "regulation": "MMDR Act / MCDR Rules", "frequency": "monthly",
+         "description": "Limestone mining lease compliance and mineral-conservation returns to the Indian Bureau of Mines.",
+         "penalty": "Lease suspension.", "source": "https://ibm.gov.in/"},
+    ],
+    "Steel": _ENV_COMMON + [
+        _CCTS,
+        {"name": "Mining & Mineral Conservation Returns", "form": "Returns — IBM / State Mining Dept",
+         "regulation": "MMDR Act 1957 / MCDR Rules 2017", "frequency": "monthly",
+         "description": "Mining lease compliance, mineral-dispatch & conservation returns to the Indian Bureau of Mines.",
+         "penalty": "Lease suspension + penalty.", "source": "https://ibm.gov.in/"},
+    ],
+    "Metals & Mining": _ENV_COMMON + [
+        _CCTS,
+        {"name": "MMDR / Mines Act Compliance", "form": "Returns + safety — IBM / DGMS",
+         "regulation": "MMDR Act / Mines Act 1952", "frequency": "monthly",
+         "description": "Mining lease, mineral-conservation returns (IBM) and mine-safety returns to the DGMS.",
+         "penalty": "Lease suspension; DGMS prosecution.", "source": "https://ibm.gov.in/"},
+        {"name": "Environmental Clearance Compliance", "form": "Half-yearly EC report — MoEFCC",
+         "regulation": "EIA Notification 2006", "frequency": "half_yearly",
+         "description": "Half-yearly compliance report on environmental-clearance conditions to the MoEF&CC/SEIAA.",
+         "penalty": "EC revocation + EP Act action.", "source": "https://parivesh.nic.in/"},
+    ],
+    "Banking": [
+        {"name": "RBI Regulatory Returns (DSB / RCA)", "form": "DSB returns — RBI XBRL",
+         "regulation": "Banking Regulation Act 1949", "frequency": "quarterly",
+         "description": "Off-site surveillance (DSB) returns, CRAR/Basel III disclosures, and risk-based supervision data to the RBI.",
+         "penalty": "Monetary penalty u/s 47A BR Act.", "source": "https://www.rbi.org.in/"},
+        {"name": "CRR / SLR Maintenance Reporting", "form": "Form A / Form VIII — RBI",
+         "regulation": "RBI Act / BR Act", "frequency": "monthly",
+         "description": "Fortnightly Cash Reserve Ratio and Statutory Liquidity Ratio maintenance & reporting.",
+         "penalty": "Penal interest on shortfall.", "source": "https://www.rbi.org.in/"},
+        {"name": "CRILC — Large Credit Reporting", "form": "CRILC return — RBI",
+         "regulation": "RBI Master Directions", "frequency": "quarterly",
+         "description": "Central Repository of Information on Large Credits — reporting of exposures ≥₹5 crore.",
+         "penalty": "Supervisory action.", "source": "https://www.rbi.org.in/"},
+    ],
+    "Finance (NBFC)": [
+        {"name": "RBI NBFC Returns (DNBS)", "form": "DNBS-01 to 10 — RBI COSMOS/XBRL",
+         "regulation": "RBI Master Directions (NBFC)", "frequency": "quarterly",
+         "description": "Periodic DNBS returns on financials, prudential norms, ALM and large exposures, per scale-based regulation.",
+         "penalty": "Monetary penalty + supervisory action.", "source": "https://www.rbi.org.in/"},
+        {"name": "Scale-Based Regulation Compliance", "form": "SBR disclosures — RBI",
+         "regulation": "RBI SBR Framework 2022", "frequency": "annual",
+         "description": "Compliance with the layer-wise (Base/Middle/Upper) prudential, governance & disclosure norms.",
+         "penalty": "Supervisory action.", "source": "https://www.rbi.org.in/"},
+        {"name": "FIU-IND / PMLA Reporting", "form": "CTR / STR — FINnet",
+         "regulation": "PMLA 2002", "frequency": "monthly",
+         "description": "Cash & suspicious transaction reports to the Financial Intelligence Unit.",
+         "penalty": "PMLA penalties.", "source": "https://fiuindia.gov.in/"},
+    ],
+    "Insurance": [
+        {"name": "IRDAI Financial & Investment Returns", "form": "Periodic returns — IRDAI BAP",
+         "regulation": "Insurance Act 1938 / IRDAI Regs", "frequency": "quarterly",
+         "description": "Financial, solvency, investment and public-disclosure returns to the IRDAI.",
+         "penalty": "Penalty u/s 102 Insurance Act.", "source": "https://irdai.gov.in/"},
+        {"name": "Public Disclosures (Forms L)", "form": "L-forms — website & IRDAI",
+         "regulation": "IRDAI Public Disclosure Regs", "frequency": "quarterly",
+         "description": "Quarterly/annual L-series public disclosures of financials & solvency.",
+         "penalty": "IRDAI directions/penalty.", "source": "https://irdai.gov.in/"},
+    ],
+    "Pharma": _ENV_COMMON + [
+        {"name": "CDSCO Drug Licence & GMP (Schedule M)", "form": "Licence / GMP audit — CDSCO/SLA",
+         "regulation": "Drugs & Cosmetics Act 1940", "frequency": "annual",
+         "description": "Manufacturing licence, Schedule-M GMP compliance, product approvals & periodic inspections.",
+         "penalty": "Licence cancellation + prosecution.", "source": "https://cdsco.gov.in/"},
+        {"name": "NPPA / DPCO Price Compliance", "form": "Form II/V price intimations — NPPA",
+         "regulation": "Drugs (Prices Control) Order 2013", "frequency": "monthly",
+         "description": "Price-ceiling compliance, price-change intimations & quarterly returns to the National Pharmaceutical Pricing Authority.",
+         "penalty": "Overcharged amount + 15% interest recovery.", "source": "https://www.nppaindia.nic.in/"},
+    ],
+    "FMCG": [
+        {"name": "FSSAI Licence & Annual Return", "form": "Form D-1 — FoSCoS",
+         "regulation": "FSS Act 2006", "frequency": "annual",
+         "description": "Food business licence and annual return (Form D-1) by 31 May; licence renewal.",
+         "penalty": "Up to ₹5 lakh + licence action.", "source": "https://foscos.fssai.gov.in/"},
+        {"name": "Legal Metrology — Packaged Commodities", "form": "Registration / declarations",
+         "regulation": "Legal Metrology Act 2009", "frequency": "annual",
+         "description": "Packaged-commodity declarations (MRP, net qty), packer/importer registration & stamping.",
+         "penalty": "Fine up to ₹25,000+.", "source": "https://consumeraffairs.nic.in/"},
+        _EPR_PLASTIC,
+    ],
+    "Consumer Durables": [
+        {"name": "BIS Certification (ISI / CRS)", "form": "BIS licence / CRS registration",
+         "regulation": "BIS Act 2016", "frequency": "annual",
+         "description": "Mandatory product certification under ISI mark / Compulsory Registration Scheme.",
+         "penalty": "Fine + imprisonment under BIS Act.", "source": "https://www.bis.gov.in/"},
+        {"name": "EPR — E-Waste", "form": "EPR return — CPCB portal",
+         "regulation": "E-Waste Management Rules 2022", "frequency": "annual",
+         "description": "Extended Producer Responsibility targets & annual return for electronic waste.",
+         "penalty": "Environmental compensation.", "source": _ENV_SRC},
+        _EPR_PLASTIC,
+    ],
+    "Auto": _ENV_COMMON + [
+        {"name": "Type Approval / Homologation (CMVR)", "form": "AIS certification — ARAI/ICAT",
+         "regulation": "CMVR 1989 / Motor Vehicles Act", "frequency": "annual",
+         "description": "Vehicle type approval, conformity of production & AIS standards certification.",
+         "penalty": "Sales prohibition.", "source": "https://morth.nic.in/"},
+        {"name": "EPR — Batteries & ELV", "form": "EPR returns — CPCB portal",
+         "regulation": "Battery Waste Rules 2022 / ELV Rules 2025", "frequency": "annual",
+         "description": "Extended Producer Responsibility for batteries and end-of-life vehicles.",
+         "penalty": "Environmental compensation.", "source": _ENV_SRC},
+    ],
+    "Telecom": [
+        {"name": "DoT Licence Compliance & AGR", "form": "AGR statements / LF & SUC returns",
+         "regulation": "Telegraph Act / UL Licence", "frequency": "quarterly",
+         "description": "Adjusted Gross Revenue statements, licence-fee & spectrum-usage-charge returns to the DoT.",
+         "penalty": "Penalty + licence action.", "source": "https://dot.gov.in/"},
+        {"name": "TRAI Performance & QoS Returns", "form": "PMR / QoS reports — TRAI",
+         "regulation": "TRAI Act 1997", "frequency": "quarterly",
+         "description": "Performance Monitoring Reports & Quality-of-Service compliance to TRAI.",
+         "penalty": "Financial disincentives.", "source": "https://www.trai.gov.in/"},
+    ],
+    "Real Estate": [
+        {"name": "RERA Project Registration & Updates", "form": "Quarterly updates — State RERA",
+         "regulation": "RERA Act 2016", "frequency": "quarterly",
+         "description": "Project registration and quarterly progress/financial updates on the State RERA portal; annual audit (Form 5).",
+         "penalty": "Up to 5% of project cost + deregistration.", "source": "https://rera.gov.in/"},
+        {"name": "Environmental Clearance Compliance", "form": "Half-yearly EC report — SEIAA",
+         "regulation": "EIA Notification 2006", "frequency": "half_yearly",
+         "description": "Half-yearly compliance report on EC conditions for building/area-development projects.",
+         "penalty": "EC revocation.", "source": "https://parivesh.nic.in/"},
+    ],
+    "IT": [
+        {"name": "STPI / SEZ Returns", "form": "Monthly/Quarterly/Annual — STPI/SEZ Online",
+         "regulation": "STP Scheme / SEZ Act 2005", "frequency": "monthly",
+         "description": "Monthly Progress Reports, softex filings & annual performance reports for STPI/SEZ units.",
+         "penalty": "Loss of benefits.", "source": "https://www.stpi.in/"},
+        {"name": "DPDP Act — Data Protection", "form": "Consent/breach processes (rules awaited)",
+         "regulation": "Digital Personal Data Protection Act 2023", "frequency": "ongoing",
+         "description": "Consent management, breach notification to the Data Protection Board, and (for SDFs) DPO/audit obligations.",
+         "penalty": "Up to ₹250 crore per breach.", "source": "https://www.meity.gov.in/"},
+    ],
+}
+
+
+def _sector_mandates(industry):
+    """Resolve sector-specific mandates for an industry label (handles aliases
+    like Power→Energy). Returns a list of normalised mandate dicts."""
+    block = SECTOR_MANDATES.get(industry)
+    if isinstance(block, str):           # alias
+        block = SECTOR_MANDATES.get(block, [])
+    out = []
+    for i, m in enumerate(block or []):
+        mm = dict(m)
+        mm.setdefault("id", f"SEC-{industry[:4].upper()}-{i+1}")
+        mm.setdefault("category", "Sector / Environmental")
+        mm["regime"] = "Sector-specific"
+        mm.setdefault("applies_to", f"{industry} companies")
+        mm.setdefault("section_ref", mm.get("regulation", ""))
+        mm.setdefault("sebi_source", mm.get("source") or "")
+        mm["due_label"] = _due_label(mm)
+        mm["frequency_label"] = {
+            "quarterly": "Quarterly", "half_yearly": "Half-yearly", "annual": "Annual",
+            "monthly": "Monthly", "event_based": "Event-based", "ongoing": "Ongoing",
+        }.get(mm.get("frequency"), "Periodic")
+        out.append(mm)
+    return out
+
+
+def get_company_compliance_profile(symbol, industry=""):
+    """A-to-Z compliance picture for ONE company: every filing it must track,
+    grouped into Listed (SEBI), Companies-Act (MCA), Sector-specific, and
+    Cross-border / Conditional — merged with its live dated obligations so the
+    CS sees both 'what applies' and 'what's pending'."""
+    catalog = get_all_mandates()
+
+    # Map each mandate id → its live obligation status for this company.
+    comp = get_company_compliance(symbol)
+    by_mandate = {}
+    for ob in comp.get("obligations", []):
+        mid = ob.get("mandate_id")
+        # Keep the most urgent / nearest obligation per mandate.
+        cur = by_mandate.get(mid)
+        if not cur or (ob.get("due_date", "") and ob["due_date"] < cur.get("due_date", "9999")):
+            by_mandate[mid] = ob
+
+    def _attach(m):
+        ob = by_mandate.get(m["id"])
+        return {**m,
+                "status": ob.get("status") if ob else None,
+                "next_due": ob.get("due_date") if ob else None,
+                "days_remaining": ob.get("days_remaining") if ob else None}
+
+    sebi = [_attach(m) for m in catalog if m["regime"] == "SEBI"]
+    mca = [_attach(m) for m in catalog if m["regime"] == "MCA"]
+    crossborder = [_attach(m) for m in catalog
+                   if m["regime"] in ("FEMA", "Tax & Labour")]
+    sector = _sector_mandates(industry)
+
+    return {
+        "symbol": symbol,
+        "industry": industry,
+        "groups": [
+            {"key": "sebi", "label": "Listed-Company (SEBI)", "color": "#4f46e5",
+             "sub": "LODR · PIT · SAST · BRSR — filed with the exchanges", "items": sebi},
+            {"key": "mca", "label": "Companies Act (MCA / ROC)", "color": "#0d9488",
+             "sub": "Annual returns, event forms & registers", "items": mca},
+            {"key": "sector", "label": f"Sector-Specific — {industry or 'General'}", "color": "#ea580c",
+             "sub": "Regulator-specific filings for this industry", "items": sector},
+            {"key": "crossborder", "label": "Cross-border, Tax & Labour", "color": "#db2777",
+             "sub": "FEMA/RBI, income-tax, PF/ESI & POSH", "items": crossborder},
+        ],
+        "total": len(sebi) + len(mca) + len(sector) + len(crossborder),
+    }
 
 
 # ── Database Setup ──
@@ -287,13 +906,35 @@ def generate_obligations_for_company(symbol):
         quarters_to_check.append((adjusted_q, adjusted_fy, q_end_date, period))
 
     for mandate in SEBI_MANDATES:
-        if mandate["frequency"] == "quarterly":
+        freq = mandate["frequency"]
+        if freq == "quarterly":
             days_after = mandate.get("due_days_after_quarter", 30)
             for q, fy, q_end_dt, period in quarters_to_check:
                 due = q_end_dt + timedelta(days=days_after)
                 _upsert_obligation(conn, symbol, mandate["id"], period, due.isoformat(), now_iso)
 
-        elif mandate["frequency"] == "annual":
+        elif freq == "half_yearly":
+            # Two filings a year. Either explicit calendar dates (`due_dates`)
+            # or N days after each half-year end (Sep 30 / Mar 31).
+            due_list = []
+            if mandate.get("due_dates"):
+                for mo, dy in mandate["due_dates"]:
+                    # Place each on the most recent past/near occurrence.
+                    yr = today.year if (mo, dy) <= (today.month, today.day) else today.year - 1
+                    due_list.append((date(yr, mo, dy), f"{_cal.month_abbr[mo]} {yr}"))
+                    # also the upcoming one this year
+                    if yr == today.year - 1:
+                        due_list.append((date(today.year, mo, dy), f"{_cal.month_abbr[mo]} {today.year}"))
+            else:
+                dh = mandate.get("due_days_after_half", 15)
+                for he, lbl in ((date(today.year - 1, 9, 30), f"H1 FY{today.year-1}-{str(today.year)[-2:]}"),
+                                (date(today.year, 3, 31), f"H2 FY{today.year-1}-{str(today.year)[-2:]}"),
+                                (date(today.year, 9, 30), f"H1 FY{today.year}-{str(today.year+1)[-2:]}")):
+                    due_list.append((he + timedelta(days=dh), lbl))
+            for due, period in due_list:
+                _upsert_obligation(conn, symbol, mandate["id"], period, due.isoformat(), now_iso)
+
+        elif freq == "annual":
             due_month = mandate.get("due_month", 9)
             due_day = mandate.get("due_day", 30)
             if today.month > 3:
@@ -304,7 +945,7 @@ def generate_obligations_for_company(symbol):
                 period = f"FY{today.year - 2}-{str(today.year - 1)[-2:]}"
             _upsert_obligation(conn, symbol, mandate["id"], period, due.isoformat(), now_iso)
 
-        # Event-based mandates: not generated upfront, tracked via filing linkage
+        # event_based / monthly / ongoing: catalog-only (no dated obligation).
 
     conn.commit()
     conn.close()
@@ -781,13 +1422,49 @@ def compute_health_tag(obligations, score):
 
 # ── All Mandates List ──
 
+def _due_label(m):
+    """Human-readable 'when it's due' for the catalog card."""
+    freq = m.get("frequency")
+    months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    if freq == "quarterly":
+        d = m.get("due_days_after_quarter")
+        return f"Within {d} days of quarter end" if d else "Each quarter"
+    if freq == "half_yearly":
+        if m.get("due_dates"):
+            return " & ".join(f"{months[mo]} {dy}" for mo, dy in m["due_dates"])
+        d = m.get("due_days_after_half")
+        return f"Within {d} days of half-year" if d else "Half-yearly"
+    if freq == "annual":
+        mo, dy = m.get("due_month"), m.get("due_day")
+        return f"By {months[mo]} {dy}" if mo else "Annual"
+    if freq == "monthly":
+        return "Monthly"
+    if freq == "event_based":
+        return "On occurrence"
+    if freq == "ongoing":
+        return "Continuous"
+    return "—"
+
+
 def get_all_mandates():
-    """Return the full mandates registry with SEBI source links resolved
-    against SEBI's current legal index (so links survive amendments)."""
+    """Return the full mandate catalog with source links resolved. SEBI links
+    resolve dynamically against SEBI's legal index; other regimes use their
+    direct source URL. Adds a human `due_label` and `frequency_label`."""
+    freq_labels = {
+        "quarterly": "Quarterly", "half_yearly": "Half-yearly", "annual": "Annual",
+        "monthly": "Monthly", "event_based": "Event-based", "ongoing": "Ongoing",
+    }
     out = []
     for m in SEBI_MANDATES:
         m_copy = dict(m)
         key = m_copy.pop("sebi_source_key", None)
-        m_copy["sebi_source"] = get_regulation_url(key) if key else SEBI_REGULATIONS_INDEX
+        if key:
+            m_copy["sebi_source"] = get_regulation_url(key)
+        else:
+            m_copy["sebi_source"] = m_copy.get("source") or SEBI_REGULATIONS_INDEX
+        m_copy.setdefault("regime", "SEBI")
+        m_copy["due_label"] = _due_label(m)
+        m_copy["frequency_label"] = freq_labels.get(m.get("frequency"), "—")
         out.append(m_copy)
     return out

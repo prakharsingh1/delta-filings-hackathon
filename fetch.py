@@ -139,9 +139,49 @@ def _warm_session():
         print(f"[FETCH] Session warm-up failed: {e}")
 
 
-def search_nse_symbols(query, max_results=8):
-    """Search NSE for company symbols matching the query.
-    Returns list of {symbol, name, type} dicts."""
+import re as _re
+
+
+def _search_tradingview(query, max_results=8):
+    """Search NSE equities via TradingView's public symbol-search endpoint.
+    Works from datacenter/cloud IPs (Railway) where NSE's own autocomplete
+    is blocked. Returns {symbol, name, logoid} dicts — logoid lets us pull a
+    company logo from TradingView's CDN later."""
+    try:
+        resp = requests.get(
+            "https://symbol-search.tradingview.com/symbol_search/",
+            params={"text": query, "exchange": "NSE", "type": "stock",
+                    "hl": "true", "lang": "en"},
+            headers={
+                "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                               "AppleWebKit/537.36 (KHTML, like Gecko) "
+                               "Chrome/120.0.0.0 Safari/537.36"),
+                "Origin": "https://www.tradingview.com",
+                "Referer": "https://www.tradingview.com/",
+            },
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            print(f"[FETCH] TradingView symbol search failed: {resp.status_code}")
+            return []
+        out = []
+        for item in (resp.json() or [])[:max_results]:
+            # Strip the <em> highlight markup TradingView wraps matches in.
+            sym = _re.sub(r"</?em>", "", item.get("symbol", "")).strip().upper()
+            name = _re.sub(r"</?em>", "", item.get("description", "")).strip()
+            if not sym:
+                continue
+            out.append({"symbol": sym, "name": name,
+                        "logoid": item.get("logoid", "")})
+        return out
+    except Exception as e:
+        print(f"[FETCH] TradingView symbol search error: {e}")
+        return []
+
+
+def _search_nse_autocomplete(query, max_results=8):
+    """NSE's own autocomplete — works only from residential IPs (NSE blocks
+    datacenter/cloud). Kept as a fallback for local/dev environments."""
     try:
         _warm_session()
         resp = SESSION.get(
@@ -150,15 +190,11 @@ def search_nse_symbols(query, max_results=8):
             timeout=10,
         )
         if resp.status_code != 200:
-            print(f"[FETCH] Symbol search failed: {resp.status_code}")
             return []
-
         data = resp.json()
         results = []
         for item in data.get("symbols", [])[:max_results]:
-            sub_type = item.get("result_sub_type", "")
-            # Only show equities
-            if sub_type != "equity":
+            if item.get("result_sub_type", "") != "equity":
                 continue
             results.append({
                 "symbol": item.get("symbol", ""),
@@ -166,8 +202,20 @@ def search_nse_symbols(query, max_results=8):
             })
         return results
     except Exception as e:
-        print(f"[FETCH] Symbol search error: {e}")
+        print(f"[FETCH] NSE autocomplete error: {e}")
         return []
+
+
+def search_nse_symbols(query, max_results=8):
+    """Search for NSE company symbols matching the query.
+    Returns list of {symbol, name[, logoid]} dicts.
+
+    TradingView first (works from cloud IPs), NSE autocomplete as a fallback
+    for residential IPs / when TradingView returns nothing."""
+    results = _search_tradingview(query, max_results)
+    if results:
+        return results
+    return _search_nse_autocomplete(query, max_results)
 
 
 def _get_raw_text_for_title(title):
@@ -194,57 +242,97 @@ def _normalize_filing(item):
     }
 
 
-def fetch_filings(symbol, max_results=1000, allow_fallback=True):
-    """Fetch corporate announcements for a given NSE symbol.
+# Window size used to page around NSE's response-truncation. NSE caps a single
+# no-date-range response at ~1000 most-recent rows for datacenter/cloud IPs
+# (Railway), silently dropping older filings. Fetching in narrow date windows
+# keeps every response under that cap, so the full requested span comes back
+# complete even from Railway.
+FILINGS_WINDOW_DAYS = 182          # ~6 months per window
+DEFAULT_HISTORY_YEARS = 3
+MAX_HISTORY_YEARS = 15
+
+
+def fetch_filings(symbol, years=DEFAULT_HISTORY_YEARS, max_results=12000,
+                  allow_fallback=True):
+    """Fetch corporate announcements for an NSE symbol over the last `years`.
 
     Strategy:
-      1. Hit the no-date-range endpoint (returns the company's full history,
-         typically 500–1000 rows for an active mid/large cap).
-      2. If that returns suspiciously few rows (<50), try once more with an
-         explicit 5-year date window — sometimes NSE serves a thin response
-         when the cookie is fresh.
-      3. Only fall back to the static `FALLBACK_DATA` sample if both calls
-         fail (`allow_fallback=False` lets callers like background refreshers
-         skip the polluting sample data entirely).
+      1. Page the requested span in ~6-month windows and accumulate. Each
+         window is small enough to dodge NSE's ~1000-row truncation on cloud
+         IPs, so the full history comes back even from Railway.
+      2. Also hit the no-date-range endpoint once and merge — it catches the
+         very latest filings and, on residential IPs, deep history too.
+      3. Dedupe by (title, date); only fall back to the static sample if every
+         call fails (`allow_fallback=False` skips the sample entirely).
     """
+    try:
+        years = max(1, min(int(years or DEFAULT_HISTORY_YEARS), MAX_HISTORY_YEARS))
+    except (TypeError, ValueError):
+        years = DEFAULT_HISTORY_YEARS
+    history_days = 365 * years
 
-    def _try(params):
-        try:
-            _warm_session()
-            resp = SESSION.get(API_URL, params=params, timeout=20)
-            if resp.status_code != 200:
-                print(f"[FETCH] NSE non-200 ({resp.status_code}) for {symbol} {params}")
-                return None
-            data = resp.json()
-            if not isinstance(data, list):
-                return None
-            return data
-        except Exception as e:
-            print(f"[FETCH] NSE call failed for {symbol} {params}: {e}")
-            return None
+    def _try(params, retries=1):
+        """GET with one retry — a transient drop must not silently lose a
+        whole 6-month window of history."""
+        for attempt in range(retries + 1):
+            try:
+                _warm_session()
+                resp = SESSION.get(API_URL, params=params, timeout=25)
+                if resp.status_code != 200:
+                    print(f"[FETCH] NSE non-200 ({resp.status_code}) for {symbol} {params}")
+                elif isinstance(resp.json(), list):
+                    return resp.json()
+            except Exception as e:
+                print(f"[FETCH] NSE call failed for {symbol} {params} "
+                      f"(attempt {attempt+1}): {e}")
+            if attempt < retries:
+                time.sleep(1.0)
+        return None
 
-    # 1) full history (no date range)
-    data = _try({"index": "equities", "symbol": symbol})
+    from datetime import date, timedelta
+    today = date.today()
+    start = today - timedelta(days=history_days)
 
-    # 2) if NSE served a thin response, retry with explicit date window
-    if data is not None and len(data) < 50:
-        from datetime import date, timedelta
-        today = date.today()
-        five_y_ago = today - timedelta(days=365 * 5)
-        params2 = {
-            "index": "equities",
-            "symbol": symbol,
-            "from_date": five_y_ago.strftime("%d-%m-%Y"),
-            "to_date": today.strftime("%d-%m-%Y"),
-        }
-        retry = _try(params2)
-        if retry and len(retry) > len(data):
-            print(f"[FETCH] retry with date range got {len(retry)} (vs {len(data)} initial) for {symbol}")
-            data = retry
+    # Accumulate raw rows, deduped by a stable key, across all windows.
+    merged = {}
+    any_response = False
 
-    if data:
-        filings = [_normalize_filing(item) for item in data[:max_results]]
-        print(f"[FETCH] Got {len(filings)} live filings for {symbol}")
+    def _absorb(rows):
+        nonlocal any_response
+        if rows is None:
+            return
+        any_response = True
+        for item in rows:
+            norm = _normalize_filing(item)
+            key = (norm["title"], norm["date"])
+            if key not in merged:
+                merged[key] = norm
+
+    # 1) Windowed 5-year sweep (newest window first).
+    win_end = today
+    windows = 0
+    while win_end > start:
+        win_start = max(start, win_end - timedelta(days=FILINGS_WINDOW_DAYS))
+        rows = _try({
+            "index": "equities", "symbol": symbol,
+            "from_date": win_start.strftime("%d-%m-%Y"),
+            "to_date": win_end.strftime("%d-%m-%Y"),
+        })
+        _absorb(rows)
+        windows += 1
+        # Step back one day past the window start to avoid overlap dupes.
+        win_end = win_start - timedelta(days=1)
+
+    # 2) No-date-range call — latest filings + deep history on residential IPs.
+    _absorb(_try({"index": "equities", "symbol": symbol}))
+
+    if any_response and merged:
+        filings = list(merged.values())
+        # Newest first by sort_date (falls back to date string).
+        filings.sort(key=lambda f: f.get("sort_date") or f.get("date") or "", reverse=True)
+        filings = filings[:max_results]
+        print(f"[FETCH] Got {len(filings)} live filings for {symbol} "
+              f"({windows} windows + no-range, {years}y)")
         return filings
 
     if not allow_fallback:

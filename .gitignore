@@ -36,3 +36,4 @@ Thumbs.db
 # PDF cache (local only, Railway regenerates)
 pdf_cache/
 .pdf_cache/
+.logocache/

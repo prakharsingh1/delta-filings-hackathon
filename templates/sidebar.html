@@ -12,12 +12,12 @@
     .app-topbar-inner { max-width: 1480px; margin: 0 auto; height: 100%;
         display: flex; align-items: center; gap: 14px; padding: 0 24px; }
     .topbar-logo { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center; color: #fff;
-        background: linear-gradient(135deg, #4f46e5, #0ea5e9);
-        box-shadow: 0 6px 16px -6px rgba(79,70,229,.55);
-        transition: transform .25s cubic-bezier(.22,.61,.36,1), box-shadow .25s ease; }
-    .topbar-logo:hover { transform: rotate(-6deg) scale(1.05); box-shadow: 0 10px 22px -8px rgba(79,70,229,.65); }
-    .topbar-logo svg { width: 18px; height: 18px; }
+        display: flex; align-items: center; justify-content: center;
+        color: #0f172a;
+        transition: transform .25s cubic-bezier(.22,.61,.36,1); }
+    html.dark .topbar-logo { color: #f5f5f5; }
+    .topbar-logo:hover { transform: scale(1.06); }
+    .topbar-logo svg { width: 26px; height: 26px; }
     .topbar-wordmark { font-weight: 700; font-size: 15px; letter-spacing: -.02em; color: var(--text-primary); }
 
     /* ── Current-page indicator pill (animated) ── */
@@ -170,7 +170,14 @@
     'watchlist':     {'label': 'Watchlist',     'icon': 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'},
     'company':       {'label': 'Company',       'icon': 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'},
 } %}
-{% set _current_page = _PAGE_INFO.get(active_page) %}
+{# The company page hosts two top-nav destinations (Disclosures / Compare),
+   distinguished by ?tab=. Resolve which one is "current" for the pill + nav. #}
+{% set _company_tab = request.args.get('tab', 'announcements') if active_page == 'company' else None %}
+{% if active_page == 'company' %}
+    {% set _current_page = _PAGE_INFO.get('compare' if _company_tab == 'compare' else 'announcements') %}
+{% else %}
+    {% set _current_page = _PAGE_INFO.get(active_page) %}
+{% endif %}
 
 {% if ui_version == 'new' %}
 <style>.flex.h-screen { margin-top: 64px; height: calc(100vh - 64px); }</style>
@@ -178,7 +185,10 @@
     <div class="app-topbar-inner">
         <a href="/dashboard" class="flex items-center gap-2.5 flex-shrink-0">
             <span class="topbar-logo">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="Delta Filings">
+                    <polygon points="8,42 34,30 34,108 8,120"/>
+                    <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+                </svg>
             </span>
             <span class="topbar-wordmark">Delta Filings</span>
         </a>
@@ -206,11 +216,11 @@
         <nav class="top-nav">
             <a href="/dashboard" class="top-nav-item {{ 'active' if active_page == 'dashboard' else '' }}">Dashboard</a>
             <a href="/draft" class="top-nav-item {{ 'active' if active_page == 'draft' else '' }}">Draft</a>
-            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if active_page == 'announcements' else '' }}">Disclosures</a>
+            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'announcements' or (active_page == 'company' and _company_tab != 'compare')) else '' }}">Disclosures</a>
             <a href="/prices" class="top-nav-item {{ 'active' if active_page == 'prices' else '' }}">Stock Prices</a>
             <a href="/din-search" class="top-nav-item {{ 'active' if active_page == 'din_search' else '' }}">DIN Search</a>
             <a href="/compliance" class="top-nav-item {{ 'active' if active_page == 'compliance' else '' }}">Compliance</a>
-            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if active_page == 'compare' else '' }}">Compare</a>
+            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'compare' or (active_page == 'company' and _company_tab == 'compare')) else '' }}">Compare</a>
         </nav>
 
         <div class="flex items-center gap-1.5 flex-shrink-0">
@@ -308,11 +318,10 @@
 <aside class="sidebar">
     <div class="sidebar-brand">
         <a href="/dashboard" class="flex items-center gap-2.5">
-            <span class="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30"
-                  style="background: linear-gradient(135deg,#4f46e5,#0ea5e9);">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            <span class="flex-shrink-0 w-9 h-9 flex items-center justify-center text-slate-900">
+                <svg class="w-6 h-6" viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="Delta Filings">
+                    <polygon points="8,42 34,30 34,108 8,120"/>
+                    <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
                 </svg>
             </span>
             <span class="min-w-0">
@@ -493,6 +502,31 @@
                 <div id="ui-version-status" class="text-[11px] mt-2"></div>
             </div>
 
+            <!-- Filing history depth -->
+            <div class="px-6 py-5 border-b border-gray-200">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Filing history depth</div>
+                <p class="text-[11px] text-gray-500 mb-3">How many years of governance filings to pull from NSE for each company. Deeper spans take longer to fetch. You can also pull a custom depth per company from its Disclosures page.</p>
+                <div class="grid grid-cols-4 gap-2" id="depth-setting-grid">
+                    <button type="button" data-years="3" onclick="setHistoryYears(3)" class="depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all">
+                        <div class="text-sm font-bold text-gray-900">3y</div>
+                        <div class="text-[10px] text-gray-500">Default</div>
+                    </button>
+                    <button type="button" data-years="5" onclick="setHistoryYears(5)" class="depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all">
+                        <div class="text-sm font-bold text-gray-900">5y</div>
+                        <div class="text-[10px] text-gray-500">Standard</div>
+                    </button>
+                    <button type="button" data-years="10" onclick="setHistoryYears(10)" class="depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all">
+                        <div class="text-sm font-bold text-gray-900">10y</div>
+                        <div class="text-[10px] text-gray-500">Deep</div>
+                    </button>
+                    <button type="button" data-years="15" onclick="setHistoryYears(15)" class="depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all">
+                        <div class="text-sm font-bold text-gray-900">15y</div>
+                        <div class="text-[10px] text-gray-500">Max</div>
+                    </button>
+                </div>
+                <div id="history-years-status" class="text-[11px] mt-2"></div>
+            </div>
+
             <!-- Industry / Watchlist -->
             <div class="px-6 py-5 border-b border-gray-200">
                 <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">1. Industry Watchlist</div>
@@ -561,8 +595,9 @@
                     <span id="key-test-result" class="text-xs"></span>
                 </div>
                 <p class="text-[10px] text-gray-400 mt-2">
-                    Provide an AI API key to unlock smart summaries.
-                    Without a key, summaries use basic text extraction.
+                    Works with a <b>Google Gemini</b> key (<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-indigo-500 hover:underline">aistudio.google.com</a>, starts with <code>AIza</code>)
+                    or an <b>OpenRouter</b> key (<a href="https://openrouter.ai/keys" target="_blank" rel="noopener" class="text-indigo-500 hover:underline">openrouter.ai/keys</a>, starts with <code>sk-or-</code>).
+                    Pick a model from the matching provider above. Without a key, summaries fall back to basic text extraction.
                 </p>
             </div>
 
@@ -783,11 +818,35 @@ function setUiVersion(v) {
         .catch(() => { status.innerHTML = '<span class="text-red-500">Failed to switch.</span>'; });
 }
 
+function _highlightHistoryYears(y) {
+    const on = 'border-indigo-500 bg-indigo-50';
+    const off = 'border-gray-200 hover:border-gray-300';
+    document.querySelectorAll('.depth-setting-btn').forEach(b => {
+        const sel = parseInt(b.dataset.years, 10) === y;
+        b.className = `depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all ${sel ? on : off}`;
+    });
+}
+
+function setHistoryYears(y) {
+    _highlightHistoryYears(y);
+    const status = document.getElementById('history-years-status');
+    status.innerHTML = '<span class="text-gray-500">Saving…</span>';
+    fetch('/api/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ filings_history_years: y }) })
+        .then(r => r.json())
+        .then(d => {
+            if (d.error) { status.innerHTML = `<span class="text-red-500">${d.message || 'Failed'}</span>`; return; }
+            status.innerHTML = `<span class="text-emerald-600 font-medium">&#x2713; New companies will pull ${y} years. Existing ones deepen on next open.</span>`;
+            setTimeout(() => { status.innerHTML = ''; }, 4000);
+        })
+        .catch(() => { status.innerHTML = '<span class="text-red-500">Failed to save.</span>'; });
+}
+
 function loadSettings() {
     fetch('/api/settings').then(r => r.json()).then(data => {
         _settingsLoaded = true;
         _selectedModel = data.gemini_model || 'gemini-2.5-flash';
         _highlightUi(data.ui_version || 'legacy');
+        _highlightHistoryYears(data.filings_history_years || 3);
 
         // Industry dropdown
         const indSel = document.getElementById('settings-industry');
@@ -801,15 +860,15 @@ function loadSettings() {
             indSel.dataset.current = current;
         }
 
-        // Render model cards
+        // Render model cards, grouped by provider (Gemini direct vs OpenRouter).
         const container = document.getElementById('model-cards');
-        container.innerHTML = Object.entries(data.models).map(([id, m]) => {
-            const badgeColors = {
-                emerald: 'bg-emerald-500',
-                indigo: 'bg-indigo-500',
-                violet: 'bg-violet-500',
-            };
-            return `<div class="model-card ${id === _selectedModel ? 'selected' : ''}" data-model="${id}" onclick="selectModel('${id}')">
+        const badgeColors = {
+            emerald: 'bg-emerald-500',
+            indigo: 'bg-indigo-500',
+            violet: 'bg-violet-500',
+        };
+        const cardHTML = ([id, m]) => `
+            <div class="model-card ${id === _selectedModel ? 'selected' : ''}" data-model="${id}" onclick="selectModel('${id}')">
                 <div class="flex items-start justify-between mb-1.5">
                     <span class="text-sm font-bold text-gray-900">${m.name}</span>
                     <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${badgeColors[m.badge_color] || 'bg-gray-500'} text-white">${m.badge}</span>
@@ -820,7 +879,24 @@ function loadSettings() {
                     <div class="flex justify-between"><span>Cost:</span><span class="text-gray-700 font-medium">${m.cost}</span></div>
                 </div>
             </div>`;
-        }).join('');
+
+        const entries = Object.entries(data.models);
+        const gem = entries.filter(([, m]) => (m.provider || 'gemini') === 'gemini');
+        const orr = entries.filter(([, m]) => m.provider === 'openrouter');
+        let html = '';
+        if (gem.length) {
+            html += `<div class="col-span-2 flex items-center gap-2 mt-1">
+                <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Google Gemini</span>
+                <span class="text-[9px] text-gray-400">direct API · key starts with AIza…</span>
+            </div>` + gem.map(cardHTML).join('');
+        }
+        if (orr.length) {
+            html += `<div class="col-span-2 flex items-center gap-2 mt-2">
+                <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">OpenRouter</span>
+                <span class="text-[9px] text-gray-400">openrouter.ai · key starts with sk-or-…</span>
+            </div>` + orr.map(cardHTML).join('');
+        }
+        container.innerHTML = html;
 
         // Set API key field
         if (data.gemini_api_key_set) {

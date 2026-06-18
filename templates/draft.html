@@ -46,6 +46,26 @@
             font-size: 0.9em;
             border: 1px solid #fde68a;
         }
+        /* ── Smart recommendation cards ── */
+        .rec-spark { width:24px; height:24px; border-radius:7px; display:inline-flex;
+            align-items:center; justify-content:center; color:#fff;
+            background:linear-gradient(135deg,#4f46e5,#7c3aed); flex-shrink:0; }
+        .rec-card { --rb:#4f46e5; position:relative; background:#fff;
+            border:1px solid #eef1f7; border-left:3px solid var(--rb);
+            border-radius:12px; padding:13px 14px; display:flex; flex-direction:column;
+            transition: transform .14s ease, box-shadow .18s ease, border-color .18s ease; cursor:pointer; }
+        .rec-card:hover { transform:translateY(-2px);
+            box-shadow:0 12px 26px -16px color-mix(in srgb, var(--rb) 60%, transparent);
+            border-color: color-mix(in srgb, var(--rb) 40%, #eef1f7); }
+        .rec-draft { display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
+            font-size:11.5px; font-weight:700; color:var(--rb); }
+        .rec-card:hover .rec-draft { gap:7px; }
+        .rec-section-head { display:flex; align-items:baseline; gap:8px; margin-bottom:8px;
+            padding-bottom:6px; border-bottom:1px solid #eef1f7; }
+        .rec-section-title { font-size:12.5px; font-weight:800; color:#0f172a; }
+        .rec-section-sub { font-size:11px; color:#94a3b8; flex:1; }
+        .rec-section-ct { font-size:10.5px; font-weight:700; color:#64748b;
+            background:#f1f5f9; padding:1px 8px; border-radius:999px; }
     </style>
 </head>
 <body class="bg-slate-50 text-gray-900">
@@ -148,6 +168,21 @@
                     <h3 class="text-lg font-bold text-gray-900">Filing type</h3>
                 </div>
                 <p class="text-sm text-gray-500 mb-3">What kind of letter are you drafting? We'll pull past examples of this type from <span id="step2-company-name" class="font-semibold text-gray-700"></span>. <span id="filing-type-count" class="text-gray-400"></span></p>
+
+                <!-- ── Smart recommendations ── -->
+                <div id="rec-panel" class="hidden mb-5">
+                    <div class="flex items-center gap-2 mb-2.5">
+                        <span class="rec-spark"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></span>
+                        <h4 class="text-sm font-bold text-gray-900">Recommended filings for <span id="rec-company"></span></h4>
+                        <span id="rec-count" class="text-[11px] text-gray-400"></span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mb-3">Based on upcoming deadlines and recent filings — these are likely what you need to draft next.</p>
+                    <div id="rec-grid" class="space-y-5"></div>
+                </div>
+                <div id="rec-loading" class="hidden mb-5 flex items-center gap-2 text-xs text-gray-400">
+                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    Scanning deadlines &amp; recent filings…
+                </div>
 
                 <div class="flex flex-wrap items-center gap-2 mb-4">
                     <input id="filing-type-search" type="text" placeholder="Search by name, regulation, or keyword (e.g., 'reg 30', 'dividend', 'voting')…"
@@ -440,8 +475,52 @@
                         </button>
                     </div>
                 </div>
-                <p class="text-xs text-gray-500 mb-4">Final letter as it will appear on the official letterhead. Both formats render identically — you can edit the Word file later if needed.</p>
+                <p class="text-xs text-gray-500 mb-4">Final document as it will appear on the official letterhead. Both formats render identically — you can edit the Word file later if needed.</p>
+
+                <!-- PDF Document Properties (what NSE/SEBI portals read) -->
+                <details class="mb-4 rounded-xl border border-gray-200 bg-gray-50/60" id="pdf-props">
+                    <summary class="cursor-pointer select-none px-4 py-2.5 text-sm font-semibold text-gray-800 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        PDF Document Properties
+                        <span class="text-[11px] font-normal text-gray-400">— embedded in the export; reviewers &amp; the NEAPS portal read these</span>
+                    </summary>
+                    <div class="px-4 pb-4 pt-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label class="block"><span class="text-[11px] font-medium text-gray-500">Title</span>
+                            <input id="meta-title" class="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"></label>
+                        <label class="block"><span class="text-[11px] font-medium text-gray-500">Author</span>
+                            <input id="meta-author" class="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"></label>
+                        <label class="block"><span class="text-[11px] font-medium text-gray-500">Subject</span>
+                            <input id="meta-subject" class="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"></label>
+                        <label class="block"><span class="text-[11px] font-medium text-gray-500">Keywords</span>
+                            <input id="meta-keywords" class="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"></label>
+                    </div>
+                </details>
+
                 <div id="preview" class="bg-white border-2 border-gray-300 rounded-lg p-10 shadow-inner" style="font-family: 'Times New Roman', Georgia, serif;"></div>
+
+                <!-- PDF Tools — make a signed/scanned copy exchange-ready -->
+                <div class="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                    <div class="flex items-start gap-2.5 mb-3">
+                        <svg class="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        <div>
+                            <p class="text-sm font-bold text-gray-900">Make a signed / scanned PDF exchange-ready</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Printed, signed &amp; scanned the letter? NEAPS rejects image-only PDFs and flags blank properties. Upload it here to <b>OCR</b> it (make it text-searchable) and stamp the correct <b>Document Properties</b>.</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <input type="file" id="pdf-tools-file" accept="application/pdf"
+                               class="text-xs file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white file:text-xs file:font-semibold file:cursor-pointer">
+                        <label class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600">
+                            <input type="checkbox" id="pdf-tools-ocr" checked class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-400">
+                            OCR (make text-searchable)
+                        </label>
+                        <button onclick="runPdfTools()" id="pdf-tools-btn"
+                                class="text-xs font-semibold px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+                            Process &amp; download
+                        </button>
+                        <span id="pdf-tools-status" class="text-[11px] text-gray-500"></span>
+                    </div>
+                </div>
                 <div class="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
                     <button onclick="goBackToStep(4)" class="text-xs text-gray-500 hover:text-gray-700">← Edit letter</button>
                     <button onclick="resetWizard()" class="text-xs text-gray-500 hover:text-gray-700">↺ Start over</button>
@@ -500,7 +579,78 @@ function _selectCompany(symbol, name) {
     document.getElementById('step2-company-name').textContent = symbol;
     document.getElementById('field-nse').value = symbol;
     loadFilingTypes();
+    loadRecommendations(symbol);
     showStep(2);
+}
+
+// ── Smart recommendations ──
+const _REC_STYLES = {
+    overdue:   {pill: 'bg-rose-100 text-rose-700',    label: 'Overdue',   border: '#f43f5e'},
+    due_today: {pill: 'bg-rose-100 text-rose-700',    label: 'Due today', border: '#f43f5e'},
+    due_soon:  {pill: 'bg-amber-100 text-amber-700',  label: 'Due soon',  border: '#f59e0b'},
+    upcoming:  {pill: 'bg-blue-100 text-blue-700',    label: 'Upcoming',  border: '#3b82f6'},
+    event:     {pill: 'bg-violet-100 text-violet-700',label: 'Triggered', border: '#8b5cf6'},
+    seasonal:  {pill: 'bg-teal-100 text-teal-700',    label: 'This season',border: '#0d9488'},
+    sector:    {pill: 'bg-orange-100 text-orange-700',label: 'Sector',    border: '#ea580c'},
+};
+const _BUCKETS = [
+    {key: 'deadline', title: 'Due soon &amp; overdue', sub: 'Statutory deadlines across SEBI, MCA, FEMA &amp; Tax'},
+    {key: 'event',    title: 'Triggered by recent activity', sub: 'Follow-on filings implied by what was just filed'},
+    {key: 'seasonal', title: 'This season', sub: 'Governance documents due this part of the compliance calendar'},
+    {key: 'sector',   title: 'Sector-specific', sub: 'Industry filings beyond the company-law universe'},
+];
+function loadRecommendations(symbol) {
+    const panel = document.getElementById('rec-panel');
+    const loading = document.getElementById('rec-loading');
+    panel.classList.add('hidden'); loading.classList.remove('hidden');
+    document.getElementById('rec-company').textContent = symbol;
+    fetch(`/api/draft/recommendations?symbol=${encodeURIComponent(symbol)}`)
+        .then(r => r.json())
+        .then(d => {
+            loading.classList.add('hidden');
+            const recs = d.recommendations || [];
+            if (!recs.length) return;
+            document.getElementById('rec-count').textContent = `(${recs.length})`;
+            const card = (r) => {
+                const s = _REC_STYLES[r.urgency] || _REC_STYLES.upcoming;
+                const isDraft = r.action !== 'compliance' && r.filing_type;
+                const onClick = isDraft
+                    ? `pickFilingType('${escapeJsAttr(r.filing_type)}')`
+                    : `window.location.href='/compliance'`;
+                const cta = isDraft
+                    ? `Draft this <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>`
+                    : `View in Compliance <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>`;
+                const meta = r.due_date || (r.freq || '');
+                return `
+                <button type="button" onclick="${onClick}" class="rec-card text-left" style="--rb:${s.border}">
+                    <div class="flex items-start justify-between gap-2 mb-1">
+                        <span class="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded ${s.pill}">${s.label}</span>
+                        ${meta ? `<span class="text-[10px] text-gray-400 font-medium">${escapeHtml(meta)}</span>` : ''}
+                    </div>
+                    <p class="text-sm font-semibold text-gray-900 leading-snug">${escapeHtml(r.label || '')}</p>
+                    <p class="text-[11px] text-gray-500 mt-1 leading-relaxed">${escapeHtml(r.reason || '')}</p>
+                    <span class="rec-draft mt-2">${cta}</span>
+                </button>`;
+            };
+            // Group into labelled sections.
+            let html = '';
+            for (const b of _BUCKETS) {
+                const items = recs.filter(r => r.bucket === b.key);
+                if (!items.length) continue;
+                html += `
+                    <div class="rec-section">
+                        <div class="rec-section-head">
+                            <span class="rec-section-title">${b.title}</span>
+                            <span class="rec-section-sub">${b.sub}</span>
+                            <span class="rec-section-ct">${items.length}</span>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-2.5">${items.map(card).join('')}</div>
+                    </div>`;
+            }
+            document.getElementById('rec-grid').innerHTML = html;
+            panel.classList.remove('hidden');
+        })
+        .catch(() => { loading.classList.add('hidden'); });
 }
 document.querySelectorAll('.company-btn').forEach(btn => {
     btn.addEventListener('click', () => _selectCompany(btn.dataset.symbol, btn.dataset.name));
@@ -1390,7 +1540,64 @@ function _gatherLetter() {
         bse_code: document.getElementById('field-bse').value,
         nse_symbol: document.getElementById('field-nse').value,
         annexures: STATE.annexures.map(a => ({title: a.title, body: a.body})),
+        pdf_meta: {
+            title: (document.getElementById('meta-title') || {}).value || '',
+            author: (document.getElementById('meta-author') || {}).value || '',
+            subject: (document.getElementById('meta-subject') || {}).value || '',
+            keywords: (document.getElementById('meta-keywords') || {}).value || '',
+        },
     };
+}
+
+// Prefill the PDF Document Properties from the letter (CS can override).
+function _seedPdfMeta() {
+    const co = STATE.company ? STATE.company.name : '';
+    const subj = document.getElementById('field-subject').value || (STATE.filing_type ? STATE.filing_type.label : '');
+    const set = (id, v) => { const el = document.getElementById(id); if (el && !el.value) el.value = v; };
+    set('meta-title', subj);
+    set('meta-author', co);
+    set('meta-subject', subj);
+    set('meta-keywords', [co, 'SEBI', 'compliance', 'filing'].filter(Boolean).join(', '));
+}
+
+// PDF Tools — OCR + set Document Properties on an uploaded signed/scanned PDF.
+function runPdfTools() {
+    const fileEl = document.getElementById('pdf-tools-file');
+    const status = document.getElementById('pdf-tools-status');
+    const btn = document.getElementById('pdf-tools-btn');
+    const file = fileEl.files && fileEl.files[0];
+    if (!file) { status.textContent = 'Choose a PDF first.'; status.className = 'text-[11px] text-amber-600'; return; }
+
+    const fd = new FormData();
+    fd.append('pdf', file);
+    fd.append('ocr', document.getElementById('pdf-tools-ocr').checked ? '1' : '0');
+    fd.append('title', (document.getElementById('meta-title') || {}).value || '');
+    fd.append('author', (document.getElementById('meta-author') || {}).value || '');
+    fd.append('subject', (document.getElementById('meta-subject') || {}).value || '');
+    fd.append('keywords', (document.getElementById('meta-keywords') || {}).value || '');
+
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Processing…';
+    status.textContent = 'Uploading & processing — OCR can take a moment…';
+    status.className = 'text-[11px] text-gray-500 animate-pulse';
+
+    fetch('/api/draft/pdf-tools', { method: 'POST', body: fd })
+        .then(r => {
+            if (!r.ok) return r.json().then(d => { throw new Error(d.message || 'Failed'); });
+            const notice = r.headers.get('X-Delta-Notice') || 'Done.';
+            return r.blob().then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = (file.name.replace(/\.pdf$/i, '') || 'filing') + '_compliant.pdf';
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+                status.textContent = '✓ ' + notice;
+                status.className = 'text-[11px] text-emerald-600 font-medium';
+            });
+        })
+        .catch(e => { status.textContent = e.message || 'Failed'; status.className = 'text-[11px] text-red-500'; })
+        .finally(() => { btn.disabled = false; btn.textContent = orig; });
 }
 
 // ── Manual save + history modal ──
@@ -1810,6 +2017,7 @@ function _renderBodyHtml(text) {
 function goToPreview() {
     STATE.body = _quill ? _getEditorPlainText() : (STATE.body || '');
     STATE.subject = document.getElementById('field-subject').value;
+    _seedPdfMeta();
     const L = _gatherLetter();
     const today = new Date().toLocaleDateString('en-IN', {day: '2-digit', month: 'long', year: 'numeric'});
 
@@ -1822,13 +2030,25 @@ function goToPreview() {
             ${_renderBodyHtml(a.body)}
         </div>`).join('');
 
-    document.getElementById('preview').innerHTML = `
+    // Document kind decides the layout: exchange letter vs standalone document
+    // (resolution / notice / minutes etc.).
+    const LETTER_KINDS = ['', 'letter', 'exchange_letter'];
+    const docKind = (STATE.filing_type && STATE.filing_type.doc_kind) || 'letter';
+    const addressed = LETTER_KINDS.includes(docKind);
+    const CLOSE = {resolution: 'By order of the Board', notice: 'By order of the Board'};
+    const closePhrase = addressed ? 'Yours faithfully,' : (CLOSE[docKind] || '');
+
+    const headerBlock = `
         <div style="text-align:center; margin-bottom:6px;">
             <h1 style="font-size:18px; font-weight:bold; margin:0; letter-spacing:0.5px;">${escapeHtml((L.company_name || '').toUpperCase())}</h1>
             ${L.registered_office ? `<p style="font-size:11px; color:#444; margin:4px 0 0 0;">${escapeHtml(L.registered_office)}</p>` : ''}
             ${L.cin ? `<p style="font-size:11px; color:#444; margin:2px 0 0 0;">CIN: ${escapeHtml(L.cin)}</p>` : ''}
         </div>
-        <hr style="border:none; border-top:1px solid #000; margin:10px 0 24px 0;">
+        <hr style="border:none; border-top:1px solid #000; margin:10px 0 24px 0;">`;
+
+    let topBlock;
+    if (addressed) {
+        topBlock = `
         <p style="margin:0 0 18px 0;">Date: ${today}</p>
         <table style="width:100%; margin:0 0 18px 0; border-collapse:collapse;">
             <tr style="vertical-align:top;">
@@ -1843,9 +2063,18 @@ function goToPreview() {
             </tr>
         </table>
         ${L.subject ? `<p style="margin:0 0 16px 0;"><b><u>Subject: ${escapeHtml(L.subject)}</u></b></p>` : ''}
-        <p style="margin:0 0 14px 0;">Dear Sir / Madam,</p>
+        <p style="margin:0 0 14px 0;">Dear Sir / Madam,</p>`;
+    } else {
+        topBlock = `
+        ${L.subject ? `<p style="text-align:center; margin:0 0 16px 0;"><b><u>${escapeHtml((L.subject || '').toUpperCase())}</u></b></p>` : ''}
+        <p style="margin:0 0 16px 0;">Date: ${today}</p>`;
+    }
+
+    document.getElementById('preview').innerHTML = `
+        ${headerBlock}
+        ${topBlock}
         ${bodyHtml}
-        <p style="margin:24px 0 0 0;">Yours faithfully,</p>
+        ${closePhrase ? `<p style="margin:24px 0 0 0;">${escapeHtml(closePhrase)}</p>` : '<div style="height:18px;"></div>'}
         <p style="margin:8px 0 0 0;"><b>For ${escapeHtml(L.company_name || '')}</b></p>
         <div style="height:50px;"></div>
         ${L.signer_name ? `<p style="margin:0;"><b>${escapeHtml(L.signer_name)}</b></p>` : ''}

@@ -553,6 +553,458 @@ FILING_TYPES = [
         "body_hint": "Write a clear subject line and 1–3 paragraph body. Include all material facts.",
         "annexure_hints": "Add annexures only if the letter references attached documents (e.g., resolutions, certificates, schedules).",
     },
+
+    # ══════════════════════════════════════════════════════════════════
+    # MCA / COMPANIES ACT — board & general meeting documents
+    # (standalone documents, not exchange letters → doc_kind set)
+    # ══════════════════════════════════════════════════════════════════
+    {
+        "id": "board_notice", "doc_kind": "notice",
+        "label": "Notice of Board Meeting (s.173)",
+        "category": "Companies Act — Meetings & Notices",
+        "subject_default": "Notice of Meeting of the Board of Directors",
+        "keywords": ["board meeting notice", "section 173", "notice of board", "ss-1"],
+        "body_hint": "Date/time/venue/mode of the board meeting, ≥7 days' notice, list of agenda items, note on participation by video-conference.",
+        "annexure_hints": "Agenda with notes on each item; draft resolutions.",
+    },
+    {
+        "id": "agm_notice", "doc_kind": "notice",
+        "label": "Notice of Annual General Meeting (s.101)",
+        "category": "Companies Act — Meetings & Notices",
+        "subject_default": "Notice of the Annual General Meeting",
+        "keywords": ["agm notice", "annual general meeting", "section 101", "section 102", "explanatory statement"],
+        "body_hint": "Day/date/time/venue/mode, ordinary business (adoption of accounts, dividend, director rotation, auditor), any special business as numbered resolutions, e-voting details, cut-off date.",
+        "annexure_hints": "Explanatory Statement under s.102 for each special-business item; route map / e-voting instructions.",
+    },
+    {
+        "id": "egm_notice", "doc_kind": "notice",
+        "label": "Notice of Extraordinary General Meeting (s.100)",
+        "category": "Companies Act — Meetings & Notices",
+        "subject_default": "Notice of the Extraordinary General Meeting",
+        "keywords": ["egm notice", "extraordinary general meeting", "section 100", "section 102"],
+        "body_hint": "Meeting particulars, the special-business resolutions (ordinary/special), e-voting details.",
+        "annexure_hints": "Explanatory Statement under s.102 for each item.",
+    },
+    {
+        "id": "postal_ballot", "doc_kind": "notice",
+        "label": "Postal Ballot Notice (s.110)",
+        "category": "Companies Act — Meetings & Notices",
+        "subject_default": "Postal Ballot Notice",
+        "keywords": ["postal ballot", "section 110", "remote e-voting"],
+        "body_hint": "Resolutions proposed by postal ballot, remote e-voting window (start/end), scrutinizer details, last date for votes.",
+        "annexure_hints": "Explanatory Statement under s.102; postal ballot form.",
+    },
+    {
+        "id": "board_minutes", "doc_kind": "minutes",
+        "label": "Minutes of Board Meeting (SS-1)",
+        "category": "Companies Act — Minutes",
+        "subject_default": "Minutes of the Meeting of the Board of Directors",
+        "keywords": ["board minutes", "ss-1", "minutes of board meeting"],
+        "body_hint": "Serial no., day/date/time/venue, directors present (incl. via VC), quorum, leave of absence, confirmation of previous minutes, each agenda item with the decision/resolution, time of conclusion.",
+        "annexure_hints": "Resolutions passed verbatim; attendance register reference.",
+    },
+    {
+        "id": "agm_minutes", "doc_kind": "minutes",
+        "label": "Minutes of General Meeting (SS-2)",
+        "category": "Companies Act — Minutes",
+        "subject_default": "Minutes of the General Meeting",
+        "keywords": ["general meeting minutes", "ss-2", "agm minutes", "egm minutes"],
+        "body_hint": "Meeting type/date/time/venue, chairman, members present & quorum, business transacted, resolutions with for/against e-voting numbers, time of conclusion.",
+        "annexure_hints": "Scrutinizer's report; resolutions as passed.",
+    },
+    {
+        "id": "board_resolution", "doc_kind": "resolution",
+        "label": "Board Resolution (general)",
+        "category": "Companies Act — Resolutions",
+        "subject_default": "Certified True Copy of the Board Resolution",
+        "keywords": ["board resolution", "resolved that", "certified true copy", "ctc"],
+        "body_hint": "State the matter approved by the Board and the authorisation to a director/CS/authorised signatory to act. Use 'RESOLVED THAT' language.",
+        "annexure_hints": "None usually; attach the underlying document if referenced.",
+    },
+    {
+        "id": "special_resolution", "doc_kind": "resolution",
+        "label": "Special Resolution (s.114)",
+        "category": "Companies Act — Resolutions",
+        "subject_default": "Special Resolution",
+        "keywords": ["special resolution", "section 114", "75%", "members"],
+        "body_hint": "The special-business matter requiring a 75% majority (e.g. alteration of MoA/AoA, related-party approval, ESOP, borrowing/s.180). Use 'RESOLVED THAT' / 'RESOLVED FURTHER THAT'.",
+        "annexure_hints": "Explanatory statement reference.",
+    },
+    {
+        "id": "mgt14_resolution", "doc_kind": "resolution",
+        "label": "Resolution for MGT-14 Filing (s.117)",
+        "category": "Companies Act — Resolutions",
+        "subject_default": "Resolution under Section 117 read with Section 179(3)",
+        "keywords": ["mgt-14", "section 117", "section 179(3)", "board resolution filing"],
+        "body_hint": "The board/special resolution to be filed with the ROC in MGT-14 (e.g. accounts approval, borrowing powers, investment, loans). Resolution language + effective authorisation.",
+        "annexure_hints": "Certified true copy for ROC attachment.",
+    },
+
+    # ── MCA / Companies Act — covering content for ROC e-forms ──
+    {
+        "id": "dir12_covering", "doc_kind": "document",
+        "label": "DIR-12 — Director/KMP Change (covering + resolution)",
+        "category": "Companies Act — ROC Filings",
+        "subject_default": "Appointment / Cessation of Director / KMP — DIR-12",
+        "keywords": ["dir-12", "appointment", "resignation", "director", "kmp", "section 168", "section 170"],
+        "body_hint": "Particulars of the appointment/cessation/change, effective date, the enabling board/members resolution, and consent (DIR-2)/declaration references for ROC filing within 30 days.",
+        "annexure_hints": "Board resolution (CTC); DIR-2 consent; DIR-8 declaration; letter of resignation if applicable.",
+    },
+    {
+        "id": "adt1_covering", "doc_kind": "document",
+        "label": "ADT-1 — Auditor Appointment (covering + resolution)",
+        "category": "Companies Act — ROC Filings",
+        "subject_default": "Appointment of Statutory Auditor — ADT-1",
+        "keywords": ["adt-1", "auditor appointment", "section 139"],
+        "body_hint": "Name & firm of the auditor, period of appointment, AGM date, members' resolution, auditor's eligibility certificate reference; file within 15 days of AGM.",
+        "annexure_hints": "Members' resolution (CTC); auditor's written consent & eligibility certificate (s.139/141).",
+    },
+    {
+        "id": "mbp1_disclosure", "doc_kind": "document",
+        "label": "MBP-1 — Disclosure of Interest by Director (s.184)",
+        "category": "Companies Act — Director Disclosures",
+        "subject_default": "Disclosure of Interest by Director in Form MBP-1",
+        "keywords": ["mbp-1", "disclosure of interest", "section 184"],
+        "body_hint": "Director's name, the bodies corporate/firms/other entities in which the director is interested and the nature/extent of interest, given at the first board meeting of the FY.",
+        "annexure_hints": "Schedule of interested entities.",
+    },
+    {
+        "id": "dir8_declaration", "doc_kind": "document",
+        "label": "DIR-8 — Declaration of Non-Disqualification (s.164)",
+        "category": "Companies Act — Director Disclosures",
+        "subject_default": "Declaration under Section 164(2) and Section 143(3)(g) — Form DIR-8",
+        "keywords": ["dir-8", "non-disqualification", "section 164"],
+        "body_hint": "Director declares they are not disqualified under s.164(1)/(2) for appointment/continuation; given annually and on appointment.",
+        "annexure_hints": "None.",
+    },
+    {
+        "id": "independence_declaration", "doc_kind": "document",
+        "label": "Declaration of Independence (s.149(7))",
+        "category": "Companies Act — Director Disclosures",
+        "subject_default": "Declaration of Independence under Section 149(6)/(7)",
+        "keywords": ["independent director", "declaration of independence", "section 149"],
+        "body_hint": "Independent director confirms they meet the s.149(6) criteria and IICA databank registration; given at first board meeting and first meeting of each FY.",
+        "annexure_hints": "IICA registration reference.",
+    },
+
+    # ── CSR / Governance policies ──
+    {
+        "id": "csr_resolution", "doc_kind": "resolution",
+        "label": "CSR — Committee/Board Resolution & Action Plan (s.135)",
+        "category": "Companies Act — CSR",
+        "subject_default": "Resolution approving the Annual CSR Action Plan",
+        "keywords": ["csr", "section 135", "csr policy", "action plan"],
+        "body_hint": "Approve the CSR policy/annual action plan, the 2% spend computation, ongoing projects, and implementing agencies (CSR-1 registered).",
+        "annexure_hints": "Annual Action Plan; project-wise budget table.",
+    },
+    {
+        "id": "rpt_policy", "doc_kind": "document",
+        "label": "Related Party Transactions Policy",
+        "category": "Governance — Policies",
+        "subject_default": "Policy on Related Party Transactions",
+        "keywords": ["rpt policy", "related party", "regulation 23", "section 188"],
+        "body_hint": "Definitions, materiality thresholds (2% / ₹1,000 cr), the audit-committee/board/shareholder approval gates, omnibus approval framework, and review cadence.",
+        "annexure_hints": "Approval matrix table.",
+    },
+
+    # ══════════════════════════════════════════════════════════════════
+    # FEMA / RBI — covering documents
+    # ══════════════════════════════════════════════════════════════════
+    {
+        "id": "fcgpr_covering", "doc_kind": "document",
+        "label": "FC-GPR — Foreign Investment Reporting (covering)",
+        "category": "FEMA / RBI",
+        "subject_default": "Reporting of Foreign Direct Investment in Form FC-GPR",
+        "keywords": ["fc-gpr", "fdi", "firms", "foreign investment", "allotment"],
+        "body_hint": "Allottee (non-resident) details, instrument, amount, date of allotment, FIRC/KYC references, valuation certificate, and the entry-route/sectoral-cap confirmation; file on FIRMS within 30 days.",
+        "annexure_hints": "Board resolution; valuation certificate; CS certificate; FIRC & KYC.",
+    },
+    {
+        "id": "fla_return", "doc_kind": "document",
+        "label": "FLA Return — Foreign Liabilities & Assets",
+        "category": "FEMA / RBI",
+        "subject_default": "Annual Return on Foreign Liabilities and Assets",
+        "keywords": ["fla", "foreign liabilities and assets", "flair"],
+        "body_hint": "Position as on 31 March of FDI received and overseas investment, paid-up capital, reserves; filed on the RBI FLAIR portal by 15 July.",
+        "annexure_hints": "Financials summary table.",
+    },
+
+    # ══════════════════════════════════════════════════════════════════
+    # COMPANIES ACT — STATUTORY REGISTERS (company-specific records)
+    # ══════════════════════════════════════════════════════════════════
+    {
+        "id": "reg_members", "doc_kind": "document",
+        "label": "Register of Members (MGT-1, s.88)",
+        "category": "Companies Act — Statutory Registers",
+        "subject_default": "Register of Members maintained under Section 88 in Form MGT-1",
+        "keywords": ["register of members", "mgt-1", "section 88"],
+        "body_hint": "Tabular register: folio, member name & address, PAN, shares held (class/number/distinctive nos.), date of becoming/ceasing member, nominee. Maintained at the registered office.",
+        "annexure_hints": "Members table (markdown pipe-table).",
+    },
+    {
+        "id": "reg_directors", "doc_kind": "document",
+        "label": "Register of Directors & KMP and their Shareholding (s.170)",
+        "category": "Companies Act — Statutory Registers",
+        "subject_default": "Register of Directors and Key Managerial Personnel under Section 170",
+        "keywords": ["register of directors", "kmp", "section 170"],
+        "body_hint": "Each director/KMP: DIN/PAN, name, designation, date of appointment/cessation, other directorships, and shareholding in the company & group.",
+        "annexure_hints": "Directors/KMP table.",
+    },
+    {
+        "id": "reg_charges", "doc_kind": "document",
+        "label": "Register of Charges (CHG-7, s.85)",
+        "category": "Companies Act — Statutory Registers",
+        "subject_default": "Register of Charges maintained under Section 85 in Form CHG-7",
+        "keywords": ["register of charges", "chg-7", "section 85"],
+        "body_hint": "Each charge: charge ID, charge-holder, amount secured, date of creation/modification/satisfaction, property charged, terms.",
+        "annexure_hints": "Charges table.",
+    },
+    {
+        "id": "reg_rpt_contracts", "doc_kind": "document",
+        "label": "Register of Contracts with Related Parties (MBP-4, s.189)",
+        "category": "Companies Act — Statutory Registers",
+        "subject_default": "Register of Contracts or Arrangements in which Directors are Interested (MBP-4)",
+        "keywords": ["mbp-4", "register of contracts", "section 189", "related party"],
+        "body_hint": "Each contract/arrangement under s.184/188: parties, nature, duration, value, the interested director, and date of board/members approval.",
+        "annexure_hints": "Contracts table.",
+    },
+    {
+        "id": "reg_loans_investments", "doc_kind": "document",
+        "label": "Register of Loans, Guarantees & Investments (MBP-2, s.186)",
+        "category": "Companies Act — Statutory Registers",
+        "subject_default": "Register of Loans, Guarantee, Security and Investments under Section 186 (MBP-2)",
+        "keywords": ["mbp-2", "register of loans", "section 186", "investments"],
+        "body_hint": "Each loan/guarantee/security/investment: party, amount, date, purpose, rate, security, board/special-resolution authority.",
+        "annexure_hints": "Loans & investments table.",
+    },
+    {
+        "id": "reg_sbo", "doc_kind": "document",
+        "label": "Register of Significant Beneficial Owners (BEN-3, s.90)",
+        "category": "Companies Act — Statutory Registers",
+        "subject_default": "Register of Significant Beneficial Owners under Section 90 in Form BEN-3",
+        "keywords": ["ben-3", "register of sbo", "significant beneficial owner", "section 90"],
+        "body_hint": "Each SBO: name, address, the nature/extent of beneficial interest (≥10%), date of declaration (BEN-1), and the registered owner through whom held.",
+        "annexure_hints": "SBO table.",
+    },
+    {
+        "id": "reg_share_transfer", "doc_kind": "document",
+        "label": "Register of Renewed & Duplicate Share Certificates (SH-2)",
+        "category": "Companies Act — Statutory Registers",
+        "subject_default": "Register of Renewed and Duplicate Share Certificates in Form SH-2",
+        "keywords": ["sh-2", "duplicate share certificate", "renewed certificate"],
+        "body_hint": "Each renewed/duplicate certificate: original cert no., reason, new cert no., distinctive numbers, date, board approval reference.",
+        "annexure_hints": "Certificates table.",
+    },
+    {
+        "id": "reg_esop", "doc_kind": "document",
+        "label": "Register of ESOP / Sweat Equity (SH-6 / SH-3)",
+        "category": "Companies Act — Statutory Registers",
+        "subject_default": "Register of Employee Stock Options in Form SH-6",
+        "keywords": ["sh-6", "esop register", "sweat equity", "sh-3"],
+        "body_hint": "Each grant: employee, options granted, exercise price, vesting schedule, options exercised/lapsed, shares allotted.",
+        "annexure_hints": "ESOP grants table.",
+    },
+
+    # ══════════════════════════════════════════════════════════════════
+    # COMPANIES ACT — more ROC e-forms (covering + resolution content)
+    # ══════════════════════════════════════════════════════════════════
+    {
+        "id": "dpt3_covering", "doc_kind": "document",
+        "label": "DPT-3 — Return of Deposits (covering)",
+        "category": "Companies Act — ROC Filings",
+        "subject_default": "Return of Deposits and Particulars not considered as Deposits — DPT-3",
+        "keywords": ["dpt-3", "return of deposits", "rule 16"],
+        "body_hint": "Outstanding receipt of money/loan as on 31 March, the deposits vs exempted-deposits split, and the auditor's certificate reference; file by 30 June.",
+        "annexure_hints": "Auditor's certificate; particulars schedule.",
+    },
+    {
+        "id": "msme1_covering", "doc_kind": "document",
+        "label": "MSME-1 — Half-yearly MSME Dues (covering)",
+        "category": "Companies Act — ROC Filings",
+        "subject_default": "Half-yearly Return of Outstanding Dues to MSME Suppliers — MSME-1",
+        "keywords": ["msme-1", "msme dues", "section 405"],
+        "body_hint": "Outstanding dues to MSME suppliers beyond 45 days as on the half-year, supplier-wise amount & period of delay, and reasons; due 30 Apr & 31 Oct.",
+        "annexure_hints": "Supplier-wise outstanding table.",
+    },
+    {
+        "id": "ben2_covering", "doc_kind": "document",
+        "label": "BEN-2 — SBO Return (covering)",
+        "category": "Companies Act — ROC Filings",
+        "subject_default": "Return to the Registrar regarding Significant Beneficial Owners — BEN-2",
+        "keywords": ["ben-2", "sbo return", "section 90"],
+        "body_hint": "Particulars of each SBO from the BEN-1 declarations received, declaration dates; file within 30 days of receiving BEN-1.",
+        "annexure_hints": "BEN-1 declarations summary.",
+    },
+    {
+        "id": "pas3_covering", "doc_kind": "document",
+        "label": "PAS-3 — Return of Allotment (covering)",
+        "category": "Companies Act — ROC Filings",
+        "subject_default": "Return of Allotment of Securities — PAS-3",
+        "keywords": ["pas-3", "return of allotment", "section 39"],
+        "body_hint": "Class & number of securities allotted, allottees, consideration, date of allotment, the enabling board/members resolution; file within 30 days (15 for some classes).",
+        "annexure_hints": "List of allottees; board resolution; valuation report (if applicable).",
+    },
+    {
+        "id": "chg1_covering", "doc_kind": "document",
+        "label": "CHG-1 / CHG-4 — Charge Creation / Satisfaction (covering)",
+        "category": "Companies Act — ROC Filings",
+        "subject_default": "Registration of Charge / Satisfaction of Charge — CHG-1 / CHG-4",
+        "keywords": ["chg-1", "chg-4", "charge", "section 77", "section 82"],
+        "body_hint": "Charge-holder, amount secured, date & type of charge instrument, property charged (CHG-1) or date & confirmation of satisfaction (CHG-4); file within 30 days.",
+        "annexure_hints": "Charge instrument; board resolution; NOC (for satisfaction).",
+    },
+    {
+        "id": "mr1_kmp", "doc_kind": "document",
+        "label": "MR-1 — Appointment of KMP / Managing Director (s.196/203)",
+        "category": "Companies Act — ROC Filings",
+        "subject_default": "Return of Appointment of Managing Director / KMP — MR-1",
+        "keywords": ["mr-1", "kmp appointment", "managing director", "section 203"],
+        "body_hint": "Particulars of the MD/WTD/Manager/KMP appointment, terms of remuneration, board & members approval references; file within 60 days.",
+        "annexure_hints": "Board/members resolution; terms of appointment.",
+    },
+    {
+        "id": "inc20a_covering", "doc_kind": "document",
+        "label": "INC-20A — Commencement of Business",
+        "category": "Companies Act — ROC Filings",
+        "subject_default": "Declaration for Commencement of Business — INC-20A",
+        "keywords": ["inc-20a", "commencement of business", "section 10a"],
+        "body_hint": "Confirmation that subscribers have paid the subscription money and the company has filed verification of registered office; file within 180 days of incorporation.",
+        "annexure_hints": "Proof of subscription receipt; bank statement.",
+    },
+
+    # ══════════════════════════════════════════════════════════════════
+    # GOVERNANCE — mandatory policies (listed-company suite)
+    # ══════════════════════════════════════════════════════════════════
+    {
+        "id": "pol_vigil", "doc_kind": "document",
+        "label": "Whistle-Blower / Vigil Mechanism Policy (s.177)",
+        "category": "Governance — Policies",
+        "subject_default": "Whistle-Blower Policy and Vigil Mechanism",
+        "keywords": ["whistle blower", "vigil mechanism", "section 177", "regulation 22"],
+        "body_hint": "Scope, reportable matters, reporting channels, protection against victimisation, audit-committee oversight, and direct access to the chairperson.",
+        "annexure_hints": "Reporting form / escalation matrix.",
+    },
+    {
+        "id": "pol_nrc", "doc_kind": "document",
+        "label": "Nomination & Remuneration Policy (s.178)",
+        "category": "Governance — Policies",
+        "subject_default": "Nomination and Remuneration Policy",
+        "keywords": ["nomination and remuneration", "nrc policy", "section 178", "regulation 19"],
+        "body_hint": "Criteria for director/KMP/senior-management appointment, independence, board diversity, remuneration framework, and performance evaluation.",
+        "annexure_hints": "Remuneration matrix.",
+    },
+    {
+        "id": "pol_rpt", "doc_kind": "document",
+        "label": "Policy on Related Party Transactions",
+        "category": "Governance — Policies",
+        "subject_default": "Policy on Related Party Transactions",
+        "keywords": ["related party policy", "regulation 23", "section 188", "rpt policy"],
+        "body_hint": "Definitions, materiality thresholds (2% / ₹1,000 cr), approval gates (audit committee / board / shareholders), omnibus framework, and review cadence.",
+        "annexure_hints": "Approval matrix.",
+    },
+    {
+        "id": "pol_material_subsidiary", "doc_kind": "document",
+        "label": "Material Subsidiary Policy (Reg 16/24)",
+        "category": "Governance — Policies",
+        "subject_default": "Policy for Determining Material Subsidiaries",
+        "keywords": ["material subsidiary", "regulation 16", "regulation 24"],
+        "body_hint": "Definition of material subsidiary (10%/20% thresholds), governance over subsidiaries, and disposal/encumbrance safeguards.",
+        "annexure_hints": "List of subsidiaries with materiality flag.",
+    },
+    {
+        "id": "pol_dividend", "doc_kind": "document",
+        "label": "Dividend Distribution Policy (Reg 43A)",
+        "category": "Governance — Policies",
+        "subject_default": "Dividend Distribution Policy",
+        "keywords": ["dividend distribution policy", "regulation 43a"],
+        "body_hint": "Circumstances for declaring dividend, financial/internal/external factors, retention policy, and utilisation of retained earnings (top 1,000 listed).",
+        "annexure_hints": "None.",
+    },
+    {
+        "id": "pol_risk", "doc_kind": "document",
+        "label": "Risk Management Policy (Reg 21)",
+        "category": "Governance — Policies",
+        "subject_default": "Risk Management Policy",
+        "keywords": ["risk management policy", "regulation 21", "rmc"],
+        "body_hint": "Risk framework, categories (strategic/operational/financial/ESG/cyber), risk-management committee oversight, and monitoring cadence.",
+        "annexure_hints": "Risk register template.",
+    },
+    {
+        "id": "pol_preservation", "doc_kind": "document",
+        "label": "Document Preservation & Archival Policy (Reg 9/30(8))",
+        "category": "Governance — Policies",
+        "subject_default": "Policy on Preservation of Documents and Archival",
+        "keywords": ["preservation of documents", "archival policy", "regulation 9", "regulation 30(8)"],
+        "body_hint": "Categorisation of documents (permanent vs ≥8 years), retention periods, mode of preservation, and website-archival of disclosures.",
+        "annexure_hints": "Retention schedule.",
+    },
+    {
+        "id": "pit_code_conduct", "doc_kind": "document",
+        "label": "Code of Conduct for Insider Trading (PIT)",
+        "category": "Governance — Policies",
+        "subject_default": "Code of Conduct to Regulate, Monitor and Report Trading by Designated Persons",
+        "keywords": ["pit code", "code of conduct", "insider trading", "trading window", "upsi"],
+        "body_hint": "Designated persons, trading window/closure, pre-clearance, contra-trade restriction, UPSI handling, SDD, and the code for fair disclosure of UPSI.",
+        "annexure_hints": "Pre-clearance form; designated-persons list.",
+    },
+
+    # ══════════════════════════════════════════════════════════════════
+    # COMPANIES ACT — reports, certificates & meeting support
+    # ══════════════════════════════════════════════════════════════════
+    {
+        "id": "directors_report", "doc_kind": "document",
+        "label": "Board's / Directors' Report (s.134)",
+        "category": "Companies Act — Reports",
+        "subject_default": "Board's Report for the Financial Year",
+        "keywords": ["directors report", "boards report", "section 134"],
+        "body_hint": "State of affairs, financial summary, dividend, reserves, changes in directors/KMP, s.134(3) disclosures (s.186 loans, s.188 RPTs, CSR, conservation of energy, risk management, board evaluation), and the responsibility statement.",
+        "annexure_hints": "AOC-2 (RPTs); MGT-9/annual-return extract; secretarial audit report; CSR report; conservation-of-energy annexure.",
+    },
+    {
+        "id": "secretarial_audit_mr3", "doc_kind": "document",
+        "label": "Secretarial Audit Report (MR-3, s.204)",
+        "category": "Companies Act — Reports",
+        "subject_default": "Secretarial Audit Report in Form MR-3",
+        "keywords": ["secretarial audit", "mr-3", "section 204"],
+        "body_hint": "PCS report on compliance with the Companies Act, SEBI regs, FEMA and other applicable laws for the financial year, with qualifications/observations.",
+        "annexure_hints": "List of laws examined; management representation.",
+    },
+    {
+        "id": "cg_report", "doc_kind": "document",
+        "label": "Corporate Governance Report (Reg 34(3), Sch V)",
+        "category": "Companies Act — Reports",
+        "subject_default": "Report on Corporate Governance",
+        "keywords": ["corporate governance report", "schedule v", "regulation 34"],
+        "body_hint": "Board composition & meetings, committee details, remuneration, general meetings, means of communication, shareholder information, and the compliance discussion per Schedule V.",
+        "annexure_hints": "Board/committee attendance tables; PCS compliance certificate.",
+    },
+    {
+        "id": "proxy_form", "doc_kind": "document",
+        "label": "Proxy Form (MGT-11)",
+        "category": "Companies Act — Meeting Support",
+        "subject_default": "Proxy Form pursuant to Section 105(6) — Form MGT-11",
+        "keywords": ["proxy form", "mgt-11", "section 105"],
+        "body_hint": "Member & proxy particulars, meeting reference, resolution-wise for/against table, and the revenue-stamp/signature block.",
+        "annexure_hints": "Resolution table.",
+    },
+    {
+        "id": "scrutinizer_report", "doc_kind": "document",
+        "label": "Scrutinizer's Report (e-voting / poll)",
+        "category": "Companies Act — Meeting Support",
+        "subject_default": "Scrutinizer's Report on Remote E-Voting and Voting at the Meeting",
+        "keywords": ["scrutinizer report", "e-voting", "poll", "section 109"],
+        "body_hint": "Resolution-wise votes (remote + at-meeting): votes for/against, invalid, percentage, and whether the resolution is carried with the requisite majority.",
+        "annexure_hints": "Resolution-wise voting results table.",
+    },
+    {
+        "id": "compliance_certificate_pcs", "doc_kind": "certificate",
+        "label": "PCS Compliance Certificate (Reg 34(3)/Sch V)",
+        "category": "Companies Act — Reports",
+        "subject_default": "Certificate of Compliance with Conditions of Corporate Governance",
+        "keywords": ["compliance certificate", "corporate governance certificate", "pcs"],
+        "body_hint": "PCS certifies the company has complied with the corporate-governance conditions in the LODR for the financial year.",
+        "annexure_hints": "None.",
+    },
 ]
 
 
@@ -847,13 +1299,41 @@ def generate_draft(api_key: str, company_name: str, filing_type_id: str,
         )
 
     annexure_hints = ftype.get("annexure_hints", "") or ""
+    doc_kind = ftype.get("doc_kind", "") or "letter"
+
+    # The document's voice changes with its kind. A board resolution is not a
+    # letter to the exchange; minutes are not a notice. Steer the model.
+    _KIND_INTRO = {
+        "letter": (f"You are drafting a SEBI compliance letter to the stock exchanges "
+                   f"for {company_name}. Letter type: {label}."),
+        "resolution": (f"You are drafting a formal RESOLUTION for {company_name} "
+                       f"({label}). Write it in proper resolution language — "
+                       "'RESOLVED THAT …', and where apt 'RESOLVED FURTHER THAT …'. "
+                       "Include the authorisation to a director/CS to give effect. "
+                       "No salutation, no 'we wish to inform'."),
+        "notice": (f"You are drafting a MEETING NOTICE for {company_name} ({label}). "
+                   "Include the meeting date/time/venue/mode placeholders, the agenda "
+                   "items as numbered resolutions (ordinary/special as appropriate), "
+                   "and an Explanatory Statement under s.102 of the Companies Act for "
+                   "special-business items."),
+        "minutes": (f"You are drafting MINUTES for {company_name} ({label}), compliant "
+                    "with Secretarial Standard SS-1 (board) / SS-2 (general). Record "
+                    "attendance, quorum, items considered, decisions, and the resolutions "
+                    "passed. Factual, past tense, no marketing language."),
+        "document": (f"You are drafting a governance document for {company_name} ({label}). "
+                     "Use formal, structured policy/certificate language as the type "
+                     "requires. No exchange salutation."),
+        "certificate": (f"You are drafting a CERTIFICATE for {company_name} ({label}). "
+                        "Use precise certifying language ('I/We hereby certify that …') "
+                        "with the basis and period covered."),
+    }
+    intro = _KIND_INTRO.get(doc_kind, _KIND_INTRO["letter"])
 
     prompt = (
-        f"You are drafting a SEBI compliance letter for {company_name}. "
-        f"Letter type: {label}.\n\n"
+        f"{intro}\n\n"
         f"Body guidance: {body_hint}\n"
         f"Typical annexures for this type: {annexure_hints}\n\n"
-        f"What's NEW that this letter must convey:\n{new_info.strip()}\n"
+        f"What's NEW that this document must convey:\n{new_info.strip()}\n"
         + style_block
         + (f"\nReference these recent past letters from the SAME company "
            f"as additional tone anchors:\n{examples_block}\n" if examples_block else "")
@@ -1254,16 +1734,39 @@ LISTING_ADDRESSES = [
 ]
 
 
+# Which doc kinds are addressed to the stock exchanges (BSE/NSE letter format).
+_LETTER_KINDS = ("", "letter", "exchange_letter", None)
+# Close phrase per doc kind.
+_CLOSE_PHRASE = {
+    "resolution": "By order of the Board",
+    "notice": "By order of the Board",
+    "minutes": "",
+    "document": "",
+    "certificate": "",
+}
+
+
+def doc_is_addressed(doc_kind):
+    return doc_kind in _LETTER_KINDS
+
+
 def build_letter_data(company_name: str, registered_office: str = "",
                       cin: str = "", subject: str = "", body: str = "",
                       signer_name: str = "", signer_designation: str = "",
                       bse_code: str = "", nse_symbol: str = "",
                       letter_date: str = "",
-                      annexures: Optional[List[Dict]] = None) -> Dict:
+                      annexures: Optional[List[Dict]] = None,
+                      doc_kind: str = "",
+                      pdf_meta: Optional[Dict] = None) -> Dict:
     """Normalize all fields used by both the PDF and DOCX renderers.
 
-    `annexures` is a list of {title, body}. Each will render on its own
-    new page after the main letter body."""
+    `doc_kind` decides the document shape:
+      - letter / "" → SEBI exchange letter (addressed to BSE & NSE, greeting,
+        'Yours faithfully').
+      - resolution / notice / minutes / document / certificate → a standalone
+        company document: centered title, no exchange address, no greeting.
+
+    `annexures` is a list of {title, body}; each renders on its own new page."""
     if not letter_date:
         letter_date = datetime.now().strftime("%d %B, %Y")
     cleaned_annexures = []
@@ -1272,6 +1775,7 @@ def build_letter_data(company_name: str, registered_office: str = "",
         body_t = (a.get("body") or "").strip()
         if title and body_t:
             cleaned_annexures.append({"title": title, "body": body_t})
+    addressed = doc_is_addressed(doc_kind)
     return {
         "company_name": (company_name or "").strip().upper(),
         "registered_office": (registered_office or "").strip(),
@@ -1284,7 +1788,29 @@ def build_letter_data(company_name: str, registered_office: str = "",
         "nse_symbol": (nse_symbol or "").strip(),
         "letter_date": letter_date,
         "annexures": cleaned_annexures,
+        "doc_kind": doc_kind or "letter",
+        "addressed": addressed,
+        "close_phrase": "Yours faithfully," if addressed else _CLOSE_PHRASE.get(doc_kind, ""),
+        # PDF Document Properties (what NSE/SEBI portals check). Defaults derive
+        # from the letter; the CS can override them on export.
+        "pdf_meta": _resolve_pdf_meta(pdf_meta, subject, company_name, cin),
     }
+
+
+def _resolve_pdf_meta(override, subject, company_name, cin):
+    """Build the PDF metadata dict, letting the caller override any field."""
+    override = override or {}
+    title = (override.get("title") or subject or "Filing").strip()[:200]
+    author = (override.get("author") or company_name or "").strip()[:120]
+    subj = (override.get("subject") or subject or "").strip()[:200]
+    keywords = (override.get("keywords") or "").strip()[:300]
+    if not keywords:
+        kw = ["SEBI", "compliance", "filing"]
+        if company_name:
+            kw.insert(0, company_name)
+        keywords = ", ".join(kw)
+    return {"title": title, "author": author, "subject": subj,
+            "keywords": keywords, "creator": "Delta Filings"}
 
 
 def _parse_markdown_table(block: str) -> Optional[List[List[str]]]:
@@ -1352,12 +1878,17 @@ def render_pdf(letter: Dict) -> bytes:
     from reportlab.lib import colors
 
     buf = io.BytesIO()
+    _meta = letter.get("pdf_meta") or {}
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
         leftMargin=20 * mm, rightMargin=20 * mm,
         topMargin=18 * mm, bottomMargin=18 * mm,
-        title=letter["subject"][:80] or "SEBI Letter",
-        author=letter["company_name"],
+        # PDF Document Properties — what the NSE/SEBI portal & reviewers read.
+        title=(_meta.get("title") or letter["subject"][:80] or "Filing"),
+        author=(_meta.get("author") or letter["company_name"]),
+        subject=(_meta.get("subject") or letter["subject"]),
+        keywords=(_meta.get("keywords") or ""),
+        creator=(_meta.get("creator") or "Delta Filings"),
     )
 
     styles = getSampleStyleSheet()
@@ -1399,34 +1930,44 @@ def render_pdf(letter: Dict) -> bytes:
     story.append(rule)
     story.append(Spacer(1, 6 * mm))
 
-    # ── Date ──
-    story.append(Paragraph(f"Date: {letter['letter_date']}", body_style))
+    _addressed = letter.get("addressed", True)
+    doc_title_style = ParagraphStyle(
+        "doctitle", parent=styles["Title"], alignment=TA_CENTER,
+        fontSize=13, leading=18, spaceBefore=2, spaceAfter=14, textColor=colors.black,
+    )
 
-    # ── Two-column listing addresses ──
-    bse_lines = list(LISTING_ADDRESSES[0]["lines"])
-    nse_lines = list(LISTING_ADDRESSES[1]["lines"])
-    if letter["bse_code"]:
-        bse_lines.append(f"<b>Scrip Code:</b> {letter['bse_code']}")
-    if letter["nse_symbol"]:
-        nse_lines.append(f"<b>Symbol:</b> {letter['nse_symbol']}")
-    bse_paras = [Paragraph(l, addr_style) for l in bse_lines]
-    nse_paras = [Paragraph(l, addr_style) for l in nse_lines]
-    addr_table = Table([[bse_paras, nse_paras]], colWidths=[85 * mm, 85 * mm])
-    addr_table.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-    ]))
-    story.append(addr_table)
-    story.append(Spacer(1, 6 * mm))
-
-    # ── Subject ──
-    if letter["subject"]:
-        story.append(Paragraph(
-            f"<b><u>Subject: {letter['subject']}</u></b>", subject_style))
-
-    # ── Greeting ──
-    story.append(Paragraph("Dear Sir / Madam,", body_style))
+    if _addressed:
+        # ── Date ──
+        story.append(Paragraph(f"Date: {letter['letter_date']}", body_style))
+        # ── Two-column listing addresses ──
+        bse_lines = list(LISTING_ADDRESSES[0]["lines"])
+        nse_lines = list(LISTING_ADDRESSES[1]["lines"])
+        if letter["bse_code"]:
+            bse_lines.append(f"<b>Scrip Code:</b> {letter['bse_code']}")
+        if letter["nse_symbol"]:
+            nse_lines.append(f"<b>Symbol:</b> {letter['nse_symbol']}")
+        bse_paras = [Paragraph(l, addr_style) for l in bse_lines]
+        nse_paras = [Paragraph(l, addr_style) for l in nse_lines]
+        addr_table = Table([[bse_paras, nse_paras]], colWidths=[85 * mm, 85 * mm])
+        addr_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(addr_table)
+        story.append(Spacer(1, 6 * mm))
+        # ── Subject ──
+        if letter["subject"]:
+            story.append(Paragraph(
+                f"<b><u>Subject: {letter['subject']}</u></b>", subject_style))
+        # ── Greeting ──
+        story.append(Paragraph("Dear Sir / Madam,", body_style))
+    else:
+        # Standalone company document (resolution / notice / minutes / etc.):
+        # centered document title, no exchange address, no greeting.
+        if letter["subject"]:
+            story.append(Paragraph(f"<b><u>{letter['subject'].upper()}</u></b>", doc_title_style))
+        story.append(Paragraph(f"Date: {letter['letter_date']}", body_style))
 
     # ── Body — preserve paragraph breaks + render markdown tables ──
     def _flow_body(body_text):
@@ -1467,8 +2008,9 @@ def render_pdf(letter: Dict) -> bytes:
 
     # ── Sign-off ──
     story.append(Spacer(1, 8 * mm))
-    story.append(Paragraph("Yours faithfully,", body_style))
-    story.append(Spacer(1, 2 * mm))
+    if letter.get("close_phrase"):
+        story.append(Paragraph(letter["close_phrase"], body_style))
+        story.append(Spacer(1, 2 * mm))
     if letter["company_name"]:
         story.append(Paragraph(f"<b>For {letter['company_name']}</b>", sig_style))
     story.append(Spacer(1, 14 * mm))   # space for physical signature
@@ -1503,6 +2045,16 @@ def render_docx(letter: Dict) -> bytes:
     from docx.enum.text import WD_ALIGN_PARAGRAPH
 
     doc = Document()
+    # Document Properties (NSE/SEBI portals read these).
+    _meta = letter.get("pdf_meta") or {}
+    try:
+        cp = doc.core_properties
+        cp.title = _meta.get("title") or letter["subject"] or "Filing"
+        cp.author = _meta.get("author") or letter["company_name"]
+        cp.subject = _meta.get("subject") or letter["subject"]
+        cp.keywords = _meta.get("keywords") or ""
+    except Exception:
+        pass
     # Page margins ~A4 standard
     section = doc.sections[0]
     section.top_margin = Mm(20)
@@ -1543,43 +2095,51 @@ def render_docx(letter: Dict) -> bytes:
     pBdr.append(bottom)
     pPr.append(pBdr)
 
-    # ── Date ──
-    p_date = doc.add_paragraph()
-    p_date.add_run(f"Date: {letter['letter_date']}").font.size = Pt(11)
+    _addressed = letter.get("addressed", True)
 
-    # ── Two-column addresses via table ──
-    bse_lines = list(LISTING_ADDRESSES[0]["lines"])
-    nse_lines = list(LISTING_ADDRESSES[1]["lines"])
-    if letter["bse_code"]:
-        bse_lines.append(f"Scrip Code: {letter['bse_code']}")
-    if letter["nse_symbol"]:
-        nse_lines.append(f"Symbol: {letter['nse_symbol']}")
-
-    table = doc.add_table(rows=1, cols=2)
-    table.autofit = True
-    cells = table.rows[0].cells
-    cells[0].text = ""
-    cells[1].text = ""
-    for i, lines in enumerate([bse_lines, nse_lines]):
-        cell = cells[i]
-        # First paragraph goes in cell.paragraphs[0]; subsequent we add.
-        cell.paragraphs[0].add_run(lines[0]).font.size = Pt(10)
-        for ln in lines[1:]:
-            cp = cell.add_paragraph()
-            cp.add_run(ln).font.size = Pt(10)
-
-    doc.add_paragraph()
-
-    # ── Subject ──
-    if letter["subject"]:
-        p_subj = doc.add_paragraph()
-        run = p_subj.add_run(f"Subject: {letter['subject']}")
-        run.bold = True
-        run.underline = True
-        run.font.size = Pt(11)
-
-    # ── Greeting ──
-    doc.add_paragraph().add_run("Dear Sir / Madam,").font.size = Pt(11)
+    if _addressed:
+        # ── Date ──
+        p_date = doc.add_paragraph()
+        p_date.add_run(f"Date: {letter['letter_date']}").font.size = Pt(11)
+        # ── Two-column addresses via table ──
+        bse_lines = list(LISTING_ADDRESSES[0]["lines"])
+        nse_lines = list(LISTING_ADDRESSES[1]["lines"])
+        if letter["bse_code"]:
+            bse_lines.append(f"Scrip Code: {letter['bse_code']}")
+        if letter["nse_symbol"]:
+            nse_lines.append(f"Symbol: {letter['nse_symbol']}")
+        table = doc.add_table(rows=1, cols=2)
+        table.autofit = True
+        cells = table.rows[0].cells
+        cells[0].text = ""
+        cells[1].text = ""
+        for i, lines in enumerate([bse_lines, nse_lines]):
+            cell = cells[i]
+            cell.paragraphs[0].add_run(lines[0]).font.size = Pt(10)
+            for ln in lines[1:]:
+                cp = cell.add_paragraph()
+                cp.add_run(ln).font.size = Pt(10)
+        doc.add_paragraph()
+        # ── Subject ──
+        if letter["subject"]:
+            p_subj = doc.add_paragraph()
+            run = p_subj.add_run(f"Subject: {letter['subject']}")
+            run.bold = True
+            run.underline = True
+            run.font.size = Pt(11)
+        # ── Greeting ──
+        doc.add_paragraph().add_run("Dear Sir / Madam,").font.size = Pt(11)
+    else:
+        # Standalone company document: centered title, date, no address/greeting.
+        if letter["subject"]:
+            p_t = doc.add_paragraph()
+            p_t.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            rt = p_t.add_run(letter["subject"].upper())
+            rt.bold = True
+            rt.underline = True
+            rt.font.size = Pt(13)
+        p_date = doc.add_paragraph()
+        p_date.add_run(f"Date: {letter['letter_date']}").font.size = Pt(11)
 
     # ── Body — preserve paragraph breaks + render markdown tables ──
     def _docx_flow_body(d, body_text):
@@ -1608,7 +2168,8 @@ def render_docx(letter: Dict) -> bytes:
 
     # ── Sign-off ──
     doc.add_paragraph()
-    doc.add_paragraph().add_run("Yours faithfully,").font.size = Pt(11)
+    if letter.get("close_phrase"):
+        doc.add_paragraph().add_run(letter["close_phrase"]).font.size = Pt(11)
     if letter["company_name"]:
         p_for = doc.add_paragraph()
         rf = p_for.add_run(f"For {letter['company_name']}")

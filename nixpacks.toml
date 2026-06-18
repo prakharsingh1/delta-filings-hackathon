@@ -2,7 +2,9 @@
 # Without this, Railway sees package.json and tries to build as Node.
 
 [phases.setup]
-nixPkgs = ["python311", "gcc"]
+# tesseract + ghostscript power OCR (ocrmypdf) for the Draft page's
+# "make a scanned PDF text-searchable" tool.
+nixPkgs = ["python311", "gcc", "tesseract", "ghostscript"]
 
 [phases.install]
 cmds = ["python3 -m venv /opt/venv", ". /opt/venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt"]

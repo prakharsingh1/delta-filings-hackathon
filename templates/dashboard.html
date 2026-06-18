@@ -593,6 +593,27 @@
             .da-chip-group { flex-direction: column; gap: 4px; }
             .da-chip-group-label { padding-top: 0; }
         }
+
+        /* Sector pulse: clipped text fades out at the bottom instead of cutting
+           mid-line — the "Full briefing →" link is the way to read the rest. */
+        .pulse-fade {
+            -webkit-mask-image: linear-gradient(to bottom, black 78%, transparent 100%);
+            mask-image: linear-gradient(to bottom, black 78%, transparent 100%);
+        }
+
+        /* ── Dark-mode gap fixes (audit findings) ── */
+        html.dark .da-tt-key { color: #a3a3a3; }
+        html.dark .da-y-label { color: #8a8a8a; }   /* was #737373 — too dim */
+        html.dark .da-chip-count { background: rgba(255,255,255,0.10); color: #b0b0b0; }
+        html.dark .da-chip.active .da-chip-count { background: rgba(255,255,255,0.25); color: #fff; }
+        html.dark .da-active-pill { background: rgba(99,102,241,0.16); color: #a5b4fc; border-color: rgba(99,102,241,0.35); }
+        html.dark .da-active-pill-key { color: #8a8a8a; }
+        html.dark .da-tool-badge { background: rgba(255,255,255,0.10); color: #b0b0b0; }
+        html.dark .da-search-icon { color: #6b6b6b; }
+        html.dark .da-empty { color: #8a8a8a; }
+        /* Soft neon edge on the data dots so the matrix reads on near-black */
+        html.dark .da-dot.fill { box-shadow: 0 0 0 2px rgba(16,185,129,0.16), 0 0 10px rgba(16,185,129,0.20); }
+        html.dark .da-dot.proj { box-shadow: 0 0 0 2px rgba(99,102,241,0.20), 0 0 10px rgba(99,102,241,0.25); }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -723,30 +744,36 @@
                     </div>
                 </div>
 
-                <!-- Right: today's movers + sector pulse (sharing the same card) -->
-                <div class="panel p-5 reveal flex flex-col">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-bold text-slate-800">Today's movers</h3>
-                        <a href="/prices" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-700">All prices &rarr;</a>
-                    </div>
-                    <p class="text-xs text-slate-400 mt-0.5 mb-3">Biggest gains &amp; drops across your watchlist</p>
-                    <div id="rank-list">
-                        <div class="flex items-center gap-3 text-gray-400 py-6"><div class="spinner"></div><span class="text-sm">Fetching live prices&hellip;</span></div>
-                    </div>
+                <!-- Right: today's movers + sector pulse (sharing the same card).
+                     The outer cell is `relative` and the panel `lg:absolute inset-0`,
+                     so on desktop the card's height is locked to the LEFT column's
+                     height (KPIs + activity chart) — long AI text can never stretch
+                     the row. Inner sections clamp/scroll instead. -->
+                <div class="relative">
+                    <div class="panel p-5 reveal flex flex-col lg:absolute lg:inset-0 lg:overflow-hidden">
+                        <div class="flex items-center justify-between flex-shrink-0">
+                            <h3 class="text-sm font-bold text-slate-800">Today's movers</h3>
+                            <a href="/prices" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-700">All prices &rarr;</a>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5 mb-3 flex-shrink-0">Biggest gains &amp; drops across your watchlist</p>
+                        <div id="rank-list" class="flex-shrink-0">
+                            <div class="flex items-center gap-3 text-gray-400 py-6"><div class="spinner"></div><span class="text-sm">Fetching live prices&hellip;</span></div>
+                        </div>
 
-                    <!-- ── Sector pulse (moved inside the movers card) ── -->
-                    <div class="mt-5 pt-5 border-t border-slate-100 flex-1 flex flex-col">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center gap-2">
-                                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                <h3 class="text-sm font-bold text-slate-800">{{ user_industry }} sector pulse</h3>
+                        <!-- ── Sector pulse (clamped to remaining space) ── -->
+                        <div class="mt-5 pt-5 border-t border-slate-100 flex-1 flex flex-col min-h-0">
+                            <div class="flex items-center justify-between mb-2 flex-shrink-0">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    <h3 class="text-sm font-bold text-slate-800">{{ user_industry }} sector pulse</h3>
+                                </div>
+                                <a href="/industry/{{ user_industry|urlencode }}" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-700">Full briefing &rarr;</a>
                             </div>
-                            <a href="/industry/{{ user_industry|urlencode }}" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-700">Full briefing &rarr;</a>
+                            <div id="industry-pulse" class="text-[13px] text-gray-700 leading-relaxed flex-1 min-h-0 overflow-hidden pulse-fade">
+                                <div class="flex items-center gap-3 text-gray-400 py-2"><div class="spinner"></div><span class="text-sm">Loading sector pulse&hellip;</span></div>
+                            </div>
+                            <p id="industry-pulse-status" class="text-[10px] text-gray-400 mt-2 flex-shrink-0"></p>
                         </div>
-                        <div id="industry-pulse" class="text-[13px] text-gray-700 leading-relaxed flex-1">
-                            <div class="flex items-center gap-3 text-gray-400 py-2"><div class="spinner"></div><span class="text-sm">Loading sector pulse&hellip;</span></div>
-                        </div>
-                        <p id="industry-pulse-status" class="text-[10px] text-gray-400 mt-2"></p>
                     </div>
                 </div>
             </div>
@@ -1115,12 +1142,17 @@ const USER_INDUSTRY = {{ user_industry | tojson }};
 const SYMBOL_DOMAINS = {{ symbol_domains | tojson }};
 const SYMBOL_TV_SLUGS = {{ symbol_tv_slugs | tojson }};
 const COMPANY_COLORS = [
-    {bg:'#dbeafe',text:'#1e40af',dot:'#3b82f6'},
-    {bg:'#dcfce7',text:'#166534',dot:'#22c55e'},
-    {bg:'#fef3c7',text:'#92400e',dot:'#f59e0b'},
-    {bg:'#fce7f3',text:'#9d174d',dot:'#ec4899'},
-    {bg:'#ede9fe',text:'#5b21b6',dot:'#8b5cf6'},
+    {bg:'#dbeafe',text:'#1e40af',dot:'#3b82f6', darkBg:'rgba(59,130,246,0.18)',  darkText:'#93c5fd'},
+    {bg:'#dcfce7',text:'#166534',dot:'#22c55e', darkBg:'rgba(34,197,94,0.18)',   darkText:'#86efac'},
+    {bg:'#fef3c7',text:'#92400e',dot:'#f59e0b', darkBg:'rgba(245,158,11,0.18)',  darkText:'#fcd34d'},
+    {bg:'#fce7f3',text:'#9d174d',dot:'#ec4899', darkBg:'rgba(236,72,153,0.18)',  darkText:'#f9a8d4'},
+    {bg:'#ede9fe',text:'#5b21b6',dot:'#8b5cf6', darkBg:'rgba(139,92,246,0.18)',  darkText:'#c4b5fd'},
 ];
+function companyBadgeStyle(color) {
+    const dark = document.documentElement.classList.contains('dark');
+    return dark ? `background:${color.darkBg};color:${color.darkText}`
+                : `background:${color.bg};color:${color.text}`;
+}
 
 function showDayDetail(day) {
     const events = DAY_MAP[day] || [];
@@ -1136,7 +1168,7 @@ function showDayDetail(day) {
         ).join('');
         return `<a href="/company/${ev.company}" class="block p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all">
             <div class="flex items-start gap-3">
-                <span class="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase" style="background:${color.bg};color:${color.text}">${ev.company}</span>
+                <span class="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase" style="${companyBadgeStyle(color)}">${ev.company}</span>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-semibold text-gray-900">${ev.title}</p>
                     <div class="flex items-center gap-2 mt-1.5">
@@ -1351,8 +1383,8 @@ function loadIndustryPulse() {
                     `<p class="text-sm text-gray-500">${escapeHtml(data.message || 'Pulse unavailable.')}</p>`;
                 return;
             }
-            const summary = (data.summary || '').slice(0, 420);
-            const truncated = (data.summary || '').length > 420 ? '…' : '';
+            const summary = (data.summary || '').slice(0, 300);
+            const truncated = (data.summary || '').length > 300 ? '…' : '';
             document.getElementById('industry-pulse').innerHTML =
                 `<p class="text-sm text-gray-800 leading-relaxed">${escapeHtml(summary + truncated)}</p>`;
             const status = document.getElementById('industry-pulse-status');

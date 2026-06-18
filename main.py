@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, redirect, url_for, request, session, flash, send_from_directory
+from flask import Flask, render_template, jsonify, redirect, url_for, request, session, flash, send_from_directory, send_file, abort
 from functools import wraps
 from database import (
     init_db, get_cached_filings, filing_exists, insert_filing,
@@ -11,6 +11,7 @@ from database import (
     replace_watchlist_with_industry, INDUSTRY_WATCHLISTS,
     set_user_industry,
     get_filings_last_fetched, set_filings_last_fetched,
+    get_oldest_filing_date, get_newest_filing_date,
     batch_insert_filings, get_existing_filing_keys,
     seed_default_referral_codes, can_redeem_referral, redeem_referral,
     record_payment_intent, mark_paid, get_payment_status, is_user_paid,
@@ -197,6 +198,31 @@ def maybe_backfill_filings_async(symbol):
             # Otherwise refresh hourly-ish for already-populated symbols.
             should_refresh = True
 
+    # Shallow-history trigger: caches built before the windowed fetch were
+    # truncated by NSE's cloud-IP cap (~1000 most-recent rows). If our oldest
+    # cached filing is shallower than the configured depth, we're missing
+    # history — do a one-time deep re-pull (throttled to once per 2h).
+    target_years = _history_years()
+    if not should_refresh and cached_count > 0:
+        try:
+            oldest = get_oldest_filing_date(sym)
+            recently_tried = False
+            if meta:
+                try:
+                    last = datetime.fromisoformat(meta["last_fetched_at"])
+                    recently_tried = (datetime.now() - last).total_seconds() < 2 * 3600
+                except Exception:
+                    recently_tried = False
+            if oldest and not recently_tried:
+                oldest_dt = datetime.strptime(oldest[:10], "%Y-%m-%d")
+                years_deep = (datetime.now() - oldest_dt).days / 365.0
+                if years_deep < (target_years - 0.5):
+                    print(f"[MAIN] {sym} cache only {years_deep:.1f}y deep "
+                          f"(want {target_years}y) — deep re-pull")
+                    should_refresh = True
+        except Exception as e:
+            print(f"[MAIN] shallow-history check failed for {sym}: {e}")
+
     if not should_refresh:
         return False
 
@@ -219,15 +245,28 @@ def maybe_backfill_filings_async(symbol):
     return True
 
 
-def process_filings(symbol):
+def _history_years():
+    """Default fetch depth (years) from global settings; clamped 1–15.
+    Defaults to 3 years — a CS mostly works the recent cycle; deeper history
+    is one click away in Settings or the Disclosures depth control."""
+    try:
+        y = int(get_setting("filings_history_years", "3"))
+        return max(1, min(y, 15))
+    except (TypeError, ValueError):
+        return 3
+
+
+def process_filings(symbol, years=None):
     """Fetch and store filings. Returns (new_ids, removed_ids) compared to last snapshot."""
-    print(f"\n[MAIN] Processing filings for {symbol}...")
+    if years is None:
+        years = _history_years()
+    print(f"\n[MAIN] Processing filings for {symbol} ({years}y depth)...")
 
     old_ids = get_previous_snapshot_ids(symbol)
 
     # allow_fallback=False so a transient NSE outage never silently inserts
     # the hardcoded INFY sample data under another company's symbol.
-    raw_filings = fetch_filings(symbol, allow_fallback=False)
+    raw_filings = fetch_filings(symbol, years=years, allow_fallback=False)
     if not raw_filings:
         print(f"[MAIN] NSE returned no filings for {symbol} — skipping insert")
         return set(), set()
@@ -516,6 +555,7 @@ def signin_page():
         password = request.form.get("password") or ""
 
         authed = None
+        auth_unreachable = False
         try:
             result = supabase.auth.sign_in_with_password({
                 "email": form["email"],
@@ -531,9 +571,21 @@ def signin_page():
                     "onboarded": bool(meta.get("onboarded", False)),
                 }
         except Exception as e:
-            print(f"[SIGNIN] supabase error: {e}")
+            msg = str(e).lower()
+            # Distinguish "auth backend down/unreachable" from "wrong password".
+            # A bad credential surfaces as a Supabase AuthApiError (400); a
+            # network/DNS failure surfaces as a connection error — those must
+            # NOT be reported to the user as an invalid password.
+            if any(s in msg for s in ("resolve", "connection", "timed out", "timeout",
+                                      "nodename", "max retries", "getaddrinfo",
+                                      "name or service", "temporarily")):
+                auth_unreachable = True
+            print(f"[SIGNIN] supabase error ({'unreachable' if auth_unreachable else 'auth'}): {e}")
 
-        if not authed:
+        if auth_unreachable:
+            error = ("Sign-in service is temporarily unreachable. This is on our side, "
+                     "not your password — please try again in a few minutes.")
+        elif not authed:
             error = "Invalid email or password. Please try again."
         else:
             # Preserve a pending draft-invite token across session.clear()
@@ -1051,6 +1103,132 @@ def dashboard():
 PER_PAGE = 15
 
 
+# ── Local company logos ──────────────────────────────────────────
+# Two-tier storage so a logo is fetched at most once, ever:
+#   1. static/logos/<SYM>.<ext>  — logos committed to the repo (authoritative).
+#   2. <volume>/logos/<SYM>.<ext> — logos downloaded at runtime, persisted on
+#      Railway's /data volume so they survive deploys and are never re-pulled.
+# Never hot-link external favicons in the UI.
+
+_LOGO_EXTS = ("svg", "png", "webp", "jpg", "jpeg")
+_logo_fetch_inflight = set()
+_logo_fetch_lock = threading.Lock()
+
+# Persistent volume for runtime-downloaded logos (Railway mounts one at /data).
+# Falls back to a local dir when no volume is present (dev).
+_VOLUME_ROOT = "/data" if os.path.isdir("/data") and os.access("/data", os.W_OK) else os.path.join(os.path.dirname(__file__), ".logocache")
+LOGO_VOLUME_DIR = os.path.join(_VOLUME_ROOT, "logos")
+try:
+    os.makedirs(LOGO_VOLUME_DIR, exist_ok=True)
+except Exception as e:  # noqa: BLE001
+    print(f"[LOGO] could not create volume logo dir: {e}")
+
+# Deterministic letter-avatar colors (indigo→pink span, AA-contrast on white text)
+_AVATAR_COLORS = [
+    "#4f46e5", "#0891b2", "#7c3aed", "#0d9488", "#db2777",
+    "#ea580c", "#2563eb", "#059669", "#9333ea", "#e11d48",
+]
+
+
+def avatar_color(symbol):
+    return _AVATAR_COLORS[sum(ord(c) for c in symbol) % len(_AVATAR_COLORS)]
+
+
+def local_logo_url(symbol):
+    sym = symbol.upper()
+    # 1) Committed repo logos win (curated, e.g. TCS).
+    logo_dir = os.path.join(app.static_folder, "logos")
+    for ext in _LOGO_EXTS:
+        if os.path.exists(os.path.join(logo_dir, f"{sym}.{ext}")):
+            return f"/static/logos/{sym}.{ext}"
+    # 2) Then volume-persisted downloads (served via /companylogo route).
+    for ext in _LOGO_EXTS:
+        if os.path.exists(os.path.join(LOGO_VOLUME_DIR, f"{sym}.{ext}")):
+            return f"/companylogo/{sym}.{ext}"
+    return None
+
+
+@app.route("/companylogo/<path:fname>")
+def serve_volume_logo(fname):
+    """Serve a runtime-downloaded logo from the persistent volume. Cached hard
+    by the browser since these never change once written."""
+    # Guard against path traversal — only allow simple <SYM>.<ext> names.
+    safe = os.path.basename(fname)
+    path = os.path.join(LOGO_VOLUME_DIR, safe)
+    if not os.path.exists(path):
+        abort(404)
+    resp = send_file(path)
+    resp.headers["Cache-Control"] = "public, max-age=2592000"  # 30 days
+    return resp
+
+
+def ensure_local_logo_async(symbol):
+    """If no local logo exists, try to download one in the background."""
+    sym = symbol.upper()
+    if local_logo_url(sym):
+        return
+    with _logo_fetch_lock:
+        if sym in _logo_fetch_inflight:
+            return
+        _logo_fetch_inflight.add(sym)
+
+    def _save_logo(content, ctype):
+        ext = ("svg" if "svg" in ctype else
+               "png" if "png" in ctype else
+               "webp" if "webp" in ctype else
+               "jpg" if ("jpeg" in ctype or "jpg" in ctype) else None)
+        if not ext or not content:
+            return False
+        # Persist to the volume so it survives deploys and is never re-pulled.
+        os.makedirs(LOGO_VOLUME_DIR, exist_ok=True)
+        with open(os.path.join(LOGO_VOLUME_DIR, f"{sym}.{ext}"), "wb") as fh:
+            fh.write(content)
+        print(f"[LOGO] saved {sym} logo to volume ({ext}, {len(content)} bytes)")
+        return True
+
+    def _worker():
+        try:
+            import requests
+            UA = {"User-Agent": "Mozilla/5.0"}
+
+            # 1) TradingView CDN — clean vector logos for nearly every NSE
+            #    listed company. Resolve the logoid via symbol search, then
+            #    pull the SVG from s3-symbol-logo.tradingview.com.
+            try:
+                from fetch import search_nse_symbols
+                hits = search_nse_symbols(sym, max_results=5)
+                logoid = next((h.get("logoid") for h in hits
+                               if h.get("symbol", "").upper() == sym and h.get("logoid")), "")
+                if not logoid and hits:
+                    logoid = hits[0].get("logoid", "")
+                if logoid:
+                    tv = requests.get(
+                        f"https://s3-symbol-logo.tradingview.com/{logoid}--big.svg",
+                        timeout=10, headers=UA)
+                    if tv.status_code == 200 and tv.content and _save_logo(tv.content, "svg"):
+                        return
+            except Exception as e:
+                print(f"[LOGO] TradingView logo path failed for {sym}: {e}")
+
+            # 2) Fallback: scrape the company's own site for a brand image.
+            from logo_scraper import discover_logo_with_meta
+            meta = discover_logo_with_meta(sym) or {}
+            url = meta.get("url")
+            if not url:
+                return
+            resp = requests.get(url, timeout=10, headers=UA)
+            if resp.status_code != 200 or not resp.content:
+                return
+            _save_logo(resp.content, (resp.headers.get("Content-Type") or "").lower())
+        except Exception as e:  # noqa: BLE001 — best-effort fetch
+            print(f"[LOGO] fetch failed for {sym}: {e}")
+        finally:
+            with _logo_fetch_lock:
+                _logo_fetch_inflight.discard(sym)
+
+    threading.Thread(target=_worker, name=f"logo-fetch-{sym}", daemon=True).start()
+
+
 @app.route("/company/<symbol>")
 @login_required
 def company_view(symbol):
@@ -1080,12 +1258,43 @@ def company_view(symbol):
         f["has_text"] = bool(f.get("raw_text", "").strip())
 
     company_counts = {sym: count_filings(sym) for sym in companies}
+
+    # Coverage: the actual date span of cached filings, for the header readout.
+    oldest = get_oldest_filing_date(symbol)
+    newest = get_newest_filing_date(symbol)
+    coverage_years = None
+    if oldest and newest:
+        try:
+            o = datetime.strptime(oldest[:10], "%Y-%m-%d")
+            n = datetime.strptime(newest[:10], "%Y-%m-%d")
+            coverage_years = round(max(0.0, (n - o).days / 365.0), 1)
+        except Exception:
+            coverage_years = None
+
+    # Local logo map for the switcher; background-fetch any that are missing.
+    _logo_syms = set(companies) | {symbol}
+    logo_map = {}
+    for _s in _logo_syms:
+        u = local_logo_url(_s)
+        if u:
+            logo_map[_s] = u
+        else:
+            ensure_local_logo_async(_s)
+    avatar_colors = {_s: avatar_color(_s) for _s in _logo_syms}
+
     return render_template(
         "index.html", companies=companies, selected=symbol, filings=filings,
         page=page, total_pages=total_pages, total=total, per_page=PER_PAGE,
         watchlist=get_watchlist(_current_user_id()), company_counts=company_counts,
         active_page="company",
         backfill_started=backfill_started,
+        symbol_domains=SYMBOL_DOMAIN_MAP,
+        logo_map=logo_map,
+        avatar_colors=avatar_colors,
+        cov_oldest=(oldest[:10] if oldest else None),
+        cov_newest=(newest[:10] if newest else None),
+        cov_years=coverage_years,
+        history_years=_history_years(),
     )
 
 
@@ -1196,10 +1405,21 @@ def api_xbrl(filing_id):
 
     xbrl_files = extract_xbrl_from_pdf(cached)
     if not xbrl_files:
+        # NSE flags `hasXbrl` on the announcement, but the structured XBRL is
+        # filed on NSE's separate XBRL module — it is NOT embedded in the
+        # announcement PDF. So there is nothing to extract here. Rather than a
+        # dead-end error, return the filing's own readable content + links.
+        text = (filing.get("raw_text") or "").strip()
+        if not text and pdf_url:
+            text = (download_and_extract(pdf_url) or "").strip()
         return jsonify({
-            "error": "no_embedded_xbrl",
-            "message": "XBRL flag is set but no embedded XBRL/XML found in this PDF. The XBRL data may be filed separately on the NSE XBRL portal.",
-            "has_flag": True,
+            "info": True,
+            "title": filing.get("title", ""),
+            "date": filing.get("date", ""),
+            "company": filing.get("company", ""),
+            "pdf_link": pdf_url,
+            "text": text[:6000],
+            "nse_portal": "https://www.nseindia.com/companies-listing/corporate-filings-announcements",
         })
 
     all_facts = []
@@ -1383,12 +1603,18 @@ def refresh(symbol):
     symbol = symbol.upper()
     if symbol not in get_companies():
         return jsonify({"status": "error", "message": "Company not in watchlist"}), 400
+    # Optional ?years=N (or JSON {years}) to pull a deeper/shallower span for
+    # just this company — used by the Disclosures-page depth control.
+    years = request.args.get("years", type=int)
+    if years is None:
+        years = (request.get_json(silent=True) or {}).get("years")
     try:
-        new_ids, removed_ids = process_filings(symbol)
+        new_ids, removed_ids = process_filings(symbol, years=years)
         return jsonify({
             "status": "ok",
             "new_count": len(new_ids),
             "removed_count": len(removed_ids),
+            "total": count_filings(symbol),
         })
     except Exception as e:
         print(f"[MAIN] Refresh error: {e}")
@@ -1437,6 +1663,10 @@ def api_watchlist_add():
     added = add_to_watchlist(uid, symbol, name)
     if not added:
         return jsonify({"error": True, "message": f"{symbol} is already on your watchlist"})
+
+    # Proactively download a local logo so it's ready before the user navigates
+    # to the company / disclosures / compliance pages (best-effort, background).
+    ensure_local_logo_async(symbol)
 
     # Start fetching filings for the new company in background
     new_count = 0
@@ -1497,6 +1727,7 @@ def api_settings_get():
         "industry": user.get("industry", ""),
         "industries": sorted(INDUSTRY_WATCHLISTS.keys()),
         "ui_version": settings.get("ui_version", "legacy"),
+        "filings_history_years": _history_years(),
     })
 
 
@@ -1567,6 +1798,12 @@ def api_settings_update():
     if "ui_version" in data:
         v = data["ui_version"] if data["ui_version"] in ("legacy", "new") else "legacy"
         set_setting("ui_version", v)
+    if "filings_history_years" in data:
+        try:
+            y = max(1, min(int(data["filings_history_years"]), 15))
+            set_setting("filings_history_years", str(y))
+        except (TypeError, ValueError):
+            return jsonify({"error": True, "message": "Invalid history years"}), 400
     if "gemini_api_key" in data:
         set_setting("gemini_api_key", data["gemini_api_key"].strip())
     if "gemini_model" in data:
@@ -1580,20 +1817,40 @@ def api_settings_update():
 
 @app.route("/api/settings/test-key", methods=["POST"])
 def api_settings_test_key():
-    """Test if the Gemini API key works."""
+    """Test if the AI API key works. Detects the provider by key prefix:
+    sk-or-…  → OpenRouter;  anything else → Google Gemini."""
     data = request.get_json() or {}
     api_key = data.get("api_key", "").strip()
     if not api_key:
         return jsonify({"valid": False, "message": "No API key provided."})
+
+    if api_key.startswith("sk-or-"):
+        # ── OpenRouter ──
+        try:
+            import requests as _rq
+            r = _rq.get(
+                "https://openrouter.ai/api/v1/auth/key",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=15,
+            )
+            if r.status_code != 200:
+                return jsonify({"valid": False, "message": f"OpenRouter rejected the key (HTTP {r.status_code})."})
+            info = (r.json() or {}).get("data", {})
+            tier = "free tier" if info.get("is_free_tier") else "paid"
+            return jsonify({"valid": True, "message": f"OpenRouter key is valid ({tier})."})
+        except Exception as e:
+            return jsonify({"valid": False, "message": f"OpenRouter check failed: {e}"})
+
+    # ── Google Gemini ──
     try:
         from google import genai
         client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
+        client.models.generate_content(
             model="gemini-2.5-flash",
             contents="Say 'OK' in one word.",
             config={"max_output_tokens": 10},
         )
-        return jsonify({"valid": True, "message": "API key is valid!"})
+        return jsonify({"valid": True, "message": "Gemini key is valid!"})
     except Exception as e:
         return jsonify({"valid": False, "message": str(e)})
 
@@ -1841,6 +2098,12 @@ def api_price_detail(symbol):
     if not quote:
         return jsonify({"error": True, "message": "Could not fetch quote."})
 
+    # Yahoo's chart meta carries no industry — fill from the user's watchlist
+    # sector so the modal doesn't render "Industry: N/A".
+    if not quote.get("industry"):
+        user = current_user()
+        quote["industry"] = (user or {}).get("industry") or ""
+
     # Get recent filings for context
     recent = get_cached_filings(symbol)[:10]
     pchange = quote.get("pChange", 0) or 0
@@ -1904,6 +2167,34 @@ def api_draft_examples():
         "style_fingerprint": (cached_style or {}).get("fingerprint", ""),
         "style_learned_at": (cached_style or {}).get("learned_at", ""),
     })
+
+
+@app.route("/api/draft/recommendations")
+@login_required
+def api_draft_recommendations():
+    """Smart 'what should I draft next' for a company — deadline-driven +
+    event-driven, each with a plain-English reason."""
+    symbol = (request.args.get("symbol") or "").strip().upper()
+    if not symbol:
+        return jsonify({"recommendations": []})
+    # Ensure we have filings + obligations to reason over (one-time on cold cache).
+    try:
+        if count_filings(symbol) == 0:
+            process_filings(symbol)
+        from compliance import get_company_compliance
+        if get_company_compliance(symbol)["history"]["total"] == 0:
+            refresh_compliance(symbol)
+    except Exception as e:
+        print(f"[DRAFT-REC] warm-up failed for {symbol}: {e}")
+    industry = (request.args.get("industry") or "").strip()
+    if not industry:
+        industry = (current_user() or {}).get("industry") or ""
+    try:
+        from draft_recommend import recommend_filings
+        return jsonify({"recommendations": recommend_filings(symbol, industry=industry)})
+    except Exception as e:
+        print(f"[DRAFT-REC] error for {symbol}: {e}")
+        return jsonify({"recommendations": []})
 
 
 @app.route("/api/draft/learn-style", methods=["POST"])
@@ -2046,6 +2337,14 @@ def api_draft_improve():
 
 
 def _build_letter_from_payload(data):
+    # Resolve the document kind from the filing type so MCA/governance docs
+    # (resolutions, notices, minutes) render as standalone documents rather
+    # than exchange letters. Falls back to any doc_kind the client sent.
+    from draft_engine import get_filing_type
+    doc_kind = data.get("doc_kind", "")
+    ft = get_filing_type(data.get("filing_type", "")) or {}
+    if ft.get("doc_kind"):
+        doc_kind = ft["doc_kind"]
     return build_letter_data(
         company_name=data.get("company_name", ""),
         registered_office=data.get("registered_office", ""),
@@ -2058,6 +2357,8 @@ def _build_letter_from_payload(data):
         nse_symbol=data.get("nse_symbol", ""),
         letter_date=data.get("letter_date", ""),
         annexures=data.get("annexures") or [],
+        doc_kind=doc_kind,
+        pdf_meta=data.get("pdf_meta") or {},
     )
 
 
@@ -2118,6 +2419,87 @@ def api_draft_export_pdf():
         mimetype="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
+
+
+@app.route("/api/draft/pdf-tools", methods=["POST"])
+@login_required
+def api_draft_pdf_tools():
+    """Make an uploaded filing PDF exchange-ready:
+      • set the Document Properties (Title/Author/Subject/Keywords) that the
+        NSE/SEBI portal & reviewers read, and
+      • optionally OCR a scanned/signed copy so it's text-searchable
+        (NEAPS rejects image-only PDFs).
+    Returns the processed PDF; an X-Delta-Notice header flags OCR fallbacks."""
+    import io as _io
+    from flask import Response
+
+    f = request.files.get("pdf")
+    if not f:
+        return jsonify({"error": True, "message": "No PDF uploaded."}), 400
+    raw = f.read()
+    if not raw or raw[:4] != b"%PDF":
+        return jsonify({"error": True, "message": "That doesn't look like a PDF file."}), 400
+
+    do_ocr = (request.form.get("ocr") == "1")
+    meta = {
+        "/Title": (request.form.get("title") or "").strip()[:200],
+        "/Author": (request.form.get("author") or "").strip()[:120],
+        "/Subject": (request.form.get("subject") or "").strip()[:200],
+        "/Keywords": (request.form.get("keywords") or "").strip()[:300],
+        "/Producer": "Delta Filings",
+    }
+    meta = {k: v for k, v in meta.items() if v}
+
+    notice = ""
+    working = raw
+
+    # 1) OCR (optional) — needs ocrmypdf + tesseract. Degrade gracefully.
+    if do_ocr:
+        try:
+            import tempfile, ocrmypdf
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tin, \
+                 tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tout:
+                tin.write(working); tin.flush()
+                # skip_text: only OCR pages that have no text layer already.
+                ocrmypdf.ocr(tin.name, tout.name, skip_text=True,
+                             optimize=1, progress_bar=False, language="eng")
+                with open(tout.name, "rb") as fh:
+                    working = fh.read()
+            notice = "OCR applied — PDF is now text-searchable."
+        except ImportError:
+            notice = "OCR engine not available on this server; metadata was still applied."
+        except Exception as e:  # noqa: BLE001
+            print(f"[PDF-TOOLS] OCR failed: {e}")
+            notice = "OCR could not be completed (the file may already have a text layer); metadata was applied."
+
+    # 2) Set Document Properties via PyPDF2 (always reliable).
+    try:
+        from PyPDF2 import PdfReader, PdfWriter
+        reader = PdfReader(_io.BytesIO(working))
+        if reader.is_encrypted:
+            try:
+                reader.decrypt("")
+            except Exception:
+                return jsonify({"error": True,
+                                "message": "PDF is password-protected — remove the password and retry."}), 400
+        writer = PdfWriter()
+        writer.append(reader)
+        existing = dict(reader.metadata or {})
+        existing.update(meta)
+        writer.add_metadata(existing)
+        out = _io.BytesIO()
+        writer.write(out)
+        working = out.getvalue()
+    except Exception as e:  # noqa: BLE001
+        print(f"[PDF-TOOLS] metadata write failed: {e}")
+        return jsonify({"error": True, "message": "Could not process this PDF."}), 500
+
+    fname = (request.form.get("title") or "filing").strip() or "filing"
+    fname = re.sub(r"[^A-Za-z0-9_-]+", "_", fname)[:60] + "_compliant.pdf"
+    return Response(working, mimetype="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="{fname}"',
+        "X-Delta-Notice": notice or "Document properties applied.",
+    })
 
 
 @app.route("/api/draft/export/docx", methods=["POST"])
@@ -2544,6 +2926,31 @@ def api_din_search():
     })
 
 
+@app.route("/api/din-intel")
+@login_required
+def api_din_intel():
+    """Director dossier: AI bio ('who they are'), summarised recent news, and
+    legal/regulatory exposure (SEBI orders + litigation in the press).
+
+    Called asynchronously by the DIN page after the main results render, so the
+    initial lookup stays fast. Cached 24h per director inside director_intel.
+    """
+    name = (request.args.get("name") or "").strip()
+    din = (request.args.get("din") or "").strip()
+    roles = [r for r in (request.args.get("roles") or "").split("||") if r.strip()]
+    if not name:
+        return jsonify({"available": False, "message": "No director name resolved."})
+    try:
+        from director_intel import get_director_intel
+        key = get_setting("gemini_api_key", "")
+        model = get_setting("gemini_model", "gemini-2.5-flash")
+        data = get_director_intel(name, din=din, roles=roles, api_key=key, model=model)
+        return jsonify(data)
+    except Exception as e:
+        print(f"[DIN-INTEL] error for {name}: {e}")
+        return jsonify({"available": False, "message": "Could not build dossier."})
+
+
 @app.route("/api/pre-open")
 def api_pre_open():
     """Get pre-open session data and alerts for watchlist stocks."""
@@ -2693,7 +3100,19 @@ def compliance_page():
     """Compliance OS dashboard."""
     companies = get_companies()
     watchlist = get_watchlist(_current_user_id())
-    return render_template("compliance.html", companies=companies, watchlist=watchlist)
+    _syms = [w["symbol"] for w in watchlist]
+    logo_map = {}
+    for _s in _syms:
+        u = local_logo_url(_s)
+        if u:
+            logo_map[_s] = u
+        else:
+            ensure_local_logo_async(_s)
+    avatar_colors = {_s: avatar_color(_s) for _s in _syms}
+    return render_template(
+        "compliance.html", companies=companies, watchlist=watchlist,
+        logo_map=logo_map, avatar_colors=avatar_colors,
+    )
 
 
 @app.route("/api/compliance")
@@ -2767,6 +3186,21 @@ def api_compliance():
     })
 
 
+@app.route("/api/xbrl-utilities")
+@login_required
+def api_xbrl_utilities():
+    """Latest NSE XBRL filing utilities / taxonomies, with update dates and a
+    'recently updated' flag — so a CS never files with a stale utility."""
+    from xbrl_utilities import get_xbrl_utilities
+    force = request.args.get("refresh") == "1"
+    try:
+        return jsonify(get_xbrl_utilities(force=force))
+    except Exception as e:
+        print(f"[XBRL] endpoint error: {e}")
+        return jsonify({"ok": False, "utilities": [], "count": 0,
+                        "message": "Could not reach NSE right now."}), 200
+
+
 @app.route("/api/compliance/refresh", methods=["POST"])
 def api_compliance_refresh():
     """Refresh compliance data for all watchlisted companies."""
@@ -2785,6 +3219,29 @@ def api_compliance_company(symbol):
     symbol = symbol.upper()
     data = get_company_compliance(symbol)
     return jsonify(data)
+
+
+@app.route("/api/compliance/profile/<symbol>")
+@login_required
+def api_compliance_profile(symbol):
+    """A-to-Z per-company compliance profile: every filing this company must
+    track, grouped by regime and tailored to its sector, merged with live
+    obligation status."""
+    from compliance import get_company_compliance_profile
+    symbol = symbol.upper()
+    # Sector: explicit ?industry= wins, else the user's current industry.
+    industry = (request.args.get("industry") or "").strip()
+    if not industry:
+        user = current_user() or {}
+        industry = user.get("industry") or ""
+    # Make sure the company has generated obligations so statuses are populated.
+    if get_company_compliance(symbol)["history"]["total"] == 0:
+        try:
+            threading.Thread(target=refresh_compliance, args=(symbol,),
+                             name=f"compliance-{symbol}", daemon=True).start()
+        except Exception as e:
+            print(f"[COMPLIANCE] profile refresh failed for {symbol}: {e}")
+    return jsonify(get_company_compliance_profile(symbol, industry))
 
 
 @app.route("/api/compliance/enforcement/<symbol>")

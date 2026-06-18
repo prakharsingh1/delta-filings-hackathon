@@ -10,3 +10,4 @@ beautifulsoup4
 google-genai
 python-docx
 reportlab
+ocrmypdf

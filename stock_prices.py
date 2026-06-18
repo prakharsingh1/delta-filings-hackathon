@@ -75,10 +75,11 @@ def resolve_index_name(industry):
 def _yahoo_quote(symbol):
     """Fetch a single live quote from Yahoo Finance, returned in the same shape
     as the NSE quote/index parsers so downstream code is unchanged.
-    Returns None on failure."""
+    Uses 5-minute intraday bars (same single request) so VWAP can be computed
+    — Yahoo's meta block has no VWAP field. Returns None on failure."""
     try:
         resp = requests.get(YAHOO_CHART.format(symbol),
-                            params={"interval": "1d", "range": "1d"},
+                            params={"interval": "5m", "range": "1d"},
                             headers=YAHOO_HEADERS, timeout=10)
         if resp.status_code != 200:
             return None
@@ -89,16 +90,48 @@ def _yahoo_quote(symbol):
         change = (last - prev) if (last and prev) else 0
         pchange = (change / prev * 100) if prev else 0
 
-        # Day's opening price — Yahoo's meta has no open field, so read it from
-        # the OHLC indicators (first non-null open in the 1d bar).
+        # Intraday bars → day open (first bar) + VWAP (Σ typical·vol / Σ vol).
         day_open = 0
+        vwap = 0
         try:
-            opens = ((result_obj.get("indicators", {}).get("quote", [{}]) or [{}])[0] or {}).get("open") or []
-            opens = [o for o in opens if o is not None]
+            q0 = ((result_obj.get("indicators", {}).get("quote", [{}]) or [{}])[0] or {})
+            opens = [o for o in (q0.get("open") or []) if o is not None]
             if opens:
                 day_open = opens[0]
+            highs = q0.get("high") or []
+            lows = q0.get("low") or []
+            closes = q0.get("close") or []
+            vols = q0.get("volume") or []
+            pv_sum = v_sum = 0.0
+            for h, l, c, v in zip(highs, lows, closes, vols):
+                if h is None or l is None or c is None or not v:
+                    continue
+                pv_sum += ((h + l + c) / 3.0) * v
+                v_sum += v
+            if v_sum > 0:
+                vwap = pv_sum / v_sum
         except Exception:
-            day_open = 0
+            pass
+
+        # Fallback when intraday volume bars are unavailable (pre-market, thin
+        # trading, data gap): the day's typical price (H+L+C)/3 — the same
+        # component VWAP weights, so it's a sensible glanceable stand-in.
+        if not vwap:
+            d_hi = meta.get("regularMarketDayHigh") or 0
+            d_lo = meta.get("regularMarketDayLow") or 0
+            if d_hi and d_lo and last:
+                vwap = (d_hi + d_lo + last) / 3.0
+
+        # Human-readable last-update timestamp (IST) from the quote epoch.
+        last_update = ""
+        try:
+            epoch = meta.get("regularMarketTime")
+            if epoch:
+                from datetime import datetime, timezone, timedelta
+                ist = timezone(timedelta(hours=5, minutes=30))
+                last_update = datetime.fromtimestamp(epoch, ist).strftime("%d-%b-%Y %H:%M IST")
+        except Exception:
+            pass
 
         return {
             "symbol": symbol,
@@ -110,7 +143,7 @@ def _yahoo_quote(symbol):
             "previousClose": round(prev, 2),
             "open": round(day_open, 2),
             "close": round(last, 2),
-            "vwap": 0,
+            "vwap": round(vwap, 2),
             "dayHigh": meta.get("regularMarketDayHigh", 0) or 0,
             "dayLow": meta.get("regularMarketDayLow", 0) or 0,
             "yearHigh": meta.get("fiftyTwoWeekHigh", 0) or 0,
@@ -119,7 +152,7 @@ def _yahoo_quote(symbol):
             "yearLowDate": "",
             "totalTradedVolume": meta.get("regularMarketVolume", 0) or 0,
             "totalTradedValue": 0,
-            "lastUpdateTime": "",
+            "lastUpdateTime": last_update,
             "perChange30d": None,
             "perChange365d": None,
         }
@@ -156,6 +189,13 @@ def fetch_watchlist_prices(symbols, industry=None):
             quote = _quote_no_warm(sym)
             if quote:
                 prices[sym] = quote
+
+    # Yahoo's chart meta carries no industry; fill from the caller's watchlist
+    # sector so the modal doesn't show "Industry: N/A".
+    if industry:
+        for q in prices.values():
+            if not q.get("industry"):
+                q["industry"] = industry
 
     return prices
 

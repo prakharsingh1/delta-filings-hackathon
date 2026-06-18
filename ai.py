@@ -31,9 +31,15 @@ def detect_tags(title, text=""):
 
 
 # ── Model definitions ──
+# Two providers share one registry. `provider` decides the API call path in
+# summarize_text(); the settings UI groups cards by it. Gemini models need a
+# Google AI Studio key (AIza…); OpenRouter models need an sk-or-… key.
 
-GEMINI_MODELS = {
+AI_MODELS = {
+    # ── Google Gemini (direct) ──
     "gemini-2.5-flash": {
+        "provider": "gemini",
+        "provider_label": "Google Gemini",
         "name": "Gemini 2.5 Flash",
         "description": "Fast & efficient for straightforward data extraction.",
         "speed": "~3-5s per summary",
@@ -42,6 +48,8 @@ GEMINI_MODELS = {
         "badge_color": "emerald",
     },
     "gemini-2.5-pro": {
+        "provider": "gemini",
+        "provider_label": "Google Gemini",
         "name": "Gemini 2.5 Pro",
         "description": "Consulting-grade reasoning for complex filings.",
         "speed": "~10-15s per summary",
@@ -49,7 +57,61 @@ GEMINI_MODELS = {
         "badge": "Pro",
         "badge_color": "indigo",
     },
+
+    # ── OpenRouter (any sk-or-… key) ──
+    "openrouter/free": {
+        "provider": "openrouter",
+        "provider_label": "OpenRouter",
+        "name": "Free Models Router",
+        "description": "Auto-picks from all ~24 free models on OpenRouter (gpt-oss-120b, Nemotron, Gemma & more). Best default for free keys.",
+        "speed": "varies by routed model",
+        "cost": "Free",
+        "badge": "Auto · Free",
+        "badge_color": "emerald",
+    },
+    "google/gemma-4-31b-it:free": {
+        "provider": "openrouter",
+        "provider_label": "OpenRouter",
+        "name": "Gemma 4 31B (free)",
+        "description": "Pin a single dependable free model instead of the router.",
+        "speed": "~4-8s per summary",
+        "cost": "Free",
+        "badge": "Free",
+        "badge_color": "emerald",
+    },
+    "deepseek/deepseek-chat-v3": {
+        "provider": "openrouter",
+        "provider_label": "OpenRouter",
+        "name": "DeepSeek Chat v3",
+        "description": "Strong value model — near-frontier quality at commodity pricing.",
+        "speed": "~5-10s per summary",
+        "cost": "~$0.30 / 1M tokens",
+        "badge": "Value",
+        "badge_color": "indigo",
+    },
+    "anthropic/claude-sonnet-4.6": {
+        "provider": "openrouter",
+        "provider_label": "OpenRouter",
+        "name": "Claude Sonnet 4.6",
+        "description": "Frontier-grade reasoning for dense or unusual filings.",
+        "speed": "~8-15s per summary",
+        "cost": "$3 / 1M input tokens",
+        "badge": "Premium",
+        "badge_color": "violet",
+    },
 }
+
+# Backwards-compat alias — main.py historically imported GEMINI_MODELS.
+GEMINI_MODELS = AI_MODELS
+
+
+def model_provider(model_id):
+    """Return 'gemini' | 'openrouter' for a model id, inferring for unknown ids."""
+    info = AI_MODELS.get(model_id)
+    if info:
+        return info["provider"]
+    # Unknown id — infer: OpenRouter slugs contain a slash (org/model).
+    return "openrouter" if "/" in (model_id or "") else "gemini"
 
 
 # ── AI Summarization ──
@@ -72,23 +134,43 @@ SYSTEM_PROMPT = (
 
 
 def summarize_text(text, title="", description="", api_key="", model="gemini-2.5-flash", temperature=0.3):
-    """Summarize a corporate filing using Google Gemini.
-    Returns a summary string, or a fallback if API is unavailable."""
+    """Summarize a corporate filing using Google Gemini or OpenRouter,
+    routed by the selected model's provider. Falls back to extractive
+    summary if no key / API error."""
     if not api_key:
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         return _fallback_summary(text, title, description)
 
+    prompt_text = f"Filing Title: {title}\n"
+    if description:
+        prompt_text += f"Description: {description}\n"
+    prompt_text += f"\nFull Document Text:\n{text[:8000]}"
+
+    provider = model_provider(model)
+
+    # Guard against key/provider mismatch: an sk-or- key can only call
+    # OpenRouter; a Google key can only call Gemini. Reroute to a sane
+    # default model rather than failing the request.
+    if api_key.startswith("sk-or-") and provider == "gemini":
+        model, provider = "openrouter/free", "openrouter"
+        print(f"[AI] sk-or- key with Gemini model — rerouting to {model}")
+    elif not api_key.startswith("sk-or-") and provider == "openrouter":
+        model, provider = "gemini-2.5-flash", "gemini"
+        print(f"[AI] Google key with OpenRouter model — rerouting to {model}")
+
+    if provider == "openrouter":
+        return _summarize_openrouter(prompt_text, api_key, model, temperature,
+                                     title, text, description)
+    return _summarize_gemini(prompt_text, api_key, model, temperature,
+                             title, text, description)
+
+
+def _summarize_gemini(prompt_text, api_key, model, temperature, title, text, description):
     try:
         from google import genai
 
         client = genai.Client(api_key=api_key)
-
-        prompt_text = f"Filing Title: {title}\n"
-        if description:
-            prompt_text += f"Description: {description}\n"
-        prompt_text += f"\nFull Document Text:\n{text[:8000]}"
-
         response = client.models.generate_content(
             model=model,
             contents=prompt_text,
@@ -102,10 +184,97 @@ def summarize_text(text, title="", description="", api_key="", model="gemini-2.5
         summary = response.text.strip()
         print(f"[AI] Gemini ({model}) summarized: {title[:50]}")
         return summary
-
     except Exception as e:
         print(f"[AI] Gemini error: {e}")
         return _fallback_summary(text, title, description)
+
+
+def _or_call(api_key, model, prompt_text, temperature):
+    """One OpenRouter chat-completions call. Returns the content string.
+    Raises on API error or empty completion."""
+    import requests
+
+    resp = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            # Optional attribution headers per OpenRouter docs.
+            "HTTP-Referer": "https://delta-filings.up.railway.app",
+            "X-Title": "Delta Filings",
+        },
+        json={
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": 4096,
+            # Reasoning models must keep their thinking out of the content
+            # field — without this, chain-of-thought can leak into summaries.
+            "reasoning": {"exclude": True},
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt_text},
+            ],
+        },
+        timeout=60,
+    )
+    data = resp.json()
+    if "choices" not in data:
+        err = (data.get("error") or {}).get("message", "unknown error")
+        raise RuntimeError(f"OpenRouter: {err}")
+    content = (data["choices"][0]["message"]["content"] or "").strip()
+    # Strip wrapped think-blocks some reasoning models emit despite exclude.
+    content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL | re.IGNORECASE).strip()
+    routed = data.get("model") or model     # actual model the router picked
+    return content, routed
+
+
+_REASONING_LEAK_STARTS = (
+    "we need to", "we must", "let's", "lets ", "the user wants", "the user asked",
+    "i need to", "okay, ", "ok, so", "first, i", "thinking:", "to answer this",
+    "we have to write", "we should",
+)
+
+
+def _looks_like_summary(s):
+    """Sanity-check a completion actually resembles a filing summary.
+    The free router can land on specialty models (a safety classifier that
+    replies 'User Safety: safe') or reasoning models that leak their
+    chain-of-thought as content — both must be rejected."""
+    if not s or len(s) < 60:
+        return False
+    low = s.lstrip().lower()
+    if any(low.startswith(p) for p in _REASONING_LEAK_STARTS):
+        return False
+    if "the user wants" in low or "we need to write" in low:
+        return False
+    has_bullets = "•" in s or s.lstrip().startswith(("-", "*", "1."))
+    return has_bullets or len(s) >= 150
+
+
+def _summarize_openrouter(prompt_text, api_key, model, temperature, title, text, description):
+    """Call OpenRouter; for the random free router, retry on degenerate
+    output (each retry rolls a different underlying model), then pin a
+    known-good free model as the final attempt."""
+    is_router = model == "openrouter/free"
+    attempts = (["openrouter/free"] * 3 + ["google/gemma-4-31b-it:free"]) if is_router else [model]
+
+    last_err = None
+    for attempt_model in attempts:
+        try:
+            summary, routed = _or_call(api_key, attempt_model, prompt_text, temperature)
+            if is_router and not _looks_like_summary(summary):
+                print(f"[AI] OpenRouter router gave degenerate output via {routed} — retrying")
+                continue
+            if not summary:
+                raise RuntimeError("empty completion")
+            print(f"[AI] OpenRouter ({routed}) summarized: {title[:50]}")
+            return summary
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+            print(f"[AI] OpenRouter error ({attempt_model}): {e}")
+
+    print(f"[AI] OpenRouter exhausted attempts: {last_err}")
+    return _fallback_summary(text, title, description)
 
 
 def _fallback_summary(text, title="", description=""):

@@ -343,6 +343,29 @@ def count_filings(company):
     return row["cnt"]
 
 
+def get_oldest_filing_date(company):
+    """Return the earliest sort_date (YYYY-MM-DD…) cached for a company, or
+    None. Used to detect a shallow/truncated cache that needs a deep re-pull."""
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT MIN(sort_date) AS oldest FROM filings WHERE company = ? AND sort_date != ''",
+        (company,),
+    ).fetchone()
+    conn.close()
+    return row["oldest"] if row and row["oldest"] else None
+
+
+def get_newest_filing_date(company):
+    """Return the latest sort_date (YYYY-MM-DD…) cached for a company, or None."""
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT MAX(sort_date) AS newest FROM filings WHERE company = ? AND sort_date != ''",
+        (company,),
+    ).fetchone()
+    conn.close()
+    return row["newest"] if row and row["newest"] else None
+
+
 # ── Filings fetch metadata ────────────────────────────────
 # Tracks the last time we successfully pulled filings from NSE for a symbol,
 # so the company page can decide whether to trigger a background backfill
