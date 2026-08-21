@@ -138,6 +138,23 @@ def login_required(f):
     return wrapper
 
 
+# Internal lifecycle values are pipeline vocabulary. A Company Secretary sees
+# what the item means for them, not which stage of our machinery it sits in.
+STATUS_LABELS = {
+    "new": "Detected",
+    "analyzed": "Assessed",
+    "actioned": "Ready for review",
+    "approved": "Completed",
+    "dismissed": "Dismissed",
+    "escalated": "Escalated",
+}
+
+
+@app.context_processor
+def inject_status_labels():
+    return {"status_labels": STATUS_LABELS}
+
+
 @app.context_processor
 def inject_user():
     # ui_version: 'legacy' (sidebar layout, default) or 'new' (top-nav redesign).
@@ -3323,34 +3340,54 @@ def api_compliance_enforcement_refresh(symbol):
 # ══════════════════════════════════════════════════════════
 
 @app.route("/intelligence")
+@app.route("/command")
 @login_required
 def intelligence_center():
+    """Compliance Command Center — the one screen a Company Secretary works from.
+
+    Answers "what requires my action today?" and nothing else. Agent names,
+    model ids, confidence figures and timing live behind the AI Audit view on
+    each event, not here.
+    """
     symbols = get_companies()
     from agents.pipeline import generate_morning_brief
 
     brief = generate_morning_brief(symbols)
-    stats = es.get_center_stats(symbols)
-    events = es.list_events_with_analysis(symbols, limit=200)
+    all_events = es.list_events_with_analysis(symbols, limit=300)
+    deadlines = es.get_upcoming_deadlines(symbols, within_days=60)
 
-    risk_filter = request.args.get("risk", "")
-    status_filter = request.args.get("status", "")
-    symbol_filter = request.args.get("symbol", "")
-    if risk_filter:
-        events = [e for e in events if e["risk_level"] == risk_filter]
-    if status_filter == "open":
-        events = [e for e in events if e["status"] not in es.CLOSED_STATUSES]
-    elif status_filter:
-        events = [e for e in events if e["status"] == status_filter]
+    view = request.args.get("view", "action")
+    symbol_filter = (request.args.get("symbol") or "").upper()
+
+    open_events = [e for e in all_events if e["status"] not in es.CLOSED_STATUSES]
+
+    # The action queue is what a CS must actually do something about:
+    # assessed, still open, and carrying a real obligation.
+    queue = [e for e in open_events
+             if e.get("assessed") and e["risk_level"] in ("high", "medium")]
+    monitoring = [e for e in open_events if e not in queue]
+    completed = [e for e in all_events if e["status"] in es.CLOSED_STATUSES]
+
     if symbol_filter:
-        events = [e for e in events if e["symbol"] == symbol_filter.upper()]
+        queue = [e for e in queue if e["symbol"] == symbol_filter]
+        monitoring = [e for e in monitoring if e["symbol"] == symbol_filter]
+        completed = [e for e in completed if e["symbol"] == symbol_filter]
+
+    stats = {
+        "companies_monitored": len(symbols),
+        "filings_reviewed": es.get_center_stats(symbols)["filings_processed"],
+        "pending_actions": len(queue),
+        "upcoming_deadlines": deadlines["total"],
+        "documents_ready": sum(e["artifact_count"] for e in queue),
+        "completed": len(completed),
+    }
 
     return render_template(
         "intelligence.html",
         active_page="intelligence",
-        brief=brief, stats=stats, events=events,
-        symbols=symbols,
-        filters={"risk": risk_filter, "status": status_filter, "symbol": symbol_filter},
-        recent_audit=es.get_recent_audit(12),
+        brief=brief, stats=stats, deadlines=deadlines,
+        queue=queue, monitoring=monitoring, completed=completed,
+        symbols=symbols, view=view, symbol_filter=symbol_filter,
         gemini_ready=_gemini_ready(),
     )
 

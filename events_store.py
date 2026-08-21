@@ -622,3 +622,77 @@ def build_replay(event_id: int) -> Optional[Dict]:
         "total_display_ms": sum(s["display_ms"] for s in steps),
         "steps": steps,
     }
+
+
+def get_upcoming_deadlines(symbols: Optional[List[str]] = None,
+                           within_days: int = 45, limit: int = 12) -> Dict:
+    """Upcoming statutory deadlines straight from compliance_obligations.
+
+    Reads the local table rather than calling get_compliance_dashboard(),
+    which does network work and is far too slow for a page load.
+    """
+    today = datetime.now().date()
+    horizon = (today + timedelta(days=within_days)).isoformat()
+
+    sql = ("SELECT symbol, mandate_id, period, due_date, status "
+           "FROM compliance_obligations WHERE status IN ('pending','unverified')")
+    args: List[Any] = []
+    if symbols:
+        sql += f" AND symbol IN ({','.join('?' * len(symbols))})"
+        args += [s.upper() for s in symbols]
+    # Future-facing only. The table also holds historic obligations that were
+    # never matched to a filing by link_filings_to_obligations — 126 of them.
+    # Counting those as "overdue" would assert on screen that these real
+    # issuers missed 126 statutory filings, which the data does not support:
+    # it means we failed to match, not that they failed to file.
+    sql += " AND due_date >= ? AND due_date <= ? ORDER BY due_date ASC"
+    args.append(today.isoformat())
+    args.append(horizon)
+
+    conn = get_connection()
+    rows = conn.execute(sql, args).fetchall()
+    conn.close()
+
+    try:
+        from compliance import SEBI_MANDATES
+        by_id = {m["id"]: m for m in SEBI_MANDATES}
+    except Exception:
+        by_id = {}
+
+    items, due_soon = [], 0
+    for r in rows:
+        m = by_id.get(r["mandate_id"], {})
+        try:
+            due = datetime.fromisoformat(r["due_date"]).date()
+            days_left = (due - today).days
+        except (ValueError, TypeError):
+            days_left = None
+        if days_left is not None and days_left <= 14:
+            due_soon += 1
+        items.append({
+            "symbol": r["symbol"],
+            "mandate_id": r["mandate_id"],
+            "name": m.get("name", r["mandate_id"]),
+            "regulation": m.get("regulation", ""),
+            "period": r["period"],
+            "due_date": r["due_date"],
+            "days_left": days_left,
+            "urgent": days_left is not None and days_left <= 14,
+        })
+
+    # Historic obligations we could not match to a filing. Reported separately
+    # and never as a missed deadline.
+    conn = get_connection()
+    unmatched_sql = ("SELECT COUNT(*) c FROM compliance_obligations "
+                     "WHERE status IN ('pending','unverified') AND due_date < ?")
+    unmatched_args: List[Any] = [today.isoformat()]
+    if symbols:
+        unmatched_sql += f" AND symbol IN ({','.join('?' * len(symbols))})"
+        unmatched_args += [s.upper() for s in symbols]
+    unmatched = conn.execute(unmatched_sql, unmatched_args).fetchone()["c"]
+    conn.close()
+
+    # Key is `rows`, not `items`: Jinja's attribute lookup resolves
+    # `deadlines.items` to the dict's own .items() method, not to this key.
+    return {"total": len(items), "due_soon": due_soon,
+            "unmatched_historic": unmatched, "rows": items[:limit]}

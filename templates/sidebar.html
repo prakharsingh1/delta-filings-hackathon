@@ -160,7 +160,7 @@
     nav links below; rendering happens once per page server-side. Adding a new
     page = adding one entry here. #}
 {% set _PAGE_INFO = {
-    'intelligence':  {'label': 'Intelligence', 'icon': 'M13 10V3L4 14h7v7l9-11h-7z'},
+    'intelligence':  {'label': 'Command Center', 'icon': 'M13 10V3L4 14h7v7l9-11h-7z'},
     'dashboard':     {'label': 'Dashboard',     'icon': 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z'},
     'draft':         {'label': 'Draft',         'icon': 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'},
     'announcements': {'label': 'Disclosures',   'icon': 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z'},
@@ -214,15 +214,27 @@
         {% elif watchlist is defined and watchlist %}{% set _first = watchlist[0] %}{% set _nav_target = (_first.symbol if _first is mapping else _first) %}
         {% elif companies is defined and companies %}{% set _nav_target = companies[0] %}{% endif %}
 
+        {# Three primary destinations. The remaining tools (disclosures, prices,
+           DIN search, compare) are secondary and live under "Tools" so the
+           Command Center is unambiguously the place work gets done. #}
         <nav class="top-nav">
-            <a href="/intelligence" class="top-nav-item {{ 'active' if active_page == 'intelligence' else '' }}">Intelligence</a>
-            <a href="/dashboard" class="top-nav-item {{ 'active' if active_page == 'dashboard' else '' }}">Dashboard</a>
-            <a href="/draft" class="top-nav-item {{ 'active' if active_page == 'draft' else '' }}">Draft</a>
-            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'announcements' or (active_page == 'company' and _company_tab != 'compare')) else '' }}">Disclosures</a>
-            <a href="/prices" class="top-nav-item {{ 'active' if active_page == 'prices' else '' }}">Stock Prices</a>
-            <a href="/din-search" class="top-nav-item {{ 'active' if active_page == 'din_search' else '' }}">DIN Search</a>
-            <a href="/compliance" class="top-nav-item {{ 'active' if active_page == 'compliance' else '' }}">Compliance</a>
-            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'compare' or (active_page == 'company' and _company_tab == 'compare')) else '' }}">Compare</a>
+            <a href="/intelligence" class="top-nav-item {{ 'active' if active_page == 'intelligence' else '' }}">Command Center</a>
+            <a href="/compliance" class="top-nav-item {{ 'active' if active_page == 'compliance' else '' }}">Calendar</a>
+            <a href="/draft" class="top-nav-item {{ 'active' if active_page == 'draft' else '' }}">Documents</a>
+            <div class="relative" x-data>
+                <button type="button" onclick="document.getElementById('toolsMenu').classList.toggle('hidden')"
+                        class="top-nav-item {{ 'active' if active_page in ('dashboard','prices','din_search','announcements','company','compare','watchlist') else '' }}">
+                    Tools ▾
+                </button>
+                <div id="toolsMenu" class="hidden absolute left-0 mt-1.5 w-52 rounded-xl border py-1.5 z-50"
+                     style="background:var(--surface,#fff); border-color:var(--border,#e2e8f0); box-shadow:0 12px 32px -12px rgba(0,0,0,.28);">
+                    <a href="/dashboard" class="topbar-menu-item">Filing calendar</a>
+                    <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}" class="topbar-menu-item">Disclosures</a>
+                    <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}" class="topbar-menu-item">Compare filings</a>
+                    <a href="/din-search" class="topbar-menu-item">DIN search</a>
+                    <a href="/prices" class="topbar-menu-item">Stock prices</a>
+                </div>
+            </div>
         </nav>
 
         <div class="flex items-center gap-1.5 flex-shrink-0">
@@ -354,7 +366,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
-            Intelligence
+            Command Center
         </a>
         <a href="/dashboard" class="nav-item {{ 'active' if active_page == 'dashboard' else '' }}">
             <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

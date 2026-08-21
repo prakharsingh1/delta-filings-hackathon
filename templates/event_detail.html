@@ -204,6 +204,12 @@
         @keyframes rspin { to { transform:rotate(360deg); } }
         .replay-progress { height:3px; background:#1c1c1f; border-radius:2px; overflow:hidden; margin-top:4px; }
         .replay-progress span { display:block; height:100%; width:0; background:#4f46e5; transition:width .3s linear; }
+
+        #aiAudit summary::-webkit-details-marker { display:none; }
+        #aiAudit[open] .audit-chev { transform:rotate(90deg); }
+        .audit-chev { transition:transform .18s; }
+        #aiAudit summary:hover .sec-title { color:#4338ca; }
+        html.dark #aiAudit summary:hover .sec-title { color:#a5b4fc; }
     </style>
 </head>
 <body class="bg-slate-50 text-gray-900">
@@ -214,7 +220,7 @@
 
         <a href="/intelligence" class="text-xs font-semibold text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 mb-4">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-            Intelligence Center
+            Command Center
         </a>
 
         <!-- ── 1. WHAT HAPPENED ── -->
@@ -232,9 +238,9 @@
                         <span class="dot dot-unassessed"></span>not assessed
                     </span>
                     {% endif %}
-                    <span class="chip chip-{{ event.status }}">{{ event.status }}</span>
+                    <span class="chip chip-{{ event.status }}">{{ status_labels.get(event.status, event.status) }}</span>
                     {% if event.is_demo_scenario %}<span class="chip chip-low">Demo Scenario</span>{% endif %}
-                    <span class="text-xs text-slate-400 mono">EVT-{{ '%04d'|format(event.id) }}</span>
+
                 </div>
                 <h1 class="text-[26px] font-extrabold tracking-tight text-slate-900 leading-tight">
                     {{ event.event_label }}
@@ -248,7 +254,7 @@
                 <p class="text-sm text-slate-700 mt-3 max-w-3xl leading-relaxed">{{ event.headline }}</p>
             </div>
             <div class="flex gap-2 flex-shrink-0">
-                <button onclick="startReplay()" class="btn btn-approve">▶ Replay agent run</button>
+                <button onclick="startReplay()" class="btn btn-dismiss">How this was produced</button>
                 <a href="/company/{{ event.symbol }}/timeline" class="btn btn-dismiss">Company timeline</a>
             </div>
         </div>
@@ -258,8 +264,7 @@
         <div class="sec">
             <div class="sec-head">
                 <div class="flex items-center gap-3">
-                    <span class="sec-num">02</span>
-                    <span class="sec-title">What changed · Delta</span>
+                    <span class="sec-title">What changed</span>
                 </div>
                 <span class="text-[11px] text-slate-400">
                     Computed from XBRL board composition — not model output
@@ -341,11 +346,11 @@
         <div class="sec">
             <div class="sec-head">
                 <div class="flex items-center gap-3">
-                    <span class="sec-num">03</span>
-                    <span class="sec-title">Why it matters · Governance Intelligence Agent</span>
+                    <span class="sec-title">Why it matters</span>
                 </div>
-                {% if analysis and analysis.model and analysis.model != 'none' %}
-                <span class="text-[11px] text-slate-400 mono">{{ analysis.model }} · {{ analysis.latency_ms }}ms</span>
+                {% if mandates %}
+                <span class="text-[11px] text-slate-400">{{ mandates|length }} applicable
+                {{ 'requirement' if mandates|length == 1 else 'requirements' }}</span>
                 {% endif %}
             </div>
             <div class="sec-body">
@@ -364,35 +369,8 @@
                 </div>
                 {% endif %}
 
-                {% if analysis.reasoning %}
-                <div class="mb-5">
-                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Reasoning</div>
-                    <ol class="space-y-2">
-                    {% for r in analysis.reasoning %}
-                        <li class="flex gap-3 text-sm text-slate-600 leading-relaxed">
-                            <span class="mono text-xs text-slate-400 mt-0.5 flex-shrink-0">{{ loop.index }}</span>
-                            <span>{{ r }}</span>
-                        </li>
-                    {% endfor %}
-                    </ol>
-                </div>
-                {% endif %}
 
-                <!-- ── 6. CONFIDENCE ── -->
-                <div class="pt-4 border-t border-slate-100">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">AI confidence</span>
-                        <span class="num text-sm font-bold text-slate-900">{{ analysis.confidence }}%</span>
-                    </div>
-                    <div class="conf-bar">
-                        <div class="conf-fill" style="width:{{ analysis.confidence }}%;
-                            background:{% if analysis.confidence >= 75 %}#059669{% elif analysis.confidence >= 50 %}#f59e0b{% else %}#dc2626{% endif %};"></div>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-2">
-                        Confidence reflects how well the source evidence supports this assessment.
-                        This is decision support, not legal advice — a qualified Company Secretary must review before acting.
-                    </p>
-                </div>
+
             {% else %}
                 <div class="banner banner-warn">
                     <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z"/></svg>
@@ -409,12 +387,11 @@
         <div class="sec">
             <div class="sec-head">
                 <div class="flex items-center gap-3">
-                    <span class="sec-num">04</span>
                     <span class="sec-title">Regulatory context</span>
                 </div>
                 <span class="text-[11px] text-slate-400">
-                    {% if mandates_are_candidates %}Candidates retrieved from Delta's mandate library · not yet assessed
-                    {% else %}Cited by the agent from Delta's mandate library · not model-generated{% endif %}
+                    {% if mandates_are_candidates %}Possible requirements — not yet assessed
+                    {% else %}Matched from Delta's regulatory library{% endif %}
                 </span>
             </div>
             <div class="sec-body">
@@ -422,9 +399,8 @@
                 <p class="text-sm font-semibold text-slate-800 mb-4">{{ analysis.regulatory_area }}</p>
             {% elif mandates_are_candidates %}
                 <div class="banner banner-info mb-4">
-                    <div>These are the obligations Delta's retrieval layer matched to this event type.
-                    The Governance Intelligence Agent selects from this list when it assesses the event —
-                    it cannot cite a regulation that is not here.</div>
+                    <div>These are the requirements Delta matched to this type of event. The assessment can only
+                    cite from this list — it cannot introduce a regulation that is not in Delta's library.</div>
                 </div>
             {% endif %}
             {% for m in mandates %}
@@ -458,7 +434,6 @@
         <div class="sec">
             <div class="sec-head">
                 <div class="flex items-center gap-3">
-                    <span class="sec-num">05</span>
                     <span class="sec-title">Evidence</span>
                 </div>
             </div>
@@ -525,7 +500,6 @@
         <div class="sec">
             <div class="sec-head">
                 <div class="flex items-center gap-3">
-                    <span class="sec-num">07</span>
                     <span class="sec-title">Recommended action</span>
                 </div>
                 <span class="text-[11px] text-slate-400">{{ analysis.recommended_actions|length }} tasks</span>
@@ -549,8 +523,7 @@
         <div class="sec">
             <div class="sec-head">
                 <div class="flex items-center gap-3">
-                    <span class="sec-num">08</span>
-                    <span class="sec-title">Generated documents · Action Execution Agent</span>
+                    <span class="sec-title">Documents prepared for you</span>
                 </div>
                 <span class="text-[11px] text-slate-400">{{ artifacts|length }} prepared</span>
             </div>
@@ -613,10 +586,9 @@
         <div class="sec">
             <div class="sec-head">
                 <div class="flex items-center gap-3">
-                    <span class="sec-num">09</span>
-                    <span class="sec-title">Human control</span>
+                    <span class="sec-title">Complete this item</span>
                 </div>
-                <span class="chip chip-{{ event.status }}" id="statusChip">{{ event.status }}</span>
+                <span class="chip chip-{{ event.status }}" id="statusChip">{{ status_labels.get(event.status, event.status) }}</span>
             </div>
             <div class="sec-body">
                 <p class="text-sm text-slate-600 mb-4">
@@ -635,27 +607,70 @@
             </div>
         </div>
 
-        <!-- ── AUDIT TRAIL ── -->
-        <div class="sec">
-            <div class="sec-head">
+        <!-- ── AI AUDIT (collapsed by default) ── -->
+        <details class="sec" id="aiAudit">
+            <summary class="sec-head" style="cursor:pointer; list-style:none;">
                 <div class="flex items-center gap-3">
-                    <span class="sec-num">10</span>
-                    <span class="sec-title">Audit trail</span>
+                    <svg class="w-3.5 h-3.5 text-slate-400 audit-chev" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <span class="sec-title">AI audit</span>
                 </div>
-                <span class="text-[11px] text-slate-400">Append-only</span>
-            </div>
+                <span class="text-[11px] text-slate-400">How this item was produced · for review and compliance records</span>
+            </summary>
             <div class="sec-body">
+                <p class="text-xs text-slate-500 mb-5 leading-relaxed max-w-3xl">
+                    Delta records every automated and human step taken on this item, so the working
+                    can be reconstructed for an auditor or regulator. Nothing here changes the
+                    recommendation above — it is the evidence behind it.
+                </p>
+
+                {% if analysis and analysis.model not in (None, '', 'none') %}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5">AI confidence</div>
+                        <div class="flex items-center gap-2.5">
+                            <div class="conf-bar flex-1">
+                                <div class="conf-fill" style="width:{{ analysis.confidence }}%;
+                                    background:{% if analysis.confidence >= 75 %}#059669{% elif analysis.confidence >= 50 %}#f59e0b{% else %}#dc2626{% endif %};"></div>
+                            </div>
+                            <span class="num text-sm font-bold text-slate-900">{{ analysis.confidence }}%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5">Assessment model</div>
+                        <div class="mono text-xs text-slate-600">{{ analysis.model }}</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5">Processing time</div>
+                        <div class="num text-xs text-slate-600">{{ '%.1f'|format(analysis.latency_ms / 1000) }}s</div>
+                    </div>
+                </div>
+
+                {% if analysis.reasoning %}
+                <div class="mb-6">
+                    <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-2.5">Assessment reasoning</div>
+                    <ol class="space-y-2">
+                    {% for r in analysis.reasoning %}
+                        <li class="flex gap-3 text-sm text-slate-600 leading-relaxed">
+                            <span class="mono text-xs text-slate-400 mt-0.5 flex-shrink-0">{{ loop.index }}</span>
+                            <span>{{ r }}</span>
+                        </li>
+                    {% endfor %}
+                    </ol>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-3">Processing history</div>
                 <div id="auditTrail">
                 {% for a in audit %}
                     <div class="trail-item {{ 'trail-agent' if a.actor_kind == 'agent' else 'trail-human' }}">
                         <span class="trail-dot"></span>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2.5 flex-wrap">
-                                <span class="mono text-xs text-slate-400 num">{{ a.ts[11:19] }}</span>
+                                <span class="mono text-xs text-slate-400 num">{{ a.ts[:10] }} {{ a.ts[11:19] }}</span>
                                 <span class="font-bold text-slate-800 text-sm">
                                     {{ actor_labels.get(a.actor, a.actor) }}
                                 </span>
-                                <span class="chip chip-low">{{ a.action }}</span>
                                 {% if a.latency_ms %}<span class="text-[11px] text-slate-400 num">{{ a.latency_ms }}ms</span>{% endif %}
                                 {% if a.model %}<span class="text-[11px] text-slate-400 mono">{{ a.model }}</span>{% endif %}
                             </div>
@@ -664,14 +679,17 @@
                     </div>
                 {% endfor %}
                 </div>
+
+                <button onclick="startReplay()" class="btn btn-dismiss mt-3 text-xs py-2">
+                    Replay processing step by step
+                </button>
             </div>
-        </div>
+        </details>
 
         {% if timeline %}
         <div class="sec">
             <div class="sec-head">
                 <div class="flex items-center gap-3">
-                    <span class="sec-num">11</span>
                     <span class="sec-title">Company memory · {{ event.symbol }}</span>
                 </div>
                 <a href="/company/{{ event.symbol }}/timeline" class="text-[11px] font-semibold text-indigo-600 hover:underline">Full timeline →</a>
@@ -682,7 +700,7 @@
                     <span class="dot dot-{{ t.importance }}"></span>
                     <span class="mono text-xs text-slate-400 num flex-shrink-0">{{ t.detected_at[:10] }}</span>
                     <span class="text-sm text-slate-700 flex-1 min-w-0 truncate">{{ t.event_label }}</span>
-                    <span class="chip chip-{{ t.status }}">{{ t.status }}</span>
+                    <span class="chip chip-{{ t.status }}">{{ status_labels.get(t.status, t.status) }}</span>
                 </a>
             {% endfor %}
             </div>
