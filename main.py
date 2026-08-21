@@ -3445,13 +3445,28 @@ def intelligence_center():
         "completed": len(completed),
     }
 
+    import signal_data as sd
+    from agents.briefing import generate as generate_briefing
+
+    risk = request.args.get("risk", "")
+    if risk:
+        queue = [e for e in queue if e["risk_level"] == risk]
+
     return render_template(
         "intelligence.html",
         active_page="intelligence",
         brief=brief, stats=stats, deadlines=deadlines,
         queue=queue, monitoring=monitoring, completed=completed,
         symbols=symbols, view=view, symbol_filter=symbol_filter,
+        risk_filter=risk,
         gemini_ready=_gemini_ready(),
+        # Wider picture around the queue.
+        briefing=generate_briefing(symbols),
+        company_cards=sd.company_cards(symbols),
+        risk_breakdown=sd.risk_breakdown(symbols),
+        runway=sd.deadline_runway(symbols),
+        doc_stats=sd.document_stats(symbols),
+        agent_status=sd.agent_status(),
     )
 
 
@@ -3653,6 +3668,21 @@ def api_compliance_crosscheck(symbol):
     })
 
 
+@app.route("/api/briefing/refresh", methods=["POST"])
+@login_required
+def api_briefing_refresh():
+    """Re-run the portfolio briefing against the current open work."""
+    from agents.briefing import generate as generate_briefing
+    return jsonify(generate_briefing(get_companies(), force=True))
+
+
+@app.route("/api/agents/status")
+@login_required
+def api_agents_status():
+    import signal_data as sd
+    return jsonify(sd.agent_status())
+
+
 @app.route("/api/morning-brief")
 @login_required
 def api_morning_brief():
@@ -3686,6 +3716,7 @@ init_drafts_db()
 init_events_db()
 govsnap.init_snapshots_db()
 import web_crosscheck as _wcc; _wcc.init_crosscheck_db()
+from agents.briefing import init_briefing_db as _ibd; _ibd()
 seed_default_referral_codes()
 init_watchlist()
 

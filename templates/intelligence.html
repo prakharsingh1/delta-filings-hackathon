@@ -154,6 +154,160 @@
         html.dark .text-slate-400 { color:#71717a !important; }
 
         @media (max-width: 900px) { .stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+        /* ── Agent chip ── */
+        .agent-chip { display:inline-flex; align-items:center; gap:7px; font-size:11.5px;
+            font-weight:600; padding:5px 11px; border-radius:999px; cursor:pointer;
+            background:var(--surface-secondary,#f8fafc); border:1px solid var(--border,#e2e8f0);
+            color:var(--text-secondary,#475569); transition:border-color .13s; }
+        .agent-chip:hover { border-color:var(--primary,#4f46e5); color:var(--text-primary,#0f172a); }
+        .agent-dot { width:6px; height:6px; border-radius:50%; }
+        .agent-dot.on { background:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,.16); }
+        .agent-dot.off { background:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,.16); }
+
+        /* ── Portfolio briefing ── */
+        .brief-panel { border:1px solid var(--border,#e2e8f0); border-radius:16px;
+            background:linear-gradient(180deg, #fbfbff 0%, #fff 60%); padding:22px 24px; margin-bottom:26px; }
+        .brief-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+        .brief-eyebrow { display:inline-flex; align-items:center; gap:6px; font-size:10px;
+            font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--primary,#4f46e5); }
+        .brief-headline { font-size:17px; font-weight:700; line-height:1.45; letter-spacing:-.02em;
+            color:var(--text-primary,#0f172a); margin-top:8px; max-width:800px; }
+        .theme-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+            gap:14px; margin:20px 0 4px; }
+        .theme { border-left:2px solid var(--border,#e2e8f0); padding-left:13px; }
+        .theme-title { font-size:12.5px; font-weight:700; color:var(--text-primary,#0f172a); }
+        .theme-detail { font-size:12px; color:var(--text-secondary,#475569); line-height:1.55; margin-top:4px; }
+        .theme-cos { display:flex; gap:4px; flex-wrap:wrap; margin-top:7px; }
+        .co-chip { font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px;
+            background:var(--surface-secondary,#f1f5f9); color:var(--text-muted,#94a3b8);
+            font-family:ui-monospace,Menlo,monospace; }
+        .brief-split { display:grid; grid-template-columns:1.3fr 1fr; gap:26px;
+            margin-top:20px; padding-top:18px; border-top:1px solid var(--border-light,#f1f5f9); }
+        .mini-h { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+            color:var(--text-muted,#94a3b8); margin-bottom:9px; }
+        .prio-row { display:flex; gap:10px; padding:7px 0; text-decoration:none;
+            align-items:flex-start; border-radius:6px; }
+        .prio-row:hover .prio-why { color:var(--text-primary,#0f172a); }
+        .prio-n { width:17px; height:17px; border-radius:5px; background:var(--primary,#4f46e5);
+            color:#fff; font-size:9.5px; font-weight:800; display:flex; align-items:center;
+            justify-content:center; flex-shrink:0; margin-top:2px; }
+        .prio-co { font-size:11.5px; font-weight:800; color:var(--text-primary,#0f172a);
+            display:block; letter-spacing:-.01em; }
+        .prio-why { font-size:12px; color:var(--text-secondary,#475569); line-height:1.5; }
+        .watch-row { display:flex; gap:9px; padding:6px 0; font-size:12px;
+            color:var(--text-secondary,#475569); line-height:1.55; }
+        .watch-dot { width:5px; height:5px; border-radius:50%; background:#c7d2fe;
+            flex-shrink:0; margin-top:6px; }
+
+        /* ── Section heading ── */
+        .section-h { display:flex; align-items:baseline; gap:10px; margin:0 0 12px; }
+        .section-h > span:first-child { font-size:13px; font-weight:800; letter-spacing:-.01em;
+            color:var(--text-primary,#0f172a); }
+        .section-sub { font-size:11.5px; color:var(--text-muted,#94a3b8); }
+
+        /* ── Company cards ── */
+        .co-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+            gap:12px; margin-bottom:26px; }
+        .co-card { display:block; text-decoration:none; padding:15px 16px; border-radius:13px;
+            background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0);
+            transition:border-color .14s, transform .14s; }
+        .co-card:hover { border-color:var(--primary,#4f46e5); transform:translateY(-1px); }
+        .co-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .co-sym { font-size:12.5px; font-weight:800; letter-spacing:-.01em;
+            color:var(--text-primary,#0f172a); }
+        .co-flag { font-size:9.5px; font-weight:800; padding:2px 6px; border-radius:4px;
+            background:#fef2f2; color:#b91c1c; text-transform:uppercase; }
+        .co-board { display:flex; align-items:baseline; gap:5px; margin-top:9px; }
+        .co-board-n { font-size:24px; font-weight:800; letter-spacing:-.04em; line-height:1;
+            color:var(--text-primary,#0f172a); font-variant-numeric:tabular-nums; }
+        .co-board-l { font-size:10.5px; color:var(--text-muted,#94a3b8); }
+        .co-trend { font-size:10px; font-weight:800; padding:1px 5px; border-radius:4px; margin-left:2px; }
+        .co-trend.up { background:#ecfdf5; color:#047857; }
+        .co-trend.down { background:#fff7ed; color:#c2410c; }
+        .spark { display:flex; align-items:flex-end; gap:3px; height:28px; margin:11px 0 9px; }
+        .spark-bar { flex:1; background:#c7d2fe; border-radius:2px 2px 0 0; min-height:4px; }
+        .co-card:hover .spark-bar { background:var(--primary,#4f46e5); }
+        .co-meta { display:flex; justify-content:space-between; font-size:10.5px;
+            color:var(--text-secondary,#475569); }
+        .co-foot { font-size:10px; color:var(--text-muted,#94a3b8); margin-top:8px;
+            padding-top:8px; border-top:1px solid var(--border-light,#f1f5f9);
+            display:flex; justify-content:space-between; gap:6px; }
+        .co-verify { color:#b45309; font-weight:600; }
+
+        /* ── Insight grid ── */
+        .insight-grid { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:14px; margin-bottom:26px; }
+        .insight { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0);
+            border-radius:14px; padding:17px 18px; }
+        .bar-row { display:flex; align-items:center; gap:10px; padding:5px 0; }
+        .bar-label { font-size:11.5px; color:var(--text-secondary,#475569); width:132px;
+            flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .bar-track { flex:1; height:6px; background:var(--surface-secondary,#f1f5f9);
+            border-radius:3px; overflow:hidden; }
+        .bar-fill { display:block; height:100%; background:var(--primary,#4f46e5); border-radius:3px; }
+        .bar-n { font-size:11.5px; font-weight:700; color:var(--text-primary,#0f172a); width:22px; text-align:right; }
+        .runway-row { display:flex; align-items:center; justify-content:space-between;
+            padding:6px 0; border-bottom:1px dashed var(--border-light,#f1f5f9); }
+        .runway-row:last-of-type { border-bottom:none; }
+        .runway-l { font-size:11.5px; color:var(--text-secondary,#475569); }
+        .runway-n { font-size:14px; font-weight:800; color:var(--text-primary,#0f172a); }
+        .runway-n.hot { color:#b91c1c; }
+        .mini-link { display:inline-block; font-size:11px; font-weight:600;
+            color:var(--primary,#4f46e5); text-decoration:none; margin-top:9px; }
+        .doc-note { font-size:10.5px; color:var(--text-muted,#94a3b8); margin-top:9px;
+            padding-top:9px; border-top:1px solid var(--border-light,#f1f5f9); line-height:1.5; }
+
+        /* ── Agent panel ── */
+        .ag-overlay { position:fixed; inset:0; z-index:800; background:rgba(2,6,23,.55);
+            backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; padding:24px; }
+        .ag-overlay.on { display:flex; }
+        .ag-card { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0);
+            border-radius:18px; width:min(560px,100%); max-height:86vh; overflow-y:auto; padding:26px 28px; }
+        .ag-agent { display:flex; gap:13px; padding:14px 0; border-bottom:1px solid var(--border-light,#f1f5f9); }
+        .ag-agent:last-of-type { border-bottom:none; }
+        .ag-badge { width:26px; height:26px; border-radius:8px; background:var(--primary-light,#eef2ff);
+            color:var(--primary,#4f46e5); font-size:11px; font-weight:800; display:flex;
+            align-items:center; justify-content:center; flex-shrink:0; }
+        .ag-name { font-size:13px; font-weight:700; color:var(--text-primary,#0f172a); }
+        .ag-role { font-size:11.5px; color:var(--text-secondary,#475569); margin-top:2px; line-height:1.5; }
+        .ag-model { font-size:10px; font-family:ui-monospace,Menlo,monospace;
+            color:var(--text-muted,#94a3b8); margin-top:4px; }
+
+        /* ── Dark ── */
+        html.dark .agent-chip { background:#141416; border-color:#27272a; color:#a1a1aa; }
+        html.dark .agent-chip:hover { border-color:#6366f1; color:#fafafa; }
+        html.dark .brief-panel { background:linear-gradient(180deg,#111014 0%,#0f0f10 60%); border-color:#232326; }
+        html.dark .brief-eyebrow { color:#a5b4fc; }
+        html.dark .brief-headline { color:#fafafa; }
+        html.dark .theme { border-left-color:#27272a; }
+        html.dark .theme-title { color:#fafafa; }
+        html.dark .theme-detail, html.dark .prio-why, html.dark .watch-row,
+        html.dark .runway-l, html.dark .bar-label, html.dark .co-meta, html.dark .ag-role { color:#a1a1aa; }
+        html.dark .co-chip { background:#1c1c1f; color:#71717a; }
+        html.dark .brief-split { border-top-color:#1c1c1f; }
+        html.dark .prio-co, html.dark .co-sym, html.dark .co-board-n,
+        html.dark .bar-n, html.dark .runway-n, html.dark .ag-name,
+        html.dark .section-h > span:first-child { color:#fafafa; }
+        html.dark .co-card { background:#0f0f10; border-color:#232326; }
+        html.dark .co-card:hover { border-color:#6366f1; }
+        html.dark .co-flag { background:#2c1115; color:#fca5a5; }
+        html.dark .co-trend.up { background:#052e20; color:#6ee7b7; }
+        html.dark .co-trend.down { background:#2a1505; color:#fdba74; }
+        html.dark .spark-bar { background:#312e81; }
+        html.dark .co-foot { border-top-color:#1c1c1f; color:#71717a; }
+        html.dark .insight { background:#0f0f10; border-color:#232326; }
+        html.dark .bar-track { background:#1c1c1f; }
+        html.dark .runway-row { border-bottom-color:#1c1c1f; }
+        html.dark .doc-note { border-top-color:#1c1c1f; color:#71717a; }
+        html.dark .ag-card { background:#0f0f10; border-color:#232326; }
+        html.dark .ag-agent { border-bottom-color:#1c1c1f; }
+        html.dark .ag-badge { background:#1e1b4b; color:#a5b4fc; }
+        html.dark .section-sub, html.dark .mini-h { color:#71717a; }
+
+        @media (max-width:1000px) {
+            .insight-grid { grid-template-columns:1fr; }
+            .brief-split { grid-template-columns:1fr; gap:18px; }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-gray-900">
@@ -164,14 +318,20 @@
 
         <!-- ── Header ── -->
         <div class="cc-head">
-            <div>
-                <div class="cc-brand">Delta Filings</div>
-                <div class="cc-role">AI Company Secretary</div>
+            <div class="min-w-0">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                    <h1 class="cc-brand">Signal</h1>
+                    <button class="agent-chip" onclick="openAgentPanel()"
+                            title="Configure the agent team">
+                        <span class="agent-dot {{ 'on' if agent_status.healthy else 'off' }}"></span>
+                        {{ agent_status.agents|length }} agents active
+                        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                </div>
                 <p class="cc-line">
-                    {{ brief.greeting }}. {% if stats.pending_actions %}You have
-                    <strong>{{ stats.pending_actions }} compliance
-                    {{ 'item' if stats.pending_actions == 1 else 'items' }}</strong> to complete,
-                    with {{ stats.documents_ready }} draft
+                    {{ brief.greeting }}. {% if stats.pending_actions %}<strong>{{ stats.pending_actions }}</strong>
+                    compliance {{ 'item' if stats.pending_actions == 1 else 'items' }} to complete across
+                    {{ stats.companies_monitored }} companies, with {{ stats.documents_ready }} draft
                     {{ 'document' if stats.documents_ready == 1 else 'documents' }} already prepared.
                     {% else %}Nothing in your queue needs action right now.{% endif %}
                 </p>
@@ -213,6 +373,150 @@
                 {% if deadlines.rows %}
                 <div class="stat-s">next: {{ deadlines.rows[0].due_date }}</div>
                 {% endif %}
+            </div>
+        </div>
+
+
+        <!-- ══ PORTFOLIO BRIEFING ══
+             The agent reasoning across every company at once, rather than one
+             event at a time. Cached against the open-work fingerprint. -->
+        {% if briefing.headline %}
+        <div class="brief-panel">
+            <div class="brief-top">
+                <div class="min-w-0">
+                    <div class="brief-eyebrow">
+                        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Portfolio briefing
+                    </div>
+                    <p class="brief-headline">{{ briefing.headline }}</p>
+                </div>
+                <button class="btn-ghost text-xs py-1.5" onclick="refreshBriefing(this)">Refresh</button>
+            </div>
+
+            {% if briefing.themes %}
+            <div class="theme-grid">
+            {% for t in briefing.themes %}
+                <div class="theme">
+                    <div class="theme-title">{{ t.title }}</div>
+                    <div class="theme-detail">{{ t.detail }}</div>
+                    {% if t.companies %}
+                    <div class="theme-cos">
+                        {% for c in t.companies %}<span class="co-chip">{{ c }}</span>{% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="brief-split">
+                {% if briefing.priority %}
+                <div>
+                    <div class="mini-h">Start here</div>
+                    {% for p in briefing.priority %}
+                    <a href="/event/{{ p.event_id }}" class="prio-row">
+                        <span class="prio-n">{{ loop.index }}</span>
+                        <span class="min-w-0">
+                            <span class="prio-co">{{ p.company }}</span>
+                            <span class="prio-why">{{ p.why_first }}</span>
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if briefing.watch_items %}
+                <div>
+                    <div class="mini-h">Keep an eye on</div>
+                    {% for w in briefing.watch_items %}
+                    <div class="watch-row">
+                        <span class="watch-dot"></span><span>{{ w }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ══ COMPANY POSTURE ══
+             Board composition trend comes from each company's own quarterly
+             governance filings — seven quarters per company. -->
+        <div class="section-h">
+            <span>Companies</span>
+            <span class="section-sub">Board composition over the last {{ company_cards[0].board_trend|length if company_cards else 0 }} quarters</span>
+        </div>
+        <div class="co-grid">
+        {% for c in company_cards %}
+            <a href="/company/{{ c.symbol }}/timeline" class="co-card">
+                <div class="co-card-top">
+                    <span class="co-sym">{{ c.symbol }}</span>
+                    {% if c.high_risk %}<span class="co-flag">{{ c.high_risk }} high</span>{% endif %}
+                </div>
+                <div class="co-board">
+                    <span class="co-board-n">{{ c.board_now or '—' }}</span>
+                    <span class="co-board-l">directors</span>
+                    {% if c.board_delta %}
+                    <span class="co-trend {{ 'up' if c.board_delta > 0 else 'down' }}">
+                        {{ '+' if c.board_delta > 0 }}{{ c.board_delta }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if c.board_trend|length > 1 %}
+                {% set mx = c.board_trend|max %}{% set mn = c.board_trend|min %}
+                <div class="spark">
+                {% for v in c.board_trend %}
+                    <span class="spark-bar" title="{{ v }} directors"
+                          style="height:{{ 22 if mx == mn else (6 + ((v - mn) / (mx - mn) * 22))|round|int }}px"></span>
+                {% endfor %}
+                </div>
+                {% endif %}
+                <div class="co-meta">
+                    <span>{{ c.independent_pct }}% independent</span>
+                    <span>{{ c.events_open }} open</span>
+                </div>
+                <div class="co-foot">
+                    {% if c.days_to_due is not none %}Next filing in {{ c.days_to_due }}d{% else %}No upcoming deadline{% endif %}
+                    {% if c.to_verify %}<span class="co-verify">{{ c.to_verify }} to verify</span>{% endif %}
+                </div>
+            </a>
+        {% endfor %}
+        </div>
+
+        <!-- ══ WHERE THE WORK IS ══ -->
+        <div class="insight-grid">
+            <div class="insight">
+                <div class="mini-h">Open work by area</div>
+                {% for r in risk_breakdown.by_category[:5] %}
+                <div class="bar-row">
+                    <span class="bar-label">{{ r.label }}</span>
+                    <span class="bar-track"><span class="bar-fill" style="width:{{ r.pct }}%"></span></span>
+                    <span class="bar-n num">{{ r.n }}</span>
+                </div>
+                {% else %}
+                <p class="text-xs text-slate-400">Nothing open.</p>
+                {% endfor %}
+            </div>
+
+            <div class="insight">
+                <div class="mini-h">Deadline runway</div>
+                {% for b in runway.buckets %}
+                <div class="runway-row">
+                    <span class="runway-l">Next {{ b.label }}</span>
+                    <span class="runway-n num {{ 'hot' if b.label == '7 days' and b.n else '' }}">{{ b.n }}</span>
+                </div>
+                {% endfor %}
+                <a href="/intelligence?view=deadlines" class="mini-link">See all deadlines →</a>
+            </div>
+
+            <div class="insight">
+                <div class="mini-h">Documents prepared</div>
+                {% for d in doc_stats.by_type %}
+                <div class="runway-row">
+                    <span class="runway-l">{{ d.label.replace('_',' ')|title }}</span>
+                    <span class="runway-n num">{{ d.n }}</span>
+                </div>
+                {% endfor %}
+                <div class="doc-note">{{ doc_stats.awaiting }} events have documents waiting on your review</div>
             </div>
         </div>
 
@@ -378,5 +682,81 @@
     </div>
     </main>
 </div>
+
+<!-- ── Agent configuration ── -->
+<div class="ag-overlay" id="agOverlay" onclick="if(event.target===this) closeAgentPanel()">
+    <div class="ag-card">
+        <div class="flex items-start justify-between gap-4 mb-1">
+            <div>
+                <div class="text-base font-extrabold tracking-tight text-slate-900">Agent team</div>
+                <p class="text-xs text-slate-500 mt-1 leading-relaxed max-w-md">
+                    Three specialists work your filings in sequence. Each one hands off to
+                    the next, and every step is recorded on the event it produced.
+                </p>
+            </div>
+            <button class="btn-ghost text-xs py-1.5" onclick="closeAgentPanel()">Close</button>
+        </div>
+
+        <div class="mt-4 mb-2 flex items-center gap-2 text-xs">
+            <span class="agent-dot {{ 'on' if agent_status.healthy else 'off' }}"></span>
+            <span class="font-semibold {{ 'text-emerald-600' if agent_status.healthy else 'text-amber-600' }}">
+                {{ 'Running' if agent_status.healthy else 'Paused' }}
+            </span>
+            <span class="text-slate-400">·</span>
+            <span class="text-slate-500 num">{{ agent_status.actions }} actions recorded</span>
+            {% if agent_status.last_run %}
+            <span class="text-slate-400">·</span>
+            <span class="text-slate-500">last ran {{ agent_status.last_run[:10] }} {{ agent_status.last_run[11:16] }}</span>
+            {% endif %}
+        </div>
+        {% if not agent_status.healthy and agent_status.error %}
+        <div class="banner banner-warn mt-2">{{ agent_status.error }}</div>
+        {% endif %}
+
+        <div class="mt-3">
+        {% for a in agent_status.agents %}
+            <div class="ag-agent">
+                <span class="ag-badge">{{ loop.index }}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="ag-name">{{ a.name }} Agent</div>
+                    <div class="ag-role">{{ a.role }}</div>
+                    <div class="ag-model">{{ a.model }}</div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+
+        <div class="mt-4 pt-4" style="border-top:1px solid var(--border-light,#f1f5f9);">
+            <div class="mini-h">Guardrails</div>
+            <div class="text-xs text-slate-500 leading-relaxed space-y-1.5">
+                <div>· Regulations are retrieved from Delta's mandate library — the model selects from that list and cannot introduce a citation.</div>
+                <div>· Evidence quotes are checked against the source document and discarded if they can't be found in it.</div>
+                <div>· Nothing is filed automatically. Every document waits for your approval.</div>
+            </div>
+            <a href="/compliance" class="mini-link">Adjust monitored companies and model in Settings →</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function openAgentPanel() { document.getElementById('agOverlay').classList.add('on'); }
+function closeAgentPanel() { document.getElementById('agOverlay').classList.remove('on'); }
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAgentPanel();
+});
+
+async function refreshBriefing(btn) {
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Rethinking…';
+    try {
+        const r = await fetch('/api/briefing/refresh', { method: 'POST' });
+        if (!r.ok) throw new Error('failed');
+        location.reload();
+    } catch (e) {
+        btn.disabled = false; btn.textContent = original;
+    }
+}
+</script>
+
 </body>
 </html>
