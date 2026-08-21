@@ -69,6 +69,7 @@ from demo import (
     demo_mode_enabled, is_demo_user, activate as activate_demo_session,
     DEMO_USER, DEMO_SYMBOLS,
 )
+from events_store import init_events_db
 from stock_prices import (
     fetch_watchlist_prices, fetch_stock_quote, detect_price_alerts, analyze_price_movement,
     fetch_pre_open_data, detect_pre_open_alerts,
@@ -3321,6 +3322,7 @@ init_compliance_db()
 init_enforcement_db()
 init_alerts_db()
 init_drafts_db()
+init_events_db()
 seed_default_referral_codes()
 init_watchlist()
 
