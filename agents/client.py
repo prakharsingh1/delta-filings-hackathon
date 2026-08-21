@@ -91,7 +91,7 @@ def _extract_json(text: str) -> Optional[Any]:
 
 def call_json(prompt: str, *, role: str = "monitor", model: Optional[str] = None,
               max_output_tokens: int = 2000, temperature: float = 0.2,
-              thinking: bool = False) -> Dict[str, Any]:
+              thinking: bool = False, timeout_ms: int = 120_000) -> Dict[str, Any]:
     """One structured call. Never raises.
 
     Returns {"ok", "data", "model", "latency_ms", "error"} so callers can
@@ -122,6 +122,11 @@ def call_json(prompt: str, *, role: str = "monitor", model: Optional[str] = None
         "max_output_tokens": max_output_tokens,
         "temperature": temperature,
         "response_mime_type": "application/json",
+        # Without this the SDK blocks indefinitely on a stalled connection.
+        # A batch run once sat at 0% CPU for 2.7 hours waiting on a single
+        # call. Pro with thinking legitimately takes ~25s, so the ceiling is
+        # generous; anything past it is a hang, not slow work.
+        "http_options": {"timeout": timeout_ms},
     }
     # Agent 2 reasons; Agents 1 and 3 extract and format, so thinking is off
     # there to keep the pipeline fast enough to run live on stage.
