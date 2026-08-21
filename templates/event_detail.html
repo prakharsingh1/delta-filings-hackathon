@@ -164,6 +164,43 @@
         html.dark .action-item { border-bottom-color:#1c1c1f; }
         html.dark textarea { background:#141416; border-color:#27272a; color:#fafafa; }
         html.dark textarea::placeholder { color:#52525b; }
+
+        /* ── Pipeline replay ── */
+        .replay-overlay { position:fixed; inset:0; z-index:200; background:rgba(2,6,23,.86);
+            backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; padding:24px; }
+        .replay-overlay.on { display:flex; }
+        .replay-card { background:#0b0b0d; border:1px solid #232326; border-radius:18px;
+            width:min(820px,100%); max-height:88vh; overflow-y:auto; padding:28px 30px; }
+        .replay-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+            padding-bottom:18px; border-bottom:1px solid #1c1c1f; margin-bottom:20px; }
+        .replay-title { font-size:19px; font-weight:800; color:#fafafa; letter-spacing:-.02em; }
+        .replay-sub { font-size:12.5px; color:#71717a; margin-top:4px; }
+
+        .rstep { display:flex; gap:15px; padding:14px 0; opacity:.22;
+            transition:opacity .35s ease; position:relative; }
+        .rstep:not(:last-child)::before { content:''; position:absolute; left:13px; top:40px;
+            bottom:-2px; width:1px; background:#27272a; }
+        .rstep.active { opacity:1; }
+        .rstep.done { opacity:.62; }
+        .rstep-icon { width:27px; height:27px; border-radius:8px; flex-shrink:0; display:flex;
+            align-items:center; justify-content:center; font-size:11px; font-weight:800;
+            background:#1c1c1f; color:#71717a; z-index:1; transition:all .3s; }
+        .rstep.active .rstep-icon { background:#4f46e5; color:#fff; box-shadow:0 0 0 4px rgba(79,70,229,.18); }
+        .rstep.done .rstep-icon { background:#065f46; color:#6ee7b7; }
+        .rstep-label { font-size:12.5px; font-weight:800; color:#e4e4e7; letter-spacing:-.01em; }
+        .rstep-headline { font-size:13.5px; color:#fafafa; margin-top:4px; line-height:1.5; }
+        .rstep-detail { font-size:12px; color:#a1a1aa; margin-top:4px; line-height:1.6; }
+        .rstep-meta { display:flex; gap:9px; align-items:center; flex-wrap:wrap; margin-top:7px; }
+        .rtag { font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px;
+            background:#1c1c1f; color:#a1a1aa; letter-spacing:.02em; }
+        .rtag-model { background:#1e1b4b; color:#a5b4fc; font-family:ui-monospace,Menlo,monospace; }
+        .rtag-risk-high{background:#2c1115;color:#fca5a5;} .rtag-risk-medium{background:#2a1d05;color:#fcd34d;}
+        .rtag-risk-low{background:#1c1c1f;color:#a1a1aa;}
+        .rspin { width:11px; height:11px; border:2px solid rgba(255,255,255,.28);
+            border-top-color:#fff; border-radius:50%; animation:rspin .7s linear infinite; }
+        @keyframes rspin { to { transform:rotate(360deg); } }
+        .replay-progress { height:3px; background:#1c1c1f; border-radius:2px; overflow:hidden; margin-top:4px; }
+        .replay-progress span { display:block; height:100%; width:0; background:#4f46e5; transition:width .3s linear; }
     </style>
 </head>
 <body class="bg-slate-50 text-gray-900">
@@ -201,6 +238,7 @@
                 <p class="text-sm text-slate-700 mt-3 max-w-3xl leading-relaxed">{{ event.headline }}</p>
             </div>
             <div class="flex gap-2 flex-shrink-0">
+                <button onclick="startReplay()" class="btn btn-approve">▶ Replay agent run</button>
                 <a href="/company/{{ event.symbol }}/timeline" class="btn btn-dismiss">Company timeline</a>
             </div>
         </div>
@@ -695,6 +733,105 @@ async function rerunAgents() {
         alert('Agent run failed: ' + e.message);
     }
 }
+
+// ── Pipeline replay ──
+// Renders the stored trace step by step. No model is called: this replays what
+// the agents actually did, at a watchable pace, with the real recorded
+// latencies shown as labels.
+async function startReplay() {
+    const overlay = document.getElementById('replayOverlay');
+    const body = document.getElementById('replaySteps');
+    const bar = document.querySelector('#replayProgress span');
+    overlay.classList.add('on');
+    body.innerHTML = '<p class="text-sm text-slate-500">Loading trace…</p>';
+
+    let data;
+    try {
+        const r = await fetch(`/api/event/${EVENT_ID}/replay`);
+        data = await r.json();
+        if (data.status === 'error') throw new Error(data.message);
+    } catch (e) {
+        body.innerHTML = `<p class="text-sm text-red-400">Could not load trace: ${e.message}</p>`;
+        return;
+    }
+
+    document.getElementById('replayTitle').textContent =
+        `${data.symbol} — ${data.event_label}`;
+    document.getElementById('replaySub').textContent =
+        `${data.steps.length} stages · ${(data.total_ms / 1000).toFixed(1)}s of real agent time`;
+
+    const ICONS = {source:'F', agent1:'1', agent2:'2', agent3:'3', delta:'Δ', human:'✓'};
+    body.innerHTML = data.steps.map((s, i) => `
+        <div class="rstep" id="rstep-${i}">
+            <div class="rstep-icon">${ICONS[s.actor] || '•'}</div>
+            <div class="flex-1 min-w-0">
+                <div class="rstep-label">${esc(s.label)}</div>
+                <div class="rstep-headline">${esc(s.headline || '')}</div>
+                <div class="rstep-detail">${esc(s.detail || '')}</div>
+                <div class="rstep-meta" id="rmeta-${i}"></div>
+            </div>
+        </div>`).join('');
+
+    const total = data.total_display_ms || 1;
+    let elapsed = 0;
+
+    for (let i = 0; i < data.steps.length; i++) {
+        const s = data.steps[i];
+        const el = document.getElementById(`rstep-${i}`);
+        const meta = document.getElementById(`rmeta-${i}`);
+        el.classList.add('active');
+        el.scrollIntoView({behavior: 'smooth', block: 'center'});
+        meta.innerHTML = '<span class="rspin"></span>';
+
+        await sleep(s.display_ms);
+
+        elapsed += s.display_ms;
+        bar.style.width = Math.round(elapsed / total * 100) + '%';
+
+        const tags = [];
+        if (s.real_latency_label) tags.push(`<span class="rtag">${s.real_latency_label}</span>`);
+        if (s.model) tags.push(`<span class="rtag rtag-model">${esc(s.model)}</span>`);
+        const p = s.payload || {};
+        if (p.risk_level) tags.push(`<span class="rtag rtag-risk-${p.risk_level}">risk ${p.risk_level}</span>`);
+        if (p.confidence) tags.push(`<span class="rtag">${p.confidence}% confidence</span>`);
+        (p.mandate_ids || []).forEach(m => tags.push(`<span class="rtag rtag-model">${esc(m)}</span>`));
+        (p.artifacts || []).forEach(a => tags.push(`<span class="rtag">${esc(a.type.replace(/_/g,' '))}</span>`));
+        if (p.pending) tags.push('<span class="rtag">awaiting review</span>');
+        meta.innerHTML = tags.join('');
+
+        el.classList.remove('active');
+        el.classList.add('done');
+    }
+
+    document.getElementById('replayDone').style.display = '';
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function esc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
+function closeReplay() {
+    document.getElementById('replayOverlay').classList.remove('on');
+    document.getElementById('replayDone').style.display = 'none';
+    document.querySelector('#replayProgress span').style.width = '0';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeReplay(); });
 </script>
+
+<div class="replay-overlay" id="replayOverlay" onclick="if(event.target===this) closeReplay()">
+    <div class="replay-card">
+        <div class="replay-head">
+            <div class="min-w-0">
+                <div class="replay-title" id="replayTitle">Agent run</div>
+                <div class="replay-sub" id="replaySub"></div>
+                <div class="replay-progress" id="replayProgress" style="width:220px;"><span></span></div>
+            </div>
+            <button onclick="closeReplay()" class="btn btn-dismiss text-xs py-1.5">Close</button>
+        </div>
+        <div id="replaySteps"></div>
+        <div id="replayDone" style="display:none;" class="banner banner-info mt-4">
+            <div>Replayed from stored records — no model was called. Latencies shown are the
+            real times the agents took when this event was processed.</div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

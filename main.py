@@ -3463,6 +3463,16 @@ def api_event_rerun(event_id):
                     "artifacts": len(artifacts)})
 
 
+@app.route("/api/event/<int:event_id>/replay")
+@login_required
+def api_event_replay(event_id):
+    """Timed reconstruction of the agent run, from stored records only."""
+    replay = es.build_replay(event_id)
+    if not replay:
+        return jsonify({"status": "error", "message": "not found"}), 404
+    return jsonify(replay)
+
+
 @app.route("/api/morning-brief")
 @login_required
 def api_morning_brief():

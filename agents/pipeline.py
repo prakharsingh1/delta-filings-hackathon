@@ -35,7 +35,8 @@ def _dedupe_key(symbol: str, filing_id: Any, event_type: str) -> str:
 def process_filing(filing: Dict, symbol: str = "", company_name: str = "",
                    user_id: str = "", scenario: str = "live",
                    run_analysis: bool = True, run_action: bool = True,
-                   force_surface: bool = False) -> Optional[Dict]:
+                   force_surface: bool = False,
+                   action_min_risk: Optional[str] = None) -> Optional[Dict]:
     """Run one filing through the full team. Returns a trace, or None if the
     filing produced nothing worth a reviewer's attention."""
     symbol = (symbol or filing.get("company") or "").upper()
@@ -127,6 +128,13 @@ def process_filing(filing: Dict, symbol: str = "", company_name: str = "",
 
     if not run_action:
         return trace
+
+    # Skip document generation below the risk floor, when one is set.
+    if action_min_risk:
+        order = {"low": 0, "medium": 1, "high": 2}
+        if order.get(analysis["risk_level"], 0) < order.get(action_min_risk, 0):
+            trace["action_skipped"] = f"risk {analysis['risk_level']} < {action_min_risk}"
+            return trace
 
     # ── Agent 3 ──
     event = es.get_event(event_id)

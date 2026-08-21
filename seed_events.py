@@ -62,9 +62,10 @@ def seed_governance_deltas(run_analysis=True, run_action=True):
     return total
 
 
-def seed_filing_events(per_company=6, run_analysis=True, run_action=False):
-    """Filing-sourced events. Action generation is off by default — it is the
-    slowest step and only the featured events need documents."""
+def seed_filing_events(per_company=6, run_analysis=True, run_action=True,
+                       action_min_risk="medium"):
+    """Filing-sourced events. Documents are generated only at or above
+    `action_min_risk` — routine periodic filings do not need a draft pack."""
     total = 0
     for sym, name in COMPANIES.items():
         filings = sorted(get_cached_filings(sym) or [],
@@ -79,7 +80,8 @@ def seed_filing_events(per_company=6, run_analysis=True, run_action=False):
             try:
                 t = process_filing(dict(f), symbol=sym, company_name=name,
                                    user_id=DEMO_USER, scenario="live",
-                                   run_analysis=run_analysis, run_action=run_action)
+                                   run_analysis=run_analysis, run_action=run_action,
+                                   action_min_risk=action_min_risk)
             except Exception as e:
                 print(f"[SEED] {sym} filing {f.get('id')} failed: {str(e)[:120]}")
                 continue
@@ -111,7 +113,9 @@ if __name__ == "__main__":
         reset()
 
     no_ai = "--no-ai" in sys.argv
-    seed_governance_deltas(run_analysis=not no_ai, run_action=not no_ai)
-    if "--filings" in sys.argv:
-        seed_filing_events(run_analysis=not no_ai, run_action=False)
+    if "--only-filings" not in sys.argv:
+        seed_governance_deltas(run_analysis=not no_ai, run_action=not no_ai)
+    if "--filings" in sys.argv or "--only-filings" in sys.argv:
+        seed_filing_events(per_company=6, run_analysis=not no_ai,
+                           run_action=not no_ai)
     summary()
