@@ -117,7 +117,6 @@
         display:flex; align-items:center; justify-content:center; transition:background .13s; }
     .dc-send:hover:not(:disabled) { background: var(--primary-hover, #4338ca); }
     .dc-send:disabled { opacity:.45; cursor:not-allowed; }
-    .dc-disclaimer { font-size:10px; color:#94a3b8; margin-top:7px; line-height:1.45; }
 
     .dc-typing { display:flex; gap:4px; padding:6px 0; }
     .dc-typing span { width:6px; height:6px; border-radius:50%; background:#c7d2fe;
@@ -143,7 +142,6 @@
     html.dark .dc-foot { background:#0f0f10; border-top-color:#1c1c1f; }
     html.dark .dc-input { background:#141416; border-color:#27272a; color:#fafafa; }
     html.dark .dc-input::placeholder { color:#52525b; }
-    html.dark .dc-disclaimer { color:#52525b; }
 
     @media (max-width: 520px) {
         .dc-panel { right:8px; left:8px; bottom:8px; width:auto; height:calc(100vh - 16px); }
@@ -178,9 +176,6 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
             </button>
-        </div>
-        <div class="dc-disclaimer">
-            Delta Copilot supports your judgement — it does not replace it. Verify before filing.
         </div>
     </div>
 </div>
