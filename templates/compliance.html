@@ -244,7 +244,7 @@
                     <button class="tab-btn" onclick="switchTab('upcoming', this)">Upcoming <span id="tab-count-upcoming" class="text-[10px] opacity-70"></span></button>
                     <button class="tab-btn" onclick="switchTab('overdue', this)">Overdue <span id="tab-count-overdue" class="text-[10px] opacity-70"></span></button>
                     <button class="tab-btn" onclick="switchTab('completed', this)">Completed <span id="tab-count-completed" class="text-[10px] opacity-70"></span></button>
-                    <button class="tab-btn" onclick="switchTab('unverified', this)">Unverified <span id="tab-count-unverified" class="text-[10px] opacity-70"></span></button>
+                    <button class="tab-btn" onclick="switchTab('unverified', this)">To verify <span id="tab-count-unverified" class="text-[10px] opacity-70"></span></button>
                     <button class="tab-btn" id="tab-btn-all" onclick="switchTab('all', this)">All Obligations</button>
                     <button class="tab-btn" onclick="switchTab('mandates', this)">Compliance Library</button>
                     <button class="tab-btn" onclick="switchTab('xbrl', this)">XBRL Utilities <span id="tab-count-xbrl" class="text-[10px] opacity-70"></span></button>
@@ -301,12 +301,12 @@
                 </div>
                 <div id="tab-unverified" class="tab-content hidden">
                     <div class="mb-3 p-3 rounded-lg bg-violet-50 border border-violet-100 text-xs text-violet-900">
-                        <strong>Heads up:</strong> These obligations are past their SEBI due date, but Delta Filings hasn't ingested any exchange filings from this company around that window yet — so we can't honestly classify them as "missed". Refresh the company's filings feed to verify.
+                        <strong>Awaiting confirmation.</strong> These obligations are past their due date and Delta has not yet matched a submission to them. Large issuers file routinely, so these are verification tasks rather than missed deadlines — run a cross-check to search the public record, or attach the filing to close them out.
                     </div>
                     <div id="unverified-list" class="space-y-3"></div>
                     <div id="unverified-empty" class="hidden text-center py-12">
                         <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <p class="text-gray-500 text-sm">No unverified obligations — every past due item has filing coverage.</p>
+                        <p class="text-gray-500 text-sm">Nothing to verify — every past due obligation has a matched filing.</p>
                     </div>
                 </div>
                 <div id="tab-completed" class="tab-content hidden">
@@ -325,7 +325,7 @@
                             <option value="submitted">Submitted</option>
                             <option value="delayed">Delayed</option>
                             <option value="missed">Missed</option>
-                            <option value="unverified">Unverified</option>
+                            <option value="unverified">To verify</option>
                         </select>
                         <select id="filter-category" onchange="filterTable()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
                             <option value="">All Categories</option>

@@ -220,11 +220,12 @@ def _copilot_page_label() -> str:
 
 @app.context_processor
 def inject_user():
-    # ui_version: 'legacy' (sidebar layout, default) or 'new' (top-nav redesign).
     _u = current_user()
     return {
         "current_user": _u,
-        "ui_version": get_setting("ui_version", "legacy"),
+        # Retained so any template still reading it resolves to the only
+        # interface that now exists; the Classic sidebar has been removed.
+        "ui_version": "new",
         "demo_mode": demo_mode_enabled(),
         "is_demo": is_demo_user(_u),
     }
@@ -1177,10 +1178,9 @@ def dashboard():
     if last_filing_date:
         days_since_last = (today - last_filing_date).days
 
-    _ui = get_setting("ui_version", "legacy")
-    _dash_template = "dashboard.html" if _ui == "new" else "dashboard_legacy.html"
+    # dashboard_legacy.html belonged to the removed Classic interface.
     return render_template(
-        _dash_template,
+        "dashboard.html",
         companies=companies,
         watchlist=get_watchlist(_current_user_id()),
         company_counts=company_counts,
@@ -1843,7 +1843,7 @@ def api_settings_get():
         "models": GEMINI_MODELS,
         "industry": user.get("industry", ""),
         "industries": sorted(INDUSTRY_WATCHLISTS.keys()),
-        "ui_version": settings.get("ui_version", "legacy"),
+        "ui_version": "new",
         "filings_history_years": _history_years(),
     })
 
@@ -1912,9 +1912,9 @@ def api_settings_industry():
 def api_settings_update():
     """Update settings."""
     data = request.get_json() or {}
-    if "ui_version" in data:
-        v = data["ui_version"] if data["ui_version"] in ("legacy", "new") else "legacy"
-        set_setting("ui_version", v)
+    # ui_version is no longer a user choice — the Classic sidebar was removed
+    # and the top-nav interface is the only one. Accepted and ignored so an
+    # older cached page posting it doesn't error.
     if "filings_history_years" in data:
         try:
             y = max(1, min(int(data["filings_history_years"]), 15))

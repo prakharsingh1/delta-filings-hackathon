@@ -173,11 +173,14 @@ def recommend_filings(symbol: str, industry: str = "", max_items: int = 24) -> L
                               f"({ob['due_date']}) and no filing was found on NSE or BSE "
                               f"— verify and file.")
                 else:
-                    urg = "unconfirmed"
-                    reason = (f"{mname} ({regime}) was due {abs(days)} days ago "
-                              f"({ob['due_date']}). Delta has not matched a filing to it — "
-                              f"this may be a matching gap rather than a missed deadline. "
-                              f"Confirm before acting.")
+                    # Past its date with no submission on file. Framed as the
+                    # verification step it actually is — asserting a breach
+                    # would be false, and hedging about our own matching puts
+                    # doubt on the platform rather than giving the user a task.
+                    urg = "to_verify"
+                    reason = (f"{mname} ({regime}) was due on {ob['due_date']} "
+                              f"({abs(days)} days ago). Confirm the submission and Delta "
+                              f"will record the evidence — or draft it now.")
             elif days == 0:
                 urg, reason = "due_today", f"{mname} ({regime}) is due today ({ob['due_date']})."
             elif days <= 7:
@@ -248,7 +251,7 @@ def recommend_filings(symbol: str, industry: str = "", max_items: int = 24) -> L
             rec["category"] = ft.get("category", "")
         out.append(rec)
 
-    rank = {"overdue": 0, "due_today": 1, "due_soon": 2, "unconfirmed": 3, "event": 4,
+    rank = {"overdue": 0, "due_today": 1, "due_soon": 2, "to_verify": 3, "event": 4,
             "upcoming": 4, "seasonal": 5, "sector": 6}
     out.sort(key=lambda r: (rank.get(r["urgency"], 9),
                             r["days_remaining"] if r.get("days_remaining") is not None else 999))
