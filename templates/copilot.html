@@ -6,36 +6,44 @@
 <style>
     /* Launcher borrows the topbar's glass treatment and the app's own tokens
        rather than introducing a second visual language. */
+    /* Circular icon button — no wordmark. Borrows the topbar's glass
+       treatment so it belongs to the app rather than sitting on top of it. */
     .dc-launcher {
         position: fixed; right: 22px; bottom: 22px; z-index: 900;
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 9px 15px 9px 12px; border-radius: 12px;
-        background: rgba(255,255,255,0.82);
+        width: 48px; height: 48px; border-radius: 50%; padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.86);
         backdrop-filter: saturate(180%) blur(18px);
         -webkit-backdrop-filter: saturate(180%) blur(18px);
         border: 1px solid var(--border, #e2e8f0);
-        color: var(--text-primary, #0f172a);
-        font-size: 13px; font-weight: 600; letter-spacing: -.01em; cursor: pointer;
-        box-shadow: 0 4px 16px -6px rgba(15,23,42,.18);
+        color: var(--primary, #4f46e5); cursor: pointer;
+        box-shadow: 0 4px 18px -6px rgba(15,23,42,.2);
         transition: border-color .15s, box-shadow .15s, transform .15s;
     }
     .dc-launcher:hover {
         border-color: var(--primary, #4f46e5);
-        box-shadow: 0 8px 22px -8px rgba(79,70,229,.3);
-        transform: translateY(-1px);
+        box-shadow: 0 10px 26px -8px rgba(79,70,229,.34);
+        transform: translateY(-2px);
     }
     .dc-launcher:active { transform: translateY(0); }
     .dc-launcher.hidden { display: none; }
-    .dc-mark { width: 15px; height: 15px; flex-shrink: 0; color: var(--primary, #4f46e5); }
-    .dc-kbd { font-size: 10px; font-weight: 600; color: var(--text-muted, #94a3b8);
-        border: 1px solid var(--border, #e2e8f0); border-radius: 5px;
-        padding: 1px 5px; margin-left: 3px; font-family: ui-monospace, Menlo, monospace; }
+    .dc-mark { width: 19px; height: 19px; flex-shrink: 0; }
 
-    html.dark .dc-launcher { background: rgba(16,16,18,0.86); border-color: #27272a;
-        color: #fafafa; box-shadow: 0 4px 18px -6px rgba(0,0,0,.6); }
-    html.dark .dc-launcher:hover { border-color: #6366f1; box-shadow: 0 8px 24px -8px rgba(99,102,241,.4); }
-    html.dark .dc-mark { color: #a5b4fc; }
-    html.dark .dc-kbd { border-color: #27272a; color: #52525b; }
+    /* Label appears on hover so the circle stays discoverable without a
+       permanent wordmark competing with the page. */
+    .dc-tip {
+        position: absolute; right: 58px; top: 50%; transform: translateY(-50%) translateX(4px);
+        white-space: nowrap; font-size: 12px; font-weight: 600; letter-spacing: -.01em;
+        padding: 6px 11px; border-radius: 8px; pointer-events: none;
+        background: var(--text-primary, #0f172a); color: #fff;
+        opacity: 0; transition: opacity .15s, transform .15s;
+    }
+    .dc-launcher:hover .dc-tip { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+    html.dark .dc-launcher { background: rgba(16,16,18,0.88); border-color: #27272a;
+        color: #a5b4fc; box-shadow: 0 4px 20px -6px rgba(0,0,0,.65); }
+    html.dark .dc-launcher:hover { border-color: #6366f1; box-shadow: 0 10px 28px -8px rgba(99,102,241,.45); }
+    html.dark .dc-tip { background: #27272a; color: #fafafa; }
 
     .dc-panel {
         position: fixed; right: 24px; bottom: 24px; z-index: 901;
@@ -143,13 +151,14 @@
     }
 </style>
 
-<button class="dc-launcher" id="dcLauncher" onclick="dcOpen()" aria-label="Open Delta Copilot">
-    <svg class="dc-mark" viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polygon points="8,42 34,30 34,108 8,120"/><polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/></svg> Ask Delta <span class="dc-kbd">/</span>
+<button class="dc-launcher" id="dcLauncher" onclick="dcOpen()"
+        aria-label="Ask Delta — AI compliance assistant" title="Ask Delta">
+    <svg class="dc-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/></svg><span class="dc-tip">Ask Delta</span>
 </button>
 
 <div class="dc-panel" id="dcPanel" role="dialog" aria-label="Delta Copilot">
     <div class="dc-head">
-        <svg class="dc-mark" viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polygon points="8,42 34,30 34,108 8,120"/><polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/></svg>
+        <svg class="dc-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/></svg>
         <div>
             <div class="dc-title">Delta Copilot</div>
             <div class="dc-sub">Your AI compliance assistant</div>
@@ -181,6 +190,7 @@ const DC_CONTEXT = {{ (copilot_ctx or {}) | tojson }};
 const DC_SUGGESTIONS = {{ (copilot_suggestions or []) | tojson }};
 let dcHistory = [];
 let dcBusy = false;
+let dcGreeted = false;
 
 function dcEsc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
 
@@ -201,7 +211,7 @@ function dcOpen() {
     document.getElementById('dcPanel').classList.add('open');
     document.getElementById('dcLauncher').classList.add('hidden');
     document.getElementById('dcCtx').innerHTML = dcContextLine();
-    if (!dcHistory.length) dcGreet();
+    if (!dcGreeted) { dcGreet(); dcGreeted = true; }
     setTimeout(() => document.getElementById('dcInput').focus(), 60);
 }
 function dcClose() {
