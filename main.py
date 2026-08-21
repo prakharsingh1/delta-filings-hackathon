@@ -3406,7 +3406,7 @@ def api_compliance_enforcement_refresh(symbol):
 @app.route("/command")
 @login_required
 def intelligence_center():
-    """Compliance Command Center — the one screen a Company Secretary works from.
+    """Signal — the one screen a Company Secretary works from.
 
     Answers "what requires my action today?" and nothing else. Agent names,
     model ids, confidence figures and timing live behind the AI Audit view on
@@ -3624,6 +3624,35 @@ def api_copilot_context():
     return jsonify({"context": ctx, "suggestions": suggest_for(ctx)})
 
 
+@app.route("/api/compliance/crosscheck/<symbol>", methods=["POST"])
+@login_required
+def api_compliance_crosscheck(symbol):
+    """Check the public record before Delta claims a filing was missed.
+
+    An obligation with no matched filing is usually a gap in our matching,
+    not a breach by the issuer. This searches the public web for evidence the
+    filing happened and clears the flag when it finds it.
+    """
+    import web_crosscheck as wc
+
+    data = request.get_json(silent=True) or {}
+    limit = min(int(data.get("limit", 6)), 12)
+    company_name = data.get("company_name", "")
+
+    results = wc.crosscheck_unmatched(symbol.upper(), limit=limit,
+                                      company_name=company_name)
+    cleared = 0
+    for r in results:
+        if wc.apply_verdict(symbol.upper(), r["mandate_id"], r["period"], r):
+            cleared += 1
+
+    return jsonify({
+        "status": "ok", "symbol": symbol.upper(),
+        "checked": len(results), "cleared": cleared,
+        "results": results,
+    })
+
+
 @app.route("/api/morning-brief")
 @login_required
 def api_morning_brief():
@@ -3656,6 +3685,7 @@ init_alerts_db()
 init_drafts_db()
 init_events_db()
 govsnap.init_snapshots_db()
+import web_crosscheck as _wcc; _wcc.init_crosscheck_db()
 seed_default_referral_codes()
 init_watchlist()
 

@@ -1199,8 +1199,14 @@ def get_compliance_dashboard(symbols=None):
             unverified.append(ob)
         elif status == "pending":
             if due < today_iso:
-                # Pending but past due → overdue
-                overdue.append(ob)
+                # Past due, but nothing has actually verified a breach. Only
+                # status 'missed' means two sources responded and neither had
+                # the filing. A 'pending' row past its date means we never
+                # matched it — for a large listed issuer that is far more
+                # likely to be our gap than their breach, so it goes to
+                # `unverified`, not `overdue`.
+                ob["past_due"] = True
+                unverified.append(ob)
             elif due <= upcoming_cutoff:
                 upcoming.append(ob)
             else:

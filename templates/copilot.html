@@ -192,7 +192,7 @@ function dcEsc(t) { const d = document.createElement('div'); d.textContent = t =
 function dcContextLine() {
     const c = DC_CONTEXT || {};
     const bits = [];
-    const labels = { dashboard:'Dashboard', command_center:'Command Center', compliance:'Compliance',
+    const labels = { dashboard:'Dashboard', command_center:'Signal', compliance:'Compliance',
                      company:'Company', filing:'Filing', event:'Governance event',
                      director:'Director', draft:'Drafting', prices:'Prices', generic:'Delta Filings' };
     bits.push(labels[c.page_type] || 'Delta Filings');

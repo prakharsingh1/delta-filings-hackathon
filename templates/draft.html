@@ -586,6 +586,10 @@ function _selectCompany(symbol, name) {
 // ── Smart recommendations ──
 const _REC_STYLES = {
     overdue:   {pill: 'bg-rose-100 text-rose-700',    label: 'Overdue',   border: '#f43f5e'},
+    // Past its due date but Delta could not match a filing to it. Deliberately
+    // NOT styled as overdue — an unmatched obligation is a gap in our matching,
+    // not evidence that a listed company missed a statutory deadline.
+    unconfirmed: {pill: 'bg-slate-100 text-slate-600', label: 'Unconfirmed', border: '#94a3b8'},
     due_today: {pill: 'bg-rose-100 text-rose-700',    label: 'Due today', border: '#f43f5e'},
     due_soon:  {pill: 'bg-amber-100 text-amber-700',  label: 'Due soon',  border: '#f59e0b'},
     upcoming:  {pill: 'bg-blue-100 text-blue-700',    label: 'Upcoming',  border: '#3b82f6'},
