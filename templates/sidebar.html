@@ -214,27 +214,15 @@
         {% elif watchlist is defined and watchlist %}{% set _first = watchlist[0] %}{% set _nav_target = (_first.symbol if _first is mapping else _first) %}
         {% elif companies is defined and companies %}{% set _nav_target = companies[0] %}{% endif %}
 
-        {# Three primary destinations. The remaining tools (disclosures, prices,
-           DIN search, compare) are secondary and live under "Tools" so the
-           Command Center is unambiguously the place work gets done. #}
         <nav class="top-nav">
             <a href="/intelligence" class="top-nav-item {{ 'active' if active_page == 'intelligence' else '' }}">Command Center</a>
-            <a href="/compliance" class="top-nav-item {{ 'active' if active_page == 'compliance' else '' }}">Calendar</a>
-            <a href="/draft" class="top-nav-item {{ 'active' if active_page == 'draft' else '' }}">Documents</a>
-            <div class="relative" x-data>
-                <button type="button" onclick="document.getElementById('toolsMenu').classList.toggle('hidden')"
-                        class="top-nav-item {{ 'active' if active_page in ('dashboard','prices','din_search','announcements','company','compare','watchlist') else '' }}">
-                    Tools ▾
-                </button>
-                <div id="toolsMenu" class="hidden absolute left-0 mt-1.5 w-52 rounded-xl border py-1.5 z-50"
-                     style="background:var(--surface,#fff); border-color:var(--border,#e2e8f0); box-shadow:0 12px 32px -12px rgba(0,0,0,.28);">
-                    <a href="/dashboard" class="topbar-menu-item">Filing calendar</a>
-                    <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}" class="topbar-menu-item">Disclosures</a>
-                    <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}" class="topbar-menu-item">Compare filings</a>
-                    <a href="/din-search" class="topbar-menu-item">DIN search</a>
-                    <a href="/prices" class="topbar-menu-item">Stock prices</a>
-                </div>
-            </div>
+            <a href="/dashboard" class="top-nav-item {{ 'active' if active_page == 'dashboard' else '' }}">Dashboard</a>
+            <a href="/draft" class="top-nav-item {{ 'active' if active_page == 'draft' else '' }}">Draft</a>
+            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'announcements' or (active_page == 'company' and _company_tab != 'compare')) else '' }}">Disclosures</a>
+            <a href="/prices" class="top-nav-item {{ 'active' if active_page == 'prices' else '' }}">Stock Prices</a>
+            <a href="/din-search" class="top-nav-item {{ 'active' if active_page == 'din_search' else '' }}">DIN Search</a>
+            <a href="/compliance" class="top-nav-item {{ 'active' if active_page == 'compliance' else '' }}">Compliance</a>
+            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'compare' or (active_page == 'company' and _company_tab == 'compare')) else '' }}">Compare</a>
         </nav>
 
         <div class="flex items-center gap-1.5 flex-shrink-0">
