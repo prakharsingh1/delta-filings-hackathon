@@ -103,30 +103,48 @@ def _has(body: str, *patterns: str) -> bool:
 
 def lint_draft(body: str, subject: str = "", filing_type: str = "",
                company_name: str = "", symbol: str = "") -> Dict[str, Any]:
-    """Check a draft against what the regulation and the exchange expect."""
+    """Check a draft against what the regulation and the exchange expect.
+
+    Only the BODY is authored by the user or the model. The letterhead,
+    exchange addressee, CIN, scrip codes, date and signature block are added
+    by build_letter_data() at render time. Linting the body for those
+    produced false blocking errors on perfectly good drafts, so anything the
+    template guarantees is reported as satisfied by the template rather than
+    demanded of the body.
+    """
     body = body or ""
     checks: List[Dict] = []
 
-    def check(ok, label, detail, severity="warning"):
+    def check(ok, label, detail, severity="warning", by_template=False):
         checks.append({"ok": bool(ok), "label": label, "detail": detail,
-                       "severity": "ok" if ok else severity})
+                       "severity": "ok" if ok else severity,
+                       "by_template": by_template})
 
     dest = destination_for(filing_type)
+    is_letter = filing_type not in _BOARD_SIGNED
 
-    # ── Structural, for anything going to an exchange ──
-    if dest == "exchange":
-        check(_has(body, r"\bBSE\b", r"Bombay Stock Exchange", r"\bNSE\b",
-                   r"National Stock Exchange", r"Listing Department", r"Manager,?\s+Listing"),
-              "Addressed to the exchange",
-              "Exchange letters are addressed to the Listing Department of BSE and NSE.",
-              "blocking")
-        check(_has(body, r"scrip\s*code", r"symbol\s*[:\-]", r"\bISIN\b"),
-              "Scrip code / symbol quoted",
+    # ── Supplied by the letter template, not by the body ──
+    if is_letter:
+        check(True, "Addressed to the exchange",
+              "Added by Delta's letter template — BSE and NSE listing departments.",
+              by_template=True)
+        check(bool(company_name), "Company identified",
+              "Company name, CIN and registered office come from the letterhead."
+              if company_name else "No company on this draft — set it before rendering.",
+              "blocking", by_template=bool(company_name))
+        check(True, "Signature block",
+              "Rendered from the signatory you select at the signing step.",
+              by_template=True)
+        check(True, "Letter date",
+              "Stamped at render time.", by_template=True)
+        check(_has(body, r"scrip\s*code", r"symbol\s*[:\-]", r"\bISIN\b") or bool(symbol),
+              "Scrip code / symbol available",
               "Exchanges match correspondence on scrip code (BSE) and symbol (NSE).")
 
-    check(_has(body, r"\bSub(ject)?\s*[:\-]", re.escape(subject[:24]) if subject else r"$^"),
-          "Subject line present",
-          "A subject line stating the regulation and the matter.")
+    # ── The body's own content ──
+    check(bool((subject or "").strip()),
+          "Subject line set",
+          "A subject line stating the regulation and the matter.", "blocking")
 
     check(_has(body, r"Regulation\s+\d+", r"Section\s+\d+", r"\bLODR\b",
                r"Companies Act", r"\bSEBI\b"),
@@ -134,20 +152,8 @@ def lint_draft(body: str, subject: str = "", filing_type: str = "",
           "State the provision the submission is made under.")
 
     check(_has(body, r"\b(19|20)\d{2}\b"),
-          "Contains a date",
+          "Substantive date in the text",
           "Effective date, board meeting date or date of the event.")
-
-    if company_name:
-        first = company_name.split()[0]
-        check(_has(body, re.escape(first)),
-              "Company identified",
-              "The letter should name the company it is filed for.", "blocking")
-
-    check(_has(body, r"Yours faithfully", r"Yours sincerely", r"Thanking you",
-               r"For\s+[A-Z]", r"Company Secretary", r"Compliance Officer"),
-          "Signature block",
-          "Close with the signing authority — CS / Compliance Officer or a director.",
-          "blocking")
 
     # ── Placeholders that must not survive to filing ──
     placeholders = re.findall(r"\[[A-Z][A-Z \-/]{3,}\]", body)
@@ -197,6 +203,7 @@ def lint_draft(body: str, subject: str = "", filing_type: str = "",
     blocking = [c for c in checks if not c["ok"] and c["severity"] == "blocking"]
     warnings = [c for c in checks if not c["ok"] and c["severity"] == "warning"]
     passed = [c for c in checks if c["ok"]]
+    authored = [c for c in checks if not c.get("by_template")]
 
     return {
         "checks": checks,
@@ -205,7 +212,11 @@ def lint_draft(body: str, subject: str = "", filing_type: str = "",
         "blocking": blocking,
         "warnings": warnings,
         "ready": not blocking,
-        "score": round(len(passed) / len(checks) * 100) if checks else 0,
+        # Scored on what the author controls, so a good draft is not marked
+        # down for elements the renderer adds anyway.
+        "score": (round(sum(1 for c in authored if c["ok"]) / len(authored) * 100)
+                  if authored else 100),
+        "template_supplied": [c["label"] for c in checks if c.get("by_template")],
         "notes": notes,
         "destination": dest,
         "suggested_method": method_for(filing_type),

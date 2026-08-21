@@ -67,6 +67,28 @@
         .rec-section-ct { font-size:10.5px; font-weight:700; color:#64748b;
             background:#f1f5f9; padding:1px 8px; border-radius:999px; }
     </style>
+    <style>
+        /* Signing panel — dark-theme counterparts. Without these the amber
+           note and the light panel chrome render text-on-same-colour. */
+        html.dark #signing-panel { border-color:#232326; }
+        html.dark #signing-panel .bg-gradient-to-r { background:#141416 !important; border-bottom-color:#232326 !important; }
+        html.dark #signing-panel .text-gray-900 { color:#fafafa !important; }
+        html.dark #signing-panel .text-gray-800 { color:#e4e4e7 !important; }
+        html.dark #signing-panel .text-gray-700 { color:#d4d4d8 !important; }
+        html.dark #signing-panel .text-gray-500 { color:#a1a1aa !important; }
+        html.dark #signing-panel .text-gray-400 { color:#71717a !important; }
+        html.dark #signing-panel select,
+        html.dark #signing-panel input { background:#141416; border-color:#27272a; color:#fafafa; }
+        html.dark #signing-panel input::placeholder { color:#52525b; }
+        html.dark #signing-panel .bg-amber-50 { background:#2a1d05 !important; border-color:#78350f !important; }
+        html.dark #signing-panel .text-amber-900 { color:#fcd34d !important; }
+        html.dark #signing-panel .border-gray-200 { border-color:#27272a !important; }
+        html.dark #signing-panel .bg-emerald-50 { background:#052e20 !important; border-color:#065f46 !important; }
+        html.dark #signing-panel .text-emerald-800 { color:#6ee7b7 !important; }
+        html.dark #signing-panel .bg-rose-50 { background:#2c1115 !important; border-color:#7f1d1d !important; }
+        html.dark #signing-panel .bg-gray-100 { background:#1c1c1f !important; }
+        html.dark #signing-panel .bg-gray-900 { background:#fafafa !important; color:#0f0f10 !important; }
+    </style>
 </head>
 <body class="bg-slate-50 text-gray-900">
 
@@ -476,6 +498,51 @@
                     </div>
                 </div>
                 <p class="text-xs text-gray-500 mb-4">Final document as it will appear on the official letterhead. Both formats render identically — you can edit the Word file later if needed.</p>
+
+                <!-- ── Pre-filing check + signature routing ────────────────
+                     The draft is only half the job: it has to survive review
+                     and then be signed by the right person, with the right
+                     method for where it is going. -->
+                <div class="mb-4 rounded-xl border border-gray-200 overflow-hidden" id="signing-panel">
+                    <div class="flex items-center justify-between gap-3 px-4 py-3 bg-gradient-to-r from-indigo-50 to-white border-b border-gray-200">
+                        <div class="flex items-center gap-2.5">
+                            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span class="text-sm font-bold text-gray-900">Pre-filing check &amp; signature</span>
+                        </div>
+                        <span id="lint-score" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">not run</span>
+                    </div>
+
+                    <div class="p-4">
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <button onclick="runLint()" id="lint-btn"
+                                    class="text-sm font-semibold px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                Run pre-filing check
+                            </button>
+                            <button onclick="loadSignatories()" id="sig-btn"
+                                    class="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:border-gray-300">
+                                Suggest signatories
+                            </button>
+                        </div>
+
+                        <div id="lint-results" class="hidden mb-4"></div>
+
+                        <div id="sig-block" class="hidden">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                <label class="block"><span class="text-[11px] font-medium text-gray-500">Filed with</span>
+                                    <select id="esign-dest" class="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg" onchange="renderMethodHint()"></select></label>
+                                <label class="block"><span class="text-[11px] font-medium text-gray-500">Signature method</span>
+                                    <select id="esign-method" class="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg" onchange="renderMethodHint()"></select></label>
+                            </div>
+                            <p id="method-hint" class="text-[11px] text-gray-500 mb-3 leading-relaxed"></p>
+                            <div id="sig-list" class="space-y-2 mb-3"></div>
+                            <button onclick="createEsign()" id="esign-btn"
+                                    class="text-sm font-semibold px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black">
+                                Prepare for signature
+                            </button>
+                            <div id="esign-result" class="mt-3 text-xs"></div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- PDF Document Properties (what NSE/SEBI portals read) -->
                 <details class="mb-4 rounded-xl border border-gray-200 bg-gray-50/60" id="pdf-props">
@@ -2120,6 +2187,171 @@ function downloadLetter(format) {
 showStep(1);
 loadMyDraftsCount();
 loadTeamsOverview();
+
+// ══ Pre-filing check & e-signature ══════════════════════════
+let _esignOpts = null, _signatories = [];
+
+function _draftPayload() {
+    return {
+        body: STATE.body || '',
+        subject: STATE.subject || '',
+        filing_type: (STATE.filing_type || {}).id || '',
+        company_name: (STATE.company || {}).name || '',
+        symbol: (STATE.company || {}).symbol || '',
+    };
+}
+
+async function runLint() {
+    const btn = document.getElementById('lint-btn');
+    btn.disabled = true; btn.textContent = 'Checking…';
+    try {
+        const r = await fetch('/api/draft/lint', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(_draftPayload()),
+        });
+        const d = await r.json();
+
+        const pill = document.getElementById('lint-score');
+        pill.textContent = d.ready ? `Ready · ${d.score}%` : `${d.blocking.length} blocking · ${d.score}%`;
+        pill.className = 'text-[11px] font-bold px-2.5 py-1 rounded-full ' +
+            (d.ready ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700');
+
+        const authored = d.checks.filter(c => !c.by_template);
+        let h = '<div class="space-y-1.5">';
+        authored.forEach(c => {
+            const icon = c.ok
+                ? '<span class="text-emerald-600">&#10003;</span>'
+                : (c.severity === 'blocking' ? '<span class="text-rose-600">&#10007;</span>'
+                                             : '<span class="text-amber-500">!</span>');
+            h += `<div class="flex gap-2.5 text-xs"><span class="w-3 flex-shrink-0">${icon}</span>
+                  <span><span class="font-semibold text-gray-800">${_esc(c.label)}</span>
+                  ${c.ok ? '' : `<span class="block text-gray-500 mt-0.5">${_esc(c.detail)}</span>`}</span></div>`;
+        });
+        h += '</div>';
+
+        if (d.template_supplied && d.template_supplied.length) {
+            h += `<p class="text-[11px] text-gray-400 mt-3">Added by the letterhead at render time: ${
+                d.template_supplied.map(_esc).join(', ')}.</p>`;
+        }
+        if (d.notes && d.notes.length) {
+            h += '<div class="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">' +
+                 d.notes.map(n => `<p class="text-[11px] text-amber-900 leading-relaxed">${_esc(n)}</p>`).join('') +
+                 '</div>';
+        }
+        const box = document.getElementById('lint-results');
+        box.innerHTML = h; box.classList.remove('hidden');
+    } catch (e) {
+        document.getElementById('lint-results').innerHTML =
+            `<p class="text-xs text-rose-600">Check failed: ${_esc(e.message)}</p>`;
+        document.getElementById('lint-results').classList.remove('hidden');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Run pre-filing check';
+    }
+}
+
+function _esc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
+
+async function loadSignatories() {
+    const btn = document.getElementById('sig-btn');
+    btn.disabled = true; btn.textContent = 'Loading…';
+    try {
+        if (!_esignOpts) _esignOpts = await (await fetch('/api/esign/options')).json();
+        const d = await (await fetch(
+            `/api/draft/signatories/${encodeURIComponent((STATE.company||{}).symbol || '')}?filing_type=${
+                encodeURIComponent((STATE.filing_type||{}).id || '')}`)).json();
+        _signatories = d.signatories || [];
+
+        const destSel = document.getElementById('esign-dest');
+        destSel.innerHTML = Object.entries(_esignOpts.destinations)
+            .map(([k, v]) => `<option value="${k}" ${k === d.destination ? 'selected' : ''}>${_esc(v.label)}</option>`).join('');
+        const mSel = document.getElementById('esign-method');
+        mSel.innerHTML = Object.entries(_esignOpts.methods)
+            .map(([k, v]) => `<option value="${k}" ${k === d.suggested_method ? 'selected' : ''}>${_esc(v)}</option>`).join('');
+
+        renderSignatories();
+        renderMethodHint();
+        document.getElementById('sig-block').classList.remove('hidden');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Suggest signatories';
+    }
+}
+
+function renderMethodHint() {
+    const dest = document.getElementById('esign-dest').value;
+    const method = document.getElementById('esign-method').value;
+    const rule = (_esignOpts.destinations || {})[dest] || {};
+    const ok = (rule.accepted || []).includes(method);
+    const el = document.getElementById('method-hint');
+    el.innerHTML = ok
+        ? _esc(rule.note || '')
+        : `<span class="text-rose-600 font-semibold">This method is not accepted here.</span> ${_esc(rule.note || '')}`;
+}
+
+function renderSignatories() {
+    document.getElementById('sig-list').innerHTML = _signatories.map((s, i) => `
+        <div class="grid grid-cols-12 gap-2 items-center">
+            <input class="col-span-4 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg"
+                   value="${_esc(s.name)}" placeholder="Name" onchange="_signatories[${i}].name=this.value">
+            <input class="col-span-4 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg"
+                   value="${_esc(s.designation)}" placeholder="Designation" onchange="_signatories[${i}].designation=this.value">
+            <input class="col-span-2 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg font-mono"
+                   value="${_esc(s.din)}" placeholder="DIN" onchange="_signatories[${i}].din=this.value">
+            <input class="col-span-2 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg"
+                   value="${_esc(s.email)}" placeholder="Email" onchange="_signatories[${i}].email=this.value">
+            ${s.source && s.source !== 'role'
+                ? `<p class="col-span-12 text-[10px] text-gray-400 -mt-1">from ${_esc(s.source)}</p>` : ''}
+        </div>`).join('');
+}
+
+async function createEsign() {
+    const btn = document.getElementById('esign-btn');
+    const out = document.getElementById('esign-result');
+    if (!STATE.draft_id) {
+        out.innerHTML = '<p class="text-rose-600">Save the draft first — a signature request is raised against a saved draft.</p>';
+        return;
+    }
+    btn.disabled = true; btn.textContent = 'Preparing…';
+    try {
+        const r = await fetch('/api/esign/requests', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                draft_id: STATE.draft_id,
+                destination: document.getElementById('esign-dest').value,
+                method: document.getElementById('esign-method').value,
+                signatories: _signatories.filter(s => s.name),
+            }),
+        });
+        const d = await r.json();
+        if (d.status !== 'ok') throw new Error(d.message || 'failed');
+        const req = d.request;
+        let h = `<div class="rounded-lg border border-gray-200 p-3">
+            <p class="font-semibold text-gray-900">${_esc(req.reference)} · ${_esc(req.status)}</p>
+            <p class="text-gray-500 mt-0.5">${_esc(req.method_label)} → ${_esc(req.destination_label)}</p>`;
+        (d.issues || []).forEach(i => {
+            h += `<p class="mt-1.5 ${i.level === 'blocking' ? 'text-rose-600' : 'text-amber-700'}">
+                  ${i.level === 'blocking' ? '&#10007;' : '!'} ${_esc(i.message)}</p>`;
+        });
+        const blocked = (d.issues || []).some(i => i.level === 'blocking');
+        if (!blocked) {
+            h += `<button onclick="sendEsign(${req.id})" class="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 text-white">Send for signature</button>`;
+        }
+        h += '</div>';
+        out.innerHTML = h;
+    } catch (e) {
+        out.innerHTML = `<p class="text-rose-600">${_esc(e.message)}</p>`;
+    } finally {
+        btn.disabled = false; btn.textContent = 'Prepare for signature';
+    }
+}
+
+async function sendEsign(id) {
+    const out = document.getElementById('esign-result');
+    const d = await (await fetch(`/api/esign/requests/${id}/send`, {method: 'POST'})).json();
+    out.innerHTML = `<div class="rounded-lg border p-3 ${d.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}">
+        <p class="${d.ok ? 'text-emerald-800' : 'text-rose-700'} font-semibold">${_esc(d.message)}</p>
+        ${d.request ? `<p class="text-gray-600 mt-1">Reference ${_esc(d.request.reference)} · status ${_esc(d.request.status)}</p>` : ''}
+    </div>`;
+}
 </script>
 
 </body>

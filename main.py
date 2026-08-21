@@ -3502,12 +3502,24 @@ def event_detail(event_id):
     timeline = [e for e in es.get_company_timeline(event["symbol"], days=730)
                 if e["id"] != event_id][:10]
 
+    import event_context as ec
+    ctx_quarter = (event.get("delta") or {}).get("after_period")
+
     return render_template(
         "event_detail.html",
         active_page="intelligence",
         event=event, analysis=analysis, artifacts=artifacts,
         audit=audit, mandates=mandates, timeline=timeline,
         mandates_are_candidates=mandates_are_candidates,
+        # Supporting context — board as filed, what this puts on the calendar,
+        # whether it is part of a pattern, and how peers compare.
+        roster=ec.board_roster(event["symbol"], ctx_quarter),
+        obligations=ec.triggered_obligations(
+            event["symbol"], event["event_type"],
+            (analysis or {}).get("mandate_ids") or []),
+        similar=ec.similar_events(event_id, event["event_type"], event["symbol"]),
+        peers=ec.peer_comparison(event["symbol"]),
+        source=ec.source_excerpt(event.get("filing_id")),
         actor_labels={"agent1": "Compliance Monitoring Agent",
                       "agent2": "Governance Intelligence Agent",
                       "agent3": "Action Execution Agent"},
@@ -3683,6 +3695,134 @@ def api_agents_status():
     return jsonify(sd.agent_status())
 
 
+# ══════════════════════════════════════════════════════════
+#  DRAFT INTELLIGENCE + E-SIGNATURE
+# ══════════════════════════════════════════════════════════
+
+@app.route("/api/draft/lint", methods=["POST"])
+@login_required
+def api_draft_lint():
+    """Pre-filing check: does this letter contain what the regulation expects."""
+    import draft_intelligence as di
+    d = request.get_json(silent=True) or {}
+    return jsonify(di.lint_draft(
+        body=d.get("body", ""), subject=d.get("subject", ""),
+        filing_type=d.get("filing_type", ""), company_name=d.get("company_name", ""),
+        symbol=d.get("symbol", "")))
+
+
+@app.route("/api/draft/signatories/<symbol>")
+@login_required
+def api_draft_signatories(symbol):
+    """Who should sign, with real names and DINs from the filed governance report."""
+    import draft_intelligence as di
+    ft = request.args.get("filing_type", "")
+    return jsonify({
+        "signatories": di.suggest_signatories(symbol.upper(), ft),
+        "destination": di.destination_for(ft),
+        "suggested_method": di.method_for(ft),
+    })
+
+
+@app.route("/api/esign/options")
+@login_required
+def api_esign_options():
+    import esign
+    return jsonify({
+        "providers": esign.available_providers(),
+        "methods": esign.METHODS,
+        "destinations": esign.DESTINATION_RULES,
+    })
+
+
+@app.route("/api/esign/requests", methods=["GET"])
+@login_required
+def api_esign_list():
+    import esign
+    return jsonify({"requests": esign.list_requests(_current_user_id() or "")})
+
+
+@app.route("/api/esign/requests", methods=["POST"])
+@login_required
+def api_esign_create():
+    """Prepare a signature request from a saved draft."""
+    import esign
+    from drafts_store import get_draft
+
+    uid = _current_user_id() or ""
+    d = request.get_json(silent=True) or {}
+    draft_id = d.get("draft_id")
+    if not draft_id:
+        return jsonify({"status": "error", "message": "draft_id required"}), 400
+
+    draft = get_draft(int(draft_id), uid)
+    if not draft:
+        return jsonify({"status": "error", "message": "draft not found"}), 404
+
+    signatories = [s for s in (d.get("signatories") or []) if s.get("name")]
+    if not signatories:
+        return jsonify({"status": "error", "message": "at least one signatory is required"}), 400
+
+    req = esign.create_request(
+        user_id=uid, draft=draft, signatories=signatories,
+        destination=d.get("destination", "exchange"),
+        method=d.get("method", "electronic"),
+        event_id=d.get("event_id"),
+    )
+    return jsonify({"status": "ok", "request": req, "issues": esign.validate(req)})
+
+
+@app.route("/api/esign/requests/<int:request_id>")
+@login_required
+def api_esign_get(request_id):
+    import esign
+    req = esign.get_request(request_id, _current_user_id() or "")
+    if not req:
+        return jsonify({"status": "error", "message": "not found"}), 404
+    return jsonify({"status": "ok", "request": req, "issues": esign.validate(req)})
+
+
+@app.route("/api/esign/requests/<int:request_id>/send", methods=["POST"])
+@login_required
+def api_esign_send(request_id):
+    import esign
+    user = current_user() or {}
+    res = esign.send(request_id, _current_user_id() or "",
+                     actor=user.get("email") or user.get("name") or "reviewer")
+    return jsonify(res)
+
+
+@app.route("/api/esign/requests/<int:request_id>/sign", methods=["POST"])
+@login_required
+def api_esign_sign(request_id):
+    """Record a signature. Used by the provider webhook, or by the CS when a
+    document is signed out of band (wet signature, DSC token)."""
+    import esign
+    user = current_user() or {}
+    d = request.get_json(silent=True) or {}
+    sig_id = d.get("signatory_id")
+    if not sig_id:
+        return jsonify({"status": "error", "message": "signatory_id required"}), 400
+    req = esign.record_signature(request_id, int(sig_id), _current_user_id() or "",
+                                 signature_ref=d.get("signature_ref", ""),
+                                 actor=user.get("email") or "reviewer")
+    return jsonify({"status": "ok", "request": req})
+
+
+@app.route("/api/event/<int:event_id>/coverage")
+@login_required
+def api_event_coverage(event_id):
+    """Public reporting on this event, fetched on demand via Firecrawl."""
+    import event_context as ec
+    ev = es.get_event(event_id)
+    if not ev:
+        return jsonify({"status": "error", "message": "not found"}), 404
+    results = ec.external_coverage(
+        ev["symbol"], ev.get("company_name") or ev["symbol"],
+        ev["event_label"], ev.get("effective_date", ""))
+    return jsonify({"status": "ok", "results": results})
+
+
 @app.route("/api/morning-brief")
 @login_required
 def api_morning_brief():
@@ -3716,6 +3856,7 @@ init_drafts_db()
 init_events_db()
 govsnap.init_snapshots_db()
 import web_crosscheck as _wcc; _wcc.init_crosscheck_db()
+import esign as _esign; _esign.init_esign_db()
 from agents.briefing import init_briefing_db as _ibd; _ibd()
 seed_default_referral_codes()
 init_watchlist()

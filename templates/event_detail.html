@@ -607,6 +607,169 @@
             </div>
         </div>
 
+
+        <!-- ══ BOARD AS FILED ══ -->
+        {% if roster and roster.groups %}
+        <div class="sec">
+            <div class="sec-head">
+                <span class="sec-title">Board as filed</span>
+                <span class="text-[11px] text-slate-400">
+                    Quarter ended {{ roster.quarter }} · {{ roster.total }} directors
+                    {% if roster.source_url %}
+                    · <a href="{{ roster.source_url }}" target="_blank" rel="noopener" class="underline">source</a>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="sec-body">
+                <div class="roster-grid">
+                {% for key, label in [('executive','Executive'),('independent','Independent'),('non_executive','Non-executive')] %}
+                    {% if roster.groups[key] %}
+                    <div>
+                        <div class="roster-h">{{ label }} <span class="num">{{ roster.groups[key]|length }}</span></div>
+                        {% for d in roster.groups[key] %}
+                        <div class="roster-row">
+                            <span class="roster-name">{{ d.name }}</span>
+                            <span class="roster-meta">
+                                {% if d.din %}DIN {{ d.din }}{% endif %}
+                                {% if d.appointed %} · since {{ d.appointed }}{% endif %}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ══ WHAT THIS PUTS ON THE CALENDAR ══ -->
+        {% if obligations %}
+        <div class="sec">
+            <div class="sec-head">
+                <span class="sec-title">On your calendar</span>
+                <span class="text-[11px] text-slate-400">Obligations under the regulations cited above</span>
+            </div>
+            <div class="sec-body py-1">
+            {% for o in obligations %}
+                <div class="ob-row">
+                    <span class="ob-days num {{ 'soon' if o.days is not none and o.days <= 14 and o.days >= 0 }}">
+                        {% if o.days is none %}—{% elif o.days < 0 %}{{ o.days|abs }}d ago{% else %}{{ o.days }}d{% endif %}
+                    </span>
+                    <span class="flex-1 min-w-0">
+                        <span class="ob-name">{{ o.name }}</span>
+                        <span class="ob-meta">{{ o.period }}{% if o.regulation %} · {{ o.regulation }}{% endif %}</span>
+                    </span>
+                    <span class="mono text-[11px] text-slate-400 num">{{ o.due_date }}</span>
+                    <span class="chip chip-{{ 'approved' if o.status == 'submitted' else 'low' }}">{{ o.status }}</span>
+                </div>
+            {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ══ IS THIS A PATTERN? ══ -->
+        {% if similar.same_company or similar.other_companies %}
+        <div class="sec">
+            <div class="sec-head">
+                <span class="sec-title">Pattern check</span>
+                <span class="text-[11px] text-slate-400">Comparable events on record</span>
+            </div>
+            <div class="sec-body">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-2">
+                            {{ event.symbol }} · same event type
+                        </div>
+                        {% for e in similar.same_company %}
+                        <a href="/event/{{ e.id }}" class="pat-row">
+                            <span class="dot dot-{{ e.risk }}"></span>
+                            <span class="mono text-xs text-slate-400 num">{{ e.detected_at[:10] }}</span>
+                            <span class="flex-1 min-w-0 truncate text-sm">{{ e.event_label }}</span>
+                        </a>
+                        {% else %}
+                        <p class="text-xs text-slate-400">First event of this type on record.</p>
+                        {% endfor %}
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-2">
+                            Across other monitored companies
+                        </div>
+                        {% for e in similar.other_companies %}
+                        <a href="/event/{{ e.id }}" class="pat-row">
+                            <span class="dot dot-{{ e.risk }}"></span>
+                            <span class="font-bold text-xs" style="width:82px">{{ e.symbol }}</span>
+                            <span class="mono text-xs text-slate-400 num">{{ e.detected_at[:10] }}</span>
+                        </a>
+                        {% else %}
+                        <p class="text-xs text-slate-400">No comparable events elsewhere.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ══ PEER COMPARISON ══ -->
+        {% if peers|length > 1 %}
+        <div class="sec">
+            <div class="sec-head">
+                <span class="sec-title">Board independence across the portfolio</span>
+                <span class="text-[11px] text-slate-400">Latest filed composition</span>
+            </div>
+            <div class="sec-body py-2">
+            {% for p in peers %}
+                <div class="peer-row {{ 'is-current' if p.is_current }}">
+                    <span class="peer-sym">{{ p.symbol }}</span>
+                    <span class="peer-track">
+                        <span class="peer-fill" style="width:{{ p.independent_pct }}%"></span>
+                    </span>
+                    <span class="peer-pct num">{{ p.independent_pct }}%</span>
+                    <span class="peer-n num">{{ p.independent }}/{{ p.total }}</span>
+                </div>
+            {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ══ SOURCE TEXT ══ -->
+        {% if source and source.excerpt %}
+        <div class="sec">
+            <div class="sec-head">
+                <span class="sec-title">Source filing text</span>
+                <span class="text-[11px] text-slate-400">
+                    {{ source.date }} · {{ '{:,}'.format(source.full_len) }} characters extracted
+                </span>
+            </div>
+            <div class="sec-body">
+                <div class="doc-body" style="max-height:260px">{{ source.excerpt }}</div>
+                {% if source.pdf_link %}
+                <a href="{{ source.pdf_link }}" target="_blank" rel="noopener"
+                   class="text-xs font-semibold text-indigo-600 hover:underline mt-3 inline-block">
+                    Open the original filing →
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ══ PUBLIC COVERAGE (on demand) ══ -->
+        <div class="sec">
+            <div class="sec-head">
+                <span class="sec-title">Public coverage</span>
+                <span class="text-[11px] text-slate-400">Independent corroboration from the open web</span>
+            </div>
+            <div class="sec-body">
+                <div id="coverageBody">
+                    <p class="text-sm text-slate-500 mb-3">
+                        Search public sources for reporting on this event, so you can corroborate
+                        it against something other than Delta's own records.
+                    </p>
+                    <button class="btn btn-dismiss" onclick="loadCoverage(this)">Search public sources</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ── AI AUDIT (collapsed by default) ── -->
         <details class="sec" id="aiAudit">
             <summary class="sec-head" style="cursor:pointer; list-style:none;">

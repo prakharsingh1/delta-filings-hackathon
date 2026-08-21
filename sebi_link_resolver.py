@@ -48,22 +48,46 @@ _lock = threading.Lock()
 
 
 def _scrape_index() -> Dict[str, str]:
-    """Hit SEBI's regulations index and pull the latest URL for each known slug."""
+    """Hit SEBI's regulations index and pull the latest URL for each known slug.
+
+    Direct requests to sebi.gov.in time out from most hosts we run on, which
+    left this permanently falling back to the index URL. Firecrawl reaches it
+    reliably, so it is tried first when configured; the direct request stays as
+    the fallback so the module still works without Firecrawl.
+    """
+    body = ""
+
     try:
-        r = requests.get(
-            SEBI_REGULATIONS_INDEX,
-            headers={"User-Agent": _USER_AGENT, "Referer": "https://www.sebi.gov.in/"},
-            timeout=15,
-        )
+        import firecrawl_client as fc
+        if fc.available():
+            data = fc.scrape(SEBI_REGULATIONS_INDEX, formats=["markdown", "links"],
+                             only_main=False, timeout=90)
+            if data:
+                # `links` is already-resolved absolute URLs — better than
+                # regexing hrefs out of rendered markdown.
+                found = [u for u in (data.get("links") or [])
+                         if "/legal/regulations/" in u and u.endswith(".html")]
+                if found:
+                    return _pick_by_slug(found)
+                body = data.get("markdown") or ""
     except Exception as e:
-        print(f"[SEBI-LINK] index fetch failed: {e}")
-        return {}
+        print(f"[SEBI-LINK] firecrawl attempt failed: {str(e)[:120]}")
 
-    if r.status_code != 200:
-        print(f"[SEBI-LINK] index returned {r.status_code}")
-        return {}
+    if not body:
+        try:
+            r = requests.get(
+                SEBI_REGULATIONS_INDEX,
+                headers={"User-Agent": _USER_AGENT, "Referer": "https://www.sebi.gov.in/"},
+                timeout=15,
+            )
+        except Exception as e:
+            print(f"[SEBI-LINK] index fetch failed: {e}")
+            return {}
 
-    body = r.text or ""
+        if r.status_code != 200:
+            print(f"[SEBI-LINK] index returned {r.status_code}")
+            return {}
+        body = r.text or ""
     urls = re.findall(
         r'href="(https://www\.sebi\.gov\.in/legal/regulations/[^"]+\.html)"',
         body,
@@ -77,6 +101,16 @@ def _scrape_index() -> Dict[str, str]:
         if not candidates:
             continue
         out[key] = sorted(candidates, reverse=True)[0]
+    return out
+
+
+def _pick_by_slug(urls) -> Dict[str, str]:
+    """Choose the most recent URL for each known regulation slug."""
+    out: Dict[str, str] = {}
+    for key, slug in REGULATION_SLUGS.items():
+        candidates = [u for u in urls if slug in u]
+        if candidates:
+            out[key] = sorted(candidates, reverse=True)[0]
     return out
 
 
