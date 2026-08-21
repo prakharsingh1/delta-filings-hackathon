@@ -88,6 +88,9 @@ def seed_filing_events(per_company=6, run_analysis=True, run_action=True,
             if t and t.get("event_id"):
                 done += 1
                 total += 1
+                step = t["steps"][-1]
+                print(f"[SEED] {sym} filing {f.get('id')}: event {t['event_id']} — "
+                      f"{step.get('result', '')[:60]} ({step.get('agent')})", flush=True)
         print(f"[SEED] {sym}: {done} filing events")
     print(f"[SEED] {total} filing events")
     return total

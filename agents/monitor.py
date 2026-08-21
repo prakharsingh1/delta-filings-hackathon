@@ -232,12 +232,26 @@ def classify_by_rules(title: str, description: str = "", text: str = "") -> Dict
 
 
 def _board_delta_from_governance(symbol: str) -> Optional[Dict]:
-    """Ask governance.py to compare the two most recent governance reports.
+    """Structured before/after board data for this company.
 
-    This is the only source of genuinely structured before/after board data —
-    it is parsed from NSE XBRL, not produced by a model. Returns None when
-    fewer than two reports are available or NSE is unreachable.
+    Prefers the local governance_snapshots cache. Going to NSE live here cost
+    ~30s per board event and made a batch run unusable — and it was pointless,
+    because the snapshot layer already holds the same XBRL-parsed data.
+    Falls back to a live fetch only when nothing is cached.
     """
+    try:
+        import governance_snapshots as gs
+        cached = gs.compute_delta(symbol)
+        if cached and cached.get("has_board_change"):
+            return cached
+        if cached:
+            # Snapshots exist and show no change — that is a real answer.
+            return None
+        if gs.list_snapshots(symbol):
+            return None
+    except Exception as e:
+        print(f"[AGENT1] snapshot delta unavailable for {symbol}: {str(e)[:100]}")
+
     try:
         from governance import (fetch_governance_reports_list, fetch_governance_report,
                                 parse_governance_report, compare_governance_reports)
