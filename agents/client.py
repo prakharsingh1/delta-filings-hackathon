@@ -23,9 +23,13 @@ AGENT_MODELS = {
 }
 
 # Ordered fallbacks per tier, used when the primary is overloaded.
+# Verified against the live models list. gemini-2.0-flash was retired by
+# Google and returns 404 NOT_FOUND, which silently cost us an Agent 2 run;
+# the "-latest" aliases are here so a future retirement degrades instead of
+# failing outright.
 _FALLBACKS = {
-    "gemini-2.5-pro": ["gemini-2.5-flash", "gemini-2.0-flash"],
-    "gemini-2.5-flash": ["gemini-2.0-flash", "gemini-2.5-flash-lite"],
+    "gemini-2.5-pro": ["gemini-2.5-flash", "gemini-flash-latest"],
+    "gemini-2.5-flash": ["gemini-2.5-flash-lite", "gemini-flash-latest"],
 }
 
 
@@ -139,6 +143,9 @@ def call_json(prompt: str, *, role: str = "monitor", model: Optional[str] = None
                 last_err = "unparseable_json"
             except Exception as e:
                 last_err = str(e)[:200]
+                if "404" in last_err or "NOT_FOUND" in last_err:
+                    print(f"[AGENT] {role}/{m} retired by provider — skipping to fallback")
+                    break
                 if any(s in last_err for s in ("503", "UNAVAILABLE", "overloaded", "429", "RESOURCE_EXHAUSTED")):
                     if attempt == 0:
                         time.sleep(1.5)

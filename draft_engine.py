@@ -1189,7 +1189,9 @@ def learn_company_style(api_key: str, symbol: str, filing_type: str,
 
 # ── Gemini calls ──
 
-_FREE_TIER_MODELS = {"gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"}
+# gemini-2.0-flash was retired by Google (404 NOT_FOUND); gemini-flash-latest
+# tracks the current Flash so a future retirement does not break drafting.
+_FREE_TIER_MODELS = {"gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"}
 
 
 def _gemini_call(api_key: str, prompt: str,
@@ -1217,7 +1219,7 @@ def _gemini_call(api_key: str, prompt: str,
         return None
 
     chain = [model]
-    for fb in ("gemini-2.0-flash", "gemini-2.5-flash-lite"):
+    for fb in ("gemini-2.5-flash-lite", "gemini-flash-latest"):
         if fb != model:
             chain.append(fb)
 

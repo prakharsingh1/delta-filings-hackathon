@@ -400,8 +400,18 @@ def get_center_stats(symbols: Optional[List[str]] = None) -> Dict:
     total = conn.execute(f"SELECT COUNT(*) c FROM governance_events{where}", args).fetchone()["c"]
     by_status = {r["status"]: r["c"] for r in conn.execute(
         f"SELECT status, COUNT(*) c FROM governance_events{where} GROUP BY status", args)}
-    by_importance = {r["importance"]: r["c"] for r in conn.execute(
-        f"SELECT importance, COUNT(*) c FROM governance_events{where} GROUP BY importance", args)}
+    # Risk is the ASSESSED level where Agent 2 has run, falling back to the
+    # detector's importance. Reading raw `importance` here while the morning
+    # brief read the analysed risk made the same screen show "8 risk alerts"
+    # next to "nothing urgent".
+    by_importance = {}
+    for r in conn.execute(
+            f"""SELECT COALESCE(NULLIF(a.risk_level, ''), e.importance) AS risk, COUNT(*) c
+                FROM governance_events e
+                LEFT JOIN event_analysis a ON a.event_id = e.id
+                {where.replace('symbol', 'e.symbol')}
+                GROUP BY risk""", args):
+        by_importance[r["risk"]] = r["c"]
 
     if symbols:
         placeholders = ",".join("?" * len(symbols))
@@ -417,12 +427,18 @@ def get_center_stats(symbols: Optional[List[str]] = None) -> Dict:
     conn.close()
 
     pending = sum(by_status.get(s, 0) for s in ("new", "analyzed", "actioned"))
+    # "Needs attention" = high + medium assessed risk, which is exactly what the
+    # morning brief queues. Counting only `high` showed 0 while the brief listed
+    # 13 items, because the Intelligence Agent correctly downgrades a quarterly
+    # report that CONFIRMS an already-disclosed change to a verification task.
+    needs_attention = by_importance.get("high", 0) + by_importance.get("medium", 0)
     return {
         "companies_monitored": len(symbols) if symbols else 0,
         "filings_processed": filings,
         "events_detected": total,
         "pending_review": pending,
-        "risk_alerts": by_importance.get("high", 0),
+        "risk_alerts": needs_attention,
+        "high_risk": by_importance.get("high", 0),
         "by_status": by_status,
         "by_importance": by_importance,
         "agent_actions": agent_actions,

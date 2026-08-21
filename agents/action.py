@@ -84,7 +84,65 @@ def _build_new_info(event: Dict, analysis: Dict) -> str:
     if quote:
         parts.append(f"Source extract: \"{quote}\"")
 
+    # The draft engine writes fluent regulatory prose, which means it will
+    # happily supply a plausible-sounding REASON for a cessation that the
+    # source never stated. Attributing an invented reason to a named real
+    # director in a document formatted as an exchange filing is the single
+    # worst output this product could produce, so the constraint is explicit.
+    parts.append(
+        "\n--- STRICT FACTUAL CONSTRAINTS (do not violate) ---\n"
+        "Use ONLY the facts listed above. In particular:\n"
+        "- Do NOT state or imply a REASON for any appointment, cessation, "
+        "resignation or retirement unless a reason is explicitly given above. "
+        "Do not write 'due to completion of tenure', 'on account of personal "
+        "reasons', 'upon retirement' or any similar phrase unless it appears above.\n"
+        "- Do NOT invent dates, DINs, designations, meeting numbers or figures. "
+        "Where a required fact is not given above, write a bracketed placeholder "
+        "such as [REASON TO BE CONFIRMED] or [DATE TO BE CONFIRMED].\n"
+        "- Do NOT characterise any person or the company favourably or "
+        "unfavourably. State only what occurred."
+    )
     return "\n".join(parts)
+
+
+# Phrases that assert a reason for a board change. Flagged when the source
+# never supplied one, so a reviewer sees exactly what needs verifying.
+_REASON_PATTERNS = [
+    r"due to completion of (?:his|her|their) tenure",
+    r"upon completion of (?:his|her|their) (?:tenure|term)",
+    r"on account of personal reasons",
+    r"due to personal reasons",
+    r"(?:has|have) retired",
+    r"upon (?:his|her|their) retirement",
+    r"pursuant to (?:his|her|their) resignation",
+    r"consequent to (?:his|her|their) (?:resignation|retirement)",
+    r"in view of (?:his|her|their) (?:other commitments|pre-occupation)",
+]
+
+
+def scan_unsupported_claims(body: str, event: Dict) -> List[str]:
+    """Flag reason-attributions the source evidence does not support.
+
+    Not censorship — the draft still renders. The reviewer is told which
+    sentences were not derived from the filing so they can verify or strike
+    them before anything is submitted.
+    """
+    import re
+
+    source_blob = " ".join([
+        str(event.get("headline", "")),
+        str((event.get("source_ref") or {}).get("quote", "")),
+        json.dumps(event.get("entities") or {}),
+        json.dumps(event.get("delta") or {}),
+    ]).lower()
+
+    flags = []
+    for pat in _REASON_PATTERNS:
+        for m in re.finditer(pat, body, re.I):
+            phrase = m.group(0)
+            if phrase.lower() not in source_blob:
+                flags.append(phrase)
+    return sorted(set(flags))
 
 
 def generate_disclosure(event: Dict, analysis: Dict, api_key: str = "") -> Optional[Dict]:
@@ -285,6 +343,12 @@ def run(event: Dict, analysis: Dict, user_id: str = "", persist_draft: bool = Tr
 
     if not artifacts:
         return []
+
+    for a in artifacts:
+        flags = scan_unsupported_claims(a.get("body", ""), event)
+        if flags:
+            a.setdefault("metadata", {})["unsupported_claims"] = flags
+            print(f"[AGENT3] unsupported reason-attribution in {a['artifact_type']}: {flags}")
 
     # Replace rather than append, so a re-run doesn't stack duplicates.
     es.clear_artifacts(event["id"])

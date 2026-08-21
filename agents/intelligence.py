@@ -204,6 +204,9 @@ ABSOLUTE RULES:
    triggered"), never as accusations ("the company failed to...").
 4. `confidence` reflects how well the available evidence supports your
    assessment. Low evidence means low confidence — do not inflate it.
+   NEVER return 100. Certainty is not available from documentary evidence
+   alone, and a compliance professional will not trust a tool that claims it.
+   Cap yourself at 95 even when the evidence is unambiguous.
 5. This is decision-support for a qualified professional, not legal advice.
 
 Return ONLY this JSON:
@@ -306,7 +309,10 @@ def analyse_event(event: Dict, use_model: bool = True) -> Dict:
 
     risk = d.get("risk_level")
     try:
-        confidence = max(0, min(100, int(d.get("confidence", 50))))
+        # Hard-capped at 95: this product must never present an AI assessment
+        # as certain. The prompt asks for the same, but a model that ignores
+        # it should not be able to put "100%" in front of a CS professional.
+        confidence = max(0, min(95, int(d.get("confidence", 50))))
     except (TypeError, ValueError):
         confidence = 50
 

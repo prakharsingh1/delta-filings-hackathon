@@ -244,7 +244,10 @@
             <div class="stat-cell"><div class="stat-val num">{{ stats.filings_processed }}</div><div class="stat-lbl">Filings processed</div></div>
             <div class="stat-cell"><div class="stat-val num">{{ stats.events_detected }}</div><div class="stat-lbl">Events detected</div></div>
             <div class="stat-cell"><div class="stat-val num">{{ stats.pending_review }}</div><div class="stat-lbl">Pending review</div></div>
-            <div class="stat-cell alert"><div class="stat-val num">{{ stats.risk_alerts }}</div><div class="stat-lbl">Risk alerts</div></div>
+            <div class="stat-cell {{ 'alert' if stats.high_risk else '' }}">
+                <div class="stat-val num">{{ stats.risk_alerts }}</div>
+                <div class="stat-lbl">Needs attention{% if stats.high_risk %} · {{ stats.high_risk }} high{% endif %}</div>
+            </div>
         </div>
 
         <!-- ── Priority register ── -->
