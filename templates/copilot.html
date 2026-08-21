@@ -10,7 +10,7 @@
        treatment so it belongs to the app rather than sitting on top of it. */
     .dc-launcher {
         position: fixed; right: 22px; bottom: 22px; z-index: 900;
-        width: 48px; height: 48px; border-radius: 50%; padding: 0;
+        width: 56px; height: 56px; border-radius: 50%; padding: 0;
         display: inline-flex; align-items: center; justify-content: center;
         background: rgba(255,255,255,0.86);
         backdrop-filter: saturate(180%) blur(18px);
@@ -27,12 +27,12 @@
     }
     .dc-launcher:active { transform: translateY(0); }
     .dc-launcher.hidden { display: none; }
-    .dc-mark { width: 19px; height: 19px; flex-shrink: 0; }
+    .dc-mark { width: 22px; height: 22px; flex-shrink: 0; }
 
     /* Label appears on hover so the circle stays discoverable without a
        permanent wordmark competing with the page. */
     .dc-tip {
-        position: absolute; right: 58px; top: 50%; transform: translateY(-50%) translateX(4px);
+        position: absolute; right: 66px; top: 50%; transform: translateY(-50%) translateX(4px);
         white-space: nowrap; font-size: 12px; font-weight: 600; letter-spacing: -.01em;
         padding: 6px 11px; border-radius: 8px; pointer-events: none;
         background: var(--text-primary, #0f172a); color: #fff;
