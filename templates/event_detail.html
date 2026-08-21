@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ event.symbol }} — {{ event.event_label }} — Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+        .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+
+        .sec { background:#fff; border:1px solid #e2e8f0; border-radius:14px; margin-bottom:18px; }
+        .sec-head { padding:14px 20px; border-bottom:1px solid #f1f5f9;
+            display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .sec-num { font-size:10px; font-weight:800; color:#cbd5e1; letter-spacing:.1em; }
+        .sec-title { font-size:11px; font-weight:800; text-transform:uppercase;
+            letter-spacing:.09em; color:#475569; }
+        .sec-body { padding:20px; }
+
+        .chip { display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700;
+            padding:3px 9px; border-radius:6px; text-transform:uppercase; letter-spacing:.02em; white-space:nowrap; }
+        .chip-high{background:#fef2f2;color:#b91c1c;} .chip-medium{background:#fffbeb;color:#b45309;}
+        .chip-low{background:#f1f5f9;color:#64748b;}
+        .chip-new{background:#eef2ff;color:#4338ca;} .chip-analyzed{background:#f5f3ff;color:#6d28d9;}
+        .chip-actioned{background:#ecfeff;color:#0e7490;} .chip-approved{background:#ecfdf5;color:#047857;}
+        .chip-dismissed{background:#f8fafc;color:#94a3b8;} .chip-escalated{background:#fff1f2;color:#be123c;}
+        .dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+        .dot-high{background:#dc2626;} .dot-medium{background:#f59e0b;} .dot-low{background:#94a3b8;}
+
+        /* Delta before/after */
+        .delta-grid { display:grid; grid-template-columns:1fr 44px 1fr; gap:0; align-items:stretch; }
+        .delta-col { padding:16px 18px; }
+        .delta-before { background:#fafafa; border:1px solid #e2e8f0; border-radius:12px 0 0 12px; border-right:none; }
+        .delta-after  { background:#f0f9ff; border:1px solid #bae6fd; border-radius:0 12px 12px 0; border-left:none; }
+        .delta-arrow { display:flex; align-items:center; justify-content:center;
+            background:#fff; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; color:#94a3b8; }
+        .delta-period { font-size:10px; font-weight:800; text-transform:uppercase;
+            letter-spacing:.08em; color:#94a3b8; margin-bottom:12px; }
+        .metric-row { display:flex; justify-content:space-between; align-items:baseline;
+            padding:7px 0; border-bottom:1px dashed #e2e8f0; font-size:13px; }
+        .metric-row:last-child{border-bottom:none;}
+        .metric-lbl{color:#64748b;} .metric-val{font-weight:700;color:#0f172a;}
+        .metric-changed .metric-val{color:#0369a1;}
+
+        .person { display:flex; gap:11px; align-items:flex-start; padding:11px 13px;
+            border-radius:10px; margin-bottom:7px; font-size:13px; }
+        .person-in  { background:#ecfdf5; border:1px solid #a7f3d0; }
+        .person-out { background:#fef2f2; border:1px solid #fecaca; }
+        .person-chg { background:#f8fafc; border:1px solid #e2e8f0; }
+
+        .evidence { background:#0f172a; border-radius:12px; padding:18px 20px; color:#cbd5e1; }
+        .evidence-quote { border-left:3px solid #38bdf8; padding-left:14px; font-size:13.5px;
+            line-height:1.65; color:#e2e8f0; font-style:italic; }
+
+        .conf-bar { height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden; }
+        .conf-fill { height:100%; border-radius:3px; }
+
+        .mandate { border:1px solid #e2e8f0; border-radius:11px; padding:15px 17px; margin-bottom:10px; }
+        .mandate:hover{border-color:#c7d2fe;}
+        .mandate-id { font-size:10.5px; font-weight:800; color:#4338ca; background:#eef2ff;
+            padding:2px 8px; border-radius:5px; }
+
+        .action-item { display:flex; gap:13px; padding:14px 0; border-bottom:1px solid #f1f5f9; }
+        .action-item:last-child{border-bottom:none;}
+        .urg { font-size:9.5px; font-weight:800; padding:3px 8px; border-radius:5px;
+            text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; }
+        .urg-immediate{background:#fef2f2;color:#b91c1c;}
+        .urg-this_week{background:#fffbeb;color:#b45309;}
+        .urg-this_month{background:#f1f5f9;color:#64748b;}
+
+        .doc-tab { padding:8px 15px; font-size:12.5px; font-weight:600; border-radius:8px;
+            color:#64748b; background:transparent; border:1px solid transparent; cursor:pointer; }
+        .doc-tab.on { background:#0f172a; color:#fff; }
+        .doc-body { white-space:pre-wrap; font-size:13px; line-height:1.75; color:#334155;
+            background:#fafafa; border:1px solid #e2e8f0; border-radius:11px; padding:20px;
+            max-height:520px; overflow-y:auto; }
+
+        .trail-item { display:flex; gap:14px; padding-bottom:18px; position:relative; }
+        .trail-item:not(:last-child)::before { content:''; position:absolute; left:5px; top:16px;
+            bottom:0; width:1px; background:#e2e8f0; }
+        .trail-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; margin-top:3px;
+            border:2px solid #fff; box-shadow:0 0 0 1px #cbd5e1; background:#cbd5e1; z-index:1; }
+        .trail-agent .trail-dot{background:#6366f1;box-shadow:0 0 0 1px #6366f1;}
+        .trail-human .trail-dot{background:#059669;box-shadow:0 0 0 1px #059669;}
+
+        .btn { font-size:13px; font-weight:700; padding:10px 20px; border-radius:9px;
+            border:1px solid transparent; cursor:pointer; transition:all .13s; }
+        .btn-approve{background:#059669;color:#fff;} .btn-approve:hover{background:#047857;}
+        .btn-dismiss{background:#fff;color:#64748b;border-color:#e2e8f0;} .btn-dismiss:hover{border-color:#cbd5e1;}
+        .btn-escalate{background:#fff;color:#be123c;border-color:#fecdd3;} .btn-escalate:hover{background:#fff1f2;}
+        .btn:disabled{opacity:.45;cursor:not-allowed;}
+
+        .banner{border-radius:10px;padding:11px 15px;font-size:12.5px;display:flex;gap:9px;align-items:flex-start;}
+        .banner-warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;}
+        .banner-info{background:#f0f9ff;border:1px solid #bae6fd;color:#075985;}
+
+        /* ── Dark theme ──
+           The app ships a dark mode that sets a near-white body colour. The
+           components above declare light backgrounds, so without these the
+           text renders white-on-white. Every surface introduced here needs a
+           dark counterpart; none may rely on inherited colour. */
+        html.dark .sec { background:#0f0f10; border-color:#232326; }
+        html.dark .sec-head { border-bottom-color:#1c1c1f; }
+        html.dark .sec-num { color:#3f3f46; }
+        html.dark .sec-title { color:#a1a1aa; }
+
+        html.dark .delta-before { background:#141416; border-color:#27272a; }
+        html.dark .delta-after  { background:#0c1c26; border-color:#164e63; }
+        html.dark .delta-arrow  { background:#0f0f10; border-color:#27272a; color:#52525b; }
+        html.dark .delta-period { color:#71717a; }
+        html.dark .metric-row { border-bottom-color:#27272a; }
+        html.dark .metric-lbl { color:#a1a1aa; }
+        html.dark .metric-val { color:#fafafa; }
+        html.dark .metric-changed .metric-val { color:#38bdf8; }
+
+        html.dark .person-in  { background:#052e20; border-color:#065f46; }
+        html.dark .person-out { background:#2c1115; border-color:#7f1d1d; }
+        html.dark .person-chg { background:#141416; border-color:#27272a; }
+        html.dark .person .font-bold { color:#fafafa !important; }
+        html.dark .person .text-slate-600 { color:#d4d4d8 !important; }
+        html.dark .person .text-slate-500 { color:#a1a1aa !important; }
+
+        html.dark .mandate { background:#141416; border-color:#27272a; }
+        html.dark .mandate:hover { border-color:#4338ca; }
+        html.dark .mandate-id { background:#1e1b4b; color:#a5b4fc; }
+        html.dark .mandate .text-slate-900 { color:#fafafa !important; }
+        html.dark .mandate .text-slate-600 { color:#d4d4d8 !important; }
+        html.dark .mandate .text-slate-500 { color:#a1a1aa !important; }
+        html.dark .mandate .bg-red-50 { background:#2c1115 !important; }
+        html.dark .mandate .text-red-700 { color:#fca5a5 !important; }
+
+        html.dark .doc-body { background:#141416; border-color:#27272a; color:#d4d4d8; }
+        html.dark .doc-tab { color:#a1a1aa; }
+        html.dark .doc-tab.on { background:#fafafa; color:#0f0f10; }
+
+        html.dark .conf-bar { background:#27272a; }
+        html.dark .trail-item:not(:last-child)::before { background:#27272a; }
+        html.dark .trail-dot { border-color:#0f0f10; }
+
+        html.dark .chip-high{background:#2c1115;color:#fca5a5;}
+        html.dark .chip-medium{background:#2a1d05;color:#fcd34d;}
+        html.dark .chip-low{background:#1c1c1f;color:#a1a1aa;}
+        html.dark .chip-new{background:#1e1b4b;color:#a5b4fc;}
+        html.dark .chip-analyzed{background:#2a1065;color:#c4b5fd;}
+        html.dark .chip-actioned{background:#083344;color:#67e8f9;}
+        html.dark .chip-approved{background:#052e20;color:#6ee7b7;}
+        html.dark .chip-dismissed{background:#1c1c1f;color:#71717a;}
+        html.dark .chip-escalated{background:#2c1115;color:#fda4af;}
+
+        html.dark .urg-immediate{background:#2c1115;color:#fca5a5;}
+        html.dark .urg-this_week{background:#2a1d05;color:#fcd34d;}
+        html.dark .urg-this_month{background:#1c1c1f;color:#a1a1aa;}
+
+        html.dark .banner-warn{background:#2a1d05;border-color:#78350f;color:#fcd34d;}
+        html.dark .banner-info{background:#0c1c26;border-color:#164e63;color:#7dd3fc;}
+
+        html.dark .btn-dismiss{background:#141416;color:#a1a1aa;border-color:#27272a;}
+        html.dark .btn-dismiss:hover{border-color:#3f3f46;}
+        html.dark .btn-escalate{background:#141416;color:#fda4af;border-color:#7f1d1d;}
+        html.dark .btn-escalate:hover{background:#2c1115;}
+
+        html.dark .action-item { border-bottom-color:#1c1c1f; }
+        html.dark textarea { background:#141416; border-color:#27272a; color:#fafafa; }
+        html.dark textarea::placeholder { color:#52525b; }
+    </style>
+</head>
+<body class="bg-slate-50 text-gray-900">
+<div class="flex h-screen overflow-hidden">
+    {% include 'sidebar.html' %}
+    <main class="flex-1 overflow-y-auto">
+    <div class="max-w-[1180px] mx-auto px-6 py-7">
+
+        <a href="/intelligence" class="text-xs font-semibold text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 mb-4">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            Intelligence Center
+        </a>
+
+        <!-- ── 1. WHAT HAPPENED ── -->
+        <div class="flex items-start justify-between gap-5 flex-wrap mb-5">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-2">
+                    <span class="chip chip-{{ (analysis.risk_level if analysis else event.importance) }}">
+                        <span class="dot dot-{{ (analysis.risk_level if analysis else event.importance) }}"></span>
+                        {{ (analysis.risk_level if analysis else event.importance) }} risk
+                    </span>
+                    <span class="chip chip-{{ event.status }}">{{ event.status }}</span>
+                    {% if event.is_demo_scenario %}<span class="chip chip-low">Demo Scenario</span>{% endif %}
+                    <span class="text-xs text-slate-400 mono">EVT-{{ '%04d'|format(event.id) }}</span>
+                </div>
+                <h1 class="text-[26px] font-extrabold tracking-tight text-slate-900 leading-tight">
+                    {{ event.event_label }}
+                </h1>
+                <p class="text-sm text-slate-600 mt-1.5">
+                    <a href="/company/{{ event.symbol }}" class="font-bold text-slate-900 hover:underline">{{ event.company_name }}</a>
+                    <span class="text-slate-400">·</span> {{ event.category }}
+                    <span class="text-slate-400">·</span> detected {{ event.detected_at[:10] }}
+                    {% if event.effective_date %}<span class="text-slate-400">·</span> effective {{ event.effective_date }}{% endif %}
+                </p>
+                <p class="text-sm text-slate-700 mt-3 max-w-3xl leading-relaxed">{{ event.headline }}</p>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+                <a href="/company/{{ event.symbol }}/timeline" class="btn btn-dismiss">Company timeline</a>
+            </div>
+        </div>
+
+        <!-- ── 2. WHAT CHANGED ── -->
+        {% if event.delta and event.delta.metrics %}
+        <div class="sec">
+            <div class="sec-head">
+                <div class="flex items-center gap-3">
+                    <span class="sec-num">02</span>
+                    <span class="sec-title">What changed · Delta</span>
+                </div>
+                <span class="text-[11px] text-slate-400">
+                    Computed from XBRL board composition — not model output
+                </span>
+            </div>
+            <div class="sec-body">
+                <p class="text-sm font-semibold text-slate-800 mb-4">{{ event.delta.summary_line }}</p>
+
+                <div class="delta-grid mb-5">
+                    <div class="delta-col delta-before">
+                        <div class="delta-period">Before · quarter ended {{ event.delta.before_period }}</div>
+                        {% for m in event.delta.metrics %}
+                        <div class="metric-row {{ 'metric-changed' if m.changed }}">
+                            <span class="metric-lbl">{{ m.label }}</span>
+                            <span class="metric-val num">{{ m.before }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="delta-arrow">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </div>
+                    <div class="delta-col delta-after">
+                        <div class="delta-period">After · quarter ended {{ event.delta.after_period }}</div>
+                        {% for m in event.delta.metrics %}
+                        <div class="metric-row {{ 'metric-changed' if m.changed }}">
+                            <span class="metric-lbl">{{ m.label }}</span>
+                            <span class="metric-val num">{{ m.after }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if event.delta.directors_joined %}
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Appointed</div>
+                {% for d in event.delta.directors_joined %}
+                <div class="person person-in">
+                    <svg class="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    <div><span class="font-bold text-slate-900">{{ d.name }}</span>
+                        <span class="text-slate-600"> — {{ d.category }}</span>
+                        <div class="text-xs text-slate-500 mt-0.5">
+                            {% if d.din %}DIN <span class="mono">{{ d.din }}</span> · {% endif %}
+                            appointed {{ d.appointed or '—' }}</div></div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if event.delta.directors_departed %}
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 mt-4">Ceased</div>
+                {% for d in event.delta.directors_departed %}
+                <div class="person person-out">
+                    <svg class="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/></svg>
+                    <div><span class="font-bold text-slate-900">{{ d.name }}</span>
+                        <span class="text-slate-600"> — {{ d.category }}</span>
+                        <div class="text-xs text-slate-500 mt-0.5">
+                            {% if d.din %}DIN <span class="mono">{{ d.din }}</span> · {% endif %}
+                            ceased {{ d.ceased or '—' }}</div></div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if event.delta.committee_changes %}
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 mt-4">Committee composition</div>
+                {% for cid, c in event.delta.committee_changes.items() %}
+                <div class="person person-chg">
+                    <div class="flex-1">
+                        <span class="font-semibold text-slate-800">{{ cid.replace('_',' ')|title }}</span>
+                        <span class="num text-slate-500 text-xs ml-2">{{ c.before_count }} → {{ c.after_count }} members</span>
+                        {% if c.joined %}<div class="text-xs text-emerald-700 mt-1">+ {{ c.joined|join(', ') }}</div>{% endif %}
+                        {% if c.left %}<div class="text-xs text-red-700 mt-1">− {{ c.left|join(', ') }}</div>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ── 3. WHY IT MATTERS ── -->
+        <div class="sec">
+            <div class="sec-head">
+                <div class="flex items-center gap-3">
+                    <span class="sec-num">03</span>
+                    <span class="sec-title">Why it matters · Governance Intelligence Agent</span>
+                </div>
+                {% if analysis and analysis.model and analysis.model != 'none' %}
+                <span class="text-[11px] text-slate-400 mono">{{ analysis.model }} · {{ analysis.latency_ms }}ms</span>
+                {% endif %}
+            </div>
+            <div class="sec-body">
+            {% if analysis and analysis.model != 'none' %}
+                <p class="text-[15px] font-semibold text-slate-900 leading-snug mb-3">{{ analysis.finding }}</p>
+                <p class="text-sm text-slate-700 leading-relaxed mb-5">{{ analysis.why_it_matters }}</p>
+
+                {% if analysis.affected_areas %}
+                <div class="mb-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Affected areas</div>
+                    <div class="flex flex-wrap gap-1.5">
+                    {% for a in analysis.affected_areas %}
+                        <span class="chip chip-low">{{ a }}</span>
+                    {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if analysis.reasoning %}
+                <div class="mb-5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Reasoning</div>
+                    <ol class="space-y-2">
+                    {% for r in analysis.reasoning %}
+                        <li class="flex gap-3 text-sm text-slate-600 leading-relaxed">
+                            <span class="mono text-xs text-slate-400 mt-0.5 flex-shrink-0">{{ loop.index }}</span>
+                            <span>{{ r }}</span>
+                        </li>
+                    {% endfor %}
+                    </ol>
+                </div>
+                {% endif %}
+
+                <!-- ── 6. CONFIDENCE ── -->
+                <div class="pt-4 border-t border-slate-100">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">AI confidence</span>
+                        <span class="num text-sm font-bold text-slate-900">{{ analysis.confidence }}%</span>
+                    </div>
+                    <div class="conf-bar">
+                        <div class="conf-fill" style="width:{{ analysis.confidence }}%;
+                            background:{% if analysis.confidence >= 75 %}#059669{% elif analysis.confidence >= 50 %}#f59e0b{% else %}#dc2626{% endif %};"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">
+                        Confidence reflects how well the source evidence supports this assessment.
+                        This is decision support, not legal advice — a qualified Company Secretary must review before acting.
+                    </p>
+                </div>
+            {% else %}
+                <div class="banner banner-warn">
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z"/></svg>
+                    <div><strong>Model assessment unavailable.</strong> This event was detected and its
+                    regulatory context retrieved deterministically. Configure a valid
+                    <code>GEMINI_API_KEY</code> and re-run the agents to generate the governance assessment.</div>
+                </div>
+                <button onclick="rerunAgents()" id="rerunBtn" class="btn btn-dismiss mt-4">Re-run agent team</button>
+            {% endif %}
+            </div>
+        </div>
+
+        <!-- ── 4. REGULATORY CONTEXT ── -->
+        <div class="sec">
+            <div class="sec-head">
+                <div class="flex items-center gap-3">
+                    <span class="sec-num">04</span>
+                    <span class="sec-title">Regulatory context</span>
+                </div>
+                <span class="text-[11px] text-slate-400">
+                    {% if mandates_are_candidates %}Candidates retrieved from Delta's mandate library · not yet assessed
+                    {% else %}Cited by the agent from Delta's mandate library · not model-generated{% endif %}
+                </span>
+            </div>
+            <div class="sec-body">
+            {% if analysis and analysis.regulatory_area %}
+                <p class="text-sm font-semibold text-slate-800 mb-4">{{ analysis.regulatory_area }}</p>
+            {% elif mandates_are_candidates %}
+                <div class="banner banner-info mb-4">
+                    <div>These are the obligations Delta's retrieval layer matched to this event type.
+                    The Governance Intelligence Agent selects from this list when it assesses the event —
+                    it cannot cite a regulation that is not here.</div>
+                </div>
+            {% endif %}
+            {% for m in mandates %}
+                <div class="mandate">
+                    <div class="flex items-start justify-between gap-3 mb-1.5 flex-wrap">
+                        <div class="flex items-center gap-2.5">
+                            <span class="mandate-id mono">{{ m.id }}</span>
+                            <span class="font-bold text-slate-900 text-sm">{{ m.name }}</span>
+                        </div>
+                        <span class="chip chip-low">{{ m.regime }}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed mb-2">{{ m.description }}</p>
+                    <div class="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-500">
+                        <span><strong class="text-slate-600">Regulation:</strong> {{ m.regulation }}</span>
+                        {% if m.section_ref %}<span><strong class="text-slate-600">Section:</strong> {{ m.section_ref }}</span>{% endif %}
+                        {% if m.form %}<span><strong class="text-slate-600">Form:</strong> {{ m.form }}</span>{% endif %}
+                    </div>
+                    {% if m.penalty %}
+                    <div class="text-[11px] text-red-700 bg-red-50 rounded-md px-2.5 py-1.5 mt-2.5">
+                        <strong>Non-compliance:</strong> {{ m.penalty }}
+                    </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p class="text-sm text-slate-400">No regulatory requirements matched to this event.</p>
+            {% endfor %}
+            </div>
+        </div>
+
+        <!-- ── 5. EVIDENCE ── -->
+        <div class="sec">
+            <div class="sec-head">
+                <div class="flex items-center gap-3">
+                    <span class="sec-num">05</span>
+                    <span class="sec-title">Evidence</span>
+                </div>
+            </div>
+            <div class="sec-body">
+                <div class="evidence">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-[13px] mb-4">
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Source document</div>
+                            <div class="text-slate-200">{{ event.source_ref.document or '—' }}</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Filing date</div>
+                            <div class="text-slate-200 num">{{ event.source_ref.date or event.detected_at[:10] }}</div>
+                        </div>
+                        {% if event.source_ref.page %}
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Page</div>
+                            <div class="text-slate-200 num">{{ event.source_ref.page }}</div>
+                        </div>
+                        {% endif %}
+                        {% if event.source_ref.basis %}
+                        <div class="md:col-span-2">
+                            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Basis</div>
+                            <div class="text-slate-300 text-xs leading-relaxed">{{ event.source_ref.basis }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if event.source_ref.quote %}
+                    <div class="evidence-quote">"{{ event.source_ref.quote }}"</div>
+                    <p class="text-[10.5px] text-slate-500 mt-2.5">
+                        Verified verbatim against the source document. Quotes that cannot be located in
+                        the source are discarded rather than displayed.
+                    </p>
+                    {% elif event.source_ref.quote_rejected %}
+                    <div class="banner banner-warn">
+                        <div>An extracted quote could not be located verbatim in the source document
+                        and was <strong>discarded</strong> rather than shown as evidence.</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="flex flex-wrap gap-2 mt-4">
+                    {% if event.source_ref.url %}
+                        <a href="{{ event.source_ref.url }}" target="_blank" rel="noopener"
+                           class="text-xs font-semibold text-sky-400 hover:text-sky-300 inline-flex items-center gap-1.5">
+                            Open source filing
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        </a>
+                    {% endif %}
+                    {% if event.source_ref.comparison_url %}
+                        <a href="{{ event.source_ref.comparison_url }}" target="_blank" rel="noopener"
+                           class="text-xs font-semibold text-slate-400 hover:text-slate-300 inline-flex items-center gap-1.5">
+                            Open comparison filing ({{ event.delta.before_period if event.delta else '' }})
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        </a>
+                    {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 7. RECOMMENDED ACTION ── -->
+        {% if analysis and analysis.recommended_actions %}
+        <div class="sec">
+            <div class="sec-head">
+                <div class="flex items-center gap-3">
+                    <span class="sec-num">07</span>
+                    <span class="sec-title">Recommended action</span>
+                </div>
+                <span class="text-[11px] text-slate-400">{{ analysis.recommended_actions|length }} tasks</span>
+            </div>
+            <div class="sec-body py-1">
+            {% for a in analysis.recommended_actions %}
+                <div class="action-item">
+                    <span class="urg urg-{{ a.urgency }} mt-0.5">{{ a.urgency.replace('_',' ') }}</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-slate-900 text-sm">{{ a.title }}</div>
+                        {% if a.detail %}<div class="text-xs text-slate-600 mt-1 leading-relaxed">{{ a.detail }}</div>{% endif %}
+                        <div class="text-[11px] text-slate-400 mt-1.5">Owner: {{ a.owner }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ── 8. GENERATED DOCUMENTS ── -->
+        <div class="sec">
+            <div class="sec-head">
+                <div class="flex items-center gap-3">
+                    <span class="sec-num">08</span>
+                    <span class="sec-title">Generated documents · Action Execution Agent</span>
+                </div>
+                <span class="text-[11px] text-slate-400">{{ artifacts|length }} prepared</span>
+            </div>
+            <div class="sec-body">
+            {% if artifacts %}
+                <div class="banner banner-warn mb-4">
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z"/></svg>
+                    <div><strong>AI-generated first drafts.</strong> Every document below requires
+                    Company Secretary review before filing. Verify all facts, dates, names and
+                    regulatory references against source records.</div>
+                </div>
+
+                <div class="flex gap-1.5 mb-4 flex-wrap">
+                {% for a in artifacts %}
+                    <button class="doc-tab {{ 'on' if loop.first }}" data-doc="{{ a.id }}"
+                            onclick="showDoc({{ a.id }}, this)">
+                        {{ a.artifact_type.replace('_',' ')|title }}
+                    </button>
+                {% endfor %}
+                </div>
+
+                {% for a in artifacts %}
+                <div class="doc-panel" id="doc-{{ a.id }}" style="{{ '' if loop.first else 'display:none' }}">
+                    <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
+                        <div>
+                            <div class="font-bold text-slate-900 text-sm">{{ a.title }}</div>
+                            {% if a.filing_type %}
+                            <div class="text-xs text-slate-500 mt-0.5">Filing type: <span class="mono">{{ a.filing_type }}</span></div>
+                            {% endif %}
+                        </div>
+                        {% if a.draft_id %}
+                        <a href="/draft?draft_id={{ a.draft_id }}" class="btn btn-dismiss text-xs py-2">
+                            Open in editor · export PDF/DOCX
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="doc-body">{{ a.body }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-sm text-slate-400 mb-3">No documents generated for this event yet.</p>
+                <button onclick="rerunAgents()" id="genBtn" class="btn btn-dismiss">Generate documents</button>
+            {% endif %}
+            </div>
+        </div>
+
+        <!-- ── 9. HUMAN APPROVAL ── -->
+        <div class="sec">
+            <div class="sec-head">
+                <div class="flex items-center gap-3">
+                    <span class="sec-num">09</span>
+                    <span class="sec-title">Human control</span>
+                </div>
+                <span class="chip chip-{{ event.status }}" id="statusChip">{{ event.status }}</span>
+            </div>
+            <div class="sec-body">
+                <p class="text-sm text-slate-600 mb-4">
+                    The AI team prepares; a qualified professional decides. Your decision is recorded
+                    in the audit trail with your identity and a timestamp.
+                </p>
+                <textarea id="decisionNote" rows="2" placeholder="Optional note for the audit trail…"
+                    class="w-full text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 mb-3.5
+                           focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"></textarea>
+                <div class="flex gap-2.5 flex-wrap">
+                    <button class="btn btn-approve"  onclick="decide('approved')">Approve</button>
+                    <button class="btn btn-dismiss"  onclick="decide('dismissed')">Dismiss</button>
+                    <button class="btn btn-escalate" onclick="decide('escalated')">Escalate</button>
+                </div>
+                <div id="decisionMsg" class="text-xs mt-3"></div>
+            </div>
+        </div>
+
+        <!-- ── AUDIT TRAIL ── -->
+        <div class="sec">
+            <div class="sec-head">
+                <div class="flex items-center gap-3">
+                    <span class="sec-num">10</span>
+                    <span class="sec-title">Audit trail</span>
+                </div>
+                <span class="text-[11px] text-slate-400">Append-only</span>
+            </div>
+            <div class="sec-body">
+                <div id="auditTrail">
+                {% for a in audit %}
+                    <div class="trail-item {{ 'trail-agent' if a.actor_kind == 'agent' else 'trail-human' }}">
+                        <span class="trail-dot"></span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2.5 flex-wrap">
+                                <span class="mono text-xs text-slate-400 num">{{ a.ts[11:19] }}</span>
+                                <span class="font-bold text-slate-800 text-sm">
+                                    {{ actor_labels.get(a.actor, a.actor) }}
+                                </span>
+                                <span class="chip chip-low">{{ a.action }}</span>
+                                {% if a.latency_ms %}<span class="text-[11px] text-slate-400 num">{{ a.latency_ms }}ms</span>{% endif %}
+                                {% if a.model %}<span class="text-[11px] text-slate-400 mono">{{ a.model }}</span>{% endif %}
+                            </div>
+                            <div class="text-xs text-slate-600 mt-1 leading-relaxed">{{ a.detail }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {% if timeline %}
+        <div class="sec">
+            <div class="sec-head">
+                <div class="flex items-center gap-3">
+                    <span class="sec-num">11</span>
+                    <span class="sec-title">Company memory · {{ event.symbol }}</span>
+                </div>
+                <a href="/company/{{ event.symbol }}/timeline" class="text-[11px] font-semibold text-indigo-600 hover:underline">Full timeline →</a>
+            </div>
+            <div class="sec-body py-1">
+            {% for t in timeline %}
+                <a href="/event/{{ t.id }}" class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0 hover:opacity-70">
+                    <span class="dot dot-{{ t.importance }}"></span>
+                    <span class="mono text-xs text-slate-400 num flex-shrink-0">{{ t.detected_at[:10] }}</span>
+                    <span class="text-sm text-slate-700 flex-1 min-w-0 truncate">{{ t.event_label }}</span>
+                    <span class="chip chip-{{ t.status }}">{{ t.status }}</span>
+                </a>
+            {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+    </main>
+</div>
+
+<script>
+const EVENT_ID = {{ event.id }};
+
+function showDoc(id, btn) {
+    document.querySelectorAll('.doc-panel').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('on'));
+    document.getElementById('doc-' + id).style.display = '';
+    btn.classList.add('on');
+}
+
+async function decide(decision) {
+    const note = document.getElementById('decisionNote').value;
+    const msg = document.getElementById('decisionMsg');
+    document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+    msg.textContent = 'Recording decision…';
+    msg.className = 'text-xs mt-3 text-slate-500';
+    try {
+        const r = await fetch(`/api/event/${EVENT_ID}/decision`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({decision, note}),
+        });
+        const d = await r.json();
+        if (d.status !== 'ok') throw new Error(d.message || 'failed');
+        const chip = document.getElementById('statusChip');
+        chip.textContent = d.new_status;
+        chip.className = 'chip chip-' + d.new_status;
+        msg.textContent = `Recorded. Event marked ${d.new_status}.`;
+        msg.className = 'text-xs mt-3 text-emerald-600 font-semibold';
+        setTimeout(() => location.reload(), 900);
+    } catch (e) {
+        msg.textContent = 'Could not record decision: ' + e.message;
+        msg.className = 'text-xs mt-3 text-red-600 font-semibold';
+        document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+    }
+}
+
+async function rerunAgents() {
+    const btn = document.getElementById('rerunBtn') || document.getElementById('genBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Agents working…'; }
+    try {
+        const r = await fetch(`/api/event/${EVENT_ID}/rerun`, {method: 'POST'});
+        const d = await r.json();
+        if (d.status !== 'ok') throw new Error(d.message || 'failed');
+        location.reload();
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Re-run agent team'; }
+        alert('Agent run failed: ' + e.message);
+    }
+}
+</script>
+</body>
+</html>

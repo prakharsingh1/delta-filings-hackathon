@@ -179,6 +179,153 @@ def process_symbol(symbol: str, limit: int = 10, user_id: str = "",
     return traces
 
 
+# ── Governance-delta sourced events ───────────────────────
+
+def process_governance_delta(symbol: str, before_q: str, after_q: str,
+                             company_name: str = "", user_id: str = "",
+                             run_analysis: bool = True, run_action: bool = True) -> Optional[Dict]:
+    """Create an event from a real board-composition change between two
+    stored governance snapshots.
+
+    This is the DELTA path: the before/after here is parsed from the company's
+    own SEBI filing, not inferred by a model. It is what makes "8 directors ->
+    7 directors" a fact on screen rather than a claim.
+    """
+    import governance_snapshots as gs
+
+    symbol = symbol.upper()
+    delta = gs.compute_delta(symbol, before_q, after_q)
+    if not delta or not delta["has_board_change"]:
+        return None
+
+    joined = delta["directors_joined"]
+    departed = delta["directors_departed"]
+
+    # Event type and importance follow what actually moved.
+    if departed and any("independent" in (d.get("category") or "").lower() for d in departed):
+        event_type, label = "BOARD_CHANGE", "Independent Director Cessation"
+        importance = "high"
+    elif departed:
+        event_type, label = "BOARD_CHANGE", "Director Cessation"
+        importance = "high"
+    elif joined:
+        event_type, label = "BOARD_CHANGE", "Director Appointment"
+        importance = "medium"
+    elif delta.get("committee_changes"):
+        event_type, label = "BOARD_CHANGE", "Board Committee Composition Change"
+        importance = "medium"
+    else:
+        event_type, label = "BOARD_CHANGE", "Board Role Change"
+        importance = "low"
+
+    entities = {
+        "people": (
+            [{"name": d["name"], "role": d.get("category", ""), "din": d.get("din", ""),
+              "change": "appointed", "date": d.get("appointed", "")} for d in joined]
+            + [{"name": d["name"], "role": d.get("category", ""), "din": d.get("din", ""),
+                "change": "ceased", "date": d.get("ceased", "")} for d in departed]
+        ),
+        "organisations": [company_name or symbol],
+        "amounts": [],
+    }
+
+    effective = ""
+    for d in departed + joined:
+        cand = d.get("ceased") or d.get("appointed") or ""
+        if cand and (not effective or cand > effective):
+            effective = cand
+
+    event_id = es.upsert_event(
+        dedupe_key=_dedupe_key(symbol, f"gov:{before_q}->{after_q}", event_type),
+        symbol=symbol,
+        company_name=company_name or symbol,
+        filing_id=None,
+        source_kind="governance_report",
+        event_type=event_type,
+        event_label=label,
+        category="Board Governance",
+        title=f"Corporate Governance Report — quarter ended {after_q}",
+        headline=delta["summary_line"],
+        detected_at=(gs._quarter_to_date(after_q) or "") + "T09:00:00",
+        effective_date=effective,
+        importance=importance,
+        requires_action=True,
+        delta=delta,
+        entities=entities,
+        source_ref={
+            "document": f"SEBI Integrated Filing (Governance) — {after_q}",
+            "url": delta.get("after_source_url", ""),
+            "comparison_url": delta.get("before_source_url", ""),
+            "date": after_q,
+            "page": None,
+            "quote": "",
+            "basis": "XBRL board composition table, compared against "
+                     f"the quarter ended {before_q}",
+        },
+        scenario="live",
+        agent_model="deterministic:governance_snapshot",
+    )
+
+    es.log_audit("agent1", "detect", event_id, symbol,
+                 detail=f"Board composition change detected: {delta['summary_line']}",
+                 detail_obj={"method": "governance_snapshot_delta",
+                             "before_period": before_q, "after_period": after_q,
+                             "joined": len(joined), "departed": len(departed)},
+                 model="deterministic")
+
+    trace = {"symbol": symbol, "event_id": event_id, "source": "governance_delta",
+             "steps": [{"agent": "agent1", "label": ACTOR_LABELS["agent1"],
+                        "action": "detect", "result": label,
+                        "importance": importance, "model": "deterministic",
+                        "latency_ms": 0, "method": "governance_snapshot_delta"}]}
+
+    if not run_analysis:
+        return trace
+
+    event = es.get_event(event_id)
+    analysis = agent2.analyse_event(event)
+    es.save_analysis(
+        event_id, finding=analysis["finding"], why_it_matters=analysis["why_it_matters"],
+        regulatory_area=analysis["regulatory_area"], mandate_ids=analysis["mandate_ids"],
+        risk_level=analysis["risk_level"], confidence=analysis["confidence"],
+        reasoning=analysis["reasoning"], recommended_actions=analysis["recommended_actions"],
+        affected_areas=analysis["affected_areas"], model=analysis["model"],
+        latency_ms=analysis["latency_ms"])
+    es.log_audit("agent2", "analyze", event_id, symbol,
+                 detail=f"Impact assessed — risk {analysis['risk_level']}, "
+                        f"confidence {analysis['confidence']}%",
+                 detail_obj={"mandate_ids": analysis["mandate_ids"],
+                             "mandates_retrieved": len(analysis.get("mandates") or []),
+                             "rejected_mandate_ids": analysis.get("rejected_mandate_ids", [])},
+                 model=analysis["model"], latency_ms=analysis["latency_ms"])
+    es.set_status(event_id, "analyzed", actor="agent2", actor_kind="agent",
+                  note="Governance assessment completed")
+    trace["steps"].append({"agent": "agent2", "label": ACTOR_LABELS["agent2"],
+                           "action": "analyze", "result": analysis["finding"],
+                           "risk": analysis["risk_level"], "confidence": analysis["confidence"],
+                           "mandates": analysis["mandate_ids"], "model": analysis["model"],
+                           "latency_ms": analysis["latency_ms"]})
+
+    if not run_action:
+        return trace
+
+    event = es.get_event(event_id)
+    artifacts = agent3.run(event, analysis, user_id=user_id)
+    if artifacts:
+        es.log_audit("agent3", "generate", event_id, symbol,
+                     detail=f"Prepared {len(artifacts)} document(s): "
+                            + ", ".join(a["artifact_type"] for a in artifacts),
+                     detail_obj={"artifacts": [a["artifact_type"] for a in artifacts]},
+                     model=artifacts[0].get("model", ""))
+        es.set_status(event_id, "actioned", actor="agent3", actor_kind="agent",
+                      note=f"{len(artifacts)} document(s) prepared")
+        trace["steps"].append({"agent": "agent3", "label": ACTOR_LABELS["agent3"],
+                               "action": "generate",
+                               "result": ", ".join(a["artifact_type"] for a in artifacts),
+                               "count": len(artifacts), "model": artifacts[0].get("model", "")})
+    return trace
+
+
 # ── Morning brief ─────────────────────────────────────────
 
 def generate_morning_brief(symbols: List[str], hours: int = 24) -> Dict:

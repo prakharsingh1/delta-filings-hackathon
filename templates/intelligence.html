@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligence Center — Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* ── Delta Intelligence Center ──
+           Register-first, not card-first. Dense rows, tabular numerals,
+           severity carried by a left rule + dot rather than filled blocks. */
+        .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+        .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+
+        .brief-panel {
+            background: linear-gradient(180deg, #0f172a 0%, #131c31 100%);
+            border-radius: 16px; color: #e2e8f0; padding: 26px 28px;
+            border: 1px solid #1e293b;
+        }
+        .brief-greeting { font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+            color: #64748b; font-weight: 700; }
+        .brief-headline { font-size: 25px; font-weight: 700; color: #f8fafc;
+            letter-spacing: -0.02em; line-height: 1.25; margin-top: 6px; }
+
+        .stat-strip { display: grid; grid-template-columns: repeat(5, minmax(0,1fr));
+            gap: 1px; background: #e2e8f0; border: 1px solid #e2e8f0;
+            border-radius: 12px; overflow: hidden; }
+        .stat-cell { background: #fff; padding: 16px 18px; }
+        .stat-val { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em; }
+        .stat-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+            color: #94a3b8; font-weight: 700; margin-top: 3px; }
+        .stat-cell.alert .stat-val { color: #dc2626; }
+
+        /* Register */
+        .reg { width: 100%; border-collapse: collapse; }
+        .reg thead th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+            color: #94a3b8; font-weight: 700; text-align: left; padding: 10px 14px;
+            border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+            position: sticky; top: 0; z-index: 5; }
+        .reg tbody tr { border-bottom: 1px solid #f1f5f9; cursor: pointer;
+            transition: background .12s; }
+        .reg tbody tr:hover { background: #f8fafc; }
+        .reg td { padding: 13px 14px; font-size: 13.5px; color: #334155; vertical-align: middle; }
+        .reg td.sym { font-weight: 700; color: #0f172a; letter-spacing: -0.01em; }
+
+        .risk-rule { border-left: 3px solid transparent; }
+        .risk-high   { border-left-color: #dc2626; }
+        .risk-medium { border-left-color: #f59e0b; }
+        .risk-low    { border-left-color: #94a3b8; }
+
+        .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .dot-high { background: #dc2626; } .dot-medium { background: #f59e0b; }
+        .dot-low { background: #94a3b8; }
+
+        .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px;
+            font-weight: 700; padding: 3px 9px; border-radius: 6px; letter-spacing: .02em;
+            text-transform: uppercase; white-space: nowrap; }
+        .chip-high { background: #fef2f2; color: #b91c1c; }
+        .chip-medium { background: #fffbeb; color: #b45309; }
+        .chip-low { background: #f1f5f9; color: #64748b; }
+        .chip-new { background: #eef2ff; color: #4338ca; }
+        .chip-analyzed { background: #f5f3ff; color: #6d28d9; }
+        .chip-actioned { background: #ecfeff; color: #0e7490; }
+        .chip-approved { background: #ecfdf5; color: #047857; }
+        .chip-dismissed { background: #f8fafc; color: #94a3b8; }
+        .chip-escalated { background: #fff1f2; color: #be123c; }
+
+        .filter-btn { font-size: 12px; font-weight: 600; padding: 6px 13px; border-radius: 8px;
+            color: #64748b; background: #fff; border: 1px solid #e2e8f0; transition: all .12s; }
+        .filter-btn:hover { border-color: #cbd5e1; color: #334155; }
+        .filter-btn.on { background: #0f172a; border-color: #0f172a; color: #fff; }
+
+        .urgent-row { display: flex; gap: 14px; align-items: flex-start; padding: 13px 0;
+            border-top: 1px solid #1e293b; }
+        .urgent-row:first-of-type { border-top: none; }
+
+        .banner { border-radius: 10px; padding: 11px 15px; font-size: 12.5px;
+            display: flex; gap: 9px; align-items: flex-start; }
+        .banner-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+        .banner-info { background: #f0f9ff; border: 1px solid #bae6fd; color: #075985; }
+
+        /* ── Dark theme ── see event_detail.html for the rationale. */
+        html.dark .stat-strip { background:#232326; border-color:#232326; }
+        html.dark .stat-cell { background:#0f0f10; }
+        html.dark .stat-val { color:#fafafa; }
+        html.dark .stat-lbl { color:#71717a; }
+        html.dark .stat-cell.alert .stat-val { color:#f87171; }
+
+        html.dark .reg thead th { background:#141416; color:#71717a; border-bottom-color:#27272a; }
+        html.dark .reg tbody tr { border-bottom-color:#1c1c1f; }
+        html.dark .reg tbody tr:hover { background:#18181b; }
+        html.dark .reg td { color:#d4d4d8; }
+        html.dark .reg td.sym { color:#fafafa; }
+        html.dark .reg .text-slate-800 { color:#fafafa !important; }
+        html.dark .reg .text-slate-600 { color:#a1a1aa !important; }
+        html.dark .reg .text-slate-500 { color:#a1a1aa !important; }
+        html.dark .reg .text-slate-400 { color:#71717a !important; }
+        html.dark .reg .text-slate-300 { color:#52525b !important; }
+        html.dark .reg .text-indigo-700 { color:#a5b4fc !important; }
+
+        html.dark .chip-high{background:#2c1115;color:#fca5a5;}
+        html.dark .chip-medium{background:#2a1d05;color:#fcd34d;}
+        html.dark .chip-low{background:#1c1c1f;color:#a1a1aa;}
+        html.dark .chip-new{background:#1e1b4b;color:#a5b4fc;}
+        html.dark .chip-analyzed{background:#2a1065;color:#c4b5fd;}
+        html.dark .chip-actioned{background:#083344;color:#67e8f9;}
+        html.dark .chip-approved{background:#052e20;color:#6ee7b7;}
+        html.dark .chip-dismissed{background:#1c1c1f;color:#71717a;}
+        html.dark .chip-escalated{background:#2c1115;color:#fda4af;}
+
+        html.dark .filter-btn { background:#141416; border-color:#27272a; color:#a1a1aa; }
+        html.dark .filter-btn:hover { border-color:#3f3f46; color:#fafafa; }
+        html.dark .filter-btn.on { background:#fafafa; border-color:#fafafa; color:#0f0f10; }
+
+        html.dark .banner-warn{background:#2a1d05;border-color:#78350f;color:#fcd34d;}
+        html.dark .banner-info{background:#0c1c26;border-color:#164e63;color:#7dd3fc;}
+
+        /* The register/activity cards use Tailwind utilities directly. */
+        html.dark .bg-white { background:#0f0f10 !important; }
+        html.dark .border-slate-200 { border-color:#232326 !important; }
+        html.dark .border-slate-100, html.dark .border-slate-50 { border-color:#1c1c1f !important; }
+    </style>
+</head>
+<body class="bg-slate-50 text-gray-900">
+<div class="flex h-screen overflow-hidden">
+    {% include 'sidebar.html' %}
+    <main class="flex-1 overflow-y-auto">
+    <div class="max-w-[1480px] mx-auto px-6 py-7">
+
+        <!-- ── Header ── -->
+        <div class="flex items-start justify-between mb-6 flex-wrap gap-4">
+            <div>
+                <div class="flex items-center gap-2.5">
+                    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Delta Intelligence Center</h1>
+                    <span class="chip chip-new">AI Company Secretary</span>
+                </div>
+                <p class="text-sm text-slate-500 mt-1">
+                    Continuous governance monitoring across {{ symbols|length }} monitored
+                    {{ 'company' if symbols|length == 1 else 'companies' }}.
+                    AI assessments are decision support for a qualified professional — not legal advice.
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="/dashboard" class="filter-btn">Classic dashboard</a>
+            </div>
+        </div>
+
+        {% if not gemini_ready.ok %}
+        <div class="banner banner-warn mb-5">
+            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z"/></svg>
+            <div>
+                <strong>Model offline — running on deterministic layer only.</strong>
+                {{ gemini_ready.error }}<br>
+                Detection, governance deltas and regulatory retrieval below are unaffected: those are
+                computed from filings and Delta's mandate library, not generated by a model.
+                Agent assessments and document drafting are paused until a valid
+                <code>GEMINI_API_KEY</code> is configured.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ── Morning brief ── -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+            <div class="lg:col-span-2 brief-panel">
+                <div class="brief-greeting">{{ brief.greeting }} · Delta Morning Brief</div>
+                <div class="brief-headline">{{ brief.headline }}</div>
+                <div class="flex gap-6 mt-4 pb-4" style="border-bottom:1px solid #1e293b;">
+                    <div><span class="num text-xl font-bold text-white">{{ brief.stats.filings_processed }}</span>
+                        <span class="text-xs text-slate-400 ml-1.5">filings processed</span></div>
+                    <div><span class="num text-xl font-bold text-white">{{ brief.stats.events_detected }}</span>
+                        <span class="text-xs text-slate-400 ml-1.5">events</span></div>
+                    <div><span class="num text-xl font-bold text-white">{{ brief.stats.requires_attention }}</span>
+                        <span class="text-xs text-slate-400 ml-1.5">need attention</span></div>
+                    <div><span class="num text-xl font-bold text-white">{{ brief.stats.documents_prepared }}</span>
+                        <span class="text-xs text-slate-400 ml-1.5">documents ready</span></div>
+                </div>
+
+                {% if brief.urgent or brief.watch %}
+                {% set _queue = brief.urgent + brief.watch %}
+                <div class="mt-1">
+                {% for i in _queue[:5] %}
+                    <a href="/event/{{ i.event_id }}" class="urgent-row block hover:opacity-80 transition">
+                        <span class="dot dot-{{ i.risk_level }} mt-2"></span>
+                        <span class="flex-1 min-w-0">
+                            <span class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-white text-sm">{{ i.symbol }}</span>
+                                <span class="chip chip-{{ i.risk_level }}">{{ i.risk_level }}</span>
+                                {% if i.is_demo_scenario %}<span class="chip chip-low">Demo Scenario</span>{% endif %}
+                            </span>
+                            <span class="block text-sm text-slate-300 mt-1">{{ i.event_label }}</span>
+                            <span class="block text-xs text-slate-500 mt-0.5">{{ i.headline }}</span>
+                            {% if i.top_action %}
+                            <span class="block text-xs text-sky-400 mt-1.5">→ {{ i.top_action }}</span>
+                            {% endif %}
+                        </span>
+                        <span class="text-xs text-slate-500 num flex-shrink-0">
+                            {% if i.artifact_count %}{{ i.artifact_count }} docs{% endif %}
+                        </span>
+                    </a>
+                {% endfor %}
+                </div>
+                {% if _queue|length > 5 %}
+                <a href="/intelligence?status=open" class="block text-xs font-semibold text-sky-400 hover:text-sky-300 mt-3 pt-3" style="border-top:1px solid #1e293b;">
+                    + {{ _queue|length - 5 }} more in the event register →
+                </a>
+                {% endif %}
+                {% else %}
+                <p class="text-sm text-slate-400 mt-4">Nothing in the queue requires action right now.</p>
+                {% endif %}
+            </div>
+
+            <!-- Agent activity -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Agent activity</h3>
+                    <span class="num text-xs text-slate-400">{{ stats.agent_actions }} total</span>
+                </div>
+                <div class="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
+                {% for a in recent_audit %}
+                    <div class="flex gap-2.5 text-xs">
+                        <span class="mono text-slate-400 flex-shrink-0 num">{{ a.ts[11:16] }}</span>
+                        <span class="min-w-0">
+                            <span class="font-semibold text-slate-700">
+                                {% if a.actor == 'agent1' %}Monitoring Agent
+                                {% elif a.actor == 'agent2' %}Intelligence Agent
+                                {% elif a.actor == 'agent3' %}Action Agent
+                                {% else %}{{ a.actor }}{% endif %}
+                            </span>
+                            <span class="block text-slate-500 leading-snug">{{ a.detail }}</span>
+                        </span>
+                    </div>
+                {% else %}
+                    <p class="text-xs text-slate-400">No agent activity recorded yet.</p>
+                {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Stat strip ── -->
+        <div class="stat-strip mb-6">
+            <div class="stat-cell"><div class="stat-val num">{{ stats.companies_monitored }}</div><div class="stat-lbl">Companies monitored</div></div>
+            <div class="stat-cell"><div class="stat-val num">{{ stats.filings_processed }}</div><div class="stat-lbl">Filings processed</div></div>
+            <div class="stat-cell"><div class="stat-val num">{{ stats.events_detected }}</div><div class="stat-lbl">Events detected</div></div>
+            <div class="stat-cell"><div class="stat-val num">{{ stats.pending_review }}</div><div class="stat-lbl">Pending review</div></div>
+            <div class="stat-cell alert"><div class="stat-val num">{{ stats.risk_alerts }}</div><div class="stat-lbl">Risk alerts</div></div>
+        </div>
+
+        <!-- ── Priority register ── -->
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 flex-wrap gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Governance event register</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">{{ events|length }} events · highest risk first</p>
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <a href="/intelligence" class="filter-btn {{ 'on' if not filters.risk and not filters.status }}">All</a>
+                    <a href="/intelligence?status=open" class="filter-btn {{ 'on' if filters.status == 'open' }}">Open</a>
+                    <a href="/intelligence?risk=high" class="filter-btn {{ 'on' if filters.risk == 'high' }}">High risk</a>
+                    <a href="/intelligence?risk=medium" class="filter-btn {{ 'on' if filters.risk == 'medium' }}">Medium</a>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+            <table class="reg">
+                <thead>
+                    <tr>
+                        <th style="width:90px">Risk</th>
+                        <th style="width:120px">Company</th>
+                        <th>Event</th>
+                        <th style="width:230px">What changed</th>
+                        <th style="width:110px">Regulation</th>
+                        <th style="width:104px">Status</th>
+                        <th style="width:74px" class="text-right">Docs</th>
+                        <th style="width:96px" class="text-right">Detected</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for e in events %}
+                    <tr class="risk-rule risk-{{ e.risk_level }}" onclick="location.href='/event/{{ e.id }}'">
+                        <td>
+                            <span class="chip chip-{{ e.risk_level }}">
+                                <span class="dot dot-{{ e.risk_level }}"></span>{{ e.risk_level }}
+                            </span>
+                        </td>
+                        <td class="sym">
+                            {{ e.symbol }}
+                            {% if e.is_demo_scenario %}
+                            <span class="block chip chip-low mt-1">Demo Scenario</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="font-semibold text-slate-800">{{ e.event_label }}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">{{ e.category }}</div>
+                        </td>
+                        <td class="text-xs text-slate-600 leading-snug">
+                            {% if e.delta and e.delta.summary_line %}{{ e.delta.summary_line }}
+                            {% else %}{{ e.headline[:90] }}{% endif %}
+                        </td>
+                        <td>
+                            {% for m in e.mandate_ids[:2] %}
+                            <span class="mono text-[10.5px] text-indigo-700 block">{{ m }}</span>
+                            {% else %}
+                            <span class="text-slate-300 text-xs">—</span>
+                            {% endfor %}
+                        </td>
+                        <td><span class="chip chip-{{ e.status }}">{{ e.status }}</span></td>
+                        <td class="text-right num text-slate-500">{{ e.artifact_count or '—' }}</td>
+                        <td class="text-right num text-xs text-slate-400">{{ e.detected_at[:10] }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="8" class="text-center py-12 text-slate-400 text-sm">
+                        No governance events. Run <code class="mono">python3 seed_events.py</code> to populate.
+                    </td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <p class="text-xs text-slate-400 mt-5 leading-relaxed max-w-4xl">
+            Governance deltas are computed from each company's own SEBI Integrated Filing (Governance)
+            XBRL submissions. Regulatory citations are retrieved from Delta's mandate library — the model
+            selects from that closed list and cannot introduce a regulation that is not in it.
+            Every AI output on this platform requires review by a qualified Company Secretary before use.
+        </p>
+    </div>
+    </main>
+</div>
+</body>
+</html>

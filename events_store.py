@@ -442,3 +442,42 @@ def get_company_timeline(symbol: str, days: int = 365) -> List[Dict]:
     ).fetchall()
     conn.close()
     return [_hydrate(r) for r in rows]
+
+
+def list_events_with_analysis(symbols: Optional[List[str]] = None, limit: int = 200,
+                              **kw) -> List[Dict]:
+    """Events joined to their analysis in one pass — the Intelligence Center
+    register renders straight from this."""
+    events = list_events(symbols=symbols, limit=limit, **kw)
+    if not events:
+        return []
+
+    ids = [e["id"] for e in events]
+    conn = get_connection()
+    rows = conn.execute(
+        f"SELECT * FROM event_analysis WHERE event_id IN ({','.join('?' * len(ids))})", ids
+    ).fetchall()
+    counts = {r["event_id"]: r["c"] for r in conn.execute(
+        f"SELECT event_id, COUNT(*) c FROM event_artifacts "
+        f"WHERE event_id IN ({','.join('?' * len(ids))}) GROUP BY event_id", ids)}
+    conn.close()
+
+    by_event = {}
+    for r in rows:
+        a = dict(r)
+        a["mandate_ids"] = _loads(a.pop("mandate_ids_json", ""), [])
+        a["recommended_actions"] = _loads(a.pop("recommended_actions_json", ""), [])
+        a["reasoning"] = _loads(a.pop("reasoning_json", ""), [])
+        a["affected_areas"] = _loads(a.pop("affected_areas_json", ""), [])
+        by_event[a["event_id"]] = a
+
+    for e in events:
+        a = by_event.get(e["id"])
+        e["analysis"] = a
+        e["risk_level"] = (a or {}).get("risk_level") or e["importance"]
+        e["confidence"] = (a or {}).get("confidence") or 0
+        e["finding"] = (a or {}).get("finding") or e.get("headline") or ""
+        e["mandate_ids"] = (a or {}).get("mandate_ids") or []
+        e["artifact_count"] = counts.get(e["id"], 0)
+        e["top_action"] = ((a or {}).get("recommended_actions") or [{}])[0].get("title", "")
+    return events

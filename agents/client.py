@@ -149,3 +149,41 @@ def call_json(prompt: str, *, role: str = "monitor", model: Optional[str] = None
     result["error"] = last_err or "exhausted"
     result["latency_ms"] = int((time.time() - started) * 1000)
     return result
+
+
+# ── Key health ────────────────────────────────────────────
+_health_cache: Dict[str, Any] = {"checked": False, "ok": False, "error": ""}
+
+
+def gemini_healthy(force: bool = False) -> Dict[str, Any]:
+    """Whether the configured key is actually accepted by Google.
+
+    `gemini_available()` only reports that a key string exists. A revoked key
+    is present but rejected, which would otherwise surface as every agent
+    silently falling back. Probed once per process.
+    """
+    if _health_cache["checked"] and not force:
+        return dict(_health_cache)
+
+    _health_cache["checked"] = True
+    key = get_api_key()
+    if not key:
+        _health_cache.update(ok=False, error="No GEMINI_API_KEY configured")
+        return dict(_health_cache)
+
+    try:
+        import requests
+        r = requests.get("https://generativelanguage.googleapis.com/v1beta/models",
+                         params={"key": key}, timeout=8)
+        if r.status_code == 200:
+            _health_cache.update(ok=True, error="")
+        else:
+            msg = ""
+            try:
+                msg = r.json().get("error", {}).get("message", "")
+            except Exception:
+                msg = r.text[:120]
+            _health_cache.update(ok=False, error=f"HTTP {r.status_code}: {msg}")
+    except Exception as e:
+        _health_cache.update(ok=False, error=f"probe failed: {str(e)[:120]}")
+    return dict(_health_cache)

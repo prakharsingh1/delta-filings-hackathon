@@ -69,7 +69,9 @@ from demo import (
     demo_mode_enabled, is_demo_user, activate as activate_demo_session,
     DEMO_USER, DEMO_SYMBOLS,
 )
+import events_store as es
 from events_store import init_events_db
+import governance_snapshots as govsnap
 from stock_prices import (
     fetch_watchlist_prices, fetch_stock_quote, detect_price_alerts, analyze_price_movement,
     fetch_pre_open_data, detect_pre_open_alerts,
@@ -3314,6 +3316,175 @@ def api_compliance_enforcement_refresh(symbol):
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+# ══════════════════════════════════════════════════════════
+#  DELTA INTELLIGENCE CENTER
+#  The AI Company Secretary surface: what needs attention today,
+#  the event review workflow, and the audit trail.
+# ══════════════════════════════════════════════════════════
+
+@app.route("/intelligence")
+@login_required
+def intelligence_center():
+    symbols = get_companies()
+    from agents.pipeline import generate_morning_brief
+
+    brief = generate_morning_brief(symbols)
+    stats = es.get_center_stats(symbols)
+    events = es.list_events_with_analysis(symbols, limit=200)
+
+    risk_filter = request.args.get("risk", "")
+    status_filter = request.args.get("status", "")
+    symbol_filter = request.args.get("symbol", "")
+    if risk_filter:
+        events = [e for e in events if e["risk_level"] == risk_filter]
+    if status_filter == "open":
+        events = [e for e in events if e["status"] not in es.CLOSED_STATUSES]
+    elif status_filter:
+        events = [e for e in events if e["status"] == status_filter]
+    if symbol_filter:
+        events = [e for e in events if e["symbol"] == symbol_filter.upper()]
+
+    return render_template(
+        "intelligence.html",
+        active_page="intelligence",
+        brief=brief, stats=stats, events=events,
+        symbols=symbols,
+        filters={"risk": risk_filter, "status": status_filter, "symbol": symbol_filter},
+        recent_audit=es.get_recent_audit(12),
+        gemini_ready=_gemini_ready(),
+    )
+
+
+def _gemini_ready():
+    try:
+        from agents.client import gemini_healthy
+        return gemini_healthy()
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:120]}
+
+
+@app.route("/event/<int:event_id>")
+@login_required
+def event_detail(event_id):
+    event = es.get_event(event_id)
+    if not event:
+        abort(404)
+
+    analysis = es.get_analysis(event_id)
+    artifacts = es.get_artifacts(event_id)
+    audit = es.get_audit_trail(event_id)
+
+    # Regulatory context is retrieval-based, so it is available even when the
+    # model is not. Prefer the ids the agent actually cited; otherwise show the
+    # candidates retrieval would have offered it.
+    from agents.intelligence import resolve_mandates, retrieve_mandates
+    mandates = resolve_mandates(analysis.get("mandate_ids") or []) if analysis else []
+    mandates_are_candidates = False
+    if not mandates:
+        mandates = [m for m in retrieve_mandates(event, limit=4)]
+        mandates_are_candidates = bool(mandates)
+
+    timeline = [e for e in es.get_company_timeline(event["symbol"], days=730)
+                if e["id"] != event_id][:10]
+
+    return render_template(
+        "event_detail.html",
+        active_page="intelligence",
+        event=event, analysis=analysis, artifacts=artifacts,
+        audit=audit, mandates=mandates, timeline=timeline,
+        mandates_are_candidates=mandates_are_candidates,
+        actor_labels={"agent1": "Compliance Monitoring Agent",
+                      "agent2": "Governance Intelligence Agent",
+                      "agent3": "Action Execution Agent"},
+    )
+
+
+@app.route("/api/event/<int:event_id>/decision", methods=["POST"])
+@login_required
+def api_event_decision(event_id):
+    """Human approval step. Approve / dismiss / escalate."""
+    event = es.get_event(event_id)
+    if not event:
+        return jsonify({"status": "error", "message": "not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    decision = (data.get("decision") or "").strip()
+    if decision not in ("approved", "dismissed", "escalated"):
+        return jsonify({"status": "error", "message": "invalid decision"}), 400
+
+    user = current_user() or {}
+    actor = user.get("email") or user.get("name") or "reviewer"
+    note = (data.get("note") or "").strip()
+
+    es.set_status(event_id, decision, actor=actor, actor_kind="human",
+                  note=note or f"Reviewer marked event as {decision}")
+
+    return jsonify({"status": "ok", "event_id": event_id, "new_status": decision,
+                    "audit": es.get_audit_trail(event_id)})
+
+
+@app.route("/api/event/<int:event_id>/rerun", methods=["POST"])
+@login_required
+def api_event_rerun(event_id):
+    """Re-run the agent team over one event — the live pipeline demo."""
+    event = es.get_event(event_id)
+    if not event:
+        return jsonify({"status": "error", "message": "not found"}), 404
+
+    from agents import intelligence as agent2, action as agent3
+
+    analysis = agent2.analyse_event(event)
+    es.save_analysis(
+        event_id, finding=analysis["finding"], why_it_matters=analysis["why_it_matters"],
+        regulatory_area=analysis["regulatory_area"], mandate_ids=analysis["mandate_ids"],
+        risk_level=analysis["risk_level"], confidence=analysis["confidence"],
+        reasoning=analysis["reasoning"], recommended_actions=analysis["recommended_actions"],
+        affected_areas=analysis["affected_areas"], model=analysis["model"],
+        latency_ms=analysis["latency_ms"])
+    es.log_audit("agent2", "analyze", event_id, event["symbol"],
+                 detail=f"Re-assessed — risk {analysis['risk_level']}, "
+                        f"confidence {analysis['confidence']}%",
+                 detail_obj={"mandate_ids": analysis["mandate_ids"],
+                             "rejected_mandate_ids": analysis.get("rejected_mandate_ids", [])},
+                 model=analysis["model"], latency_ms=analysis["latency_ms"])
+    es.set_status(event_id, "analyzed", actor="agent2", actor_kind="agent",
+                  note="Governance assessment refreshed")
+
+    artifacts = agent3.run(es.get_event(event_id), analysis, user_id=_current_user_id() or "")
+    if artifacts:
+        es.log_audit("agent3", "generate", event_id, event["symbol"],
+                     detail=f"Prepared {len(artifacts)} document(s)",
+                     model=artifacts[0].get("model", ""))
+        es.set_status(event_id, "actioned", actor="agent3", actor_kind="agent",
+                      note=f"{len(artifacts)} document(s) prepared")
+
+    return jsonify({"status": "ok", "event_id": event_id,
+                    "analysis_model": analysis["model"],
+                    "artifacts": len(artifacts)})
+
+
+@app.route("/api/morning-brief")
+@login_required
+def api_morning_brief():
+    from agents.pipeline import generate_morning_brief
+    hours = request.args.get("hours", 24, type=int)
+    return jsonify(generate_morning_brief(get_companies(), hours=hours))
+
+
+@app.route("/company/<symbol>/timeline")
+@login_required
+def company_timeline_page(symbol):
+    symbol = symbol.upper()
+    return render_template(
+        "company_timeline.html",
+        active_page="intelligence",
+        symbol=symbol,
+        events=es.get_company_timeline(symbol, days=730),
+        snapshots=govsnap.list_snapshots(symbol),
+        changes=govsnap.find_change_periods(symbol),
+    )
+
+
 # ── Startup: initialize DB tables ─────────────────────────
 # These must run at import time so that gunicorn workers (production) have
 # a ready DB. Heavy operations like pre-loading filings stay in __main__.
@@ -3323,6 +3494,7 @@ init_enforcement_db()
 init_alerts_db()
 init_drafts_db()
 init_events_db()
+govsnap.init_snapshots_db()
 seed_default_referral_codes()
 init_watchlist()
 
@@ -3341,19 +3513,28 @@ print("[MAIN] Databases initialized.")
 
 
 if __name__ == "__main__":
-    print("[MAIN] Pre-loading first watchlist company filings...")
-    companies = get_companies()
-    if companies:
-        try:
-            process_filings(companies[0])
-        except Exception as e:
-            print(f"[MAIN] Pre-load warning: {e}")
+    # Both steps below hit NSE and can take minutes. DELTA_SKIP_PRELOAD=1
+    # starts the server immediately against cached data — used for local UI work.
+    if os.environ.get("DELTA_SKIP_PRELOAD", "").strip() in ("1", "true", "True"):
+        print("[MAIN] DELTA_SKIP_PRELOAD set — serving cached data only.")
+    else:
+        print("[MAIN] Pre-loading first watchlist company filings...")
+        # get_companies() reads the Flask session, so it needs a request context.
+        # Under gunicorn this block never runs; running `python3 main.py`
+        # directly used to crash here before the server ever started.
+        with app.test_request_context("/"):
+            companies = get_companies()
+        if companies:
+            try:
+                process_filings(companies[0])
+            except Exception as e:
+                print(f"[MAIN] Pre-load warning: {e}")
 
-    print("[MAIN] Initializing Compliance OS...")
-    try:
-        refresh_compliance()
-    except Exception as e:
-        print(f"[MAIN] Compliance warning: {e}")
+        print("[MAIN] Initializing Compliance OS...")
+        try:
+            refresh_compliance()
+        except Exception as e:
+            print(f"[MAIN] Compliance warning: {e}")
 
     print("\n[MAIN] Starting Delta Filings on http://127.0.0.1:8080\n")
     app.run(debug=True, port=8080)
