@@ -65,6 +65,10 @@ from database import (
     unlink_user_telegram as db_unlink_user_telegram,
 )
 from diff_engine import compute_diff, diff_to_html, side_by_side_html
+from demo import (
+    demo_mode_enabled, is_demo_user, activate as activate_demo_session,
+    DEMO_USER, DEMO_SYMBOLS,
+)
 from stock_prices import (
     fetch_watchlist_prices, fetch_stock_quote, detect_price_alerts, analyze_price_movement,
     fetch_pre_open_data, detect_pre_open_alerts,
@@ -110,6 +114,15 @@ def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         user = current_user()
+
+        # Demo mode: a judge must never land on sign-in or the payment wall.
+        # No session at all -> provision the demo session inline and continue.
+        if demo_mode_enabled():
+            if not user:
+                user = activate_demo_session(session)
+            if is_demo_user(user):
+                return f(*args, **kwargs)
+
         if not user:
             return redirect(url_for("signin_page", next=request.path))
         if not user.get("onboarded"):
@@ -125,9 +138,12 @@ def login_required(f):
 @app.context_processor
 def inject_user():
     # ui_version: 'legacy' (sidebar layout, default) or 'new' (top-nav redesign).
+    _u = current_user()
     return {
-        "current_user": current_user(),
+        "current_user": _u,
         "ui_version": get_setting("ui_version", "legacy"),
+        "demo_mode": demo_mode_enabled(),
+        "is_demo": is_demo_user(_u),
     }
 
 
@@ -787,6 +803,24 @@ def api_payment_redeem_referral():
     cached = session.get("user_cache") or {}
     session["user_cache"] = {**cached, "paid": True, "referral_code": code}
     return jsonify({"status": "ok", "paid": True, "via_referral": True})
+
+
+@app.route("/demo")
+def demo_entry():
+    """Public entry point for judges/reviewers. Provisions the demo session
+    and drops straight into the Intelligence Center."""
+    if not demo_mode_enabled():
+        return redirect(url_for("signin_page"))
+    activate_demo_session(session)
+    return redirect("/intelligence")
+
+
+@app.route("/demo/exit")
+def demo_exit():
+    """Leave the demo session without touching a real account."""
+    if session.get("demo"):
+        session.clear()
+    return redirect("/")
 
 
 @app.route("/dashboard")
