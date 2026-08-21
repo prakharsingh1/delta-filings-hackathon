@@ -369,6 +369,7 @@ def generate_morning_brief(symbols: List[str], hours: int = 24) -> Dict:
     urgent, watch, informational = [], [], []
     for e in recent:
         analysis = es.get_analysis(e["id"]) or {}
+        assessed = bool(analysis.get("model") not in (None, "", "none"))
         item = {
             "event_id": e["id"],
             "symbol": e["symbol"],
@@ -378,7 +379,8 @@ def generate_morning_brief(symbols: List[str], hours: int = 24) -> Dict:
             "importance": e["importance"],
             "status": e["status"],
             "is_demo_scenario": e.get("is_demo_scenario", False),
-            "risk_level": analysis.get("risk_level", e["importance"]),
+            "assessed": assessed,
+            "risk_level": analysis.get("risk_level", e["importance"]) if assessed else "unassessed",
             "confidence": analysis.get("confidence", 0),
             "finding": analysis.get("finding", ""),
             "top_action": (analysis.get("recommended_actions") or [{}])[0].get("title", ""),

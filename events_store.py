@@ -279,6 +279,8 @@ def list_events(symbols: Optional[List[str]] = None, status: Optional[str] = Non
     # High risk first, then most recent.
     sql += """ ORDER BY CASE importance WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
                detected_at DESC LIMIT ?"""
+    # (assessed-first ordering is applied in list_events_with_analysis, which
+    #  is the only caller that knows whether an assessment exists)
     args.append(limit)
 
     conn = get_connection()
@@ -490,12 +492,23 @@ def list_events_with_analysis(symbols: Optional[List[str]] = None, limit: int = 
     for e in events:
         a = by_event.get(e["id"])
         e["analysis"] = a
+        # An event whose assessment failed has NOT been assigned a risk level by
+        # anyone qualified to. Surfacing the detector's importance as though it
+        # were an assessment would put an unreviewed item at the top of the
+        # queue with an authority it has not earned.
+        e["assessed"] = bool(a and a.get("model") not in (None, "", "none"))
         e["risk_level"] = (a or {}).get("risk_level") or e["importance"]
+        if not e["assessed"]:
+            e["risk_level"] = "unassessed"
         e["confidence"] = (a or {}).get("confidence") or 0
         e["finding"] = (a or {}).get("finding") or e.get("headline") or ""
         e["mandate_ids"] = (a or {}).get("mandate_ids") or []
         e["artifact_count"] = counts.get(e["id"], 0)
         e["top_action"] = ((a or {}).get("recommended_actions") or [{}])[0].get("title", "")
+
+    rank = {"high": 0, "medium": 1, "low": 2, "unassessed": 3}
+    events.sort(key=lambda x: (rank.get(x["risk_level"], 3), x["detected_at"]), reverse=False)
+    events.sort(key=lambda x: rank.get(x["risk_level"], 3))
     return events
 
 
