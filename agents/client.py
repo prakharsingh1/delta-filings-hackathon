@@ -143,8 +143,15 @@ def call_json(prompt: str, *, role: str = "monitor", model: Optional[str] = None
                 last_err = "unparseable_json"
             except Exception as e:
                 last_err = str(e)[:200]
-                if "404" in last_err or "NOT_FOUND" in last_err:
-                    print(f"[AGENT] {role}/{m} retired by provider — skipping to fallback")
+                # Match the status code, not a bare "404" substring: quota
+                # errors embed billing URLs and ids that can contain those
+                # digits, which made a credit-exhaustion error report itself
+                # as "model retired".
+                if "NOT_FOUND" in last_err or re.search(r"'code':\s*404|\"code\":\s*404", last_err):
+                    print(f"[AGENT] {role}/{m} not available — skipping to fallback")
+                    break
+                if "RESOURCE_EXHAUSTED" in last_err and "credits are depleted" in last_err:
+                    print(f"[AGENT] Gemini credits depleted — no model can serve this request")
                     break
                 if any(s in last_err for s in ("503", "UNAVAILABLE", "overloaded", "429", "RESOURCE_EXHAUSTED")):
                     if attempt == 0:

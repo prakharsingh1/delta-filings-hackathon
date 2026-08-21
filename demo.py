@@ -17,7 +17,12 @@ from database import get_connection, get_watchlist
 
 # Companies the demo session monitors. Real listed issuers — see
 # seed_demo.py for the rule on what we will and won't attribute to them.
-DEMO_SYMBOLS = ["HINDUNILVR", "RELIANCE", "INFY", "ITC", "NESTLEIND"]
+DEMO_SYMBOLS = [
+    # FMCG / IT
+    "HINDUNILVR", "RELIANCE", "INFY", "ITC", "NESTLEIND",
+    # Metals & mining — top 5 by market cap
+    "TATASTEEL", "HINDALCO", "JSWSTEEL", "VEDL", "JINDALSTEL",
+]
 
 DEMO_USER_ID = "demo-judge"
 
@@ -25,7 +30,7 @@ DEMO_USER = {
     "id": DEMO_USER_ID,
     "name": "Demo Reviewer",
     "email": "demo@deltafilings.in",
-    "industry": "FMCG",
+    "industry": "FMCG & Metals",   # two sectors are monitored, not one
     "onboarded": True,
     "is_demo": True,
 }
