@@ -67,6 +67,7 @@ from database import (
 from diff_engine import compute_diff, diff_to_html, side_by_side_html
 from demo import (
     demo_mode_enabled, is_demo_user, activate as activate_demo_session,
+    refresh_if_stale as refresh_demo_session,
     DEMO_USER, DEMO_SYMBOLS,
 )
 import events_store as es
@@ -124,6 +125,7 @@ def login_required(f):
             if not user:
                 user = activate_demo_session(session)
             if is_demo_user(user):
+                refresh_demo_session(session, user)
                 return f(*args, **kwargs)
 
         if not user:
@@ -153,6 +155,67 @@ STATUS_LABELS = {
 @app.context_processor
 def inject_status_labels():
     return {"status_labels": STATUS_LABELS}
+
+
+@app.context_processor
+def inject_copilot():
+    """Resolve the current screen for Delta Copilot on every render.
+
+    Computed server-side from the route rather than sniffed from the URL by
+    the widget, so the assistant's view of the screen always matches what was
+    actually rendered.
+    """
+    try:
+        from copilot import build_context, suggest_for
+        page = _copilot_page_label()
+        ctx = build_context(
+            active_page=page,
+            view_args=dict(request.view_args or {}),
+            args=request.args.to_dict(),
+            user_symbols=get_companies() if session.get("user_id") else [],
+        )
+        return {"copilot_ctx": ctx, "copilot_suggestions": suggest_for(ctx)}
+    except Exception as e:
+        print(f"[COPILOT] context processor failed: {str(e)[:140]}")
+        return {"copilot_ctx": None, "copilot_suggestions": []}
+
+
+# Flask endpoint name -> the active_page label copilot.context understands.
+_COPILOT_PAGE_BY_ENDPOINT = {
+    "dashboard": "dashboard",
+    "intelligence_center": "intelligence",
+    "event_detail": "intelligence",
+    "compliance_page": "compliance",
+    "company_view": "company",
+    "company_timeline_page": "company",
+    "din_search_page": "din_search",
+    "draft_page": "draft",
+    "prices_page": "prices",
+    "watchlist_page": "watchlist",
+}
+
+# Path prefix -> active_page, used when an endpoint is not in the map above.
+# Without this, adding a route silently downgraded Copilot to generic
+# suggestions with no error anywhere — which is how /company/<symbol> was
+# showing "Explain SEBI LODR Regulation 30" instead of company questions.
+_COPILOT_PAGE_BY_PATH = (
+    ("/intelligence", "intelligence"), ("/command", "intelligence"),
+    ("/event/", "intelligence"), ("/compliance", "compliance"),
+    ("/company/", "company"), ("/draft", "draft"),
+    ("/din-search", "din_search"), ("/prices", "prices"),
+    ("/watchlist", "watchlist"), ("/dashboard", "dashboard"),
+)
+
+
+def _copilot_page_label() -> str:
+    endpoint = request.endpoint or ""
+    if endpoint in _COPILOT_PAGE_BY_ENDPOINT:
+        return _COPILOT_PAGE_BY_ENDPOINT[endpoint]
+    path = request.path or ""
+    for prefix, label in _COPILOT_PAGE_BY_PATH:
+        if path.startswith(prefix):
+            return label
+    return ""
 
 
 @app.context_processor
@@ -3508,6 +3571,57 @@ def api_event_replay(event_id):
     if not replay:
         return jsonify({"status": "error", "message": "not found"}), 404
     return jsonify(replay)
+
+
+@app.route("/api/copilot/chat", methods=["POST"])
+@login_required
+def api_copilot_chat():
+    """One turn of conversation with Delta Copilot."""
+    from copilot import build_context, answer, suggest_for
+
+    data = request.get_json(silent=True) or {}
+    question = (data.get("question") or "").strip()
+    if not question:
+        return jsonify({"status": "error", "message": "empty question"}), 400
+    if len(question) > 2000:
+        question = question[:2000]
+
+    # Context is rebuilt server-side from what the client reports it is
+    # showing; the client supplies the page, never the underlying facts.
+    client_ctx = data.get("context") or {}
+    ctx = build_context(
+        active_page=client_ctx.get("active_page", ""),
+        view_args=client_ctx.get("view_args") or {},
+        args=client_ctx.get("args") or {},
+        user_symbols=get_companies(),
+    )
+
+    history = data.get("history") or []
+    if not isinstance(history, list):
+        history = []
+
+    result = answer(question, ctx, history=history[-6:])
+    result["suggestions"] = suggest_for(ctx)
+    result["context_summary"] = {
+        "page_type": ctx["page_type"],
+        "company": ctx.get("company"),
+        "document": ctx.get("document"),
+    }
+    return jsonify(result)
+
+
+@app.route("/api/copilot/context")
+@login_required
+def api_copilot_context():
+    """What Copilot currently believes the user is looking at — used by the
+    widget to refresh suggestions without a full page load."""
+    from copilot import build_context, suggest_for
+    ctx = build_context(
+        active_page=request.args.get("active_page", ""),
+        args=request.args.to_dict(),
+        user_symbols=get_companies(),
+    )
+    return jsonify({"context": ctx, "suggestions": suggest_for(ctx)})
 
 
 @app.route("/api/morning-brief")

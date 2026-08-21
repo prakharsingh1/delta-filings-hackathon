@@ -17,6 +17,13 @@ import time
 from database import get_connection, get_cached_filings
 
 # Top 5 Indian metal & mining companies by market capitalisation, NSE symbols.
+FMCG = {
+    "HINDUNILVR": "Hindustan Unilever Limited",
+    "ITC":        "ITC Limited",
+    "NESTLEIND":  "Nestle India Limited",
+    "BRITANNIA":  "Britannia Industries Limited",
+    "DABUR":      "Dabur India Limited",
+}
 METALS = {
     "TATASTEEL":  "Tata Steel Limited",
     "HINDALCO":   "Hindalco Industries Limited",
@@ -35,7 +42,7 @@ EXISTING = {
 
 DEMO_USER = "demo-judge"
 PAUSE_BETWEEN = 8      # seconds between companies
-YEARS = 3
+YEARS = 5
 
 
 def counts():
@@ -87,15 +94,17 @@ if __name__ == "__main__":
     if "--years" in sys.argv:
         years = int(sys.argv[sys.argv.index("--years") + 1])
 
-    if "--metals" in sys.argv:
+    if "--fmcg" in sys.argv:
+        target = FMCG
+    elif "--metals" in sys.argv:
         target = METALS
     elif "--existing" in sys.argv:
         target = EXISTING
     else:
-        target = {**METALS, **EXISTING}
+        target = FMCG
 
     print(f"Backfilling {len(target)} companies at {years}-year depth\n")
-    add_to_demo_watchlist(METALS)
+    add_to_demo_watchlist(FMCG)
 
     backfill(target, years=years)
 

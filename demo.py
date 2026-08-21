@@ -18,19 +18,18 @@ from database import get_connection, get_watchlist
 # Companies the demo session monitors. Real listed issuers — see
 # seed_demo.py for the rule on what we will and won't attribute to them.
 DEMO_SYMBOLS = [
-    # FMCG / IT
-    "HINDUNILVR", "RELIANCE", "INFY", "ITC", "NESTLEIND",
-    # Metals & mining — top 5 by market cap
-    "TATASTEEL", "HINDALCO", "JSWSTEEL", "VEDL", "JINDALSTEL",
+    # Top 5 Indian FMCG issuers by market capitalisation. Single sector on
+    # purpose — a Company Secretary works one industry's regulatory calendar.
+    "HINDUNILVR", "ITC", "NESTLEIND", "BRITANNIA", "DABUR",
 ]
 
 DEMO_USER_ID = "demo-judge"
 
 DEMO_USER = {
     "id": DEMO_USER_ID,
-    "name": "Demo Reviewer",
+    "name": "Prakhar",
     "email": "demo@deltafilings.in",
-    "industry": "FMCG & Metals",   # two sectors are monitored, not one
+    "industry": "FMCG",
     "onboarded": True,
     "is_demo": True,
 }
@@ -43,6 +42,21 @@ def demo_mode_enabled():
 
 def is_demo_user(user):
     return bool(user and user.get("id") == DEMO_USER_ID)
+
+
+def refresh_if_stale(session, user):
+    """Re-seed the session cache when the demo profile has changed.
+
+    The signed-in profile is cached in the Flask session, so editing
+    DEMO_USER (name, industry) left existing browser sessions showing the old
+    values until the cookie was cleared. Cheap dict compare per request.
+    """
+    if not is_demo_user(user):
+        return user
+    if all(user.get(k) == v for k, v in DEMO_USER.items()):
+        return user
+    session["user_cache"] = dict(DEMO_USER)
+    return dict(DEMO_USER)
 
 
 def activate(session):

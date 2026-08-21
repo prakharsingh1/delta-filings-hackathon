@@ -22,18 +22,12 @@ from agents.pipeline import process_filing, process_governance_delta
 from database import get_cached_filings, get_connection
 
 COMPANIES = {
-    # FMCG / IT
+    # Top 5 Indian FMCG issuers by market capitalisation.
     "HINDUNILVR": "Hindustan Unilever Limited",
-    "RELIANCE": "Reliance Industries Limited",
-    "INFY": "Infosys Limited",
     "ITC": "ITC Limited",
     "NESTLEIND": "Nestle India Limited",
-    # Metals & mining — top 5 by market cap
-    "TATASTEEL": "Tata Steel Limited",
-    "HINDALCO": "Hindalco Industries Limited",
-    "JSWSTEEL": "JSW Steel Limited",
-    "VEDL": "Vedanta Limited",
-    "JINDALSTEL": "Jindal Steel & Power Limited",
+    "BRITANNIA": "Britannia Industries Limited",
+    "DABUR": "Dabur India Limited",
 }
 
 DEMO_USER = "demo-judge"

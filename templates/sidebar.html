@@ -219,8 +219,6 @@
             <a href="/dashboard" class="top-nav-item {{ 'active' if active_page == 'dashboard' else '' }}">Dashboard</a>
             <a href="/draft" class="top-nav-item {{ 'active' if active_page == 'draft' else '' }}">Draft</a>
             <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'announcements' or (active_page == 'company' and _company_tab != 'compare')) else '' }}">Disclosures</a>
-            <a href="/prices" class="top-nav-item {{ 'active' if active_page == 'prices' else '' }}">Stock Prices</a>
-            <a href="/din-search" class="top-nav-item {{ 'active' if active_page == 'din_search' else '' }}">DIN Search</a>
             <a href="/compliance" class="top-nav-item {{ 'active' if active_page == 'compliance' else '' }}">Compliance</a>
             <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'compare' or (active_page == 'company' and _company_tab == 'compare')) else '' }}">Compare</a>
         </nav>
@@ -1108,3 +1106,7 @@ function setAddCompany(symbol, name) {
         }).catch(() => { input.disabled = false; statusEl.textContent = 'Network error'; statusEl.className = 'text-[11px] mt-2 text-red-500'; });
 }
 </script>
+
+
+{# Delta Copilot — global floating assistant, present on every authed screen. #}
+{% include 'copilot.html' %}
