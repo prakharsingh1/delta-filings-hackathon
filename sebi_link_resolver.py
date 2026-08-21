@@ -39,6 +39,11 @@ _USER_AGENT = (
 _cache: Dict[str, str] = {}
 _cache_at: float = 0.0
 _cache_ttl = 24 * 60 * 60  # refresh once per day
+# Failures are remembered too. Without this, an unreachable SEBI meant every
+# single caller re-attempted a 15s fetch: enriching 514 obligations cost
+# 2.2 hours and hung /api/compliance outright.
+_last_attempt_at: float = 0.0
+_failure_backoff = 10 * 60  # after a failed scrape, don't retry for 10 min
 _lock = threading.Lock()
 
 
@@ -76,21 +81,36 @@ def _scrape_index() -> Dict[str, str]:
 
 
 def _refresh_cache_locked():
-    global _cache, _cache_at
+    global _cache, _cache_at, _last_attempt_at
+    _last_attempt_at = time.time()          # recorded whether or not we succeed
     fresh = _scrape_index()
     if fresh:
         _cache = fresh
         _cache_at = time.time()
         print(f"[SEBI-LINK] cache refreshed: {list(fresh.keys())}")
+    else:
+        print(f"[SEBI-LINK] discovery failed — serving the index URL for the "
+              f"next {_failure_backoff // 60} minutes")
+
+
+def _should_attempt(now: float) -> bool:
+    """Whether a (re)discovery is worth trying right now."""
+    if _cache and (now - _cache_at) <= _cache_ttl:
+        return False                                   # fresh cache, nothing to do
+    return (now - _last_attempt_at) > _failure_backoff  # else respect the backoff
 
 
 def get_regulation_url(key: str) -> str:
     """Return the current URL for a regulation by stable key (e.g. 'lodr', 'pit').
-    Falls back to SEBI's regulations index page if discovery fails."""
+
+    Falls back to SEBI's regulations index page — which is always valid — when
+    discovery fails. A failed attempt is remembered, so callers in a loop pay
+    the network cost at most once per backoff window rather than once each.
+    """
     now = time.time()
-    if not _cache or (now - _cache_at) > _cache_ttl:
+    if _should_attempt(now):
         with _lock:
-            if not _cache or (now - _cache_at) > _cache_ttl:
+            if _should_attempt(time.time()):
                 _refresh_cache_locked()
     return _cache.get(key) or SEBI_REGULATIONS_INDEX
 
