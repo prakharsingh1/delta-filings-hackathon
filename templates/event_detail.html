@@ -210,6 +210,73 @@
         .audit-chev { transition:transform .18s; }
         #aiAudit summary:hover .sec-title { color:#4338ca; }
         html.dark #aiAudit summary:hover .sec-title { color:#a5b4fc; }
+
+        /* ── Board roster ── */
+        .roster-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:22px; }
+        .roster-h { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+            color:#94a3b8; margin-bottom:9px; display:flex; gap:6px; align-items:baseline; }
+        .roster-h .num { color:#0f172a; font-size:12px; }
+        .roster-row { padding:6px 0; border-bottom:1px solid #f8fafc; }
+        .roster-row:last-child { border-bottom:none; }
+        .roster-name { display:block; font-size:13px; font-weight:600; color:#1e293b; }
+        .roster-meta { display:block; font-size:10.5px; color:#94a3b8;
+            font-family:ui-monospace,Menlo,monospace; margin-top:1px; }
+
+        /* ── Obligations ── */
+        .ob-row { display:flex; align-items:center; gap:12px; padding:11px 0;
+            border-bottom:1px solid #f1f5f9; }
+        .ob-row:last-child { border-bottom:none; }
+        .ob-days { font-size:11px; font-weight:800; padding:3px 8px; border-radius:6px;
+            background:#f1f5f9; color:#475569; white-space:nowrap; min-width:56px; text-align:center; }
+        .ob-days.soon { background:#fffbeb; color:#b45309; }
+        .ob-name { display:block; font-size:13px; font-weight:600; color:#1e293b; }
+        .ob-meta { display:block; font-size:11px; color:#94a3b8; margin-top:1px; }
+
+        /* ── Pattern ── */
+        .pat-row { display:flex; align-items:center; gap:10px; padding:7px 0;
+            text-decoration:none; border-bottom:1px solid #f8fafc; }
+        .pat-row:last-child { border-bottom:none; }
+        .pat-row:hover { opacity:.7; }
+
+        /* ── Peers ── */
+        .peer-row { display:flex; align-items:center; gap:11px; padding:7px 0; }
+        .peer-sym { font-size:11.5px; font-weight:700; color:#475569; width:88px; flex-shrink:0; }
+        .peer-track { flex:1; height:7px; background:#f1f5f9; border-radius:4px; overflow:hidden; }
+        .peer-fill { display:block; height:100%; background:#cbd5e1; border-radius:4px; }
+        .peer-pct { font-size:11.5px; font-weight:700; color:#334155; width:36px; text-align:right; }
+        .peer-n { font-size:10.5px; color:#94a3b8; width:44px; text-align:right; }
+        .peer-row.is-current .peer-sym { color:#4338ca; font-weight:800; }
+        .peer-row.is-current .peer-fill { background:#4f46e5; }
+
+        /* ── Coverage ── */
+        .cov-item { display:block; padding:11px 13px; border:1px solid #e2e8f0; border-radius:10px;
+            margin-bottom:8px; text-decoration:none; transition:border-color .13s; }
+        .cov-item:hover { border-color:#c7d2fe; }
+        .cov-title { font-size:12.5px; font-weight:600; color:#1e293b; line-height:1.4; }
+        .cov-url { font-size:10.5px; color:#94a3b8; font-family:ui-monospace,Menlo,monospace;
+            margin-top:3px; word-break:break-all; }
+        .cov-desc { font-size:11.5px; color:#64748b; margin-top:5px; line-height:1.5; }
+
+        /* ── Dark ── */
+        html.dark .roster-h .num { color:#fafafa; }
+        html.dark .roster-row { border-bottom-color:#18181b; }
+        html.dark .roster-name { color:#e4e4e7; }
+        html.dark .roster-meta, html.dark .ob-meta, html.dark .peer-n { color:#71717a; }
+        html.dark .ob-row, html.dark .pat-row { border-bottom-color:#1c1c1f; }
+        html.dark .ob-days { background:#1c1c1f; color:#a1a1aa; }
+        html.dark .ob-days.soon { background:#2a1d05; color:#fcd34d; }
+        html.dark .ob-name { color:#e4e4e7; }
+        html.dark .peer-sym { color:#a1a1aa; }
+        html.dark .peer-track { background:#1c1c1f; }
+        html.dark .peer-fill { background:#3f3f46; }
+        html.dark .peer-pct { color:#d4d4d8; }
+        html.dark .peer-row.is-current .peer-sym { color:#a5b4fc; }
+        html.dark .peer-row.is-current .peer-fill { background:#6366f1; }
+        html.dark .cov-item { border-color:#27272a; }
+        html.dark .cov-item:hover { border-color:#4338ca; }
+        html.dark .cov-title { color:#e4e4e7; }
+        html.dark .cov-url { color:#52525b; }
+        html.dark .cov-desc { color:#a1a1aa; }
     </style>
 </head>
 <body class="bg-slate-50 text-gray-900">
@@ -910,6 +977,34 @@ async function decide(decision) {
         document.querySelectorAll('.btn').forEach(b => b.disabled = false);
     }
 }
+
+async function loadCoverage(btn) {
+    const body = document.getElementById('coverageBody');
+    btn.disabled = true; btn.textContent = 'Searching public sources…';
+    try {
+        const r = await fetch(`/api/event/${EVENT_ID}/coverage`);
+        const d = await r.json();
+        const items = d.results || [];
+        if (!items.length) {
+            body.innerHTML = `<p class="text-sm text-slate-500">No public reporting was found for this
+                event. That is common for routine filings and is not a finding in itself.</p>`;
+            return;
+        }
+        body.innerHTML =
+            `<p class="text-xs text-slate-500 mb-3">${items.length} public source${items.length === 1 ? '' : 's'}
+             found. These are unverified third-party pages shown for corroboration — Delta draws no
+             conclusion from them.</p>` +
+            items.map(i => `
+                <a class="cov-item" href="${encodeURI(i.url)}" target="_blank" rel="noopener noreferrer">
+                    <div class="cov-title">${esc(i.title || i.url)}</div>
+                    <div class="cov-url">${esc(i.url)}</div>
+                    ${i.description ? `<div class="cov-desc">${esc(i.description)}</div>` : ''}
+                </a>`).join('');
+    } catch (e) {
+        body.innerHTML = `<p class="text-sm text-red-500">Could not reach public sources: ${esc(e.message)}</p>`;
+    }
+}
+function esc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
 
 async function rerunAgents() {
     const btn = document.getElementById('rerunBtn') || document.getElementById('genBtn');
