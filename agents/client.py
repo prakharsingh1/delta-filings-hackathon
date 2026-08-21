@@ -187,8 +187,16 @@ def gemini_healthy(force: bool = False) -> Dict[str, Any]:
 
     try:
         import requests
-        r = requests.get("https://generativelanguage.googleapis.com/v1beta/models",
-                         params={"key": key}, timeout=8)
+        # Probe generateContent, not the models list. Listing models consumes
+        # no credits and returns 200 even when generation is blocked, so the
+        # old probe reported "ready" while every agent call was failing.
+        r = requests.post(
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            "gemini-2.5-flash:generateContent",
+            params={"key": key},
+            json={"contents": [{"parts": [{"text": "ping"}]}],
+                  "generationConfig": {"maxOutputTokens": 1}},
+            timeout=12)
         if r.status_code == 200:
             _health_cache.update(ok=True, error="")
         else:
@@ -197,7 +205,14 @@ def gemini_healthy(force: bool = False) -> Dict[str, Any]:
                 msg = r.json().get("error", {}).get("message", "")
             except Exception:
                 msg = r.text[:120]
-            _health_cache.update(ok=False, error=f"HTTP {r.status_code}: {msg}")
+            if "credits are depleted" in msg or "spending cap" in msg:
+                friendly = ("The Gemini account has no remaining credit. "
+                            "Top up at ai.studio/projects to resume assessments.")
+            elif "API key not valid" in msg:
+                friendly = "The configured Gemini API key is not valid."
+            else:
+                friendly = f"AI provider unavailable (HTTP {r.status_code}). {msg[:120]}"
+            _health_cache.update(ok=False, error=friendly)
     except Exception as e:
         _health_cache.update(ok=False, error=f"probe failed: {str(e)[:120]}")
     return dict(_health_cache)
