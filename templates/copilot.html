@@ -264,9 +264,6 @@ function dcRender(d) {
              d.sources.map(s => `<span class="dc-src" title="${dcEsc(s.name || '')}">${dcEsc(s.id)}</span>`).join('') +
              `</div>`;
     }
-    if (d.needs_human_review) {
-        h += `<div class="dc-review">Requires human review. Delta prepares and cites; a qualified Company Secretary decides.</div>`;
-    }
     if (!h) h = `<div>${dcEsc(d.understanding || 'No answer could be produced.')}</div>`;
     return h;
 }
