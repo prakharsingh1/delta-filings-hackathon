@@ -159,6 +159,26 @@ def gather(question: str, ctx: Dict) -> Dict[str, Any]:
     if sym:
         bundle["recent_filings"] = recent_filings(sym)
         bundle["company_events"] = recent_events([sym], limit=6)
+        # Computed structure, so the assistant answers "why" with arithmetic
+        # rather than generalities.
+        try:
+            import governance_analytics as ga
+            prof = ga.full_profile(sym, peers=ctx.get("watchlist") or [])
+            bundle["structural_analysis"] = {
+                "composition": prof.get("composition", {}),
+                "breaches": prof.get("breaches", []),
+                "forward_risks": prof.get("risks", []),
+                "committees": {c["label"]: {"members": c["members"],
+                                            "independent": c["independent_members"],
+                                            "headroom": c.get("headroom")}
+                               for c in (prof.get("committees") or {}).values()},
+                "tenure_attention": (prof.get("tenure") or {}).get("term_attention", []),
+                "turnover": {k: v for k, v in (prof.get("turnover") or {}).items()
+                             if k != "periods_with_change"},
+                "peer_standing": prof.get("peers", {}),
+            }
+        except Exception as e:
+            print(f"[COPILOT] structural analysis unavailable for {sym}: {str(e)[:110]}")
 
     if ctx["page_type"] in ("compliance", "command_center", "dashboard"):
         wl = ctx.get("watchlist") or []

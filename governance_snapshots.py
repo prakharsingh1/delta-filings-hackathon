@@ -112,10 +112,21 @@ def _normalise_committee(section: Dict) -> List[Dict]:
     return out
 
 
+def _is_independent_cat(category) -> bool:
+    """NSE's non-independent label ("Non-Executive - Non Independent Director")
+    contains the substring "independent", so the negated form must be excluded
+    before testing. Without this, non-independent directors were counted as
+    independent in every stored summary."""
+    cat = (category or "").lower()
+    if "non independent" in cat or "non-independent" in cat:
+        return False
+    return "independent" in cat
+
+
 def _summarise(board: List[Dict], committees: Dict[str, List[Dict]]) -> Dict:
     """Composition counters. These are the numbers the delta screen shows."""
     active = [d for d in board if not d.get("ceased")]
-    independent = [d for d in active if _INDEPENDENT in (d.get("category") or "").lower()]
+    independent = [d for d in active if _is_independent_cat(d.get("category"))]
     executive = [d for d in active if _EXECUTIVE in (d.get("category") or "").lower()
                  and _INDEPENDENT not in (d.get("category") or "").lower()]
     total = len(active)

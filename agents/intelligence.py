@@ -143,6 +143,31 @@ def build_company_memory(symbol: str, exclude_event_id: Optional[int] = None,
                 "status": ev.get("status"),
             })
 
+    # Structural governance analysis — composition against Reg 17, committee
+    # quorum and independence against Regs 18-21, tenure against s.149,
+    # turnover trend, committee concentration and peer standing. This is what
+    # turns "a director left" into "the SRC is now at its statutory minimum".
+    try:
+        import governance_analytics as ga
+        from demo import DEMO_SYMBOLS
+        profile = ga.full_profile(symbol, peers=list(DEMO_SYMBOLS))
+        memory["structural"] = {
+            "composition": profile.get("composition", {}),
+            "committee_headroom": {
+                c["label"]: c.get("headroom")
+                for c in (profile.get("committees") or {}).values()
+                if c.get("headroom") is not None},
+            "breaches": profile.get("breaches", []),
+            "forward_risks": profile.get("risks", []),
+            "turnover": {k: v for k, v in (profile.get("turnover") or {}).items()
+                         if k != "periods_with_change"},
+            "tenure_attention": (profile.get("tenure") or {}).get("term_attention", []),
+            "concentration": (profile.get("concentration") or {}).get("most_loaded", [])[:3],
+            "peer_standing": profile.get("peers", {}),
+        }
+    except Exception as e:
+        print(f"[AGENT2] structural analysis unavailable for {symbol}: {str(e)[:120]}")
+
     # Current compliance posture from the existing obligations engine.
     try:
         from compliance import get_company_compliance
@@ -181,7 +206,13 @@ Evidence quote from the filing: {quote}
 ═══ ENTITIES EXTRACTED ═══
 {entities}
 
-═══ COMPANY MEMORY (this company's recent history) ═══
+═══ COMPANY MEMORY (this company's history AND computed structural analysis) ═══
+The `structural` block is DETERMINISTIC — board composition, committee quorum
+and independence, tenure, turnover and peer standing were computed from the
+company's own filed governance reports, not estimated. Treat those figures as
+fact and reason from them. `forward_risks` lists what is compliant today but
+one change away from not being; `committee_headroom` is how many departures a
+committee can absorb before it breaches its statutory minimum.
 {memory}
 
 ═══ CANDIDATE REGULATORY REQUIREMENTS ═══
@@ -189,9 +220,18 @@ These were retrieved from our mandate library. You may ONLY cite from this list.
 {mandates}
 
 ═══ YOUR TASK ═══
-Produce a governance assessment. Reason like a senior professional: connect the
-event to the company's own history, identify what is genuinely affected, and give
-your team a concrete next step.
+Produce a governance assessment. Reason like a senior professional, not an
+analyst restating the filing. Specifically:
+  - Use the computed structural figures. "The Audit Committee is at its
+    statutory minimum of 3" beats "committee composition may be affected".
+  - Say what this event does to headroom: which committee or ratio is now
+    closer to a floor, and how many further departures it can absorb.
+  - Connect it to the pattern in company memory and to peer standing where
+    that changes the picture. A third independent departure is a different
+    finding from the first.
+  - Name the specific consequential filings and internal records that follow.
+  - If the structural analysis shows no real exposure, say so plainly rather
+    than manufacturing concern.
 
 ABSOLUTE RULES:
 1. `mandate_ids` MUST contain only ids copied exactly from the candidate list
