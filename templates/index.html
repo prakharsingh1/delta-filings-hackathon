@@ -107,6 +107,37 @@
         }
     </style>
 <style>
+    /* ── Compare workspace ── */
+    .cmp-header { display:flex; align-items:flex-start; justify-content:space-between;
+        gap:24px; flex-wrap:wrap; margin-bottom:16px; }
+    .cmp-title { font-size:23px; font-weight:800; letter-spacing:-.03em; color:#0f172a; }
+    .cmp-sub { font-size:12.5px; color:#64748b; margin-top:3px; max-width:560px; line-height:1.5; }
+    .cmp-metrics { display:flex; gap:22px; }
+    .cmp-m-v { font-size:19px; font-weight:800; color:#0f172a; font-variant-numeric:tabular-nums;
+        letter-spacing:-.02em; line-height:1; }
+    .cmp-m-l { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+        color:#94a3b8; margin-top:4px; }
+    .cmp-m-v.alert { color:#b45309; }
+
+    .cmp-nav { display:flex; gap:2px; border-bottom:1px solid #e2e8f0; margin-bottom:20px;
+        overflow-x:auto; scrollbar-width:none; }
+    .cmp-nav::-webkit-scrollbar { display:none; }
+    .cmp-nav-i { padding:9px 14px; font-size:12.5px; font-weight:600; color:#64748b;
+        background:none; border:none; border-bottom:2px solid transparent; cursor:pointer;
+        white-space:nowrap; margin-bottom:-1px; transition:color .12s, border-color .12s; }
+    .cmp-nav-i:hover { color:#334155; }
+    .cmp-nav-i.active { color:#4338ca; border-bottom-color:#4f46e5; }
+
+    html.dark .cmp-title { color:#fafafa; }
+    html.dark .cmp-sub { color:#a1a1aa; }
+    html.dark .cmp-m-v { color:#fafafa; }
+    html.dark .cmp-m-v.alert { color:#fcd34d; }
+    html.dark .cmp-m-l { color:#71717a; }
+    html.dark .cmp-nav { border-bottom-color:#232326; }
+    html.dark .cmp-nav-i { color:#a1a1aa; }
+    html.dark .cmp-nav-i:hover { color:#fafafa; }
+    html.dark .cmp-nav-i.active { color:#a5b4fc; }
+    @media (max-width:820px) { .cmp-metrics { gap:16px; } .cmp-m-v { font-size:16px; } }
     /* Governance workbench */
     .gw-stat { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
     .gw-v { font-size:26px; font-weight:800; color:#0f172a; letter-spacing:-.03em;
@@ -267,8 +298,8 @@
                     </div>
                 </div>
 
-                <!-- History-depth control -->
-                <div class="relative flex-shrink-0" id="depth-wrap">
+                <!-- History-depth control (Disclosures only) -->
+                <div class="relative flex-shrink-0 disclosures-only" id="depth-wrap">
                     <button type="button" class="depth-btn" id="depth-btn" onclick="toggleDepth(event)" title="How far back to pull filings">
                         <svg class="clock" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span id="depth-label">{{ history_years }}y history</span>
@@ -291,7 +322,7 @@
 
                 <!-- Compact pager -->
                 {% if total_pages > 1 %}
-                <div class="flex items-center gap-1 flex-shrink-0 text-xs text-gray-500">{# pager #}
+                <div class="flex items-center gap-1 flex-shrink-0 text-xs text-gray-500 disclosures-only">{# pager #}
                     {% if page > 1 %}
                     <a href="/company/{{ selected }}?page={{ page - 1 }}" class="w-7 h-7 inline-flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500" title="Previous page">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
@@ -538,73 +569,29 @@
         </div>
 
         <!-- Compare Tab Panel -->
-        <div id="panel-governance" class="hidden p-8 max-w-5xl mx-auto">
+        <div id="panel-governance" class="hidden px-8 pb-10 pt-6 max-w-6xl mx-auto">
 
-            <!-- ── Governance workbench ──────────────────────────────────
-                 Board composition, statutory structure, tenure, turnover and
-                 peer standing — all computed from the company's own filed
-                 governance reports rather than described in prose. -->
-            <div id="gw" class="mb-6">
-                <div class="flex items-baseline justify-between mb-3">
-                    <div>
-                        <h3 class="text-base font-bold text-gray-900">Governance workbench</h3>
-                        <p class="text-xs text-gray-500 mt-0.5">Structural analysis across
-                            <span id="gw-quarters">—</span> filed quarters</p>
-                    </div>
-                    <span id="gw-verdict" class="text-[11px] font-semibold text-gray-500"></span>
+            <!-- ── Compare workspace header ── -->
+            <div class="cmp-header">
+                <div>
+                    <h2 class="cmp-title">Compare</h2>
+                    <p class="cmp-sub">Board, committees, peers and filing-level change for
+                        <strong>{{ selected }}</strong> — computed from its own filed governance reports</p>
                 </div>
-
-                <div id="gw-loading" class="flex items-center justify-center py-10">
-                    <div class="spinner"></div><span class="ml-3 text-sm text-gray-500">Analysing filed reports…</span>
-                </div>
-
-                <div id="gw-body" class="hidden space-y-4">
-                    <!-- composition + trend -->
-                    <div class="grid md:grid-cols-3 gap-3">
-                        <div class="gw-stat"><div class="gw-v" id="gw-total">—</div><div class="gw-l">Board size</div><div class="gw-d" id="gw-total-d"></div></div>
-                        <div class="gw-stat"><div class="gw-v" id="gw-ind">—</div><div class="gw-l">Independent</div><div class="gw-d" id="gw-ind-d"></div></div>
-                        <div class="gw-stat"><div class="gw-v" id="gw-ratio">—</div><div class="gw-l">Independence</div><div class="gw-d" id="gw-ratio-d"></div></div>
-                    </div>
-
-                    <!-- statutory structure -->
-                    <div class="gw-card">
-                        <div class="gw-head">Statutory structure
-                            <span class="gw-head-sub">SEBI LODR Reg 17-21 · Companies Act s.149</span></div>
-                        <div id="gw-findings" class="divide-y divide-gray-100"></div>
-                    </div>
-
-                    <!-- forward risks -->
-                    <div class="gw-card" id="gw-risk-card">
-                        <div class="gw-head">Forward risk
-                            <span class="gw-head-sub">compliant today, one change from not being</span></div>
-                        <div id="gw-risks" class="p-4 space-y-3"></div>
-                    </div>
-
-                    <!-- committees -->
-                    <div class="gw-card">
-                        <div class="gw-head">Committees
-                            <span class="gw-head-sub">members · independent · headroom to the statutory minimum</span></div>
-                        <div id="gw-committees" class="divide-y divide-gray-100"></div>
-                    </div>
-
-                    <!-- peer standing -->
-                    <div class="gw-card">
-                        <div class="gw-head">Peer standing
-                            <span class="gw-head-sub">against your monitored set</span></div>
-                        <div id="gw-peers" class="divide-y divide-gray-100"></div>
-                    </div>
-
-                    <!-- quarter trail -->
-                    <div class="gw-card">
-                        <div class="gw-head">Composition by quarter
-                            <span class="gw-head-sub">click a quarter to open its source filing</span></div>
-                        <div id="gw-trail" class="divide-y divide-gray-100"></div>
-                    </div>
-                </div>
+                <div class="cmp-metrics" id="cmp-metrics"></div>
             </div>
 
-            <!-- ── Primary: Compare any two filings ── -->
-            <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-6">
+            <!-- ── Section nav ── -->
+            <nav class="cmp-nav" id="cmp-nav">
+                <button class="cmp-nav-i active" data-sec="sec-diff"   onclick="cmpGo('sec-diff', this)">Filing diff</button>
+                <button class="cmp-nav-i" data-sec="sec-board"      onclick="cmpGo('sec-board', this)">Board &amp; structure</button>
+                <button class="cmp-nav-i" data-sec="sec-committees" onclick="cmpGo('sec-committees', this)">Committees</button>
+                <button class="cmp-nav-i" data-sec="sec-peers"      onclick="cmpGo('sec-peers', this)">Peers</button>
+                <button class="cmp-nav-i" data-sec="sec-trail"      onclick="cmpGo('sec-trail', this)">Quarter trail</button>
+                <button class="cmp-nav-i" data-sec="sec-xbrl"       onclick="cmpGo('sec-xbrl', this)">Source reports</button>
+            </nav>
+
+            <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-6" id="sec-diff">
                 <div class="flex items-baseline justify-between mb-1">
                     <h3 class="text-base font-bold text-gray-900">Compare two filings</h3>
                     <span id="any-compare-count" class="text-[11px] text-gray-400"></span>
@@ -640,7 +627,67 @@
             </div>
 
             <!-- ── Secondary: Governance snapshot (XBRL) ── -->
-            <div class="bg-white border border-gray-200 rounded-2xl shadow-sm">
+            <div id="gw">
+                <div class="flex items-baseline justify-between mb-3">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900">Governance workbench</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">Structural analysis across
+                            <span id="gw-quarters">—</span> filed quarters</p>
+                    </div>
+                    <span id="gw-verdict" class="text-[11px] font-semibold text-gray-500"></span>
+                </div>
+
+                <div id="gw-loading" class="flex items-center justify-center py-10">
+                    <div class="spinner"></div><span class="ml-3 text-sm text-gray-500">Analysing filed reports…</span>
+                </div>
+
+                <div id="gw-body" class="hidden space-y-4">
+                    <!-- composition + trend -->
+                    <div class="grid md:grid-cols-3 gap-3">
+                        <div class="gw-stat"><div class="gw-v" id="gw-total">—</div><div class="gw-l">Board size</div><div class="gw-d" id="gw-total-d"></div></div>
+                        <div class="gw-stat"><div class="gw-v" id="gw-ind">—</div><div class="gw-l">Independent</div><div class="gw-d" id="gw-ind-d"></div></div>
+                        <div class="gw-stat"><div class="gw-v" id="gw-ratio">—</div><div class="gw-l">Independence</div><div class="gw-d" id="gw-ratio-d"></div></div>
+                    </div>
+
+                    <!-- statutory structure -->
+                    <div class="gw-card" id="sec-board">
+                        <div class="gw-head">Statutory structure
+                            <span class="gw-head-sub">SEBI LODR Reg 17-21 · Companies Act s.149</span></div>
+                        <div id="gw-findings" class="divide-y divide-gray-100"></div>
+                    </div>
+
+                    <!-- forward risks -->
+                    <div class="gw-card" id="gw-risk-card">
+                        <div class="gw-head">Forward risk
+                            <span class="gw-head-sub">compliant today, one change from not being</span></div>
+                        <div id="gw-risks" class="p-4 space-y-3"></div>
+                    </div>
+
+                    <!-- committees -->
+                    <div class="gw-card" id="sec-committees">
+                        <div class="gw-head">Committees
+                            <span class="gw-head-sub">members · independent · headroom to the statutory minimum</span></div>
+                        <div id="gw-committees" class="divide-y divide-gray-100"></div>
+                    </div>
+
+                    <!-- peer standing -->
+                    <div class="gw-card" id="sec-peers">
+                        <div class="gw-head">Peer standing
+                            <span class="gw-head-sub">against your monitored set</span></div>
+                        <div id="gw-peers" class="divide-y divide-gray-100"></div>
+                    </div>
+
+                    <!-- quarter trail -->
+                    <div class="gw-card" id="sec-trail">
+                        <div class="gw-head">Composition by quarter
+                            <span class="gw-head-sub">click a quarter to open its source filing</span></div>
+                        <div id="gw-trail" class="divide-y divide-gray-100"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Primary: Compare any two filings ── -->
+            <div id="sec-xbrl" class="bg-white border border-gray-200 rounded-2xl shadow-sm">
                 <button type="button" onclick="toggleGovPanel()" id="gov-toggle"
                         class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 rounded-t-2xl">
                     <div>
@@ -1623,6 +1670,14 @@ function switchTab(tab) {
 
     document.getElementById('panel-announcements').classList.toggle('hidden', tab !== 'announcements');
     document.getElementById('panel-governance').classList.toggle('hidden', tab !== 'governance');
+
+    // Compare is its own workspace, not a view of the filing list. Search,
+    // tag filters, history depth and the pager all belong to Disclosures and
+    // only made Compare look like a second copy of it.
+    document.querySelectorAll('.disclosures-only').forEach(el => {
+        el.classList.toggle('hidden', tab === 'governance');
+    });
+
     if (tab === 'governance') loadGovernanceWorkbench();
     // Governance XBRL list is loaded lazily — only when the user opens the
     // collapsible "Governance snapshot" section, not on tab switch.
@@ -2105,6 +2160,8 @@ async function loadGovernanceWorkbench() {
         const d = await (await fetch(`/api/company/{{ selected }}/governance-profile`)).json();
         if (d.status !== 'ok') throw new Error(d.message || 'unavailable');
         renderWorkbench(d);
+        renderCompareMetrics(d);
+        cmpWatchSections();
         load.classList.add('hidden'); body.classList.remove('hidden');
     } catch (e) {
         load.innerHTML = `<p class="text-sm text-gray-500">Governance analysis unavailable: ${gwEsc(e.message)}</p>`;
@@ -2208,6 +2265,52 @@ function renderWorkbench(d) {
             ${q.source_url ? '<span class="gw-obs">source &#8599;</span>' : ''}
         </div>`;
     }).join('');
+}
+
+// ── Compare workspace nav ──
+function cmpGo(secId, btn) {
+    document.querySelectorAll('.cmp-nav-i').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const el = document.getElementById(secId);
+    if (!el) return;
+    // "Source reports" lives in a collapsible; open it before scrolling.
+    if (secId === 'sec-xbrl') {
+        const body = document.getElementById('gov-section-body');
+        if (body && body.classList.contains('hidden') && typeof toggleGovPanel === 'function') {
+            toggleGovPanel();
+        }
+    }
+    el.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+// Keep the nav in step with what the reader is actually looking at.
+function cmpWatchSections() {
+    const ids = [...document.querySelectorAll('.cmp-nav-i')].map(b => b.dataset.sec);
+    const obs = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+            if (!e.isIntersecting) return;
+            document.querySelectorAll('.cmp-nav-i').forEach(b =>
+                b.classList.toggle('active', b.dataset.sec === e.target.id));
+        });
+    }, {root: document.querySelector('#panel-governance')?.closest('main') || null,
+        rootMargin: '-20px 0px -72% 0px', threshold: 0});
+    ids.forEach(id => { const el = document.getElementById(id); if (el) obs.observe(el); });
+}
+
+function renderCompareMetrics(d) {
+    const c = d.composition || {};
+    const risks = (d.risks || []).length;
+    const breaches = (d.breaches || []).length;
+    const el = document.getElementById('cmp-metrics');
+    if (!el) return;
+    const m = (v, l, alert) =>
+        `<div><div class="cmp-m-v ${alert ? 'alert' : ''}">${v}</div><div class="cmp-m-l">${l}</div></div>`;
+    el.innerHTML =
+        m(c.total_directors ?? '—', 'Board') +
+        m((c.independence_ratio_pct ?? '—') + '%', 'Independent') +
+        m((d.quarters || []).length, 'Quarters filed') +
+        m(breaches, 'Breaches', breaches > 0) +
+        m(risks, 'Watch items', risks > 0);
 }
 </script>
 </body>
