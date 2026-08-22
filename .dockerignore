@@ -1,0 +1,12 @@
+.git
+__pycache__
+*.pyc
+.pdf_cache
+_backup_pre_redesign
+delta_filings_backup_*
+*.docx
+*.pptx
+Delta_Filings_*.pdf
+create_*.js
+node_modules
+.logocache
