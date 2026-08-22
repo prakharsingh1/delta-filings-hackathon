@@ -77,6 +77,34 @@ def write(key: str, value: Any):
     conn.close()
 
 
+def _is_worth_caching(entry) -> bool:
+    """Refuse to store failures.
+
+    A transient outage cached under a long TTL becomes a permanent outage —
+    "Couldn't fetch live prices" served from disk for a day. Errors and empty
+    bodies are dropped so the next call retries instead.
+    """
+    if entry is None:
+        return False
+    if isinstance(entry, dict) and entry.get("__flask__"):
+        body = entry.get("json")
+        if body in (None, {}, []):
+            return False
+        if isinstance(body, dict):
+            if body.get("error"):
+                return False
+            # A body whose only content is an error/message field is a failure.
+            meaningful = {k: v for k, v in body.items()
+                          if k not in ("error", "message", "status")}
+            if not meaningful:
+                return False
+        return True
+    if isinstance(entry, str):
+        # A stringified object means serialisation fell through to default=str.
+        return not entry.startswith("<")
+    return entry not in (None, {}, [])
+
+
 def _to_cacheable(value):
     """Normalise a view's return value into something JSON-serialisable.
 
@@ -132,7 +160,7 @@ def cached(name: str, ttl: int = 900, key_args: bool = True):
 
             value = fn(*args, **kwargs)
             store = _to_cacheable(value)
-            if store is not None:
+            if _is_worth_caching(store):
                 write(key, store)
             return value
         wrapper._cache_name = name
@@ -149,8 +177,9 @@ def _refresh_async(key: str, fn: Callable, args, kwargs):
     def _work():
         try:
             value = fn(*args, **kwargs)
-            if value is not None:
-                write(key, value)
+            store = _to_cacheable(value)
+            if _is_worth_caching(store):
+                write(key, store)
         except Exception as e:
             print(f"[CACHE] background refresh failed for {key}: {str(e)[:120]}")
         finally:
