@@ -37,3 +37,6 @@ Thumbs.db
 pdf_cache/
 .pdf_cache/
 .logocache/
+
+# Local credential backup — must never be committed
+.env.bak
