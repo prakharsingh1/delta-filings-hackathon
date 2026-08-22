@@ -108,6 +108,8 @@
     </style>
 <style>
     /* ── Compare workspace ── */
+    .cmp-hidden { display:none !important; }
+
     .cmp-header { display:flex; align-items:flex-start; justify-content:space-between;
         gap:24px; flex-wrap:wrap; margin-bottom:16px; }
     .cmp-title { font-size:23px; font-weight:800; letter-spacing:-.03em; color:#0f172a; }
@@ -643,7 +645,7 @@
 
                 <div id="gw-body" class="hidden space-y-4">
                     <!-- composition + trend -->
-                    <div class="grid md:grid-cols-3 gap-3">
+                    <div class="grid md:grid-cols-3 gap-3" id="gw-stats">
                         <div class="gw-stat"><div class="gw-v" id="gw-total">—</div><div class="gw-l">Board size</div><div class="gw-d" id="gw-total-d"></div></div>
                         <div class="gw-stat"><div class="gw-v" id="gw-ind">—</div><div class="gw-l">Independent</div><div class="gw-d" id="gw-ind-d"></div></div>
                         <div class="gw-stat"><div class="gw-v" id="gw-ratio">—</div><div class="gw-l">Independence</div><div class="gw-d" id="gw-ratio-d"></div></div>
@@ -2211,6 +2213,10 @@ function renderWorkbench(d) {
     // Forward risk
     const risks = d.risks || [];
     document.getElementById('gw-risk-card').style.display = risks.length ? '' : 'none';
+    // Re-apply section filtering after a render, so a freshly shown card does
+    // not appear on the wrong section.
+    const activeBtn = document.querySelector('.cmp-nav-i.active');
+    if (activeBtn) cmpGo(activeBtn.dataset.sec, activeBtn);
     document.getElementById('gw-risks').innerHTML = risks.map(r => `
         <div class="flex gap-2.5">
             <span class="gw-mark ${r.severity === 'high' ? 'gw-bad' : 'gw-warn'}">!</span>
@@ -2268,33 +2274,49 @@ function renderWorkbench(d) {
 }
 
 // ── Compare workspace nav ──
+// The nav SHOWS a section rather than scrolling to it. This page scrolls
+// inside a flex <main> that reports clientHeight 0, where both scrollIntoView
+// and scrollTo are no-ops — and for a workspace, showing one section at a
+// time is the better reading model anyway: click Peers, get peers.
+const CMP_SECTIONS = ['sec-diff', 'sec-board', 'sec-committees', 'sec-peers', 'sec-trail', 'sec-xbrl'];
+
 function cmpGo(secId, btn) {
     document.querySelectorAll('.cmp-nav-i').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    const el = document.getElementById(secId);
-    if (!el) return;
-    // "Source reports" lives in a collapsible; open it before scrolling.
+    else {
+        const b = document.querySelector(`.cmp-nav-i[data-sec="${secId}"]`);
+        if (b) b.classList.add('active');
+    }
+
+    CMP_SECTIONS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('cmp-hidden', id !== secId);
+    });
+    // The composition tiles and the forward-risk card belong to Board &
+    // structure — they are the headline for that section, not page furniture.
+    ['gw-stats', 'gw-risk-card'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('cmp-hidden', secId !== 'sec-board');
+    });
+
+    // The workbench heading only makes sense above its own sections.
+    const gwHead = document.querySelector('#gw > .flex');
+    if (gwHead) gwHead.classList.toggle('cmp-hidden', secId === 'sec-diff' || secId === 'sec-xbrl');
+
+    // "Source reports" is a collapsible — open it when selected.
     if (secId === 'sec-xbrl') {
         const body = document.getElementById('gov-section-body');
         if (body && body.classList.contains('hidden') && typeof toggleGovPanel === 'function') {
             toggleGovPanel();
         }
     }
-    el.scrollIntoView({behavior: 'smooth', block: 'start'});
+    const m = document.querySelector('main');
+    if (m) m.scrollTop = 0;
 }
 
-// Keep the nav in step with what the reader is actually looking at.
 function cmpWatchSections() {
-    const ids = [...document.querySelectorAll('.cmp-nav-i')].map(b => b.dataset.sec);
-    const obs = new IntersectionObserver(entries => {
-        entries.forEach(e => {
-            if (!e.isIntersecting) return;
-            document.querySelectorAll('.cmp-nav-i').forEach(b =>
-                b.classList.toggle('active', b.dataset.sec === e.target.id));
-        });
-    }, {root: document.querySelector('#panel-governance')?.closest('main') || null,
-        rootMargin: '-20px 0px -72% 0px', threshold: 0});
-    ids.forEach(id => { const el = document.getElementById(id); if (el) obs.observe(el); });
+    // Start on the filing diff — the primary action on this tab.
+    cmpGo('sec-diff', document.querySelector('[data-sec="sec-diff"]'));
 }
 
 function renderCompareMetrics(d) {
