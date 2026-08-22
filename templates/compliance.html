@@ -300,10 +300,15 @@
                     </div>
                 </div>
                 <div id="tab-unverified" class="tab-content hidden">
-                    <div class="mb-3 p-3 rounded-lg bg-violet-50 border border-violet-100 text-xs text-violet-900">
-                        <strong>Awaiting confirmation.</strong> These obligations are past their due date and Delta has not yet matched a submission to them. Large issuers file routinely, so these are verification tasks rather than missed deadlines — run a cross-check to search the public record, or attach the filing to close them out.
+                    <div class="mb-4 p-3 rounded-lg bg-violet-50 border border-violet-100 text-xs text-violet-900">
+                        <strong>Awaiting confirmation.</strong> Past their due date with no submission attached yet.
+                        These are verification tasks, not missed deadlines. They are grouped below by
+                        <em>where the filing actually goes</em> — Delta reads exchange announcements directly,
+                        but MCA, tax and RBI filings never appear there, so those need confirming on the
+                        relevant portal.
                     </div>
-                    <div id="unverified-list" class="space-y-3"></div>
+                    <div id="unverified-grouped"></div>
+                    <div id="unverified-list" class="space-y-3 hidden"></div>
                     <div id="unverified-empty" class="hidden text-center py-12">
                         <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <p class="text-gray-500 text-sm">Nothing to verify — every past due obligation has a matched filing.</p>
@@ -890,7 +895,85 @@ function renderList(items, listId, emptyId) {
 function renderUpcoming(items) { renderList(items, 'upcoming-list', 'upcoming-empty'); }
 function renderOverdue(items) { renderList(items, 'overdue-list', 'overdue-empty'); }
 function renderCompleted(items) { renderList(items, 'completed-list', 'completed-empty'); }
-function renderUnverified(items) { renderList(items, 'unverified-list', 'unverified-empty'); }
+// Group the verification queue by how each obligation can actually be
+// confirmed. Reporting an MCA form as "no filing data" implies Delta lost
+// something, when in fact that filing never reaches the exchanges at all.
+const _VERIFY_ORDER = ['exchange', 'mca', 'rbi', 'tax', 'other'];
+
+function renderUnverified(items) {
+    const host = document.getElementById('unverified-grouped');
+    const empty = document.getElementById('unverified-empty');
+    if (!items.length) { host.innerHTML = ''; empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+
+    const groups = {};
+    items.forEach(ob => {
+        const v = ob.verification || { key: 'other', label: 'Other', auto: false,
+                                       where: 'the relevant authority', how: '', url: '', action: 'Mark confirmed' };
+        (groups[v.key] = groups[v.key] || { v, list: [] }).list.push(ob);
+    });
+
+    host.innerHTML = _VERIFY_ORDER.filter(k => groups[k]).map(k => {
+        const { v, list } = groups[k];
+        const rows = list.map(ob => `
+            <div class="flex items-start justify-between gap-4 py-2.5 border-b border-gray-50 last:border-0">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <a href="/company/${ob.symbol}" class="text-[11px] font-bold text-indigo-600 hover:underline">${ob.symbol}</a>
+                        <span class="text-xs font-medium text-gray-900">${ob.mandate_name}</span>
+                    </div>
+                    <div class="text-[10.5px] text-gray-400 mt-0.5">${ob.period} · due ${formatDate(ob.due_date)} · ${ob.regulation || ''}</div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    ${v.auto ? `<button onclick="crossCheckOne('${ob.symbol}','${ob.mandate_id}','${ob.period}','${ob.due_date}',this)"
+                        class="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-indigo-200 text-indigo-700 hover:bg-indigo-50">Cross-check</button>` : ''}
+                    ${v.url ? `<a href="${v.url}" target="_blank" rel="noopener"
+                        class="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50">${v.action} ↗</a>` : ''}
+                </div>
+            </div>`).join('');
+
+        const badge = v.auto
+            ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">DELTA CAN CHECK</span>'
+            : '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700">CONFIRM ON PORTAL</span>';
+
+        return `<div class="mb-4 rounded-xl border border-gray-200 overflow-hidden">
+            <div class="px-4 py-3 bg-slate-50 border-b border-gray-100">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-sm font-bold text-gray-900">${v.label}</span>
+                        ${badge}
+                        <span class="text-[11px] text-gray-400">${list.length} item${list.length === 1 ? '' : 's'}</span>
+                    </div>
+                    <span class="text-[11px] text-gray-500">Filed with: <strong>${v.where}</strong></span>
+                </div>
+                <p class="text-[11px] text-gray-500 mt-1.5 leading-relaxed max-w-4xl">${v.how || ''}</p>
+            </div>
+            <div class="px-4 py-1">${rows}</div>
+        </div>`;
+    }).join('');
+}
+
+async function crossCheckOne(symbol, mandateId, period, dueDate, btn) {
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Checking…';
+    try {
+        const r = await fetch(`/api/compliance/crosscheck-one`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, mandate_id: mandateId, period, due_date: dueDate }),
+        });
+        const d = await r.json();
+        if (d.verdict === 'evidence_found') {
+            btn.textContent = '✓ Confirmed';
+            btn.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50';
+        } else {
+            btn.textContent = 'Not found';
+            btn.title = d.verdict_text || '';
+            btn.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-md border border-gray-200 text-gray-500';
+        }
+    } catch (e) {
+        btn.disabled = false; btn.textContent = original;
+    }
+}
 
 function renderAllTable(items) {
     const tbody = document.getElementById('obligations-tbody');

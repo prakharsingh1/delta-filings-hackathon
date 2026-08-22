@@ -183,14 +183,38 @@ def crosscheck(symbol: str, mandate_id: str, period: str, due_date: str,
         period=period, due_date=due_date,
     )
 
+    # Firecrawl search for the sources, then a plain JSON call to judge them.
+    # Gemini's own grounding returns JSON mixed with prose, which parsed
+    # unreliably; this also gives real citable URLs rather than redirect stubs.
+    sources_found = []
     try:
-        from draft_engine import _gemini_call_grounded
-        raw = _gemini_call_grounded(api_key, prompt, max_output_tokens=1400)
+        import firecrawl_client as fc
+        if fc.available():
+            q = (f"{company_name or symbol} {mandate.get('name', mandate_id)} "
+                 f"{period} filing NSE BSE disclosure")
+            sources_found = fc.search(q, limit=5, timeout=45)
     except Exception as e:
-        print(f"[CROSSCHECK] grounded call failed for {symbol}/{mandate_id}: {str(e)[:120]}")
-        raw = None
+        print(f"[CROSSCHECK] search failed for {symbol}/{mandate_id}: {str(e)[:110]}")
 
-    data = _extract_json(raw or "")
+    if sources_found:
+        listing = "\n".join(
+            f"- {s['title']}\n  {s['url']}\n  {s.get('description','')[:220]}"
+            for s in sources_found)
+        prompt += (f"\n\n═══ SEARCH RESULTS TO JUDGE ═══\n{listing}\n\n"
+                   "Base your verdict on these results. Cite only URLs listed above.")
+
+    raw = None
+    try:
+        from agents.client import call_json
+        res = call_json(prompt, role="action", model="gemini-2.5-flash",
+                        max_output_tokens=1200, temperature=0.1, timeout_ms=45_000)
+        if res["ok"] and isinstance(res["data"], dict):
+            data = res["data"]
+        else:
+            data = None
+    except Exception as e:
+        print(f"[CROSSCHECK] judge call failed for {symbol}/{mandate_id}: {str(e)[:110]}")
+        data = None
     if not data:
         return {"verdict": "unavailable", "summary": "", "sources": [],
                 "confidence": "low", "model": "gemini-2.5-flash",
@@ -203,8 +227,10 @@ def crosscheck(symbol: str, mandate_id: str, period: str, due_date: str,
     sources = [
         {"title": str(s.get("title", ""))[:160], "url": str(s.get("url", ""))[:400]}
         for s in (data.get("sources") or [])[:5]
-        if isinstance(s, dict) and s.get("url", "").startswith("http")
+        if isinstance(s, dict) and str(s.get("url", "")).startswith("http")
     ]
+    if not sources and sources_found:
+        sources = [{"title": s["title"], "url": s["url"]} for s in sources_found[:3]]
     # A verdict with no retrievable source is not evidence.
     if verdict == "evidence_found" and not sources:
         verdict = "not_found"

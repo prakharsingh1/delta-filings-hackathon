@@ -884,8 +884,18 @@ def get_period_label(quarter_num, fy_year):
 
 # ── Obligation Generation ──
 
+_BAD_SYMBOLS = {"", "UNDEFINED", "NULL", "NONE", "NAN"}
+
+
 def generate_obligations_for_company(symbol):
     """Generate compliance obligations for a watchlisted company for the current and recent quarters."""
+    # A JS caller passing an unset variable produced a company literally named
+    # UNDEFINED with a full obligation set. Reject non-symbols at the door.
+    sym_check = (symbol or "").strip().upper()
+    if sym_check in _BAD_SYMBOLS or not sym_check.replace("&", "").replace("-", "").isalnum():
+        print(f"[COMPLIANCE] refusing to generate obligations for invalid symbol {symbol!r}")
+        return
+
     today = date.today()
     now_iso = datetime.now().isoformat()
     conn = get_connection()
@@ -1333,6 +1343,15 @@ def _enrich_obligation(ob):
         ob["days_remaining"] = None
         ob["is_urgent"] = False
         ob["is_overdue"] = False
+
+    # How this obligation can be confirmed. Most non-SEBI filings never appear
+    # in exchange announcements, so the UI must ask the right question rather
+    # than reporting "no filing data" as though something were missing.
+    try:
+        from verification_routes import route_for
+        ob["verification"] = route_for(mandate.get("regime", "") if mandate else "")
+    except Exception:
+        ob["verification"] = None
 
     # Parse verification evidence JSON for UI
     ev = ob.get("evidence_json")

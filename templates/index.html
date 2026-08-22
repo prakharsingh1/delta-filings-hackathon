@@ -114,11 +114,11 @@
         gap:24px; flex-wrap:wrap; margin-bottom:16px; }
     .cmp-title { font-size:23px; font-weight:800; letter-spacing:-.03em; color:#0f172a; }
     .cmp-sub { font-size:12.5px; color:#64748b; margin-top:3px; max-width:560px; line-height:1.5; }
-    .cmp-metrics { display:flex; gap:22px; }
-    .cmp-m-v { font-size:19px; font-weight:800; color:#0f172a; font-variant-numeric:tabular-nums;
+    .cmp-metrics { display:flex; gap:20px; align-items:flex-end; }
+    .cmp-m-v { font-size:17px; font-weight:800; color:#0f172a; font-variant-numeric:tabular-nums;
         letter-spacing:-.02em; line-height:1; }
-    .cmp-m-l { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
-        color:#94a3b8; margin-top:4px; }
+    .cmp-m-l { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+        color:#94a3b8; margin-top:3px; }
     .cmp-m-v.alert { color:#b45309; }
 
     .cmp-nav { display:flex; gap:2px; border-bottom:1px solid #e2e8f0; margin-bottom:20px;
@@ -140,6 +140,24 @@
     html.dark .cmp-nav-i:hover { color:#fafafa; }
     html.dark .cmp-nav-i.active { color:#a5b4fc; }
     @media (max-width:820px) { .cmp-metrics { gap:16px; } .cmp-m-v { font-size:16px; } }
+    .fin-t { width:100%; border-collapse:collapse; font-size:13px; }
+    .fin-t th { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
+        color:#94a3b8; text-align:right; padding:10px 16px; border-bottom:1px solid #e2e8f0;
+        white-space:nowrap; }
+    .fin-t th:first-child { text-align:left; }
+    .fin-t td { padding:11px 16px; border-bottom:1px solid #f1f5f9; text-align:right;
+        font-variant-numeric:tabular-nums; color:#0f172a; white-space:nowrap; }
+    .fin-t td:first-child { text-align:left; font-weight:600; color:#334155; }
+    .fin-t tr:last-child td { border-bottom:none; }
+    .fin-chg { font-size:10.5px; font-weight:700; margin-left:5px; }
+    .fin-up { color:#059669; } .fin-dn { color:#dc2626; }
+    .fin-time { display:flex; gap:10px; align-items:center; font-size:11.5px;
+        color:#64748b; padding:5px 0; }
+    .fin-ok { color:#059669; font-weight:700; } .fin-late { color:#dc2626; font-weight:700; }
+    html.dark .fin-t th { color:#71717a; border-bottom-color:#232326; }
+    html.dark .fin-t td { color:#fafafa; border-bottom-color:#1c1c1f; }
+    html.dark .fin-t td:first-child { color:#d4d4d8; }
+    html.dark .fin-time { color:#a1a1aa; }
     /* Governance workbench */
     .gw-stat { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
     .gw-v { font-size:26px; font-weight:800; color:#0f172a; letter-spacing:-.03em;
@@ -281,6 +299,10 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Compare metrics — sit in the company bar so the page state
+                     reads in one place instead of a second header below it. -->
+                <div class="cmp-metrics ml-auto hidden" id="cmp-metrics"></div>
 
                 <!-- Search Bar (Disclosures only — Compare has its own controls) -->
                 <div class="flex-1 max-w-sm ml-auto disclosures-only">
@@ -573,19 +595,10 @@
         <!-- Compare Tab Panel -->
         <div id="panel-governance" class="hidden px-8 pb-10 pt-6 max-w-6xl mx-auto">
 
-            <!-- ── Compare workspace header ── -->
-            <div class="cmp-header">
-                <div>
-                    <h2 class="cmp-title">Compare</h2>
-                    <p class="cmp-sub">Board, committees, peers and filing-level change for
-                        <strong>{{ selected }}</strong> — computed from its own filed governance reports</p>
-                </div>
-                <div class="cmp-metrics" id="cmp-metrics"></div>
-            </div>
-
             <!-- ── Section nav ── -->
-            <nav class="cmp-nav" id="cmp-nav">
+            <nav class="cmp-nav" id="cmp-nav" style="margin-top:2px">
                 <button class="cmp-nav-i active" data-sec="sec-diff"   onclick="cmpGo('sec-diff', this)">Filing diff</button>
+                <button class="cmp-nav-i" data-sec="sec-financials" onclick="cmpGo('sec-financials', this)">Results Q-o-Q</button>
                 <button class="cmp-nav-i" data-sec="sec-board"      onclick="cmpGo('sec-board', this)">Board &amp; structure</button>
                 <button class="cmp-nav-i" data-sec="sec-committees" onclick="cmpGo('sec-committees', this)">Committees</button>
                 <button class="cmp-nav-i" data-sec="sec-peers"      onclick="cmpGo('sec-peers', this)">Peers</button>
@@ -629,6 +642,25 @@
             </div>
 
             <!-- ── Secondary: Governance snapshot (XBRL) ── -->
+            <!-- ── Results, quarter over quarter ── -->
+            <div class="gw-card cmp-hidden" id="sec-financials">
+                <div class="gw-head">Reported results
+                    <span class="gw-head-sub" id="fin-unit">quarter over quarter, from the filed statements</span>
+                    <button onclick="loadFinancials(true)" id="fin-refresh"
+                            style="margin-left:auto;font-size:10.5px;font-weight:700;color:#4338ca;background:none;border:none;cursor:pointer">
+                        Re-extract
+                    </button>
+                </div>
+                <div id="fin-loading" class="flex items-center justify-center py-10">
+                    <div class="spinner"></div><span class="ml-3 text-sm text-gray-500">Reading filed results…</span>
+                </div>
+                <div id="fin-body" class="hidden">
+                    <div style="overflow-x:auto"><table class="fin-t" id="fin-table"></table></div>
+                    <div id="fin-timing" class="px-4 py-3"></div>
+                    <div id="fin-notes" class="px-4 pb-4"></div>
+                </div>
+            </div>
+
             <div id="gw">
                 <div class="flex items-baseline justify-between mb-3">
                     <div>
@@ -1679,6 +1711,8 @@ function switchTab(tab) {
     document.querySelectorAll('.disclosures-only').forEach(el => {
         el.classList.toggle('hidden', tab === 'governance');
     });
+    const cm = document.getElementById('cmp-metrics');
+    if (cm) cm.classList.toggle('hidden', tab !== 'governance');
 
     if (tab === 'governance') loadGovernanceWorkbench();
     // Governance XBRL list is loaded lazily — only when the user opens the
@@ -2278,7 +2312,7 @@ function renderWorkbench(d) {
 // inside a flex <main> that reports clientHeight 0, where both scrollIntoView
 // and scrollTo are no-ops — and for a workspace, showing one section at a
 // time is the better reading model anyway: click Peers, get peers.
-const CMP_SECTIONS = ['sec-diff', 'sec-board', 'sec-committees', 'sec-peers', 'sec-trail', 'sec-xbrl'];
+const CMP_SECTIONS = ['sec-diff', 'sec-financials', 'sec-board', 'sec-committees', 'sec-peers', 'sec-trail', 'sec-xbrl'];
 
 function cmpGo(secId, btn) {
     document.querySelectorAll('.cmp-nav-i').forEach(b => b.classList.remove('active'));
@@ -2304,6 +2338,7 @@ function cmpGo(secId, btn) {
     if (gwHead) gwHead.classList.toggle('cmp-hidden', secId === 'sec-diff' || secId === 'sec-xbrl');
 
     // "Source reports" is a collapsible — open it when selected.
+    if (secId === 'sec-financials') loadFinancials(false);
     if (secId === 'sec-xbrl') {
         const body = document.getElementById('gov-section-body');
         if (body && body.classList.contains('hidden') && typeof toggleGovPanel === 'function') {
@@ -2333,6 +2368,68 @@ function renderCompareMetrics(d) {
         m((d.quarters || []).length, 'Quarters filed') +
         m(breaches, 'Breaches', breaches > 0) +
         m(risks, 'Watch items', risks > 0);
+}
+
+// ── Reported results, quarter over quarter ──
+let _finLoaded = false;
+async function loadFinancials(force) {
+    if (_finLoaded && !force) return;
+    _finLoaded = true;
+    const load = document.getElementById('fin-loading');
+    const body = document.getElementById('fin-body');
+    load.classList.remove('hidden'); body.classList.add('hidden');
+    try {
+        const d = await (await fetch(
+            `/api/company/{{ selected }}/financials?quarters=4${force ? '' : '&extract=1'}`)).json();
+        if (d.status !== 'ok') throw new Error(d.message || 'unavailable');
+        renderFinancials(d);
+        load.classList.add('hidden'); body.classList.remove('hidden');
+    } catch (e) {
+        load.innerHTML = `<p class="text-sm text-gray-500">Could not read filed results: ${gwEsc(e.message)}</p>`;
+    }
+}
+
+function renderFinancials(d) {
+    const ps = d.periods || [];
+    document.getElementById('fin-unit').textContent =
+        ps.length ? `${d.basis || ''} · ${d.units}` : 'no quarterly statements could be read';
+
+    let h = '<thead><tr><th>Line item</th>' +
+        ps.map(p => `<th>${gwEsc(p.period_label)}</th>`).join('') + '</tr></thead><tbody>';
+    (d.rows || []).forEach(r => {
+        h += `<tr><td>${gwEsc(r.label)}</td>` + r.series.map(sv => {
+            if (sv.value === null || sv.value === undefined) return '<td>—</td>';
+            const num = Number(sv.value).toLocaleString('en-IN', {maximumFractionDigits: 0});
+            const chg = sv.change_pct === null || sv.change_pct === undefined ? ''
+                : `<span class="fin-chg ${sv.change_pct >= 0 ? 'fin-up' : 'fin-dn'}">${
+                    sv.change_pct >= 0 ? '+' : ''}${sv.change_pct}%</span>`;
+            return `<td>${num}${chg}</td>`;
+        }).join('') + '</tr>';
+    });
+    h += '</tbody>';
+    document.getElementById('fin-table').innerHTML = h;
+
+    // Reg 33 timing per quarter — the compliance half of the comparison.
+    document.getElementById('fin-timing').innerHTML =
+        '<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:4px">Disclosure timing · SEBI LODR Reg 33</div>' +
+        ps.map(p => {
+            const t = p.timing || {};
+            if (!t.days_after_period_end && t.days_after_period_end !== 0) return '';
+            return `<div class="fin-time">
+                <span style="width:110px;font-weight:600">${gwEsc(p.period_label)}</span>
+                <span>filed ${t.days_after_period_end} days after period end, limit ${t.limit_days}</span>
+                <span class="${t.within_limit ? 'fin-ok' : 'fin-late'}">${
+                    t.within_limit ? `${t.headroom_days}d to spare` : 'past the limit'}</span>
+                ${p.source_filing ? `<a href="${p.source_filing.pdf_link}" target="_blank" rel="noopener" style="margin-left:auto;font-size:10.5px;color:#4338ca">source &#8599;</a>` : ''}
+            </div>`;
+        }).join('');
+
+    let notes = `<p style="font-size:10.5px;color:#94a3b8;line-height:1.5">${gwEsc(d.unit_note || '')}
+        Figures are read from the filed PDF by Delta and should be checked against the statement before use.</p>`;
+    (d.excluded || []).forEach(x => {
+        notes += `<p style="font-size:11px;color:#b45309;margin-top:6px">Withheld — <strong>${gwEsc(x.period)}</strong>: ${gwEsc(x.reason)}</p>`;
+    });
+    document.getElementById('fin-notes').innerHTML = notes;
 }
 </script>
 </body>

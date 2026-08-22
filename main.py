@@ -3909,6 +3909,38 @@ def api_governance_profile(symbol):
     return jsonify(profile)
 
 
+@app.route("/api/compliance/crosscheck-one", methods=["POST"])
+@login_required
+def api_compliance_crosscheck_one():
+    """Cross-check a single obligation against the public record."""
+    import web_crosscheck as wc
+    d = request.get_json(silent=True) or {}
+    sym = (d.get("symbol") or "").upper()
+    mid, period, due = d.get("mandate_id"), d.get("period"), d.get("due_date")
+    if not all([sym, mid, period]):
+        return jsonify({"status": "error", "message": "missing fields"}), 400
+    res = wc.crosscheck(sym, mid, period, due or "", company_name=sym)
+    wc.apply_verdict(sym, mid, period, res)
+    return jsonify(res)
+
+
+@app.route("/api/company/<symbol>/financials")
+@login_required
+def api_company_financials(symbol):
+    """Quarter-over-quarter comparison of reported results, with Reg 33 timing."""
+    import financial_compare as fc
+    quarters = min(int(request.args.get("quarters", 4)), 8)
+    extract = request.args.get("extract", "1") != "0"
+    try:
+        data = fc.compare(symbol.upper(), request.args.get("name", ""),
+                          quarters=quarters, extract_missing=extract)
+        data["status"] = "ok"
+        return jsonify(data)
+    except Exception as e:
+        print(f"[FIN] compare failed for {symbol}: {str(e)[:160]}")
+        return jsonify({"status": "error", "message": str(e)[:200]}), 500
+
+
 @app.route("/api/morning-brief")
 @login_required
 def api_morning_brief():
@@ -3944,6 +3976,7 @@ govsnap.init_snapshots_db()
 import web_crosscheck as _wcc; _wcc.init_crosscheck_db()
 init_cache_db()
 import esign as _esign; _esign.init_esign_db()
+import financial_compare as _fin; _fin.init_fin_db()
 from agents.briefing import init_briefing_db as _ibd; _ibd()
 seed_default_referral_codes()
 init_watchlist()
