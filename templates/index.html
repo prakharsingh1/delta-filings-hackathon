@@ -106,6 +106,51 @@
             0% { margin-left: -30%; } 100% { margin-left: 100%; }
         }
     </style>
+<style>
+    /* Governance workbench */
+    .gw-stat { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
+    .gw-v { font-size:26px; font-weight:800; color:#0f172a; letter-spacing:-.03em;
+        font-variant-numeric:tabular-nums; line-height:1; }
+    .gw-l { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+        color:#94a3b8; margin-top:6px; }
+    .gw-d { font-size:11px; margin-top:4px; font-variant-numeric:tabular-nums; }
+    .gw-d.up { color:#059669; } .gw-d.down { color:#dc2626; } .gw-d.flat { color:#94a3b8; }
+
+    .gw-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+    .gw-head { padding:11px 16px; border-bottom:1px solid #f1f5f9; font-size:11px;
+        font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:#475569;
+        display:flex; align-items:baseline; gap:8px; }
+    .gw-head-sub { font-size:10.5px; font-weight:500; text-transform:none;
+        letter-spacing:0; color:#94a3b8; }
+
+    .gw-row { display:flex; align-items:flex-start; gap:11px; padding:11px 16px; font-size:13px; }
+    .gw-mark { width:15px; height:15px; border-radius:4px; flex-shrink:0; margin-top:1px;
+        display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; }
+    .gw-ok { background:#dcfce7; color:#15803d; } .gw-bad { background:#fee2e2; color:#b91c1c; }
+    .gw-warn { background:#fef3c7; color:#b45309; }
+    .gw-prov { font-family:ui-monospace,Menlo,monospace; font-size:10px; color:#4338ca;
+        background:#eef2ff; padding:1px 6px; border-radius:4px; }
+    .gw-obs { font-size:11.5px; color:#64748b; margin-top:2px; }
+    .gw-num { font-variant-numeric:tabular-nums; font-family:ui-monospace,Menlo,monospace;
+        font-size:11.5px; color:#475569; }
+    .gw-bar { height:5px; border-radius:3px; background:#f1f5f9; overflow:hidden; width:110px; }
+    .gw-bar span { display:block; height:100%; background:#6366f1; }
+    .gw-me { background:#eef2ff; }
+
+    html.dark .gw-stat, html.dark .gw-card { background:#0f0f10; border-color:#232326; }
+    html.dark .gw-v { color:#fafafa; } html.dark .gw-l { color:#71717a; }
+    html.dark .gw-head { color:#d4d4d8; border-bottom-color:#1c1c1f; }
+    html.dark .gw-head-sub { color:#71717a; }
+    html.dark .gw-row { color:#e4e4e7; }
+    html.dark .gw-obs, html.dark .gw-num { color:#a1a1aa; }
+    html.dark .gw-prov { background:#1e1b4b; color:#a5b4fc; }
+    html.dark .gw-ok { background:#052e20; color:#6ee7b7; }
+    html.dark .gw-bad { background:#2c1115; color:#fca5a5; }
+    html.dark .gw-warn { background:#2a1d05; color:#fcd34d; }
+    html.dark .gw-bar { background:#1c1c1f; }
+    html.dark .gw-me { background:#1e1b4b; }
+    html.dark .divide-gray-100 > * + * { border-color:#1c1c1f !important; }
+</style>
 </head>
 <body class="bg-slate-50 text-gray-800 min-h-screen">
 <div class="flex h-screen overflow-hidden">
@@ -494,6 +539,69 @@
 
         <!-- Compare Tab Panel -->
         <div id="panel-governance" class="hidden p-8 max-w-5xl mx-auto">
+
+            <!-- ── Governance workbench ──────────────────────────────────
+                 Board composition, statutory structure, tenure, turnover and
+                 peer standing — all computed from the company's own filed
+                 governance reports rather than described in prose. -->
+            <div id="gw" class="mb-6">
+                <div class="flex items-baseline justify-between mb-3">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900">Governance workbench</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">Structural analysis across
+                            <span id="gw-quarters">—</span> filed quarters</p>
+                    </div>
+                    <span id="gw-verdict" class="text-[11px] font-semibold text-gray-500"></span>
+                </div>
+
+                <div id="gw-loading" class="flex items-center justify-center py-10">
+                    <div class="spinner"></div><span class="ml-3 text-sm text-gray-500">Analysing filed reports…</span>
+                </div>
+
+                <div id="gw-body" class="hidden space-y-4">
+                    <!-- composition + trend -->
+                    <div class="grid md:grid-cols-3 gap-3">
+                        <div class="gw-stat"><div class="gw-v" id="gw-total">—</div><div class="gw-l">Board size</div><div class="gw-d" id="gw-total-d"></div></div>
+                        <div class="gw-stat"><div class="gw-v" id="gw-ind">—</div><div class="gw-l">Independent</div><div class="gw-d" id="gw-ind-d"></div></div>
+                        <div class="gw-stat"><div class="gw-v" id="gw-ratio">—</div><div class="gw-l">Independence</div><div class="gw-d" id="gw-ratio-d"></div></div>
+                    </div>
+
+                    <!-- statutory structure -->
+                    <div class="gw-card">
+                        <div class="gw-head">Statutory structure
+                            <span class="gw-head-sub">SEBI LODR Reg 17-21 · Companies Act s.149</span></div>
+                        <div id="gw-findings" class="divide-y divide-gray-100"></div>
+                    </div>
+
+                    <!-- forward risks -->
+                    <div class="gw-card" id="gw-risk-card">
+                        <div class="gw-head">Forward risk
+                            <span class="gw-head-sub">compliant today, one change from not being</span></div>
+                        <div id="gw-risks" class="p-4 space-y-3"></div>
+                    </div>
+
+                    <!-- committees -->
+                    <div class="gw-card">
+                        <div class="gw-head">Committees
+                            <span class="gw-head-sub">members · independent · headroom to the statutory minimum</span></div>
+                        <div id="gw-committees" class="divide-y divide-gray-100"></div>
+                    </div>
+
+                    <!-- peer standing -->
+                    <div class="gw-card">
+                        <div class="gw-head">Peer standing
+                            <span class="gw-head-sub">against your monitored set</span></div>
+                        <div id="gw-peers" class="divide-y divide-gray-100"></div>
+                    </div>
+
+                    <!-- quarter trail -->
+                    <div class="gw-card">
+                        <div class="gw-head">Composition by quarter
+                            <span class="gw-head-sub">click a quarter to open its source filing</span></div>
+                        <div id="gw-trail" class="divide-y divide-gray-100"></div>
+                    </div>
+                </div>
+            </div>
 
             <!-- ── Primary: Compare any two filings ── -->
             <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-6">
@@ -1515,6 +1623,7 @@ function switchTab(tab) {
 
     document.getElementById('panel-announcements').classList.toggle('hidden', tab !== 'announcements');
     document.getElementById('panel-governance').classList.toggle('hidden', tab !== 'governance');
+    if (tab === 'governance') loadGovernanceWorkbench();
     // Governance XBRL list is loaded lazily — only when the user opens the
     // collapsible "Governance snapshot" section, not on tab switch.
 }
@@ -1981,6 +2090,125 @@ document.addEventListener('DOMContentLoaded', () => {
         switchTab(activeTab);
     }
 });
+
+// ══ Governance workbench ═══════════════════════════════════
+// Renders the structural analysis computed from the company's own filed
+// governance reports. Nothing here is model output.
+let _gwLoaded = false;
+
+async function loadGovernanceWorkbench() {
+    if (_gwLoaded) return;
+    _gwLoaded = true;
+    const body = document.getElementById('gw-body');
+    const load = document.getElementById('gw-loading');
+    try {
+        const d = await (await fetch(`/api/company/{{ selected }}/governance-profile`)).json();
+        if (d.status !== 'ok') throw new Error(d.message || 'unavailable');
+        renderWorkbench(d);
+        load.classList.add('hidden'); body.classList.remove('hidden');
+    } catch (e) {
+        load.innerHTML = `<p class="text-sm text-gray-500">Governance analysis unavailable: ${gwEsc(e.message)}</p>`;
+    }
+}
+
+function gwEsc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
+
+function _delta(cur, prev, suffix) {
+    if (prev === undefined || prev === null || cur === prev) return {cls: 'flat', txt: 'unchanged'};
+    const diff = cur - prev;
+    return {cls: diff > 0 ? 'up' : 'down',
+            txt: `${diff > 0 ? '+' : ''}${diff}${suffix || ''} vs previous quarter`};
+}
+
+function renderWorkbench(d) {
+    const c = d.composition || {};
+    const qs = d.quarters || [];
+    const prev = qs[1] || {};
+
+    document.getElementById('gw-quarters').textContent = qs.length;
+    document.getElementById('gw-verdict').textContent = (d.peers || {}).verdict || '';
+
+    document.getElementById('gw-total').textContent = c.total_directors ?? '—';
+    document.getElementById('gw-ind').textContent = c.independent_directors ?? '—';
+    document.getElementById('gw-ratio').textContent = (c.independence_ratio_pct ?? '—') + '%';
+
+    const dt = _delta(c.total_directors, prev.total);
+    const di = _delta(c.independent_directors, prev.independent);
+    const dr = _delta(c.independence_ratio_pct, prev.ratio, ' pts');
+    document.getElementById('gw-total-d').innerHTML = `<span class="${dt.cls}">${dt.txt}</span>`;
+    document.getElementById('gw-ind-d').innerHTML = `<span class="${di.cls}">${di.txt}</span>`;
+    document.getElementById('gw-ratio-d').innerHTML =
+        `<span class="${dr.cls}">${dr.txt}</span> · floor ${c.required_independence_pct ?? '—'}%`;
+
+    // Statutory structure
+    document.getElementById('gw-findings').innerHTML = (c.findings || []).map(f => `
+        <div class="gw-row">
+            <span class="gw-mark ${f.compliant ? 'gw-ok' : 'gw-bad'}">${f.compliant ? '&#10003;' : '&#10007;'}</span>
+            <span style="flex:1;min-width:0">
+                <span style="display:block">${gwEsc(f.requirement)}</span>
+                <span class="gw-obs">${gwEsc(f.observed)}</span>
+            </span>
+            <span class="gw-prov">${gwEsc(f.provision)}</span>
+        </div>`).join('');
+
+    // Forward risk
+    const risks = d.risks || [];
+    document.getElementById('gw-risk-card').style.display = risks.length ? '' : 'none';
+    document.getElementById('gw-risks').innerHTML = risks.map(r => `
+        <div class="flex gap-2.5">
+            <span class="gw-mark ${r.severity === 'high' ? 'gw-bad' : 'gw-warn'}">!</span>
+            <span style="flex:1;min-width:0">
+                <span style="display:block;font-weight:600;font-size:12.5px">${gwEsc(r.area)}
+                    ${r.provision ? `<span class="gw-prov" style="margin-left:5px">${gwEsc(r.provision)}</span>` : ''}</span>
+                <span class="gw-obs" style="margin-top:3px;line-height:1.5">${gwEsc(r.risk)}</span>
+            </span>
+        </div>`).join('');
+
+    // Committees
+    document.getElementById('gw-committees').innerHTML =
+        Object.values(d.committees || {}).map(cm => {
+            const fails = (cm.findings || []).filter(f => !f.compliant);
+            const hr = cm.headroom;
+            const hrTxt = hr === undefined || hr === null ? '—'
+                : (hr <= 0 ? 'at minimum' : `+${hr} above minimum`);
+            return `<div class="gw-row">
+                <span class="gw-mark ${fails.length ? 'gw-bad' : (hr === 0 ? 'gw-warn' : 'gw-ok')}">${fails.length ? '&#10007;' : (hr === 0 ? '!' : '&#10003;')}</span>
+                <span style="flex:1;min-width:0">
+                    <span style="display:block;font-weight:600">${gwEsc(cm.label)}</span>
+                    <span class="gw-obs">${cm.members} members · ${cm.independent_members} independent ·
+                        chaired by ${gwEsc(cm.chair || '—')}${cm.chair_independent ? ' (independent)' : ''}</span>
+                </span>
+                <span class="gw-num">${gwEsc(hrTxt)}</span>
+            </div>`;
+        }).join('');
+
+    // Peers
+    const p = d.peers || {};
+    const maxR = Math.max(...(p.rows || [{independence_pct: 100}]).map(r => r.independence_pct), 1);
+    document.getElementById('gw-peers').innerHTML = (p.rows || []).map(r => `
+        <div class="gw-row ${r.symbol === '{{ selected }}' ? 'gw-me' : ''}">
+            <span style="width:96px;font-weight:${r.symbol === '{{ selected }}' ? '800' : '600'}">${gwEsc(r.symbol)}</span>
+            <span class="gw-bar"><span style="width:${Math.round(r.independence_pct / maxR * 100)}%"></span></span>
+            <span class="gw-num" style="width:44px">${r.independence_pct}%</span>
+            <span class="gw-obs" style="flex:1">${r.independent} of ${r.board_size} directors independent</span>
+        </div>`).join('') +
+        (p.median_independence_pct !== undefined
+            ? `<div class="gw-row"><span class="gw-obs">Peer median ${p.median_independence_pct}% · median board size ${p.median_board_size}</span></div>`
+            : '');
+
+    // Quarter trail
+    document.getElementById('gw-trail').innerHTML = (d.quarters || []).map((q, i) => {
+        const nxt = (d.quarters || [])[i + 1];
+        const chg = nxt ? q.total - nxt.total : 0;
+        return `<div class="gw-row" ${q.source_url ? `onclick="window.open('${q.source_url}','_blank')" style="cursor:pointer"` : ''}>
+            <span class="gw-num" style="width:104px">${gwEsc(q.quarter)}</span>
+            <span style="width:34px;font-weight:700">${q.total}</span>
+            <span class="gw-obs" style="flex:1">${q.independent} independent · ${q.ratio}%
+                ${chg ? `<span class="${chg > 0 ? 'up' : 'down'}" style="margin-left:6px">${chg > 0 ? '+' : ''}${chg}</span>` : ''}</span>
+            ${q.source_url ? '<span class="gw-obs">source &#8599;</span>' : ''}
+        </div>`;
+    }).join('');
+}
 </script>
 </body>
 </html>

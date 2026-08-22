@@ -2888,65 +2888,66 @@ def api_price_intel(symbol):
         return jsonify(payload)
 
 
-    # ── DIN Search ───────────────────────────────────────────
-
-    # Four prominent Indian directors shown as one-click examples on the DIN
-    # search page. Descriptions are drawn from widely-reported public information
-    # and do not assert anything not already in the public record. Legal-status
-    # fields only state what is publicly known — they never make allegations.
-    DIN_SEARCH_EXAMPLES = [
-        {
-            "din": "00347229",
-            "name": "Kiran Mazumdar-Shaw",
-            "title": "Executive Chairperson, Biocon",
-            "bio": ("Founder of Biocon Limited and Executive Chairperson of "
-                    "Biocon and Biocon Biologics. One of India's foremost "
-                    "biotech entrepreneurs; sits on multiple listed biotech, "
-                    "pharma and research boards."),
-            "linkedin": "https://www.linkedin.com/in/kiranmazumdarshaw/",
-            "legal_status": ("No known major ongoing legal proceedings in the "
-                             "public record (as of April 2026)."),
-        },
-        {
-            "din": "00091908",
-            "name": "Nandan Nilekani",
-            "title": "Co-founder & Non-Executive Chairman, Infosys",
-            "bio": ("Co-founder of Infosys, former Chairman of UIDAI (architect "
-                    "of Aadhaar) and currently Non-Executive Chairman of Infosys. "
-                    "Serves on several technology and public-infrastructure boards."),
-            "linkedin": "https://www.linkedin.com/in/nandan-nilekani/",
-            "legal_status": ("No known major ongoing legal proceedings in the "
-                             "public record (as of April 2026)."),
-        },
-        {
-            "din": "00007467",
-            "name": "Uday Kotak",
-            "title": "Founder, Kotak Mahindra Bank",
-            "bio": ("Founder and Non-Executive Director of Kotak Mahindra Bank. "
-                    "Stepped down as MD & CEO in September 2023 under RBI's "
-                    "founder-tenure norms. Chaired SEBI's Committee on Corporate "
-                    "Governance (the 'Kotak Committee')."),
-            "linkedin": "https://www.linkedin.com/in/uday-kotak-b0b6a64/",
-            "legal_status": ("No known major ongoing personal legal proceedings "
-                             "in the public record (as of April 2026)."),
-        },
-        {
-            "din": "00004695",
-            "name": "Anand Mahindra",
-            "title": "Executive Chairman, Mahindra Group",
-            "bio": ("Executive Chairman of the Mahindra Group, overseeing Mahindra "
-                    "& Mahindra, Tech Mahindra, Mahindra Finance and the group's "
-                    "many other listed entities. Prominent voice on Indian industry."),
-            "linkedin": "https://www.linkedin.com/in/anand-mahindra-22773a8/",
-            "legal_status": ("No known major ongoing legal proceedings in the "
-                             "public record (as of April 2026)."),
-        },
-    ]
     result = _compute(symbol)
     if result is None:
         # Frozen with nothing cached — return empty rather than call out.
         return jsonify({}), 200
     return result
+
+# ── DIN Search ───────────────────────────────────────────
+
+# Four prominent Indian directors shown as one-click examples on the DIN
+# search page. Descriptions are drawn from widely-reported public information
+# and do not assert anything not already in the public record. Legal-status
+# fields only state what is publicly known — they never make allegations.
+DIN_SEARCH_EXAMPLES = [
+    {
+        "din": "00347229",
+        "name": "Kiran Mazumdar-Shaw",
+        "title": "Executive Chairperson, Biocon",
+        "bio": ("Founder of Biocon Limited and Executive Chairperson of "
+                "Biocon and Biocon Biologics. One of India's foremost "
+                "biotech entrepreneurs; sits on multiple listed biotech, "
+                "pharma and research boards."),
+        "linkedin": "https://www.linkedin.com/in/kiranmazumdarshaw/",
+        "legal_status": ("No known major ongoing legal proceedings in the "
+                         "public record (as of April 2026)."),
+    },
+    {
+        "din": "00091908",
+        "name": "Nandan Nilekani",
+        "title": "Co-founder & Non-Executive Chairman, Infosys",
+        "bio": ("Co-founder of Infosys, former Chairman of UIDAI (architect "
+                "of Aadhaar) and currently Non-Executive Chairman of Infosys. "
+                "Serves on several technology and public-infrastructure boards."),
+        "linkedin": "https://www.linkedin.com/in/nandan-nilekani/",
+        "legal_status": ("No known major ongoing legal proceedings in the "
+                         "public record (as of April 2026)."),
+    },
+    {
+        "din": "00007467",
+        "name": "Uday Kotak",
+        "title": "Founder, Kotak Mahindra Bank",
+        "bio": ("Founder and Non-Executive Director of Kotak Mahindra Bank. "
+                "Stepped down as MD & CEO in September 2023 under RBI's "
+                "founder-tenure norms. Chaired SEBI's Committee on Corporate "
+                "Governance (the 'Kotak Committee')."),
+        "linkedin": "https://www.linkedin.com/in/uday-kotak-b0b6a64/",
+        "legal_status": ("No known major ongoing personal legal proceedings "
+                         "in the public record (as of April 2026)."),
+    },
+    {
+        "din": "00004695",
+        "name": "Anand Mahindra",
+        "title": "Executive Chairman, Mahindra Group",
+        "bio": ("Executive Chairman of the Mahindra Group, overseeing Mahindra "
+                "& Mahindra, Tech Mahindra, Mahindra Finance and the group's "
+                "many other listed entities. Prominent voice on Indian industry."),
+        "linkedin": "https://www.linkedin.com/in/anand-mahindra-22773a8/",
+        "legal_status": ("No known major ongoing legal proceedings in the "
+                         "public record (as of April 2026)."),
+    },
+]
 
 @app.route("/din-search")
 @login_required
@@ -3273,73 +3274,79 @@ def compliance_page():
 @app.route("/api/compliance")
 @login_required
 def api_compliance():
-    """Return compliance dashboard data with reconciled metrics, scoped to the
-    current user's watchlist."""
-    watchlist = get_watchlist(_current_user_id())
-    user_symbols = [w["symbol"] for w in watchlist]
-    dashboard = get_compliance_dashboard(symbols=user_symbols)
-    mandates = get_all_mandates()
+    # Cached: enriches every obligation on the watchlist per call.
+    @demo_cached('compliance_dashboard', ttl=1800, key_args=False)
+    def _compute():
+        """Return compliance dashboard data with reconciled metrics, scoped to the
+        current user's watchlist."""
+        watchlist = get_watchlist(_current_user_id())
+        user_symbols = [w["symbol"] for w in watchlist]
+        dashboard = get_compliance_dashboard(symbols=user_symbols)
+        mandates = get_all_mandates()
 
-    # Per-company scores with health tags + SEBI enforcement summary.
-    # We auto-backfill two things for any watchlisted company that's missing
-    # data (companies added before these features shipped, or in-flight):
-    #   1. Compliance obligations (Reg 27/30/33/etc) — fired in a thread so
-    #      the dashboard request doesn't block on NSE/BSE round-trips.
-    #   2. SEBI enforcement history — same, in a daemon thread.
-    # The `loading` flag tells the front-end whether to show a spinner and
-    # poll back. Without this, MARICO-style "0 actions ever" companies would
-    # loop forever because we couldn't tell "never scraped" from "scraped
-    # and found nothing".
-    enforcement_summaries = get_enforcement_summaries(user_symbols)
-    company_scores = {}
-    for w in watchlist:
-        sym = w["symbol"]
-        comp_data = get_company_compliance(sym)
+        # Per-company scores with health tags + SEBI enforcement summary.
+        # We auto-backfill two things for any watchlisted company that's missing
+        # data (companies added before these features shipped, or in-flight):
+        #   1. Compliance obligations (Reg 27/30/33/etc) — fired in a thread so
+        #      the dashboard request doesn't block on NSE/BSE round-trips.
+        #   2. SEBI enforcement history — same, in a daemon thread.
+        # The `loading` flag tells the front-end whether to show a spinner and
+        # poll back. Without this, MARICO-style "0 actions ever" companies would
+        # loop forever because we couldn't tell "never scraped" from "scraped
+        # and found nothing".
+        enforcement_summaries = get_enforcement_summaries(user_symbols)
+        company_scores = {}
+        for w in watchlist:
+            sym = w["symbol"]
+            comp_data = get_company_compliance(sym)
 
-        # Auto-backfill compliance obligations if missing.
-        comp_loading = False
-        if comp_data["history"]["total"] == 0:
-            try:
-                threading.Thread(
-                    target=refresh_compliance, args=(sym,),
-                    name=f"compliance-{sym}", daemon=True,
-                ).start()
-                comp_loading = True
-            except Exception as e:
-                print(f"[COMPLIANCE] async refresh failed for {sym}: {e}")
+            # Auto-backfill compliance obligations if missing.
+            comp_loading = False
+            if comp_data["history"]["total"] == 0:
+                try:
+                    threading.Thread(
+                        target=refresh_compliance, args=(sym,),
+                        name=f"compliance-{sym}", daemon=True,
+                    ).start()
+                    comp_loading = True
+                except Exception as e:
+                    print(f"[COMPLIANCE] async refresh failed for {sym}: {e}")
 
-        enf_summary = enforcement_summaries.get(sym, {
-            "total": 0, "high": 0, "medium": 0, "low": 0,
-            "last_action_date": None, "last_checked_at": None,
+            enf_summary = enforcement_summaries.get(sym, {
+                "total": 0, "high": 0, "medium": 0, "low": 0,
+                "last_action_date": None, "last_checked_at": None,
+            })
+            # Only treat as "loading" if we've never checked. A timestamp here
+            # means we checked and the result (possibly zero) is final.
+            if enf_summary.get("last_checked_at") is None:
+                refresh_enforcement_async(sym, w.get("name") or sym)
+                enf_summary = {**enf_summary, "loading": True}
+
+            company_scores[sym] = {
+                "score": comp_data["score"],
+                "history": comp_data["history"],
+                "health_tag": comp_data["health_tag"],
+                "compliance_loading": comp_loading,
+                "enforcement": enf_summary,
+            }
+
+        return jsonify({
+            "upcoming": dashboard["upcoming"],
+            "overdue": dashboard["overdue"],
+            "completed": dashboard["completed"],
+            "future": dashboard.get("future", []),
+            "unverified": dashboard.get("unverified", []),
+            "all": dashboard["all"],
+            "total": dashboard["total"],
+            "validation": dashboard["validation"],
+            "last_synced": dashboard["last_synced"],
+            "mandates": mandates,
+            "company_scores": company_scores,
         })
-        # Only treat as "loading" if we've never checked. A timestamp here
-        # means we checked and the result (possibly zero) is final.
-        if enf_summary.get("last_checked_at") is None:
-            refresh_enforcement_async(sym, w.get("name") or sym)
-            enf_summary = {**enf_summary, "loading": True}
-
-        company_scores[sym] = {
-            "score": comp_data["score"],
-            "history": comp_data["history"],
-            "health_tag": comp_data["health_tag"],
-            "compliance_loading": comp_loading,
-            "enforcement": enf_summary,
-        }
-
-    return jsonify({
-        "upcoming": dashboard["upcoming"],
-        "overdue": dashboard["overdue"],
-        "completed": dashboard["completed"],
-        "future": dashboard.get("future", []),
-        "unverified": dashboard.get("unverified", []),
-        "all": dashboard["all"],
-        "total": dashboard["total"],
-        "validation": dashboard["validation"],
-        "last_synced": dashboard["last_synced"],
-        "mandates": mandates,
-        "company_scores": company_scores,
-    })
-
+    result = _compute()
+    if result is None:
+        return jsonify({}), 200
+    return result
 
 @app.route("/api/xbrl-utilities")
 @login_required
@@ -3510,6 +3517,9 @@ def intelligence_center():
 
 def _gemini_ready():
     try:
+        if demo_frozen():
+            # Frozen mode must not make outbound calls; the probe is one.
+            return {"ok": True, "error": ""}
         from agents.client import gemini_healthy
         return gemini_healthy()
     except Exception as e:
@@ -3861,6 +3871,44 @@ def api_event_coverage(event_id):
     return jsonify({"status": "ok", "results": results})
 
 
+@app.route("/api/company/<symbol>/governance-profile")
+@login_required
+def api_governance_profile(symbol):
+    """Structural governance analysis for the comparison workbench.
+
+    Everything here is computed from the company's own filed governance
+    reports — composition against Reg 17, committee quorum and independence
+    against Regs 18/19/20/21, tenure against s.149, turnover across quarters,
+    committee-load concentration, and where the company sits against its
+    monitored peers.
+    """
+    import governance_analytics as ga
+    import governance_snapshots as gs
+
+    symbol = symbol.upper()
+    peers = [s for s in get_companies() if s != symbol]
+
+    try:
+        profile = ga.full_profile(symbol, peers=peers)
+    except Exception as e:
+        print(f"[GOV-PROFILE] {symbol} failed: {str(e)[:160]}")
+        return jsonify({"status": "error", "message": str(e)[:200]}), 500
+
+    snaps = gs.list_snapshots(symbol)
+    profile["quarters"] = [
+        {"quarter": s["quarter"], "date": s["quarter_date"],
+         "total": s["summary"].get("total_directors"),
+         "independent": s["summary"].get("independent_directors"),
+         "ratio": s["summary"].get("independent_ratio_pct"),
+         "source_url": s.get("source_url", "")}
+        for s in snaps
+    ]
+    profile["latest_delta"] = gs.compute_delta(symbol) or {}
+    profile["change_periods"] = gs.find_change_periods(symbol)
+    profile["status"] = "ok"
+    return jsonify(profile)
+
+
 @app.route("/api/morning-brief")
 @login_required
 def api_morning_brief():
@@ -3903,13 +3951,17 @@ init_watchlist()
 # Warm SEBI legal-link cache in the background so per-obligation "SEBI Source"
 # buttons resolve to live URLs (SEBI rebuilds them on every amendment).
 from sebi_link_resolver import warm_cache_async
-warm_cache_async()
+if not demo_frozen():
+    warm_cache_async()
 
 # Start the always-on alert poller. Safe across gunicorn workers thanks to
 # the DB-backed lease in alert_poller.py — only one worker per minute
 # actually hits NSE and dispatches Telegram messages.
 from alert_poller import start_alert_poller
-start_alert_poller()
+if demo_frozen():
+    print("[MAIN] DELTA_DEMO_FREEZE set — alert poller disabled, no outbound calls.")
+else:
+    start_alert_poller()
 
 print("[MAIN] Databases initialized.")
 

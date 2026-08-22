@@ -10,10 +10,12 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict, List
 
 from database import get_connection
+from demo_cache import cached
 
 _CLOSED = ("approved", "dismissed")
 
 
+@cached("signal.company_cards", ttl=900)
 def company_cards(symbols: List[str]) -> List[Dict]:
     """Per-company posture: board trend, open work, next deadline, activity."""
     import governance_snapshots as gs
@@ -79,6 +81,7 @@ def company_cards(symbols: List[str]) -> List[Dict]:
     return out
 
 
+@cached("signal.risk_breakdown", ttl=900)
 def risk_breakdown(symbols: List[str]) -> Dict[str, Any]:
     """Where the open work is concentrated — by category and by company."""
     if not symbols:
@@ -112,6 +115,7 @@ def risk_breakdown(symbols: List[str]) -> Dict[str, Any]:
     return {"by_category": by_cat, "by_company": by_co, "by_risk": by_risk}
 
 
+@cached("signal.deadline_runway", ttl=1800)
 def deadline_runway(symbols: List[str]) -> Dict[str, Any]:
     """Obligation load in the next 7 / 30 / 90 days."""
     if not symbols:
@@ -130,6 +134,7 @@ def deadline_runway(symbols: List[str]) -> Dict[str, Any]:
     return {"buckets": buckets, "total": buckets[-1]["n"] if buckets else 0}
 
 
+@cached("signal.document_stats", ttl=900)
 def document_stats(symbols: List[str]) -> Dict[str, Any]:
     """What Delta has already drafted and is waiting on a human for."""
     if not symbols:
@@ -149,6 +154,7 @@ def document_stats(symbols: List[str]) -> Dict[str, Any]:
     return {"total": sum(x["n"] for x in by_type), "by_type": by_type, "awaiting": awaiting}
 
 
+@cached("signal.activity_sparkline", ttl=3600)
 def activity_sparkline(symbols: List[str], weeks: int = 12) -> List[Dict]:
     """Filing volume per week — the ambient noise level the agents filter."""
     if not symbols:
@@ -180,8 +186,15 @@ def agent_status() -> Dict[str, Any]:
 
     try:
         from agents.client import AGENT_MODELS, gemini_healthy
-        health = gemini_healthy()
         models = AGENT_MODELS
+        from demo_cache import frozen
+        if frozen():
+            # The health probe is a live generateContent call — a full second,
+            # and an outbound request frozen mode exists to prevent. The agents
+            # have already run; report them as configured.
+            health = {"ok": True, "error": ""}
+        else:
+            health = gemini_healthy()
     except Exception:
         health, models = {"ok": False, "error": "unavailable"}, {}
 
