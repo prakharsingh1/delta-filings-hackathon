@@ -50,22 +50,90 @@
         .rec-spark { width:24px; height:24px; border-radius:7px; display:inline-flex;
             align-items:center; justify-content:center; color:#fff;
             background:linear-gradient(135deg,#4f46e5,#7c3aed); flex-shrink:0; }
-        .rec-card { --rb:#4f46e5; position:relative; background:#fff;
-            border:1px solid #eef1f7; border-left:3px solid var(--rb);
-            border-radius:12px; padding:13px 14px; display:flex; flex-direction:column;
-            transition: transform .14s ease, box-shadow .18s ease, border-color .18s ease; cursor:pointer; }
-        .rec-card:hover { transform:translateY(-2px);
-            box-shadow:0 12px 26px -16px color-mix(in srgb, var(--rb) 60%, transparent);
-            border-color: color-mix(in srgb, var(--rb) 40%, #eef1f7); }
-        .rec-draft { display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
-            font-size:11.5px; font-weight:700; color:var(--rb); }
-        .rec-card:hover .rec-draft { gap:7px; }
-        .rec-section-head { display:flex; align-items:baseline; gap:8px; margin-bottom:8px;
-            padding-bottom:6px; border-bottom:1px solid #eef1f7; }
-        .rec-section-title { font-size:12.5px; font-weight:800; color:#0f172a; }
+        /* ── Filing register ──
+           A compliance professional reads a schedule, not a wall of cards.
+           Dense rows, tabular numerals, regulation and penalty exposure on
+           the face of it, severity carried by a 3px rule rather than colour
+           fills. */
+        .reg-row { display:grid; grid-template-columns:62px 1fr 132px 108px 92px;
+            gap:14px; align-items:center; width:100%; text-align:left;
+            padding:12px 16px 12px 13px; background:#fff; cursor:pointer;
+            border:1px solid transparent; border-left:3px solid var(--rb,#cbd5e1);
+            border-bottom:1px solid #f1f5f9; transition:background .12s, border-color .12s; }
+        .reg-row:hover { background:#fafbfd; border-color:#e2e8f0;
+            border-left-color:var(--rb,#cbd5e1); }
+        .reg-row:last-child { border-bottom:none; }
+
+        .reg-when { font-variant-numeric:tabular-nums; font-size:15px; font-weight:800;
+            color:#0f172a; letter-spacing:-.02em; line-height:1.05; }
+        .reg-when-u { font-size:9.5px; font-weight:700; color:#94a3b8;
+            text-transform:uppercase; letter-spacing:.06em; margin-top:1px; }
+        .reg-title { font-size:13.5px; font-weight:650; color:#0f172a; letter-spacing:-.01em; }
+        .reg-sub { font-size:11px; color:#64748b; margin-top:2px; line-height:1.45; }
+        .reg-pen { font-size:10.5px; color:#b45309; margin-top:3px; }
+        .reg-id { font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+            font-size:10.5px; font-weight:600; color:#4338ca;
+            background:#eef2ff; padding:2px 7px; border-radius:5px; display:inline-block; }
+        .reg-regime { font-size:10px; font-weight:700; color:#64748b;
+            text-transform:uppercase; letter-spacing:.05em; }
+        .reg-date { font-family:ui-monospace,Menlo,monospace; font-size:11px;
+            color:#475569; font-variant-numeric:tabular-nums; }
+        .reg-go { font-size:11.5px; font-weight:700; color:var(--rb,#4f46e5);
+            display:inline-flex; align-items:center; gap:4px; justify-content:flex-end; }
+        .reg-row:hover .reg-go { gap:7px; }
+
+        .rec-section-head { display:flex; align-items:baseline; gap:10px; margin:18px 0 0;
+            padding:0 16px 8px; border-bottom:1px solid #e2e8f0; }
+        .rec-section-title { font-size:11px; font-weight:800; color:#334155;
+            text-transform:uppercase; letter-spacing:.08em; }
         .rec-section-sub { font-size:11px; color:#94a3b8; flex:1; }
         .rec-section-ct { font-size:10.5px; font-weight:700; color:#64748b;
-            background:#f1f5f9; padding:1px 8px; border-radius:999px; }
+            background:#f1f5f9; padding:1px 8px; border-radius:999px;
+            font-variant-numeric:tabular-nums; }
+
+        html.dark .reg-row { background:#0f0f10; border-bottom-color:#1c1c1f; }
+        html.dark .reg-row:hover { background:#18181b; border-color:#27272a; }
+        html.dark .reg-when, html.dark .reg-title { color:#fafafa; }
+        html.dark .reg-when-u { color:#71717a; }
+        html.dark .reg-sub { color:#a1a1aa; }
+        html.dark .reg-pen { color:#fcd34d; }
+        html.dark .reg-id { background:#1e1b4b; color:#a5b4fc; }
+        html.dark .reg-regime { color:#a1a1aa; }
+        html.dark .reg-date { color:#a1a1aa; }
+        html.dark .rec-section-head { border-bottom-color:#232326; }
+        html.dark .rec-section-title { color:#d4d4d8; }
+        html.dark .rec-section-ct { background:#1c1c1f; color:#a1a1aa; }
+
+        .hdr-ctx { font-weight:600; color:#334155; }
+        html.dark .hdr-ctx { color:#e4e4e7; }
+        /* Step rail — a progress indicator for a professional workflow, not a
+           consumer onboarding carousel. */
+        .step-pill { position:relative; display:inline-flex; align-items:center; gap:7px;
+            padding:5px 12px 5px 8px; border-radius:7px; font-size:11.5px; font-weight:600;
+            background:transparent; color:#94a3b8; border:1px solid transparent; }
+        .step-pill .step-n { width:17px; height:17px; border-radius:5px; flex-shrink:0;
+            display:inline-flex; align-items:center; justify-content:center;
+            font-size:9.5px; font-weight:800; background:#f1f5f9; color:#94a3b8;
+            font-variant-numeric:tabular-nums; }
+        .step-pill.done { color:#475569; }
+        .step-pill.done .step-n { background:#dcfce7; color:#15803d; }
+        .step-pill.active { color:#0f172a; background:#fff; border-color:#e2e8f0;
+            box-shadow:0 1px 2px rgba(15,23,42,.05); }
+        .step-pill.active .step-n { background:#4f46e5; color:#fff; }
+        html.dark .step-pill { color:#71717a; }
+        html.dark .step-pill .step-n { background:#1c1c1f; color:#71717a; }
+        html.dark .step-pill.done { color:#a1a1aa; }
+        html.dark .step-pill.done .step-n { background:#052e20; color:#6ee7b7; }
+        html.dark .step-pill.active { color:#fafafa; background:#141416; border-color:#27272a; }
+        html.dark .step-pill.active .step-n { background:#6366f1; color:#fff; }
+        .reg-group { border:1px solid #e2e8f0; border-top:none;
+            border-radius:0 0 10px 10px; overflow:hidden; }
+        html.dark .reg-group { border-color:#232326; }
+
+        @media (max-width: 900px) {
+            .reg-row { grid-template-columns:54px 1fr; gap:10px; }
+            .reg-row > :nth-child(3), .reg-row > :nth-child(4) { display:none; }
+        }
     </style>
     <style>
         /* Signing panel — dark-theme counterparts. Without these the amber
@@ -100,11 +168,11 @@
         <div class="page-header">
             <div class="flex items-center justify-between">
                 <div>
-                    <div class="flex items-center gap-3">
-                        <h2 class="page-title">Draft</h2>
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 uppercase tracking-wider">AI</span>
-                    </div>
-                    <p class="page-subtitle">Draft SEBI compliance letters with your company's tone — download as PDF or Word.</p>
+                    <h2 class="page-title">Filing desk</h2>
+                    <p class="page-subtitle">
+                        Prepare, review and sign statutory correspondence —
+                        <span id="hdr-ctx" class="hdr-ctx">select a company to begin</span>
+                    </p>
                 </div>
                 <div id="step-pills" class="hidden md:flex items-center gap-2"></div>
             </div>
@@ -619,8 +687,24 @@ function renderStepPills(currentIdx) {
     const container = document.getElementById('step-pills');
     container.innerHTML = STEPS.map((label, i) => {
         const cls = i < currentIdx ? 'done' : i === currentIdx ? 'active' : 'todo';
-        return `<span class="step-pill ${cls}"><span class="font-bold">${i+1}</span> ${escapeHtml(label)}</span>`;
+        const n = i < currentIdx
+            ? '<svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="3.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
+            : (i + 1);
+        return `<span class="step-pill ${cls}"><span class="step-n">${n}</span>${escapeHtml(label)}</span>`;
     }).join('');
+}
+
+function updateHeaderContext() {
+    // The header carries the working context, so the CS always knows which
+    // company and instrument they are drafting for.
+    const el = document.getElementById('hdr-ctx');
+    if (!el) return;
+    const co = (STATE.company || {}).name || (STATE.company || {}).symbol;
+    const ft = (STATE.filing_type || {}).label;
+    el.textContent = !co ? 'select a company to begin' : (ft ? `${co} · ${ft}` : co);
+
+    const s2 = document.getElementById('step2-company-name');
+    if (s2) s2.textContent = (STATE.company || {}).symbol || co || 'this company';
 }
 
 function showStep(n) {
@@ -628,6 +712,7 @@ function showStep(n) {
         document.getElementById('step-'+i).classList.toggle('hidden', i !== n);
     }
     renderStepPills(n - 1);
+    updateHeaderContext();
     if (n === 4) _initQuillIfNeeded();
     window.scrollTo({top: 0, behavior: 'smooth'});
 }
@@ -688,21 +773,46 @@ function loadRecommendations(symbol) {
                 const onClick = isDraft
                     ? `pickFilingType('${escapeJsAttr(r.filing_type)}')`
                     : `window.location.href='/compliance'`;
-                const cta = isDraft
-                    ? `Draft this <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>`
-                    : `View in Compliance <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>`;
-                const meta = r.due_date || (r.freq || '');
+
+                // Left column: how long you have, in the unit that reads fastest.
+                const d = r.days_remaining;
+                let when = '—', unit = '';
+                if (d !== null && d !== undefined) {
+                    if (d < 0)        { when = Math.abs(d); unit = 'days late'; }
+                    else if (d === 0) { when = 'today';     unit = ''; }
+                    else if (d < 45)  { when = d;           unit = 'days left'; }
+                    else              { when = Math.round(d / 7); unit = 'weeks'; }
+                } else if (r.freq)    { when = '·';         unit = escapeHtml(r.freq); }
+
+                const title = r.mandate_name || r.label || '';
+                // Prefer the regulation + form over the generated sentence:
+                // it is denser and it is what a CS scans for.
+                const sub = r.form
+                    ? `${escapeHtml(r.form)}${r.period ? ' · ' + escapeHtml(r.period) : ''}`
+                    : escapeHtml(r.reason || '');
+
                 return `
-                <button type="button" onclick="${onClick}" class="rec-card text-left" style="--rb:${s.border}">
-                    <div class="flex items-start justify-between gap-2 mb-1">
-                        <span class="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded ${s.pill}">${s.label}</span>
-                        ${meta ? `<span class="text-[10px] text-gray-400 font-medium">${escapeHtml(meta)}</span>` : ''}
-                    </div>
-                    <p class="text-sm font-semibold text-gray-900 leading-snug">${escapeHtml(r.label || '')}</p>
-                    <p class="text-[11px] text-gray-500 mt-1 leading-relaxed">${escapeHtml(r.reason || '')}</p>
-                    <span class="rec-draft mt-2">${cta}</span>
+                <button type="button" onclick="${onClick}" class="reg-row" style="--rb:${s.border}">
+                    <span>
+                        <span class="reg-when">${escapeHtml(String(when))}</span>
+                        ${unit ? `<span class="reg-when-u" style="display:block">${escapeHtml(unit)}</span>` : ''}
+                    </span>
+                    <span style="min-width:0">
+                        <span class="reg-title" style="display:block">${escapeHtml(title)}</span>
+                        <span class="reg-sub" style="display:block">${sub}</span>
+                        ${r.penalty ? `<span class="reg-pen" style="display:block">Exposure: ${escapeHtml(r.penalty)}</span>` : ''}
+                    </span>
+                    <span>
+                        ${r.mandate_id ? `<span class="reg-id">${escapeHtml(r.mandate_id)}</span>` : ''}
+                        ${r.regime ? `<span class="reg-regime" style="display:block;margin-top:3px">${escapeHtml(r.regime)}</span>` : ''}
+                    </span>
+                    <span class="reg-date">${escapeHtml(r.due_date || '')}</span>
+                    <span class="reg-go">${isDraft ? 'Draft' : 'Open'}
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    </span>
                 </button>`;
             };
+
             // Group into labelled sections.
             let html = '';
             for (const b of _BUCKETS) {
@@ -715,7 +825,7 @@ function loadRecommendations(symbol) {
                             <span class="rec-section-sub">${b.sub}</span>
                             <span class="rec-section-ct">${items.length}</span>
                         </div>
-                        <div class="grid md:grid-cols-2 gap-2.5">${items.map(card).join('')}</div>
+                        <div class="reg-group">${items.map(card).join('')}</div>
                     </div>`;
             }
             document.getElementById('rec-grid').innerHTML = html;

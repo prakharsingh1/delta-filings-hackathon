@@ -182,9 +182,20 @@ def recommend_filings(symbol: str, industry: str = "", max_items: int = 24) -> L
                 urg, reason = "due_soon", f"{mname} ({regime}) is due in {days} days ({ob['due_date']})."
             else:
                 urg, reason = "upcoming", f"{mname} ({regime}) is due in {days} days ({ob['due_date']})."
-            _put(f"d:{ftype}", {"filing_type": ftype, "reason": reason, "urgency": urg,
-                                "bucket": "deadline", "action": "draft",
-                                "due_date": ob.get("due_date"), "days_remaining": days})
+            _put(f"d:{ftype}", {
+                "filing_type": ftype, "reason": reason, "urgency": urg,
+                "bucket": "deadline", "action": "draft",
+                "due_date": ob.get("due_date"), "days_remaining": days,
+                # Real regulatory metadata, so the row shows a CS what is
+                # actually at stake rather than just a friendly sentence.
+                "mandate_id": ob.get("mandate_id"),
+                "mandate_name": mname,
+                "regulation": mandate.get("regulation", ""),
+                "regime": regime,
+                "penalty": mandate.get("penalty", ""),
+                "form": mandate.get("form", ""),
+                "period": ob.get("period", ""),
+            })
     except Exception as e:  # noqa: BLE001
         print(f"[DRAFT-REC] deadline pass failed for {symbol}: {e}")
 

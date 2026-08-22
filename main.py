@@ -72,6 +72,7 @@ from demo import (
 )
 import events_store as es
 from events_store import init_events_db
+from demo_cache import cached as demo_cached, init_cache_db, frozen as demo_frozen
 import governance_snapshots as govsnap
 from stock_prices import (
     fetch_watchlist_prices, fetch_stock_quote, detect_price_alerts, analyze_price_movement,
@@ -2048,42 +2049,49 @@ def watchlist_page():
 
 @app.route("/api/prices")
 def api_prices():
-    """Get live prices for all watchlist stocks. Also evaluates the user's
-    custom alerts and includes any newly-fired ones in `fired_alerts` so
-    the front-end can play a sound + show a browser notification (Telegram
-    delivery already happened server-side if linked)."""
-    symbols = get_companies()
-    user = current_user()
-    industry = (user or {}).get("industry")
-    prices = fetch_watchlist_prices(symbols, industry=industry)
+    # Cached: this endpoint reaches out to NSE/BSE on every call.
+    @demo_cached('prices', ttl=900)
+    def _compute():
+        """Get live prices for all watchlist stocks. Also evaluates the user's
+        custom alerts and includes any newly-fired ones in `fired_alerts` so
+        the front-end can play a sound + show a browser notification (Telegram
+        delivery already happened server-side if linked)."""
+        symbols = get_companies()
+        user = current_user()
+        industry = (user or {}).get("industry")
+        prices = fetch_watchlist_prices(symbols, industry=industry)
 
-    # Built-in 3% movers (existing behavior)
-    alerts = detect_price_alerts(prices, threshold=3.0)
-    for alert in alerts:
-        sym = alert["symbol"]
-        recent = get_cached_filings(sym)[:10] if sym in symbols else []
-        alert["reasons"] = analyze_price_movement(
-            sym, alert["direction"], alert["pChange"], recent
-        )
+        # Built-in 3% movers (existing behavior)
+        alerts = detect_price_alerts(prices, threshold=3.0)
+        for alert in alerts:
+            sym = alert["symbol"]
+            recent = get_cached_filings(sym)[:10] if sym in symbols else []
+            alert["reasons"] = analyze_price_movement(
+                sym, alert["direction"], alert["pChange"], recent
+            )
 
-    # User-defined custom alerts — evaluate against current snapshot,
-    # respecting per-alert cooldown and dispatching Telegram if linked.
-    fired_alerts = []
-    uid = _current_user_id()
-    if uid:
-        try:
-            fired_alerts = evaluate_user_alerts(uid, prices)
-        except Exception as e:
-            print(f"[ALERT] evaluate_user_alerts failed for {uid}: {e}")
+        # User-defined custom alerts — evaluate against current snapshot,
+        # respecting per-alert cooldown and dispatching Telegram if linked.
+        fired_alerts = []
+        uid = _current_user_id()
+        if uid:
+            try:
+                fired_alerts = evaluate_user_alerts(uid, prices)
+            except Exception as e:
+                print(f"[ALERT] evaluate_user_alerts failed for {uid}: {e}")
 
-    return jsonify({
-        "prices": prices,
-        "alerts": alerts,
-        "fired_alerts": fired_alerts,
-        "telegram_configured": telegram_configured(),
-        "symbols": symbols,
-    })
-
+        return jsonify({
+            "prices": prices,
+            "alerts": alerts,
+            "fired_alerts": fired_alerts,
+            "telegram_configured": telegram_configured(),
+            "symbols": symbols,
+        })
+    result = _compute()
+    if result is None:
+        # Frozen with nothing cached — return empty rather than call out.
+        return jsonify({}), 200
+    return result
 
 @app.route("/api/alerts", methods=["GET"])
 @login_required
@@ -2850,88 +2858,95 @@ def api_drafts_delete(draft_id):
 @app.route("/api/price-intel/<symbol>")
 @login_required
 def api_price_intel(symbol):
-    """Deep analysis of why a stock moved: news, Reddit chatter, recent
-    filings, plus an AI summary that ties them together. Cached 15 min
-    per symbol so back-to-back opens are instant."""
-    from price_intel import get_price_intel
-    symbol = symbol.upper()
-    quote = fetch_stock_quote(symbol)
-    if not quote:
-        return jsonify({"error": True, "message": "Could not fetch quote."})
+    # Cached: this endpoint reaches out to NSE/BSE on every call.
+    @demo_cached('price_intel', ttl=86400)
+    def _compute(symbol):
+        """Deep analysis of why a stock moved: news, Reddit chatter, recent
+        filings, plus an AI summary that ties them together. Cached 15 min
+        per symbol so back-to-back opens are instant."""
+        from price_intel import get_price_intel
+        symbol = symbol.upper()
+        quote = fetch_stock_quote(symbol)
+        if not quote:
+            return jsonify({"error": True, "message": "Could not fetch quote."})
 
-    filings = get_cached_filings(symbol)[:10]
-    company_name = quote.get("companyName", symbol)
+        filings = get_cached_filings(symbol)[:10]
+        company_name = quote.get("companyName", symbol)
 
-    # Prefer the per-user setting key if set; otherwise fall back to the
-    # server-wide GEMINI_API_KEY env var so the deep-analysis works out
-    # of the box for every user without each of them needing to paste a key.
-    gemini_key = (get_setting("gemini_api_key", "") or "").strip()
-    if not gemini_key:
-        gemini_key = (os.environ.get("GEMINI_API_KEY", "") or "").strip()
-    gemini_model = (get_setting("gemini_model", "gemini-2.5-flash") or "gemini-2.5-flash").strip()
+        # Prefer the per-user setting key if set; otherwise fall back to the
+        # server-wide GEMINI_API_KEY env var so the deep-analysis works out
+        # of the box for every user without each of them needing to paste a key.
+        gemini_key = (get_setting("gemini_api_key", "") or "").strip()
+        if not gemini_key:
+            gemini_key = (os.environ.get("GEMINI_API_KEY", "") or "").strip()
+        gemini_model = (get_setting("gemini_model", "gemini-2.5-flash") or "gemini-2.5-flash").strip()
 
-    payload = get_price_intel(
-        symbol, company_name, quote, filings,
-        gemini_key=gemini_key, gemini_model=gemini_model,
-    )
-    return jsonify(payload)
+        payload = get_price_intel(
+            symbol, company_name, quote, filings,
+            gemini_key=gemini_key, gemini_model=gemini_model,
+        )
+        return jsonify(payload)
 
 
-# ── DIN Search ───────────────────────────────────────────
+    # ── DIN Search ───────────────────────────────────────────
 
-# Four prominent Indian directors shown as one-click examples on the DIN
-# search page. Descriptions are drawn from widely-reported public information
-# and do not assert anything not already in the public record. Legal-status
-# fields only state what is publicly known — they never make allegations.
-DIN_SEARCH_EXAMPLES = [
-    {
-        "din": "00347229",
-        "name": "Kiran Mazumdar-Shaw",
-        "title": "Executive Chairperson, Biocon",
-        "bio": ("Founder of Biocon Limited and Executive Chairperson of "
-                "Biocon and Biocon Biologics. One of India's foremost "
-                "biotech entrepreneurs; sits on multiple listed biotech, "
-                "pharma and research boards."),
-        "linkedin": "https://www.linkedin.com/in/kiranmazumdarshaw/",
-        "legal_status": ("No known major ongoing legal proceedings in the "
-                         "public record (as of April 2026)."),
-    },
-    {
-        "din": "00091908",
-        "name": "Nandan Nilekani",
-        "title": "Co-founder & Non-Executive Chairman, Infosys",
-        "bio": ("Co-founder of Infosys, former Chairman of UIDAI (architect "
-                "of Aadhaar) and currently Non-Executive Chairman of Infosys. "
-                "Serves on several technology and public-infrastructure boards."),
-        "linkedin": "https://www.linkedin.com/in/nandan-nilekani/",
-        "legal_status": ("No known major ongoing legal proceedings in the "
-                         "public record (as of April 2026)."),
-    },
-    {
-        "din": "00007467",
-        "name": "Uday Kotak",
-        "title": "Founder, Kotak Mahindra Bank",
-        "bio": ("Founder and Non-Executive Director of Kotak Mahindra Bank. "
-                "Stepped down as MD & CEO in September 2023 under RBI's "
-                "founder-tenure norms. Chaired SEBI's Committee on Corporate "
-                "Governance (the 'Kotak Committee')."),
-        "linkedin": "https://www.linkedin.com/in/uday-kotak-b0b6a64/",
-        "legal_status": ("No known major ongoing personal legal proceedings "
-                         "in the public record (as of April 2026)."),
-    },
-    {
-        "din": "00004695",
-        "name": "Anand Mahindra",
-        "title": "Executive Chairman, Mahindra Group",
-        "bio": ("Executive Chairman of the Mahindra Group, overseeing Mahindra "
-                "& Mahindra, Tech Mahindra, Mahindra Finance and the group's "
-                "many other listed entities. Prominent voice on Indian industry."),
-        "linkedin": "https://www.linkedin.com/in/anand-mahindra-22773a8/",
-        "legal_status": ("No known major ongoing legal proceedings in the "
-                         "public record (as of April 2026)."),
-    },
-]
-
+    # Four prominent Indian directors shown as one-click examples on the DIN
+    # search page. Descriptions are drawn from widely-reported public information
+    # and do not assert anything not already in the public record. Legal-status
+    # fields only state what is publicly known — they never make allegations.
+    DIN_SEARCH_EXAMPLES = [
+        {
+            "din": "00347229",
+            "name": "Kiran Mazumdar-Shaw",
+            "title": "Executive Chairperson, Biocon",
+            "bio": ("Founder of Biocon Limited and Executive Chairperson of "
+                    "Biocon and Biocon Biologics. One of India's foremost "
+                    "biotech entrepreneurs; sits on multiple listed biotech, "
+                    "pharma and research boards."),
+            "linkedin": "https://www.linkedin.com/in/kiranmazumdarshaw/",
+            "legal_status": ("No known major ongoing legal proceedings in the "
+                             "public record (as of April 2026)."),
+        },
+        {
+            "din": "00091908",
+            "name": "Nandan Nilekani",
+            "title": "Co-founder & Non-Executive Chairman, Infosys",
+            "bio": ("Co-founder of Infosys, former Chairman of UIDAI (architect "
+                    "of Aadhaar) and currently Non-Executive Chairman of Infosys. "
+                    "Serves on several technology and public-infrastructure boards."),
+            "linkedin": "https://www.linkedin.com/in/nandan-nilekani/",
+            "legal_status": ("No known major ongoing legal proceedings in the "
+                             "public record (as of April 2026)."),
+        },
+        {
+            "din": "00007467",
+            "name": "Uday Kotak",
+            "title": "Founder, Kotak Mahindra Bank",
+            "bio": ("Founder and Non-Executive Director of Kotak Mahindra Bank. "
+                    "Stepped down as MD & CEO in September 2023 under RBI's "
+                    "founder-tenure norms. Chaired SEBI's Committee on Corporate "
+                    "Governance (the 'Kotak Committee')."),
+            "linkedin": "https://www.linkedin.com/in/uday-kotak-b0b6a64/",
+            "legal_status": ("No known major ongoing personal legal proceedings "
+                             "in the public record (as of April 2026)."),
+        },
+        {
+            "din": "00004695",
+            "name": "Anand Mahindra",
+            "title": "Executive Chairman, Mahindra Group",
+            "bio": ("Executive Chairman of the Mahindra Group, overseeing Mahindra "
+                    "& Mahindra, Tech Mahindra, Mahindra Finance and the group's "
+                    "many other listed entities. Prominent voice on Indian industry."),
+            "linkedin": "https://www.linkedin.com/in/anand-mahindra-22773a8/",
+            "legal_status": ("No known major ongoing legal proceedings in the "
+                             "public record (as of April 2026)."),
+        },
+    ]
+    result = _compute(symbol)
+    if result is None:
+        # Frozen with nothing cached — return empty rather than call out.
+        return jsonify({}), 200
+    return result
 
 @app.route("/din-search")
 @login_required
@@ -3070,67 +3085,82 @@ def api_din_intel():
 
 @app.route("/api/pre-open")
 def api_pre_open():
-    """Get pre-open session data and alerts for watchlist stocks."""
-    symbols = get_companies()
-    pre_open = fetch_pre_open_data(symbols)
-    alerts = detect_pre_open_alerts(pre_open, threshold=1.5)
+    # Cached: this endpoint reaches out to NSE/BSE on every call.
+    @demo_cached('pre_open', ttl=3600)
+    def _compute():
+        """Get pre-open session data and alerts for watchlist stocks."""
+        symbols = get_companies()
+        pre_open = fetch_pre_open_data(symbols)
+        alerts = detect_pre_open_alerts(pre_open, threshold=1.5)
 
-    # For each alert, find recent filings and analyze reasons
-    for alert in alerts:
-        sym = alert["symbol"]
-        recent = get_cached_filings(sym)[:10] if sym in symbols else []
-        alert["reasons"] = analyze_price_movement(
-            sym, alert["direction"], alert["pChange"], recent
-        )
+        # For each alert, find recent filings and analyze reasons
+        for alert in alerts:
+            sym = alert["symbol"]
+            recent = get_cached_filings(sym)[:10] if sym in symbols else []
+            alert["reasons"] = analyze_price_movement(
+                sym, alert["direction"], alert["pChange"], recent
+            )
 
-    return jsonify({
-        "preOpen": pre_open,
-        "alerts": alerts,
-    })
-
+        return jsonify({
+            "preOpen": pre_open,
+            "alerts": alerts,
+        })
+    result = _compute()
+    if result is None:
+        # Frozen with nothing cached — return empty rather than call out.
+        return jsonify({}), 200
+    return result
 
 @app.route("/api/sector")
 def api_sector():
-    """Get sector data for the user's industry and detect sector-wide alerts."""
-    symbols = get_companies()
-    user = current_user()
-    industry = (user or {}).get("industry")
-    sector_data = fetch_sector_data(industry=industry, watchlist_symbols=symbols)
-    if not sector_data:
-        return jsonify({"error": True, "message": "Could not fetch sector data."})
+    # Cached: this endpoint reaches out to NSE/BSE on every call.
+    @demo_cached('sector', ttl=3600)
+    def _compute():
+        """Get sector data for the user's industry and detect sector-wide alerts."""
+        symbols = get_companies()
+        user = current_user()
+        industry = (user or {}).get("industry")
+        sector_data = fetch_sector_data(industry=industry, watchlist_symbols=symbols)
+        if not sector_data:
+            return jsonify({"error": True, "message": "Could not fetch sector data."})
 
-    sector_alerts = detect_sector_alerts(sector_data, symbols, threshold=3.0)
+        sector_alerts = detect_sector_alerts(sector_data, symbols, threshold=3.0)
 
-    # For each sector alert, get correlated movers' filings and analyze
-    for alert in sector_alerts:
-        # Analyze the main watchlist stock
-        sym = alert["symbol"]
-        recent = get_cached_filings(sym)[:10]
-        alert["reasons"] = analyze_price_movement(
-            sym, alert["direction"], alert["pChange"], recent
-        )
-
-        # Get filings for correlated movers and analyze sector movement
-        correlated_filings = {}
-        for mover in alert.get("correlatedMovers", []):
-            msym = mover["symbol"]
-            mover_filings = get_cached_filings(msym)[:5]
-            if mover_filings:
-                correlated_filings[msym] = mover_filings
-            mover["reasons"] = analyze_price_movement(
-                msym, alert["direction"], mover["pChange"], mover_filings
+        # For each sector alert, get correlated movers' filings and analyze
+        for alert in sector_alerts:
+            # Analyze the main watchlist stock
+            sym = alert["symbol"]
+            recent = get_cached_filings(sym)[:10]
+            alert["reasons"] = analyze_price_movement(
+                sym, alert["direction"], alert["pChange"], recent
             )
 
-        alert["sectorAnalysis"] = analyze_sector_movement(alert, correlated_filings)
+            # Get filings for correlated movers and analyze sector movement
+            correlated_filings = {}
+            for mover in alert.get("correlatedMovers", []):
+                msym = mover["symbol"]
+                mover_filings = get_cached_filings(msym)[:5]
+                if mover_filings:
+                    correlated_filings[msym] = mover_filings
+                mover["reasons"] = analyze_price_movement(
+                    msym, alert["direction"], mover["pChange"], mover_filings
+                )
 
-    return jsonify({
-        "sector": sector_data.get("sector", {}),
-        "stocks": sector_data.get("stocks", []),
-        "alerts": sector_alerts,
-    })
+            alert["sectorAnalysis"] = analyze_sector_movement(alert, correlated_filings)
+
+        return jsonify({
+            "sector": sector_data.get("sector", {}),
+            "stocks": sector_data.get("stocks", []),
+            "alerts": sector_alerts,
+        })
 
 
-# ── Company Logo Proxy ────────────────────────────────────
+    # ── Company Logo Proxy ────────────────────────────────────
+    result = _compute()
+    if result is None:
+        # Frozen with nothing cached — return empty rather than call out.
+        return jsonify({}), 200
+    return result
 
 @app.route("/logo/<symbol>")
 def company_logo(symbol):
@@ -3199,17 +3229,25 @@ def industry_page(industry=None):
 @app.route("/api/industry-intel/<industry>")
 @login_required
 def api_industry_intel(industry):
-    """JSON endpoint — returns curated profile + 4-bucket news + AI briefing."""
-    if industry not in INDUSTRY_PROFILES:
-        return jsonify({"error": True, "message": f"Unknown industry: {industry}"}), 404
-    gemini_key = (
-        get_setting("gemini_api_key", "")
-        or os.environ.get("GEMINI_API_KEY", "")
-    )
-    return jsonify(get_industry_intel(industry, gemini_key=gemini_key))
+    # Cached: this endpoint reaches out to NSE/BSE on every call.
+    @demo_cached('industry_intel', ttl=86400)
+    def _compute(industry):
+        """JSON endpoint — returns curated profile + 4-bucket news + AI briefing."""
+        if industry not in INDUSTRY_PROFILES:
+            return jsonify({"error": True, "message": f"Unknown industry: {industry}"}), 404
+        gemini_key = (
+            get_setting("gemini_api_key", "")
+            or os.environ.get("GEMINI_API_KEY", "")
+        )
+        return jsonify(get_industry_intel(industry, gemini_key=gemini_key))
 
 
-# ── Compliance OS ─────────────────────────────────────────
+    # ── Compliance OS ─────────────────────────────────────────
+    result = _compute(industry)
+    if result is None:
+        # Frozen with nothing cached — return empty rather than call out.
+        return jsonify({}), 200
+    return result
 
 @app.route("/compliance")
 @login_required
@@ -3856,6 +3894,7 @@ init_drafts_db()
 init_events_db()
 govsnap.init_snapshots_db()
 import web_crosscheck as _wcc; _wcc.init_crosscheck_db()
+init_cache_db()
 import esign as _esign; _esign.init_esign_db()
 from agents.briefing import init_briefing_db as _ibd; _ibd()
 seed_default_referral_codes()

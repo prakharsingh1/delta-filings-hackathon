@@ -1,0 +1,12 @@
+<!-- Delta Filings identifier mark for NESTLEIND (Nestle India Ltd).
+     The official asset is a wide "Good food, Good life" wordmark that becomes
+     illegible in the small circular avatars used across the UI, and nestle.in
+     returns 403 to server-side fetches. Square mark in Nestle's brand cream
+     and brown instead. -->
+<svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nestle India">
+  <rect width="56" height="56" rx="12" fill="#F5F1E8"/>
+  <rect x="0.75" y="0.75" width="54.5" height="54.5" rx="11.4" fill="none" stroke="#D8CFBB" stroke-width="1.5"/>
+  <text x="28" y="35" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
+        font-size="21" font-weight="700" letter-spacing="-0.4" fill="#63513D">N</text>
+  <path d="M20 40.5h16" stroke="#8C7A63" stroke-width="1.6" stroke-linecap="round"/>
+</svg>
