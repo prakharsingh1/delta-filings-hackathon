@@ -161,26 +161,21 @@ def recommend_filings(symbol: str, industry: str = "", max_items: int = 24) -> L
             mname = mandate.get("name", ob.get("mandate_id"))
             regime = mandate.get("regime", "SEBI")
             if days < 0:
-                # Only `missed` means we CONFIRMED nothing was filed — two
-                # independent sources responded and neither had it. `pending`
-                # and `unverified` mean we could not match a filing, which is
-                # not the same thing and must not be shown as a missed
-                # deadline: for a large listed issuer the far likelier
-                # explanation is that our matcher missed it.
-                if ob.get("status") == "missed":
-                    urg = "overdue"
-                    reason = (f"{mname} ({regime}) was due {abs(days)} days ago "
-                              f"({ob['due_date']}) and no filing was found on NSE or BSE "
-                              f"— verify and file.")
-                else:
-                    # Past its date with no submission on file. Framed as the
-                    # verification step it actually is — asserting a breach
-                    # would be false, and hedging about our own matching puts
-                    # doubt on the platform rather than giving the user a task.
-                    urg = "to_verify"
-                    reason = (f"{mname} ({regime}) was due on {ob['due_date']} "
-                              f"({abs(days)} days ago). Confirm the submission and Delta "
-                              f"will record the evidence — or draft it now.")
+                # This page answers "what do I need to draft next". A deadline
+                # that passed months ago is not a drafting task — and for
+                # MCA / Tax / FEMA obligations Delta has no feed that could
+                # ever confirm them: they go to the Registrar, the tax
+                # department or RBI, never to the exchange announcement feed
+                # we read. Listing them filled the page with items the user
+                # cannot action from here.
+                if ob.get("status") != "missed":
+                    continue
+                # A confirmed miss: two independent sources responded and
+                # neither had the filing.
+                urg = "overdue"
+                reason = (f"{mname} ({regime}) was due {abs(days)} days ago "
+                          f"({ob['due_date']}) and no filing was found on NSE or BSE "
+                          f"— verify and file.")
             elif days == 0:
                 urg, reason = "due_today", f"{mname} ({regime}) is due today ({ob['due_date']})."
             elif days <= 7:
@@ -251,7 +246,7 @@ def recommend_filings(symbol: str, industry: str = "", max_items: int = 24) -> L
             rec["category"] = ft.get("category", "")
         out.append(rec)
 
-    rank = {"overdue": 0, "due_today": 1, "due_soon": 2, "to_verify": 3, "event": 4,
+    rank = {"overdue": 0, "due_today": 1, "due_soon": 2, "event": 3,
             "upcoming": 4, "seasonal": 5, "sector": 6}
     out.sort(key=lambda r: (rank.get(r["urgency"], 9),
                             r["days_remaining"] if r.get("days_remaining") is not None else 999))

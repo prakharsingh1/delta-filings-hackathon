@@ -989,8 +989,12 @@ def link_filings_to_obligations(symbol):
         if not mandate:
             continue
 
-        # Skip if already linked to a filing
-        if ob["filing_id"]:
+        # Skip only when the obligation is genuinely resolved. A `filing_id`
+        # on a still-pending/unverified row is not proof of anything — and
+        # after filings are re-ingested those ids are stale, pointing at rows
+        # that no longer exist. Skipping on filing_id alone left obligations
+        # permanently unmatched with a matching filing sitting in the window.
+        if ob["status"] in ("submitted", "delayed"):
             continue
 
         keywords = mandate.get("keywords", [])
