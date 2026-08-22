@@ -2050,8 +2050,9 @@ def watchlist_page():
 @app.route("/api/prices")
 def api_prices():
     # Cached: this endpoint reaches out to NSE/BSE on every call.
+    # Keyed by watchlist: this response is user-scoped.
     @demo_cached('prices', ttl=900)
-    def _compute():
+    def _compute(_scope):
         """Get live prices for all watchlist stocks. Also evaluates the user's
         custom alerts and includes any newly-fired ones in `fired_alerts` so
         the front-end can play a sound + show a browser notification (Telegram
@@ -2087,7 +2088,7 @@ def api_prices():
             "telegram_configured": telegram_configured(),
             "symbols": symbols,
         })
-    result = _compute()
+    result = _compute(",".join(sorted(get_companies())))
     if result is None:
         # Frozen with nothing cached — return empty rather than call out.
         return jsonify({}), 200
@@ -3275,8 +3276,9 @@ def compliance_page():
 @login_required
 def api_compliance():
     # Cached: enriches every obligation on the watchlist per call.
-    @demo_cached('compliance_dashboard', ttl=1800, key_args=False)
-    def _compute():
+    # Keyed by watchlist: this response is user-scoped.
+    @demo_cached('compliance_dashboard', ttl=1800)
+    def _compute(_scope):
         """Return compliance dashboard data with reconciled metrics, scoped to the
         current user's watchlist."""
         watchlist = get_watchlist(_current_user_id())
@@ -3343,7 +3345,7 @@ def api_compliance():
             "mandates": mandates,
             "company_scores": company_scores,
         })
-    result = _compute()
+    result = _compute(",".join(sorted(get_companies())))
     if result is None:
         return jsonify({}), 200
     return result
