@@ -20,7 +20,6 @@
         .cc-brand { font-size:26px; font-weight:800; letter-spacing:-.03em; color:#0f172a; }
         .cc-role { font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
             color:#6366f1; margin-top:3px; }
-        .cc-line { font-size:14px; color:#475569; margin-top:9px; max-width:640px; line-height:1.55; }
 
         .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:26px; }
         .stat { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px 20px; }
@@ -111,7 +110,6 @@
            declared above needs a counterpart or it renders white-on-white. */
         html.dark .cc-brand { color:#fafafa; }
         html.dark .cc-role { color:#a5b4fc; }
-        html.dark .cc-line { color:#a1a1aa; }
         html.dark .stat { background:#0f0f10; border-color:#232326; }
         html.dark .stat-v { color:#fafafa; }
         html.dark .stat-l { color:#71717a; }
@@ -328,13 +326,6 @@
                         <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                     </button>
                 </div>
-                <p class="cc-line">
-                    {% if stats.pending_actions %}<strong>{{ stats.pending_actions }}</strong>
-                    compliance {{ 'item' if stats.pending_actions == 1 else 'items' }} to complete across
-                    {{ stats.companies_monitored }} companies, with {{ stats.documents_ready }} draft
-                    {{ 'document' if stats.documents_ready == 1 else 'documents' }} already prepared.
-                    {% else %}Nothing in your queue needs action right now.{% endif %}
-                </p>
             </div>
             <div class="flex gap-2 items-center flex-wrap">
                 <a href="/compliance" class="btn-ghost">Compliance calendar</a>

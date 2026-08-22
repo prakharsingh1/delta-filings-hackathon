@@ -37,7 +37,7 @@ const card = (x, y, w, h, fill) =>
   });
 
 // numbered section header inside a card
-const cardHead = (n, title, x, y) => {
+const cardHead = (n, title, x, y, tw, ts) => {
   s.addShape("ellipse", {
     x: x + 0.18, y: y + 0.16, w: 0.3, h: 0.3,
     fill: { color: ACCENT }, line: { color: ACCENT, width: 0 },
@@ -48,8 +48,8 @@ const cardHead = (n, title, x, y) => {
     align: "center", valign: "middle", margin: 0,
   });
   s.addText(title, {
-    x: x + 0.56, y: y + 0.14, w: 3.2, h: 0.34,
-    fontSize: 15, bold: true, color: WHITE, fontFace: F, valign: "middle", margin: 0,
+    x: x + 0.56, y: y + 0.14, w: tw || 3.2, h: 0.34,
+    fontSize: ts || 15, bold: true, color: WHITE, fontFace: F, valign: "middle", margin: 0,
   });
 };
 
@@ -57,7 +57,7 @@ const bullets = (items, x, y, w, h, size) =>
   s.addText(
     items.map((t, i) => ({
       text: t,
-      options: { bullet: { code: "2022" }, breakLine: i !== items.length - 1 },
+      options: { bullet: { code: "2022", indent: 12 }, breakLine: i !== items.length - 1 },
     })),
     {
       x, y, w, h, fontSize: size || 9.5, color: BODY, fontFace: F,
@@ -114,61 +114,59 @@ s.addText(
 );
 
 /* ------------------------------------------------ row A */
-const AY = 1.50, AH = 2.32, CW = 3.98;
+const AY = 1.50, AH = 2.00, CW = 3.98;
 const AX = [0.45, 4.68, 8.91];
 
 card(AX[0], AY, CW, AH);
 cardHead(1, "Problem", AX[0], AY);
 bullets([
   "Who: Company Secretaries and compliance teams at 5,000+ NSE/BSE listed issuers",
-  "Today: filings read by hand, Excel deadline trackers, ad-hoc legal opinions",
-  "Thousands of filings a quarter, and the disclosure load rises every year",
-  "One missed LODR obligation → penalty, exchange notice, board exposure",
-], AX[0] + 0.22, AY + 0.60, CW - 0.44, 1.35);
-kicker("Access to filings is free. Interpretation isn't.", AX[0] + 0.22, AY + AH - 0.36, CW - 0.44);
+  "Today: thousands of filings a quarter read by hand, deadlines tracked in Excel, ad-hoc legal opinions",
+  "One missed LODR obligation \u2192 penalty, exchange notice and board-level exposure",
+], AX[0] + 0.22, AY + 0.58, CW - 0.44, 1.06);
+kicker("Access to filings is free. Interpretation isn't.", AX[0] + 0.22, AY + AH - 0.34, CW - 0.44);
 
 card(AX[1], AY, CW, AH);
 cardHead(2, "Solution", AX[1], AY);
 bullets([
-  "Three AI agents run the CS workflow end to end: Monitor → Intelligence → Action",
-  "Detects board, director, committee and corporate-action changes inside the filing",
-  "Maps each change to SEBI LODR / MCA obligations, deadlines and required forms",
-  "Generates the disclosure draft, board note and checklist — a human approves and e-signs",
-], AX[1] + 0.22, AY + 0.60, CW - 0.44, 1.35);
-kicker("Delta Signal: what changed · why it matters · what to do next.", AX[1] + 0.22, AY + AH - 0.36, CW - 0.44);
+  "Three AI agents run the CS workflow: Monitor detects \u2192 Intelligence assesses \u2192 Action drafts",
+  "Board, director, committee and corporate-action changes mapped to SEBI LODR / MCA obligations and deadlines",
+  "Ships the disclosure draft, board note and checklist \u2014 a human approves and e-signs",
+], AX[1] + 0.22, AY + 0.58, CW - 0.44, 1.06);
+kicker("Delta Signal: what changed \u00b7 why it matters \u00b7 what to do next.", AX[1] + 0.22, AY + AH - 0.34, CW - 0.44);
 
 card(AX[2], AY, CW, AH);
 cardHead(3, "Validation", AX[2], AY);
 bullets([
-  "Conversations with practising Company Secretaries: the job is interpretation and drafting, not search",
-  "Repeat ask — “tell me what changed since the last report, and give me the draft”",
+  "Practising Company Secretaries: the work is interpretation and drafting, not search",
+  "Repeat ask \u2014 \u201ctell me what changed since the last report, and give me the draft\u201d",
   "Built from the regulation: 305-obligation LODR/MCA library, 86 SEBI enforcement actions parsed",
-  "Live prototype running on real NSE/BSE data — full demo in Round 2",
-], AX[2] + 0.22, AY + 0.60, CW - 0.44, 1.35);
-kicker("Every output traced to the filing it came from.", AX[2] + 0.22, AY + AH - 0.36, CW - 0.44);
+], AX[2] + 0.22, AY + 0.58, CW - 0.44, 1.06);
+kicker("Live on real NSE/BSE data \u2014 full demo in Round 2.", AX[2] + 0.22, AY + AH - 0.34, CW - 0.44);
 
 /* ------------------------------------------------ row B */
-const BY = 3.96, BH = 1.56;
+const BY = 3.64, BH = 1.88;
 
 card(0.45, BY, 6.60, BH);
-cardHead(4, "Regulatory Requirements (Domestic / IFSC)", 0.45, BY);
+cardHead(4, "Regulatory Requirements (Domestic / IFSC)", 0.45, BY, 5.9, 14);
 bullets([
-  "In scope: SEBI (LODR, PIT, SAST) · MCA / ROC · NSE & BSE listing ops · IFSCA for IFSC-listed issuers and GIFT-domiciled funds",
-  "Delta is decision support — it drafts and evidences; an authorised signatory approves and files. No regulated activity on the issuer's behalf.",
-  "Risk — accuracy: deterministic rules gate detection, model output is quoted from the source filing, human sign-off is mandatory",
-  "Risk — data: public disclosures only, immutable audit log per action, India-resident deployment for IFSC data norms",
-], 0.67, BY + 0.56, 6.16, 0.95, 9);
+  "In scope: SEBI (LODR, PIT, SAST) \u00b7 MCA / ROC \u00b7 NSE & BSE listing ops \u00b7 IFSCA for IFSC-listed issuers and GIFT-domiciled funds",
+  "Delta is decision support \u2014 it drafts and evidences; an authorised signatory approves and files. No regulated activity on the issuer's behalf.",
+  "Risk & mitigation: deterministic rules gate detection, every model output quotes its source filing, human sign-off is mandatory, public data only",
+], 0.67, BY + 0.56, 6.16, 0.96, 9);
+kicker("Compliance-grade by construction: evidence \u2192 approval \u2192 immutable audit log.", 0.67, BY + BH - 0.34, 6.16);
 
 card(7.30, BY, 5.58, BH);
-cardHead(5, "Team–Market Fit", 7.30, BY);
+cardHead(5, "Team\u2013Market Fit", 7.30, BY, 4.9, 14);
 bullets([
-  "Prakhar Singh — solo builder. Designed and shipped the whole platform: ingestion, multi-agent AI, compliance engine, drafting and e-sign.",
-  "Domain learned from the source: 6,276 real filings parsed, obligation model written from the regulation text itself",
-  "Biggest achievement: a working end-to-end governance workflow — detect → assess → draft → approve → audit — built and deployed alone",
-], 7.52, BY + 0.56, 5.14, 0.95, 9);
+  "Prakhar Singh \u2014 solo builder: ingestion, multi-agent AI, compliance engine, drafting and e-sign, all shipped by one person",
+  "Domain learned at the source: 6,276 real filings parsed, obligation model written from the regulation text itself",
+  "Biggest achievement: a live end-to-end governance workflow \u2014 detect \u2192 assess \u2192 draft \u2192 approve \u2192 audit",
+], 7.52, BY + 0.56, 5.14, 0.96, 9);
+kicker("Full-stack + AI + regtech in one builder = ship speed.", 7.52, BY + BH - 0.34, 5.14);
 
 /* ------------------------------------------------ live metrics band */
-const MY = 5.66, MH = 0.76;
+const MY = 5.66, MH = 0.74;
 card(0.45, MY, 12.43, MH, CARD_HI);
 s.addText("RUNNING\nTODAY", {
   x: 0.62, y: MY + 0.08, w: 1.0, h: MH - 0.16,
@@ -195,15 +193,15 @@ stats.forEach(([n, label], i) => {
 });
 
 /* ------------------------------------------------ why GIFT IFIH */
-const WY = 6.52;
-card(0.45, WY, 12.43, 0.70, CARD);
+const WY = 6.54;
+card(0.45, WY, 12.43, 0.68, CARD);
 s.addText("Why GIFT IFIH?", {
-  x: 0.67, y: WY + 0.05, w: 2.0, h: 0.60,
+  x: 0.67, y: WY + 0.04, w: 2.0, h: 0.60,
   fontSize: 13, bold: true, color: ACCENT, fontFace: F, valign: "middle", margin: 0,
 });
 s.addText(
   "Pilots with listed issuers and IFSC entities, regulatory guidance from SEBI/IFSCA-facing mentors to harden the compliance engine, and partnerships with CS firms, registrars and exchanges — building India's governance intelligence layer inside the ecosystem that sets the standard.",
-  { x: 2.62, y: WY + 0.05, w: 10.05, h: 0.60, fontSize: 10, color: BODY, fontFace: F, valign: "middle", margin: 0 },
+  { x: 2.62, y: WY + 0.04, w: 10.05, h: 0.60, fontSize: 10, color: BODY, fontFace: F, valign: "middle", margin: 0 },
 );
 
 s.addNotes(
