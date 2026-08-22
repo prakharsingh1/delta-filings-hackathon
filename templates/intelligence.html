@@ -329,7 +329,7 @@
                     </button>
                 </div>
                 <p class="cc-line">
-                    {{ brief.greeting }}. {% if stats.pending_actions %}<strong>{{ stats.pending_actions }}</strong>
+                    {% if stats.pending_actions %}<strong>{{ stats.pending_actions }}</strong>
                     compliance {{ 'item' if stats.pending_actions == 1 else 'items' }} to complete across
                     {{ stats.companies_monitored }} companies, with {{ stats.documents_ready }} draft
                     {{ 'document' if stats.documents_ready == 1 else 'documents' }} already prepared.
