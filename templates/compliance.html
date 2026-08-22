@@ -978,14 +978,31 @@ function renderAllTable(items) {
     const tbody = document.getElementById('obligations-tbody');
     tbody.innerHTML = items.map(ob => {
         const sc = { pending: 'status-pending', submitted: 'status-submitted', delayed: 'status-delayed', missed: 'status-missed', unverified: 'status-unverified' };
+        const vr = ob.verification || null;
+        const pastDue = ob.days_remaining !== null && ob.days_remaining < 0;
+        // Only `missed` is a confirmed non-filing. Anything else past its date
+        // is awaiting confirmation, and for MCA/tax/RBI filings that
+        // confirmation never comes from an exchange feed.
+        const label = (ob.status === 'unverified' || (ob.status === 'pending' && pastDue))
+            ? (vr && !vr.auto ? 'confirm at source' : 'verify')
+            : ob.status;
+
         let delayCell = '-';
         if (ob.status === 'delayed' && ob.delay_days > 0) delayCell = `<span class="text-amber-600 font-medium">+${ob.delay_days}d</span>`;
         else if (ob.status === 'missed') { const dr = ob.days_remaining; delayCell = `<span class="text-red-600 font-medium">${dr !== null ? Math.abs(dr) + 'd overdue' : 'Overdue'}</span>`; }
+        else if (label === 'confirm at source' && vr) delayCell = `<span class="text-gray-400 text-[11px]">${vr.where}</span>`;
 
         const proofCell = ob.filing_url
             ? `<a href="${ob.filing_url}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline text-xs">filing ↗</a>`
             : (ob.filing_id ? `<a href="/company/${ob.symbol}" class="text-indigo-600 hover:underline">#${ob.filing_id}</a>` : '<span class="text-gray-300">-</span>');
-        const sourceCell = ob.sebi_source ? `<a href="${ob.sebi_source}" target="_blank" rel="noopener" class="sebi-link" title="${ob.section_ref || ''}"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>SEBI</a>` : '<span class="text-gray-300">-</span>';
+        // Point at the authority this form is actually filed with — labelling
+        // an MCA or POSH obligation "SEBI" is simply wrong.
+        const _icon = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>';
+        const _srcUrl = (vr && !vr.auto && vr.url) ? vr.url : ob.sebi_source;
+        const _srcName = (vr && !vr.auto) ? (vr.key === 'mca' ? 'MCA' : vr.key === 'rbi' ? 'RBI' : vr.key === 'tax' ? 'TAX' : 'SOURCE') : 'SEBI';
+        const sourceCell = _srcUrl
+            ? `<a href="${_srcUrl}" target="_blank" rel="noopener" class="sebi-link" title="${(vr && vr.where) || ob.section_ref || ''}">${_icon}${_srcName}</a>`
+            : '<span class="text-gray-300">-</span>';
 
         return `<tr class="border-b border-gray-100 hover:bg-slate-50 obligation-row"
                     data-company="${ob.symbol}" data-status="${ob.status}" data-category="${ob.mandate_category}" data-due="${ob.due_date}">
@@ -996,7 +1013,7 @@ function renderAllTable(items) {
             </td>
             <td class="px-4 py-3 text-gray-600 text-xs">${ob.period}</td>
             <td class="px-4 py-3 text-gray-600 text-xs">${formatDate(ob.due_date)}</td>
-            <td class="px-4 py-3"><span class="${sc[ob.status] || 'status-pending'} status-badge">${ob.status}</span></td>
+            <td class="px-4 py-3"><span class="${sc[ob.status] || 'status-pending'} status-badge">${label}</span></td>
             <td class="px-4 py-3 text-xs">${proofCell}</td>
             <td class="px-4 py-3 text-xs">${delayCell}</td>
             <td class="px-4 py-3">${sourceCell}</td>
