@@ -244,7 +244,6 @@
                     <button class="tab-btn" onclick="switchTab('upcoming', this)">Upcoming <span id="tab-count-upcoming" class="text-[10px] opacity-70"></span></button>
                     <button class="tab-btn" onclick="switchTab('overdue', this)">Overdue <span id="tab-count-overdue" class="text-[10px] opacity-70"></span></button>
                     <button class="tab-btn" onclick="switchTab('completed', this)">Completed <span id="tab-count-completed" class="text-[10px] opacity-70"></span></button>
-                    <button class="tab-btn" onclick="switchTab('unverified', this)">To verify <span id="tab-count-unverified" class="text-[10px] opacity-70"></span></button>
                     <button class="tab-btn" id="tab-btn-all" onclick="switchTab('all', this)">All Obligations</button>
                     <button class="tab-btn" onclick="switchTab('mandates', this)">Compliance Library</button>
                     <button class="tab-btn" onclick="switchTab('xbrl', this)">XBRL Utilities <span id="tab-count-xbrl" class="text-[10px] opacity-70"></span></button>
@@ -299,21 +298,6 @@
                         <p class="text-gray-500 text-sm">No overdue obligations — all companies are compliant!</p>
                     </div>
                 </div>
-                <div id="tab-unverified" class="tab-content hidden">
-                    <div class="mb-4 p-3 rounded-lg bg-violet-50 border border-violet-100 text-xs text-violet-900">
-                        <strong>Awaiting confirmation.</strong> Past their due date with no submission attached yet.
-                        These are verification tasks, not missed deadlines. They are grouped below by
-                        <em>where the filing actually goes</em> — Delta reads exchange announcements directly,
-                        but MCA, tax and RBI filings never appear there, so those need confirming on the
-                        relevant portal.
-                    </div>
-                    <div id="unverified-grouped"></div>
-                    <div id="unverified-list" class="space-y-3 hidden"></div>
-                    <div id="unverified-empty" class="hidden text-center py-12">
-                        <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <p class="text-gray-500 text-sm">Nothing to verify — every past due obligation has a matched filing.</p>
-                    </div>
-                </div>
                 <div id="tab-completed" class="tab-content hidden">
                     <div id="completed-list" class="space-y-3"></div>
                     <div id="completed-empty" class="hidden text-center py-12">
@@ -330,7 +314,7 @@
                             <option value="submitted">Submitted</option>
                             <option value="delayed">Delayed</option>
                             <option value="missed">Missed</option>
-                            <option value="unverified">To verify</option>
+                            <option value="unverified">Confirm at source</option>
                         </select>
                         <select id="filter-category" onchange="filterTable()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
                             <option value="">All Categories</option>
@@ -444,7 +428,6 @@ function loadDashboard() {
             renderUpcoming(data.upcoming || []);
             renderOverdue(data.overdue || []);
             renderCompleted(data.completed || []);
-            renderUnverified(data.unverified || []);
             renderAllTable(data.all || []);
             renderMandates(data.mandates || []);
             populateFilters(data.all || []);
@@ -835,18 +818,34 @@ function evidenceBadge(ob) {
 // ── Obligation Card ──
 function obligationCard(ob) {
     const statusColors = { pending: 'status-pending', submitted: 'status-submitted', delayed: 'status-delayed', missed: 'status-missed', unverified: 'status-unverified' };
+    // An obligation Delta cannot verify from its own feeds is not an
+    // exception — it is confirmed at the authority it was filed with.
+    const _vr = ob.verification || null;
+    const statusLabels = { unverified: _vr && !_vr.auto ? 'Confirm at source' : 'Verify', pending: 'Pending' };
 
     let countdown = '';
     const dr = ob.days_remaining;
-    if (ob.status === 'unverified' && dr !== null && dr < 0) {
-        countdown = `<span class="text-violet-600 text-xs font-medium">${Math.abs(dr)}d past due · no filing data</span>`;
-    } else if ((ob.status === 'pending' || ob.status === 'missed') && dr !== null) {
-        if (dr < 0) countdown = `<span class="text-red-600 font-bold text-xs countdown-urgent">${Math.abs(dr)}d overdue</span>`;
-        else if (dr === 0) countdown = '<span class="text-red-600 font-bold text-xs countdown-urgent">Due today!</span>';
+    const pastDueUnmatched = (ob.status === 'unverified' || ob.status === 'pending')
+                             && dr !== null && dr < 0;
+
+    if (pastDueUnmatched) {
+        // Only `missed` means we confirmed nothing was filed. Everything else
+        // past its date is awaiting confirmation, and for MCA/tax/RBI filings
+        // that confirmation was never going to come from an exchange feed.
+        countdown = _vr && !_vr.auto
+            ? `<span class="text-gray-500 text-xs">Confirm on ${_vr.where}</span>`
+            : `<span class="text-violet-600 text-xs font-medium">Awaiting confirmation</span>`;
+    } else if (ob.status === 'missed' && dr !== null && dr < 0) {
+        countdown = `<span class="text-red-600 font-bold text-xs countdown-urgent">${Math.abs(dr)}d overdue</span>`;
+    } else if (ob.status === 'pending' && dr !== null) {
+        if (dr === 0) countdown = '<span class="text-red-600 font-bold text-xs countdown-urgent">Due today!</span>';
         else if (dr <= 7) countdown = `<span class="text-amber-600 font-bold text-xs countdown-urgent">${dr}d remaining</span>`;
         else countdown = `<span class="text-gray-500 text-xs">${dr}d remaining</span>`;
     }
 
+    const sourceLink = (pastDueUnmatched && _vr && _vr.url)
+        ? `<a href="${_vr.url}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline text-xs font-medium">${_vr.action} \u2197</a>`
+        : '';
     const proofLink = ob.filing_url
         ? `<a href="${ob.filing_url}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline text-xs font-medium">View filing ↗</a>`
         : (ob.filing_id ? `<a href="/company/${ob.symbol}" class="text-indigo-600 hover:underline text-xs font-medium">Filing #${ob.filing_id}</a>` : '');
@@ -869,7 +868,7 @@ function obligationCard(ob) {
                 <p class="text-xs text-gray-400 mt-0.5">${ob.regulation} &middot; ${ob.period}${ob.section_ref ? ' &middot; ' + ob.section_ref : ''}</p>
             </div>
             <div class="text-right flex-shrink-0">
-                <span class="${statusColors[ob.status] || 'status-pending'} status-badge">${ob.status}</span>
+                <span class="${statusColors[ob.status] || 'status-pending'} status-badge">${statusLabels[ob.status] || ob.status}</span>
                 <div class="mt-2">${countdown}</div>
             </div>
         </div>
@@ -879,7 +878,7 @@ function obligationCard(ob) {
                 ${ob.filed_date ? `<span class="text-xs text-gray-500">Filed: <strong class="text-gray-700">${formatDate(ob.filed_date)}</strong></span>` : ''}
                 ${delayBadge}
             </div>
-            <div class="flex items-center gap-3">${proofLink}</div>
+            <div class="flex items-center gap-3">${proofLink}${sourceLink}</div>
         </div>
     </div>`;
 }

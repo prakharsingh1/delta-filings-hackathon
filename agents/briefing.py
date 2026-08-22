@@ -129,20 +129,26 @@ Return ONLY this JSON:
 {{
   "headline": "<one sentence, max 150 chars: the single most useful thing to know this morning>",
   "themes": [
-    {{"title": "<short theme, e.g. 'Board changes cluster in Q1'>",
-      "detail": "<1-2 sentences with specifics and company names>",
+    {{"stat": "<the number that carries the point, e.g. '17 of 24' or '3 companies'>",
+      "stat_label": "<2-4 words naming what the number counts, e.g. 'board governance events'>",
+      "title": "<the theme in 5 words or fewer>",
+      "detail": "<ONE short clause adding what the number does not say. Max 90 characters. No preamble, no restating the number.>",
       "companies": ["<symbols>"]}}
   ],
   "priority": [
     {{"event_id": <id from the data>, "company": "<symbol>",
-      "why_first": "<one sentence on why this is ahead of the rest>"}}
+      "why_first": "<one clause, max 90 characters, on why this is ahead of the rest>"}}
   ],
   "watch_items": [
-    "<a short forward-looking note: something approaching, or a pattern to keep an eye on>"
+    "<one forward-looking clause, max 100 characters>"
   ]
 }}
 
-Aim for 2-4 themes, 3 priority items, 2-3 watch items."""
+Aim for 3-4 themes, 3 priority items, 2-3 watch items.
+
+WRITE TIGHT. This is read at a glance before a working day, not studied. Every
+theme leads with its number. No sentence may restate what the number already
+says, and nothing may open with filler like "This indicates" or "A total of"."""
 
 
 def generate(symbols: List[str], force: bool = False) -> Dict[str, Any]:
@@ -178,7 +184,9 @@ def generate(symbols: List[str], force: bool = False) -> Dict[str, Any]:
 
     themes = [{
         "title": str(t.get("title", ""))[:120],
-        "detail": str(t.get("detail", ""))[:400],
+        "stat": str(t.get("stat", ""))[:22],
+        "stat_label": str(t.get("stat_label", ""))[:40],
+        "detail": str(t.get("detail", ""))[:130],
         "companies": [str(c)[:12] for c in (t.get("companies") or [])[:6]],
     } for t in (d.get("themes") or [])[:4] if isinstance(t, dict) and t.get("title")]
 
@@ -193,9 +201,9 @@ def generate(symbols: List[str], force: bool = False) -> Dict[str, Any]:
             continue
         if eid in valid_ids:
             priority.append({"event_id": eid, "company": str(p.get("company", ""))[:12],
-                             "why_first": str(p.get("why_first", ""))[:240]})
+                             "why_first": str(p.get("why_first", ""))[:130]})
 
-    watch = [str(w)[:220] for w in (d.get("watch_items") or [])[:3]]
+    watch = [str(w)[:130] for w in (d.get("watch_items") or [])[:3]]
     headline = str(d.get("headline", ""))[:200]
 
     conn = get_connection()

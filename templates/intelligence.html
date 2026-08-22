@@ -175,7 +175,23 @@
             gap:14px; margin:20px 0 4px; }
         .theme { border-left:2px solid var(--border,#e2e8f0); padding-left:13px; }
         .theme-title { font-size:12.5px; font-weight:700; color:var(--text-primary,#0f172a); }
-        .theme-detail { font-size:12px; color:var(--text-secondary,#475569); line-height:1.55; margin-top:4px; }
+    .prio-row { padding:9px 0; }
+    .prio-why { font-size:12px; line-height:1.5; }
+    .watch-row { font-size:12px; line-height:1.5; padding:7px 0; }
+    .mini-h { font-size:9.5px; letter-spacing:.09em; }
+    .brief-headline { font-size:16px; line-height:1.4; }
+    .theme-grid { gap:14px; }
+    /* Briefing themes lead with the number that carries the point; the prose
+       is a single clause underneath, not a paragraph competing with it. */
+    .theme-stat { font-size:26px; font-weight:800; color:#4338ca; letter-spacing:-.03em;
+        line-height:1; font-variant-numeric:tabular-nums; }
+    .theme-stat-l { font-size:10px; font-weight:700; text-transform:uppercase;
+        letter-spacing:.06em; color:#94a3b8; margin-top:5px; line-height:1.35; }
+    .theme-detail { font-size:12px; line-height:1.5; color:#475569; margin-top:7px; }
+    .co-more { opacity:.6; }
+    html.dark .theme-stat { color:#a5b4fc; }
+    html.dark .theme-stat-l { color:#71717a; }
+    html.dark .theme-detail { color:#a1a1aa; }
         .theme-cos { display:flex; gap:4px; flex-wrap:wrap; margin-top:7px; }
         .co-chip { font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px;
             background:var(--surface-secondary,#f1f5f9); color:var(--text-muted,#94a3b8);
@@ -388,11 +404,17 @@
             <div class="theme-grid">
             {% for t in briefing.themes %}
                 <div class="theme">
+                    {% if t.stat %}
+                    <div class="theme-stat">{{ t.stat }}</div>
+                    <div class="theme-stat-l">{{ t.stat_label or t.title }}</div>
+                    {% else %}
                     <div class="theme-title">{{ t.title }}</div>
-                    <div class="theme-detail">{{ t.detail }}</div>
+                    {% endif %}
+                    {% if t.detail %}<div class="theme-detail">{{ t.detail }}</div>{% endif %}
                     {% if t.companies %}
                     <div class="theme-cos">
-                        {% for c in t.companies %}<span class="co-chip">{{ c }}</span>{% endfor %}
+                        {% for c in t.companies[:4] %}<span class="co-chip">{{ c }}</span>{% endfor %}
+                        {% if t.companies|length > 4 %}<span class="co-chip co-more">+{{ t.companies|length - 4 }}</span>{% endif %}
                     </div>
                     {% endif %}
                 </div>
