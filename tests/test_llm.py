@@ -57,6 +57,7 @@ class _Fake(BaseHTTPRequestHandler):
     reject_json_mode = False
     force_status = 0
     reply_finish = "stop"
+    reject_params = ()
 
     def log_message(self, *a):
         pass
@@ -81,6 +82,9 @@ class _Fake(BaseHTTPRequestHandler):
         _Fake.calls.append((self.path, body, dict(self.headers)))
         if _Fake.force_status:
             return self._send(_Fake.force_status, {"error": {"message": "busy"}})
+        for name in _Fake.reject_params:
+            if name in body:
+                return self._send(400, {"error": {"message": f"Unsupported parameter: '{name}' is not supported with this model."}})
         if self.path == "/v1/chat/completions":
             if _Fake.reject_json_mode and "response_format" in body:
                 return self._send(400, {"error": "response_format.type must be json_schema"})
@@ -125,7 +129,10 @@ class LLMTests(unittest.TestCase):
         _Fake.reject_json_mode = False
         _Fake.force_status = 0
         _Fake.reply_finish = "stop"
+        _Fake.reject_params = ()
         llm._no_json_mode.clear()
+        llm._param_fixes.clear()
+        llm._ollama_no_think.clear()
         for k in llm._SETTING_KEYS:
             database.set_setting(k, "")
         llm.invalidate()
@@ -205,8 +212,7 @@ class LLMTests(unittest.TestCase):
         self.assertGreaterEqual(body["options"]["num_ctx"], 16384)
 
     def test_api_key_sent_as_bearer_and_azure_header(self):
-        database.set_setting("ai_api_key", "sk-test")
-        self._use(local_only=False)
+        self._use(local_only=False, api_key="sk-test")
         llm.complete("hello")
         headers = {k.lower(): v for k, v in _Fake.calls[-1][2].items()}
         self.assertEqual(headers.get("authorization"), "Bearer sk-test")
@@ -290,6 +296,82 @@ class LLMTests(unittest.TestCase):
         self._use()
         with self.assertRaises(AttributeError):
             llm.Client(api_key="x").models.list()
+
+    def test_saved_key_stays_with_its_endpoint(self):
+        self._use(api_key="sk-secret")
+        self._use(model="draft-14b")  # same endpoint, new model: key kept
+        self.assertEqual(llm.active(refresh=True)["api_key"], "sk-secret")
+        self._use(base_url=f"http://localhost:{self.port}/v1")  # another endpoint, no key given
+        self.assertEqual(llm.active(refresh=True)["api_key"], "")
+        llm.complete("hello")
+        self.assertNotIn("authorization", {k.lower() for k in _Fake.calls[-1][2]})
+
+    def test_model_list_does_not_send_the_key_to_a_new_endpoint(self):
+        import flask
+        import routes_ai
+        self._use(api_key="sk-secret")
+        app = flask.Flask(__name__)
+        app.register_blueprint(routes_ai.create_blueprint(admin_required=lambda f: f))
+        seen = []
+        real = llm.list_models
+        with mock.patch.object(llm, "list_models", lambda cfg=None, **k: seen.append(cfg["api_key"]) or real(cfg)):
+            c = app.test_client()
+            c.post("/api/ai/models", json={"provider": "openai_compat", "base_url": f"http://localhost:{self.port}/v1"})
+            c.post("/api/ai/models", json={"provider": "openai_compat", "base_url": f"http://127.0.0.1:{self.port}/v1"})
+        self.assertEqual(seen, ["", "sk-secret"])
+
+    def test_openrouter_path_keeps_its_return_shape(self):
+        import sys
+        import types
+        self._use()
+        fake_ai = types.ModuleType("ai")
+        fake_ai._or_call = lambda *a, **k: ("from openrouter", "or-model")
+        with mock.patch.dict(sys.modules, {"ai": fake_ai}):
+            llm._patch_openrouter_paths()
+            text, model = fake_ai._or_call("sk-or-x", "m", "summarise this", 0.2)
+        self.assertTrue(text.startswith("echo:summarise this"))
+        self.assertEqual(model, "tiny-model")
+
+    def test_adapts_to_servers_that_refuse_max_tokens_and_temperature(self):
+        self._use()
+        _Fake.reject_params = ("max_tokens", "temperature")
+        self.assertTrue(llm.complete("hi").startswith("echo:hi"))
+        sent = _Fake.calls[-1][1]
+        self.assertNotIn("max_tokens", sent)
+        self.assertNotIn("temperature", sent)
+        self.assertIn("max_completion_tokens", sent)
+        _Fake.calls.clear()
+        llm.complete("again")  # remembered: one request, not three
+        self.assertEqual(len(_Fake.calls), 1)
+
+    def test_ollama_thinking_off_with_fallback(self):
+        self._use(preset="ollama", base_url=f"http://127.0.0.1:{self.port}/v1", model="llama3.2")
+        llm.complete("hi")
+        self.assertIs(_Fake.calls[-1][1]["think"], False)
+        _Fake.reject_params = ("think",)
+        _Fake.calls.clear()
+        self.assertEqual(llm.complete("hi"), '{"ok": true}')
+        self.assertEqual(len(_Fake.calls), 2)
+        self.assertNotIn("think", _Fake.calls[-1][1])
+
+    def test_agent_health_asks_the_configured_provider_not_google(self):
+        with mock.patch.dict(os.environ):  # its import loads .env; keep that out of other tests
+            from agents import client
+        self._use()
+        client._health_cache.update(checked=False, ok=False, error="")
+        with mock.patch.object(requests, "post", side_effect=AssertionError("probed Google")):
+            self.assertTrue(client.gemini_healthy(force=True)["ok"])
+        llm.save({"provider": "openai_compat", "preset": "vllm",
+                                  "base_url": "http://127.0.0.1:9/v1", "model": "m", "local_only": True})
+        status = client.gemini_healthy(force=True)
+        self.assertFalse(status["ok"])
+        self.assertIn("not answering", status["error"])
+
+    def test_saving_settings_clears_draft_cooldowns(self):
+        import draft_ai
+        draft_ai._cooldown[("k", "gemini-2.5-flash")] = 9e12
+        self._use()
+        self.assertEqual(draft_ai._cooldown, {})
 
 
 if __name__ == "__main__":

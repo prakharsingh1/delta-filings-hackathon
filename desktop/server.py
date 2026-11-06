@@ -12,9 +12,10 @@ Security model for the loopback server
     which sets an HttpOnly SameSite=Strict cookie. Every other request without
     it is refused, so other local programs and web pages in the user's normal
     browser cannot drive the app
-  * the Host header must be 127.0.0.1:PORT or localhost:PORT (DNS rebinding)
-  * a Content-Security-Policy stops page scripts from sending data anywhere
-    but this server
+  * the Host header must be 127.0.0.1:PORT or localhost:PORT (DNS rebinding);
+    X-Forwarded-* headers are ignored because no proxy sits in front
+  * a Content-Security-Policy limits page scripts' fetch and XHR calls to
+    this server
   * CDN scripts, styles and fonts are served from the bundle, and analytics
     is removed, so pages render offline and nothing is reported to Google
 
@@ -40,7 +41,7 @@ from pathlib import Path
 APP_NAME = "Delta Filings"
 LOCAL_USER_ID = "local-desktop"
 LOCAL_EMAIL = "owner@this-computer.local"
-COOKIE = "delta_desktop"
+COOKIE = "delta_desktop"   # suffixed with the port: cookies are not separated by port
 
 
 def bundle_root() -> Path:
@@ -73,31 +74,78 @@ def install_secret(folder: Path, name: str) -> str:
     to an owner-only file when no keychain is available.
     """
     account = f"{name}:{folder}"
+    path = folder / f"{name}.key"
     try:
         if os.environ.get("DELTA_KEYCHAIN", "1") == "0":  # tests and CI
             raise RuntimeError("keychain disabled")
         import keyring
         value = keyring.get_password(KEYCHAIN_SERVICE, account)
         if value:
+            _mark_secret(folder, name)
             return value
-        legacy = folder / f"{name}.key"
-        value = legacy.read_text().strip() if legacy.exists() else secrets.token_hex(32)
+        value = path.read_text().strip() if path.exists() else _new_secret(folder, name)
         keyring.set_password(KEYCHAIN_SERVICE, account, value)
-        if legacy.exists():
-            legacy.unlink()
+        path.unlink(missing_ok=True)
+        _mark_secret(folder, name)
         return value
+    except MissingSecret:
+        raise
     except Exception:
-        pass
-    path = folder / f"{name}.key"
+        pass  # no usable keychain: an owner-only file instead
     if path.exists():
+        _mark_secret(folder, name)
         return path.read_text().strip()
-    value = secrets.token_hex(32)
+    value = _new_secret(folder, name)
     path.write_text(value)
     try:
         os.chmod(path, 0o600)
     except OSError:
         pass
+    _mark_secret(folder, name)
     return value
+
+
+class MissingSecret(RuntimeError):
+    pass
+
+
+# Losing these makes existing data unreadable (database) or breaks the
+# insider-trading record's seal (sdd); the session secret can simply be remade.
+_IRREPLACEABLE = ("database", "sdd")
+
+
+def _secret_manifest(folder: Path) -> Path:
+    return folder / "secrets.json"   # names only, never values
+
+
+def _known_secrets(folder: Path) -> set:
+    try:
+        return set(json.loads(_secret_manifest(folder).read_text()))
+    except (OSError, ValueError, TypeError):
+        return set()
+
+
+def _mark_secret(folder: Path, name: str) -> None:
+    known = _known_secrets(folder)
+    if name not in known:
+        _secret_manifest(folder).write_text(json.dumps(sorted(known | {name})))
+
+
+def _new_secret(folder: Path, name: str) -> str:
+    """A fresh secret, unless one already protects data in this folder."""
+    db = folder / DB_NAME
+    encrypted_db = name == "database" and db.exists() and _read_header(db) != _PLAIN_HEADER
+    if name in _IRREPLACEABLE and (name in _known_secrets(folder) or encrypted_db):
+        raise MissingSecret(
+            f"The {name} key for this install could not be read from the system keychain "
+            f"(Delta Filings, {name}:{folder}). Nothing has been changed. Unlock or restore the "
+            "keychain and open Delta Filings again.")
+    return secrets.token_hex(32)
+
+
+def _read_header(path: Path) -> bytes:
+    with open(path, "rb") as f:
+        return f.read(16)
 
 
 def _profile_path(folder: Path) -> Path:
@@ -176,7 +224,7 @@ def install_encrypted_sqlite(key_hex: str) -> None:
 
 def encrypt_existing_database(path: Path, key_hex: str) -> bool:
     """Convert a plaintext database left by an earlier build. True if converted."""
-    if not path.exists() or path.read_bytes()[:16] != _PLAIN_HEADER:
+    if not path.exists() or _read_header(path) != _PLAIN_HEADER:
         return False
     import sqlcipher3.dbapi2 as sc
     tmp = path.with_suffix(".encrypting")
@@ -212,7 +260,13 @@ BACKUP_KEEP = int(os.environ.get("DELTA_BACKUP_KEEP", "30") or 30)
 
 def backup_dir(folder: Path) -> Path:
     custom = os.environ.get("DELTA_BACKUP_DIR", "").strip()
-    return Path(custom).expanduser() if custom else folder / "backups"
+    if not custom:
+        return folder / "backups"
+    # A shared folder serves several computers; each keeps (and rotates) its own
+    # copies, which only its own key can open.
+    import socket
+    machine = re.sub(r"[^A-Za-z0-9._-]+", "_", socket.gethostname() or "") or "this-computer"
+    return Path(custom).expanduser() / machine
 
 
 def backup_now(folder: Path) -> Path:
@@ -251,17 +305,32 @@ def _backup_loop(folder: Path) -> None:
 
 
 # ── Logs ──────────────────────────────────────────────────────────────────
+class _RedactToken:
+    _TOKEN = re.compile(r"([?&]t=)[^&\s\"]+")
+
+    def filter(self, record) -> bool:
+        msg = record.getMessage()
+        if "t=" in msg:
+            record.msg, record.args = self._TOKEN.sub(r"\1[redacted]", msg), ()
+        return True
+
+
 def redirect_logs(folder: Path) -> Path:
     """Send prints and request logs to logs/backend.log (rotated at 5 MB)."""
     logs = folder / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     path = logs / "backend.log"
     if path.exists() and path.stat().st_size > 5_000_000:
-        os.replace(path, logs / "backend.1.log")
+        try:
+            os.replace(path, logs / "backend.1.log")
+        except OSError:
+            pass  # Windows: another process still has it open; rotate next time
     stream = open(path, "a", buffering=1, encoding="utf-8", errors="replace")
     sys.stdout = sys.stderr = stream
     import logging
     logging.basicConfig(stream=stream, level=logging.INFO, force=True)
+    # The request log would otherwise record the launch token from /__desktop/enter.
+    logging.getLogger("werkzeug").addFilter(_RedactToken())
     print(f"\n[DESKTOP] started {time.strftime('%Y-%m-%d %H:%M:%S')}")
     return path
 
@@ -345,8 +414,16 @@ def install_desktop_layer(app, folder: Path, token: str, port: int) -> None:
     main.sb_update_user_metadata = sb_update_user_metadata
     main.LOGO_VOLUME_DIR = str(folder / "logos")
 
+    # The hosted app sits behind a proxy and trusts X-Forwarded-Host. Nothing
+    # sits in front of a loopback server, and trusting it would let a
+    # DNS-rebinding page pass the Host check below.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    if isinstance(app.wsgi_app, ProxyFix):
+        app.wsgi_app = app.wsgi_app.app
+
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     vendor = load_vendor_map()
+    cookie = f"{COOKIE}_{port}"
 
     @app.before_request
     def _desktop_gate():
@@ -365,11 +442,11 @@ def install_desktop_layer(app, folder: Path, token: str, port: int) -> None:
             resp = app.response_class(
                 "<!doctype html><meta charset=utf-8><title>Delta Filings</title>"
                 f"<script>location.replace({target})</script>", mimetype="text/html")
-            resp.set_cookie(COOKIE, token, httponly=True, samesite="Strict", path="/")
+            resp.set_cookie(cookie, token, httponly=True, samesite="Strict", path="/")
             return resp
         if request.path.startswith(("/static/", "/__desktop/vendor/")) or request.path == "/favicon.ico":
             return None
-        if not hmac.compare_digest(request.cookies.get(COOKIE, ""), token):
+        if not hmac.compare_digest(request.cookies.get(cookie, ""), token):
             return ("Open Delta Filings from its app window.", 403)
         origin = request.headers.get("Origin")
         if request.method not in ("GET", "HEAD", "OPTIONS") and origin and origin not in (
@@ -420,11 +497,13 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     folder = data_dir()
-    folder.mkdir(parents=True, exist_ok=True)
     ready_out = sys.stdout  # the shell reads the ready line here
-    if not (args.log_to_console or sys.stdout.isatty()):
-        redirect_logs(folder)
     try:
+        folder.mkdir(parents=True, exist_ok=True)
+        if os.name != "nt":
+            os.chmod(folder, 0o700)  # uploads and logs are for this user only
+        if not (args.log_to_console or sys.stdout.isatty()):
+            redirect_logs(folder)
         configure_environment(folder)
         root = bundle_root()
         sys.path.insert(0, str(root))

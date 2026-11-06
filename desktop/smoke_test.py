@@ -53,6 +53,8 @@ def main() -> int:
         checks = {
             "refuses requests without the launch cookie": status(plain, f"http://127.0.0.1:{port}/dashboard") == 403,
             "refuses a foreign Host header": status(plain, f"http://127.0.0.1:{port}/", {"Host": f"evil.example:{port}"}) == 400,
+            "ignores a spoofed X-Forwarded-Host": status(plain, f"http://127.0.0.1:{port}/", {
+                "Host": f"evil.example:{port}", "X-Forwarded-Host": f"127.0.0.1:{port}"}) == 400,
         }
         jar = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
         checks["accepts the launch token"] = status(jar, url) == 200

@@ -34,6 +34,9 @@
     document.getElementById('bar').style.display = 'none';
     var e = document.getElementById('err'); e.textContent = msg; e.style.display = 'block';
   };
+  // The shell reopens this page as index.html?error=... when the service fails.
+  var failure = new URLSearchParams(location.search).get('error');
+  if (failure) window.deltaBackendFailed(failure);
 </script>
 </body>
 </html>

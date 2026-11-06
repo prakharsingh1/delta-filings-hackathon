@@ -146,6 +146,15 @@ def _cool(api_key: str, model: str, seconds: float):
         _cooldown[(_key_hash(api_key), model)] = time.time() + max(seconds, 1)
 
 
+def _routed_elsewhere() -> bool:
+    """True when Settings, AI provider sends these calls to a model other than Gemini."""
+    try:
+        import llm
+        return llm.active()["provider"] != "gemini"
+    except Exception:
+        return False
+
+
 def soonest_retry(api_key: str) -> Optional[int]:
     """Seconds until the first cooled-down model is usable again."""
     kh, now = _key_hash(api_key), time.time()
@@ -259,7 +268,9 @@ def generate(api_key: str, prompt: str, *, schema: Optional[Dict] = None,
                     print(f"[DRAFT-AI] {purpose}: {model} quota ({'day' if per_day else 'minute'}), next model")
                     break
                 if code == 404 or "not_found" in low:
-                    _cool(api_key, model, 24 * 3600)
+                    # A retired Gemini model stays gone; a local model the user
+                    # has not downloaded yet may be there in a minute.
+                    _cool(api_key, model, 60 if _routed_elsewhere() else 24 * 3600)
                     seen.append("unavailable")
                     break
                 timeout = ("timed out" in low or "timeout" in low or "deadline" in low or code == 504)

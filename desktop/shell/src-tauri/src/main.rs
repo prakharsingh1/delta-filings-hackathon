@@ -12,11 +12,18 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
-use tauri::webview::DownloadEvent;
+use tauri::webview::{DownloadEvent, NewWindowResponse};
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
 
 struct Backend(Mutex<Option<Child>>);
+
+/// The splash page's own URL, so errors can be shown on it from any page.
+struct Splash(Mutex<Option<Url>>);
+
+/// Unexpected backend exits so far; past MAX_RESTARTS the error stays on screen.
+struct Restarts(Mutex<u32>);
+const MAX_RESTARTS: u32 = 3;
 
 /// What the backend reported in its ready line.
 #[derive(Default, Clone)]
@@ -62,6 +69,8 @@ fn build_menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         .select_all()
         .build()?;
     let view = SubmenuBuilder::new(app, "View")
+        .item(&MenuItemBuilder::with_id("back", "Back").accelerator("CmdOrCtrl+[").build(app)?)
+        .item(&MenuItemBuilder::with_id("forward", "Forward").accelerator("CmdOrCtrl+]").build(app)?)
         .item(&MenuItemBuilder::with_id("reload", "Reload").accelerator("CmdOrCtrl+R").build(app)?)
         .item(&MenuItemBuilder::with_id("home", "Home").accelerator("CmdOrCtrl+Shift+H").build(app)?)
         .separator()
@@ -107,6 +116,12 @@ fn on_menu(app: &AppHandle, id: &str) {
         ("reload", _, Some(w)) => {
             let _ = w.eval("location.reload()");
         }
+        ("back", _, Some(w)) => {
+            let _ = w.eval("history.back()");
+        }
+        ("forward", _, Some(w)) => {
+            let _ = w.eval("history.forward()");
+        }
         _ => {}
     }
 }
@@ -133,10 +148,30 @@ fn is_local(url: &Url) -> bool {
         || matches!(url.host_str(), Some("127.0.0.1") | Some("localhost") | Some("tauri.localhost"))
 }
 
+/// Hand a non-local link to the user's browser or mail app. Other schemes
+/// (file:, smb:, custom protocol handlers) could start programs, so they are dropped.
+fn open_outside(app: &AppHandle, url: &Url) {
+    if matches!(url.scheme(), "http" | "https" | "mailto") {
+        let _ = app.opener().open_url(url.as_str(), None::<&str>);
+    }
+}
+
+/// Put the splash page back up with a message. Carrying the message in the URL
+/// means it shows even if the page had not finished loading yet.
 fn show_error(app: &AppHandle, message: &str) {
-    if let Some(w) = app.get_webview_window("main") {
-        let js = format!("window.deltaBackendFailed && window.deltaBackendFailed({:?});", message);
-        let _ = w.eval(&js);
+    let splash = app.state::<Splash>().0.lock().unwrap().clone();
+    if let (Some(mut url), Some(w)) = (splash, app.get_webview_window("main")) {
+        url.set_query(None);
+        url.query_pairs_mut().append_pair("error", message);
+        let _ = w.navigate(url);
+    }
+}
+
+fn show_splash(app: &AppHandle) {
+    let splash = app.state::<Splash>().0.lock().unwrap().clone();
+    if let (Some(mut url), Some(w)) = (splash, app.get_webview_window("main")) {
+        url.set_query(None);
+        let _ = w.navigate(url);
     }
 }
 
@@ -200,23 +235,61 @@ fn start_backend(app: AppHandle) {
             }
         }
     }
+    // Output ended: the backend exited. If the app is quitting it already took the child.
+    let taken = {
+        let state = app.state::<Backend>();
+        let mut slot = state.0.lock().unwrap();
+        slot.take()
+    };
+    let Some(mut child) = taken else {
+        return;
+    };
+    let _ = child.wait();
     if !ready && !failed {
         show_error(&app, "The local service stopped before it was ready. Restart Delta Filings. If it keeps happening, choose Help, Open Logs Folder, and send backend.log to support.");
+        return;
+    }
+    if ready {
+        // It was running and stopped unexpectedly: start it again a few times.
+        let restarts = {
+            let state = app.state::<Restarts>();
+            let mut n = state.0.lock().unwrap();
+            *n += 1;
+            *n
+        };
+        if restarts <= MAX_RESTARTS {
+            show_splash(&app);
+            start_backend(app);
+        } else {
+            show_error(&app, "The local service keeps stopping. Quit and reopen Delta Filings. If it keeps happening, choose Help, Open Logs Folder, and send backend.log to support.");
+        }
     }
 }
 
 fn main() {
     tauri::Builder::default()
+        // First, so a second launch only brings this window forward. Two
+        // backends on one data folder would fight over the database and logs.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .manage(Backend(Mutex::new(None)))
         .manage(ReadyState(Mutex::new(None)))
+        .manage(Splash(Mutex::new(None)))
+        .manage(Restarts(Mutex::new(0)))
         .setup(|app| {
             let menu = build_menu(app.handle())?;
             app.set_menu(menu)?;
             app.on_menu_event(|app, event| on_menu(app, event.id().as_ref()));
             let opener = app.handle().clone();
+            let popups = app.handle().clone();
             let downloads = app.path().download_dir().ok();
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Delta Filings")
                 .inner_size(1360.0, 880.0)
                 .min_inner_size(1024.0, 680.0)
@@ -225,8 +298,21 @@ fn main() {
                         return true;
                     }
                     // Source filings and every outside link open in the user's browser.
-                    let _ = opener.opener().open_url(url.as_str(), None::<&str>);
+                    open_outside(&opener, url);
                     false
+                })
+                // target="_blank" and window.open: Windows and Linux drop these
+                // unless handled. App pages open in this window (View, Back
+                // returns), everything else in the browser.
+                .on_new_window(move |url, _features| {
+                    if is_local(&url) && matches!(url.scheme(), "http" | "https") {
+                        if let Some(w) = popups.get_webview_window("main") {
+                            let _ = w.navigate(url);
+                        }
+                    } else {
+                        open_outside(&popups, &url);
+                    }
+                    NewWindowResponse::Deny
                 })
                 .on_download(move |_webview, event| {
                     if let DownloadEvent::Requested { destination, .. } = event {
@@ -237,6 +323,9 @@ fn main() {
                     true
                 })
                 .build()?;
+            if let Ok(url) = window.url() {
+                app.state::<Splash>().0.lock().unwrap().replace(url);
+            }
             let handle = app.handle().clone();
             std::thread::spawn(move || start_backend(handle));
             Ok(())

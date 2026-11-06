@@ -1209,6 +1209,10 @@ def link_filings_to_obligations(symbol):
         else:
             q_end = due_dt
 
+        # verify_obligation calls NSE and BSE and can take minutes across all
+        # obligations; holding the write lock that long made every other write
+        # in the app fail with "database is locked".
+        conn.commit()
         try:
             result = verify_obligation(symbol, ob["mandate_id"], q_end, due_dt)
         except Exception as e:

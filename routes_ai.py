@@ -79,12 +79,14 @@ def create_blueprint(admin_required=None):
         provider = data.get("provider") or cfg["provider"]
         if provider not in llm.PROVIDERS:
             return jsonify({"error": "Unknown provider"}), 400
-        cfg.update(provider=provider, preset=data.get("preset") or cfg["preset"],
-                   base_url=(data.get("base_url") or cfg["base_url"] or "").rstrip("/"),
+        base_url = (data.get("base_url") or cfg["base_url"] or "").rstrip("/")
+        # The stored key is only for the endpoint it was saved with.
+        same_endpoint = (provider, base_url) == (cfg["provider"], (cfg["base_url"] or "").rstrip("/"))
+        cfg.update(provider=provider, preset=data.get("preset") or cfg["preset"], base_url=base_url,
                    local_only=bool(data.get("local_only", cfg["local_only"])))
         if data.get("api_key"):
             cfg["api_key"] = data["api_key"].strip()
-        elif provider != cfg.get("provider"):
+        elif not same_endpoint:
             cfg["api_key"] = ""
         try:
             return jsonify({"models": llm.list_models(cfg)})

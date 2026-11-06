@@ -37,7 +37,7 @@ creates a local profile and runs the normal onboarding.
 | Inside the data folder | What it is |
 |---|---|
 | `delta_filings.db` | the workspace, encrypted with SQLCipher (AES-256); unreadable without the key |
-| `backups/` | one encrypted copy per day, the last 30 kept; `DELTA_BACKUP_DIR` points it at a network share |
+| `backups/` | one encrypted copy per day, the last 30 kept; `DELTA_BACKUP_DIR` points it at a network share (each computer writes to its own subfolder there) |
 | `logs/backend.log` | the backend log, rotated at 5 MB; Help, Open Logs Folder |
 | `uploads/`, `pdf_cache/` | uploaded documents and cached public PDFs (protected by FileVault or BitLocker, not by the app) |
 

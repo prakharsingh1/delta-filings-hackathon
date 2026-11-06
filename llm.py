@@ -99,6 +99,7 @@ _local_slots = threading.BoundedSemaphore(int(os.environ.get("DELTA_AI_LOCAL_CON
 _breaker: Dict[str, Any] = {}
 _BREAKER_SECONDS = 20
 _no_json_mode: set = set()
+_ollama_no_think: set = set()     # (ollama root, model) pairs that reject think=false
 
 
 class LLMError(RuntimeError):
@@ -173,6 +174,11 @@ def invalidate():
     with _cache_lock:
         _cache.update(at=0.0, cfg=None)
     _breaker.clear()
+    # Drafting parks a model name after a failure; a new setup deserves a fresh try.
+    import sys
+    cooldown = getattr(sys.modules.get("draft_ai"), "_cooldown", None)
+    if isinstance(cooldown, dict):
+        cooldown.clear()
     active(refresh=True)
 
 
@@ -211,11 +217,14 @@ def save(values: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in updates.items():
         if k not in locked:
             set_setting(k, v)
+    # A key belongs to the service it was entered for. Moving to another
+    # provider or endpoint without a new key must not send the old one there.
+    moved = (provider, base_url) != (current["provider"], (current["base_url"] or "").rstrip("/"))
     key = values.get("api_key")
     if isinstance(key, str) and key.strip() and "ai_api_key" not in locked:
         # Gemini keeps using the key the rest of the app already reads.
         set_setting("gemini_api_key" if provider == "gemini" else "ai_api_key", key.strip())
-    if values.get("clear_api_key"):
+    elif (values.get("clear_api_key") or moved) and "ai_api_key" not in locked:
         set_setting("ai_api_key", "")
     invalidate()
     return public_config()
@@ -400,6 +409,35 @@ def _finish(reason: Any) -> str:
     return _FINISH.get(str(reason or "stop").lower(), "STOP")
 
 
+_param_fixes: Dict[Tuple[str, str], Dict[str, bool]] = {}   # (base_url, model) -> what the server wants
+
+
+def _post_chat(cfg, url, payload, headers, timeout) -> requests.Response:
+    """POST a chat request, adapting once to servers that reject a parameter.
+
+    OpenAI's reasoning models (o-series, gpt-5) refuse `max_tokens` in favour
+    of `max_completion_tokens`, and refuse any temperature but the default.
+    """
+    fixes = _param_fixes.setdefault((cfg["base_url"], cfg["model"]), {})
+    if fixes.get("completion_tokens") and "max_tokens" in payload:
+        payload["max_completion_tokens"] = payload.pop("max_tokens")
+    if fixes.get("no_temperature"):
+        payload.pop("temperature", None)
+    r = _post(cfg, url, payload, headers, timeout)
+    for _ in range(2):
+        body = (r.text or "").lower() if r.status_code == 400 else ""
+        if "max_tokens" in body and "max_tokens" in payload:
+            fixes["completion_tokens"] = True
+            payload["max_completion_tokens"] = payload.pop("max_tokens")
+        elif "temperature" in body and "temperature" in payload:
+            fixes["no_temperature"] = True
+            payload.pop("temperature")
+        else:
+            break
+        r = _post(cfg, url, payload, headers, timeout)
+    return r
+
+
 def _openai_compat(cfg, prompt, system, max_tokens, temperature, json_mode, timeout, schema=None) -> Tuple[str, str]:
     if _is_ollama(cfg):
         return _ollama_native(cfg, prompt, system, max_tokens, temperature, json_mode, timeout, schema)
@@ -420,7 +458,7 @@ def _openai_compat(cfg, prompt, system, max_tokens, temperature, json_mode, time
     r = None
     for fmt in formats:
         payload["response_format"] = fmt
-        r = _post(cfg, url, payload, headers, timeout)
+        r = _post_chat(cfg, url, payload, headers, timeout)
         body = r.text or ""
         if not (r.status_code in (400, 422) and ("response_format" in body or "json_schema" in body)):
             break
@@ -430,7 +468,7 @@ def _openai_compat(cfg, prompt, system, max_tokens, temperature, json_mode, time
         if want_json:
             _no_json_mode.add(cfg["base_url"])
         payload.pop("response_format", None)
-        r = _post(cfg, url, payload, headers, timeout)
+        r = _post_chat(cfg, url, payload, headers, timeout)
     if r.status_code != 200:
         raise _http_error(cfg, r)
     data = r.json()
@@ -452,8 +490,17 @@ def _ollama_native(cfg, prompt, system, max_tokens, temperature, json_mode, time
                                            "num_ctx": num_ctx}}
     if json_mode:
         payload["format"] = schema if isinstance(schema, dict) else "json"  # Ollama enforces a JSON schema
-    r = _post(cfg, _ollama_root(cfg["base_url"]) + "/api/chat", payload,
-              {"Content-Type": "application/json"}, timeout)
+    # Thinking models (qwen3, deepseek-r1) otherwise spend num_predict on
+    # hidden reasoning and return an empty answer. Some models cannot switch
+    # it off; for those, ask again without the flag.
+    root = _ollama_root(cfg["base_url"])
+    if (root, cfg["model"]) not in _ollama_no_think:
+        payload["think"] = False
+    r = _post(cfg, root + "/api/chat", payload, {"Content-Type": "application/json"}, timeout)
+    if r.status_code == 400 and "think" in payload and "think" in (r.text or "").lower():
+        _ollama_no_think.add((root, cfg["model"]))
+        payload.pop("think")
+        r = _post(cfg, root + "/api/chat", payload, {"Content-Type": "application/json"}, timeout)
     if r.status_code != 200:
         raise _http_error(cfg, r)
     data = r.json()
@@ -718,7 +765,8 @@ def _patch_openrouter_paths() -> None:
 
         def _or_call(api_key, model, prompt_text, temperature, *a, **k):
             if active()["provider"] != "gemini":
-                return complete(prompt_text, temperature=temperature, max_tokens=900)
+                # Same shape as the original: (content, model that answered).
+                return complete(prompt_text, temperature=temperature, max_tokens=900), active()["model"]
             if active()["local_only"]:
                 _guard(active())
             return original(api_key, model, prompt_text, temperature, *a, **k)

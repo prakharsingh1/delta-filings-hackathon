@@ -184,6 +184,23 @@ def gemini_healthy(force: bool = False) -> Dict[str, Any]:
     if _health_cache["checked"] and not force:
         return dict(_health_cache)
 
+    # Another provider is configured (a local model, Claude, an OpenAI-compatible
+    # server): ask it, and never probe Google with the placeholder key.
+    try:
+        import llm
+        if llm.active()["provider"] != "gemini":
+            try:
+                llm.list_models()
+                _health_cache.update(ok=True, error="")
+            except Exception:  # noqa: BLE001
+                _health_cache.update(ok=False, error=(
+                    f"The AI model at {llm.destination_label(llm.active())} is not answering. "
+                    "Start it (for example, open Ollama) or change Settings, AI provider."))
+            _health_cache["checked"] = _health_cache["ok"]  # re-check until it answers
+            return dict(_health_cache)
+    except ImportError:
+        pass
+
     _health_cache["checked"] = True
     key = get_api_key()
     if not key:

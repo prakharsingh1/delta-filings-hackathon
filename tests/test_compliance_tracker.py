@@ -2,6 +2,7 @@
 and deadlines that match the rulebook."""
 from tests import _util  # noqa: F401  (must come first)
 
+import sqlite3
 import unittest
 from datetime import date
 from unittest import mock
@@ -81,6 +82,39 @@ class LinkingAnnouncements(unittest.TestCase):
             c.link_filings_to_obligations(self.SYM)
         r = self.row()
         self.assertEqual((r["status"], r["filed_date"]), ("submitted", "2026-08-05"))
+
+
+class LinkerReleasesTheLock(unittest.TestCase):
+    """verify_obligation goes out to NSE and BSE; nothing may wait on the write lock meanwhile."""
+    SYM = "LOCKCO"
+
+    def test_other_writers_are_not_blocked_while_verifying(self):
+        with _util.quiet():
+            c.init_compliance_db()
+        conn = _util.connect()
+        conn.execute("DELETE FROM compliance_obligations WHERE symbol = ?", (self.SYM,))
+        # The first row is reset (a write) before the second is verified.
+        for period, due, status in (("Q1 FY2098-99", "2099-03-31", "missed"),
+                                    ("Q1 FY2026-27", "2026-08-14", "pending")):
+            conn.execute("""INSERT INTO compliance_obligations (symbol, mandate_id, period, due_date, status, created_at, updated_at)
+                            VALUES (?, 'LODR-REG33', ?, ?, ?, 'x', 'x')""", (self.SYM, period, due, status))
+        conn.commit(); conn.close()
+        blocked = []
+
+        def verify(*a, **k):
+            other = sqlite3.connect(_util.DB_PATH, timeout=0.2)
+            try:
+                other.execute("BEGIN IMMEDIATE")
+                other.rollback()
+            except sqlite3.OperationalError as e:
+                blocked.append(str(e))
+            finally:
+                other.close()
+            return {"status": "unverified", "filed_date": None, "delay_days": 0, "evidence": [], "confidence": "low"}
+
+        with mock.patch.object(c, "verify_obligation", verify), _util.quiet():
+            c.link_filings_to_obligations(self.SYM)
+        self.assertEqual(blocked, [])
 
 
 class DeadlinesMatchTheRulebook(unittest.TestCase):

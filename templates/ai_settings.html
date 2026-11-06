@@ -139,7 +139,15 @@
     $('row-url').hidden = p.provider === 'gemini';
     $('row-key').hidden = p.local;
     if (reset) { url.value = p.base_url; model.value = p.model || ''; key.value = ''; $('ai-model-list').innerHTML = ''; }
+    keyHint();
   }
+  // "Saved" only when the form still points at the service the key was saved for.
+  function keyHint() {
+    var p = byId[sel.value];
+    var same = p.id === cfg.preset && (p.provider === 'gemini' || url.value.trim().replace(/\/+$/, '') === (cfg.base_url || '').replace(/\/+$/, ''));
+    key.placeholder = same && cfg.has_api_key ? 'Saved. Leave blank to keep it.' : (p.local ? 'Not needed for local models' : 'Paste the API key for this service');
+  }
+  url.addEventListener('input', keyHint);
   function show(ok, html) { result.hidden = false; result.className = 'note ai-result ' + (ok ? 'ok' : 'bad'); result.innerHTML = html; }
   function payload() {
     var p = byId[sel.value];
