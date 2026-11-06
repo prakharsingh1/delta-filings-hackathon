@@ -10,4 +10,4 @@ nixPkgs = ["python311", "gcc", "tesseract", "ghostscript"]
 cmds = ["python3 -m venv /opt/venv", ". /opt/venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt"]
 
 [start]
-cmd = ". /opt/venv/bin/activate && gunicorn main:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+cmd = ". /opt/venv/bin/activate && gunicorn main:app --bind 0.0.0.0:$PORT --workers 1 --worker-class gthread --threads 4 --timeout 120"

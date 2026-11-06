@@ -2,89 +2,48 @@
 <html lang="en">
 <head>
     {% include 'analytics.html' %}
+    <script>(function () { document.documentElement.classList.remove('dark'); })();</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <title>{{ page_title or 'Delta Filings' }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/site.css">
     <style>
-        html, body { font-family: 'Inter', system-ui, sans-serif; }
-        body {
-            min-height: 100vh;
-            background:
-              radial-gradient(900px 500px at 10% -10%, rgba(99,102,241,0.20), transparent 60%),
-              radial-gradient(800px 500px at 110% 10%, rgba(56,189,248,0.18), transparent 60%),
-              radial-gradient(700px 500px at 50% 120%, rgba(236,72,153,0.10), transparent 60%),
-              #fbfbfe;
-            color: #0f172a;
-        }
-        .auth-card {
-            background: rgba(255,255,255,0.85);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid rgba(255,255,255,0.8);
-            border-radius: 20px;
-            box-shadow: 0 30px 70px -30px rgba(15,23,42,0.22);
-        }
-        .field {
-            width: 100%; padding: 12px 14px;
-            background: white; border: 1.5px solid #e2e8f0;
-            border-radius: 10px; font-size: 14px; color: #0f172a;
-            transition: border-color .15s ease, box-shadow .15s ease;
-        }
-        .field:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99,102,241,0.15); }
-        .label { display: block; font-size: 12.5px; font-weight: 600; color: #334155; margin-bottom: 6px; }
-        .btn-primary {
-            width: 100%;
-            background: linear-gradient(135deg,#4f46e5,#6366f1);
-            color: white; font-weight: 600;
-            padding: 12px 18px; border-radius: 10px;
-            box-shadow: 0 10px 25px -10px rgba(79,70,229,0.55);
-            transition: transform .15s ease, box-shadow .15s ease;
-        }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 30px -10px rgba(79,70,229,0.65); }
-        .brand-badge {
-            display: inline-flex; align-items: center; gap: 10px;
-            text-decoration: none; color: inherit;
-        }
-        .brand-mark {
-            width: 38px; height: 38px;
-            display: flex; align-items: center; justify-content: center;
-            color: #2D2A7C;
-        }
-        .error-box {
-            background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
-            font-size: 13px; padding: 10px 12px; border-radius: 10px;
-            margin-bottom: 14px;
-        }
-        .divider { display:flex; align-items:center; gap:10px; color:#94a3b8; font-size:12px; margin: 18px 0; }
-        .divider::before, .divider::after { content:''; flex:1; height:1px; background: #e2e8f0; }
+        /* Names kept for the onboarding, checkout and 404 templates that share this base. */
+        .auth-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(27,26,22,.05), 0 24px 50px -32px rgba(27,26,22,.4); }
+        .auth-card h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem; letter-spacing: -.02em; line-height: 1.05; }
+        .field { width: 100%; padding: 11px 13px; background: #fff; border: 1px solid #dad6ca; border-radius: 10px; font-size: 15px; color: var(--ink); font-family: var(--sans); transition: border-color .15s ease, box-shadow .15s ease; }
+        .field:focus { outline: none; border-color: #c9ad33; box-shadow: 0 0 0 3px rgba(166,139,26,.22); }
+        .label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+        .btn-primary { width: 100%; background: linear-gradient(180deg,#ffe866,#ffdc3c); color: var(--ink); font-weight: 500; padding: 12px 18px; border-radius: 10px; font-size: 15px; transition: background-color .15s ease; border: 1px solid #ecd03a; box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 1px 0 #d9bd1f, 0 12px 26px -14px rgba(120,100,0,.65); cursor: pointer; }
+        .btn-primary:hover { background: linear-gradient(180deg,#ffe354,#f8d22a); }
+        .error-box { background: var(--red-bg); border: 1px solid var(--red-line); color: var(--red); font-size: 14px; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; }
+        .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 18px 0; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+        .auth-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 24px 56px; }
+        .auth-split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 440px); gap: 72px; max-width: 1080px; width: 100%; align-items: center; }
+        .auth-solo { display: flex; justify-content: center; width: 100%; } .auth-solo .auth-form { width: 100%; display: flex; justify-content: center; }
+        .auth-aside .h2 { font-size: clamp(1.7rem, 1.2rem + 1.6vw, 2.4rem); max-width: 18ch; }
+        .auth-aside .checks { margin-top: 22px; }
+        .auth-aside .fine { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+        .auth-aside .fine a { color: var(--indigo-2); }
+        @media (max-width: 900px) { .auth-split { grid-template-columns: minmax(0, 1fr); gap: 36px; } .auth-aside { order: 2; } .auth-main { align-items: flex-start; padding-top: 24px; } }
     </style>
 </head>
-<body>
-    <div class="min-h-screen flex flex-col">
-        <header class="max-w-6xl mx-auto w-full px-6 py-6">
-            <a href="/" class="brand-badge">
-                <div class="brand-mark">
-                    <svg class="w-6 h-6" viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="Delta Filings">
-                        <polygon points="8,42 34,30 34,108 8,120"/>
-                        <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
-                    </svg>
-                </div>
-                <div>
-                    <div class="font-bold text-slate-900 leading-tight">Delta Filings</div>
-                    <div class="text-[11px] text-slate-500 -mt-0.5">Governance Intelligence</div>
-                </div>
-            </a>
-        </header>
-
-        <main class="flex-1 flex items-center justify-center px-6 py-8">
-            {% block content %}{% endblock %}
-        </main>
-
-        <footer class="py-6 text-center text-xs text-slate-500">
-            © Delta Filings · Secure, session-based authentication
-        </footer>
+<body class="site">
+    {% include 'site_header.html' %}
+    <div class="auth-main">
+        <div class="{{ 'auth-split' if split else 'auth-solo' }}">
+            {% if split %}<aside class="auth-aside">{% block aside %}{% endblock %}</aside>{% endif %}
+            <div class="auth-form">{% block content %}{% endblock %}</div>
+        </div>
     </div>
+    <footer style="padding:20px 24px;text-align:center;font-size:13px;color:var(--muted);border-top:1px solid var(--line)">
+        &copy; Delta Filings &middot; <a href="/security" style="text-decoration:underline">Security</a> &middot; <a href="/privacy" style="text-decoration:underline">Privacy</a>
+    </footer>
 </body>
 </html>

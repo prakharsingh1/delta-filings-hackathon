@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'analytics.html' %}
+  <script>
+    // Public pages are light only. The shared analytics snippet may add the app's dark class.
+    (function () { document.documentElement.classList.remove('dark'); })();
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>{% block title %}Delta Filings{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}Deadlines for ROC, SEBI, tax, GST, labour and FEMA filings with the late fee worked out, plus regulatory news, board meetings, registers, the insider-trading database, drafting and counterparty risk monitoring.{% endblock %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/site.css">
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="site">
+  <a href="#main" class="skip">Skip to content</a>
+  {% include 'site_header.html' %}
+  <main id="main">
+    {% block content %}{% endblock %}
+  </main>
+  {% include 'site_footer.html' %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

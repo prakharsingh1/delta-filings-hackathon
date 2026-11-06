@@ -1,112 +1,157 @@
 {% extends "auth_base.html" %}
-{% set page_title = "Pick your industry · Delta Filings" %}
+{% set page_title = "Set up your workspace · Delta Filings" %}
 {% block content %}
+<style>
+    .role-card { text-align: left; padding: 18px 18px 16px; border-radius: 14px; border: 1.5px solid #e8e5dc; background: #fff;
+        transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; cursor: pointer; width: 100%; }
+    .role-card:hover { border-color: #dcc766; transform: translateY(-1px); }
+    .role-card.on { border-color: #9b801c; box-shadow: 0 0 0 4px rgba(155,128,28,.12); }
+    .role-card .rc-title { font-weight: 700; color: #1b1a16; font-size: 15px; }
+    .role-card .rc-blurb { font-size: 12.5px; color: #6d6a60; margin-top: 4px; line-height: 1.45; }
+    .role-card .rc-gets { font-size: 11.5px; color: #9b801c; margin-top: 10px; font-weight: 600; }
+    .role-card .rc-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #c3c0b4; flex-shrink: 0; }
+    .role-card.on .rc-dot { border-color: #9b801c; background: radial-gradient(circle, #9b801c 0 3.5px, transparent 4.5px); }
+    .ob-input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #e8e5dc; border-radius: 10px; background: #fff; }
+    .ob-input:focus { outline: none; border-color: #c9ad33; box-shadow: 0 0 0 3px rgba(201,173,51,.2); }
+    .ob-label { display: block; font-size: 12px; font-weight: 650; color: #3d3b34; margin-bottom: 5px; }
+    .ob-hint { font-size: 11.5px; color: #9b988c; margin-top: 4px; }
+    .ob-step { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #9b988c; }
+    .ob-step .n { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #f4f2eb; }
+    .ob-step.on { color: #9b801c; } .ob-step.on .n { background: #9b801c; color: #fff; }
+    .role-panel { display: none; } .role-panel.on { display: block; }
+</style>
+
 <div class="auth-card w-full max-w-3xl p-8 sm:p-10">
-    <div class="flex items-center gap-3 mb-6">
-        <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-bold">1</div>
-        <div class="flex-1 h-[2px] bg-indigo-200 rounded"></div>
-        <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-sm font-bold">2</div>
-        <div class="flex-1 h-[2px] bg-slate-200 rounded"></div>
-        <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-sm font-bold">3</div>
+    <div class="flex items-center gap-4 mb-6">
+        <div class="ob-step on" id="step1-ind"><span class="n">1</span> Your role</div>
+        <div class="flex-1 h-px bg-slate-200"></div>
+        <div class="ob-step" id="step2-ind"><span class="n">2</span> Your first setup</div>
     </div>
 
-    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Hi {{ user.name.split(' ')[0] if user else 'there' }} — set up your account</h1>
-    <p class="text-sm text-slate-500 mt-1">A few quick details, then we'll pre-build your watchlist.</p>
+    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Hi {{ user.name.split(' ')[0] if user and user.name else 'there' }}, what do you look after?</h1>
+    <p class="text-sm text-slate-500 mt-1">We'll shape your home screen around it. You can switch views any time from your profile menu.</p>
 
-    {% if error %}
-    <div class="error-box mt-5">{{ error }}</div>
-    {% endif %}
+    {% if error %}<div class="error-box mt-5">{{ error }}</div>{% endif %}
 
-    <form method="POST" action="/onboarding" class="mt-7" id="onboard-form">
-        <input type="hidden" name="industry" id="industry-input" value="">
+    <form method="POST" action="/onboarding" class="mt-6" id="onboard-form">
+        <input type="hidden" name="role" id="role-input" value="{{ form.role if form else '' }}">
 
-        <!-- About you (optional fields) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Company <span class="text-slate-400 font-normal">(optional)</span></label>
-                <input name="company" type="text" placeholder="e.g. Acme Industries Limited"
-                       class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Designation <span class="text-slate-400 font-normal">(optional)</span></label>
-                <input name="designation" type="text" placeholder="e.g. Company Secretary"
-                       class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
-            </div>
-        </div>
-
-        <p class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Pick your industry <span class="text-red-500">*</span></p>
-
-        {# Icon + tile-bg colour per industry. Falls back to a neutral tile
-           if an industry is ever added without a mapping. #}
-        {% set industry_icons = {
-            'FMCG':              {'emoji': '🛒',  'bg': '#eef2ff'},
-            'Steel':             {'emoji': '🏗️', 'bg': '#ecfeff'},
-            'Banking':           {'emoji': '🏦',  'bg': '#ecfdf5'},
-            'Pharma':            {'emoji': '💊',  'bg': '#fdf4ff'},
-            'IT':                {'emoji': '💻',  'bg': '#fff7ed'},
-            'Auto':              {'emoji': '🚗',  'bg': '#fef2f2'},
-            'Energy':            {'emoji': '🛢️', 'bg': '#fff7ed'},
-            'Power':             {'emoji': '⚡',  'bg': '#fefce8'},
-            'Cement':            {'emoji': '🧱',  'bg': '#f5f5f4'},
-            'Telecom':           {'emoji': '📡',  'bg': '#f0f9ff'},
-            'Metals & Mining':   {'emoji': '⛏️', 'bg': '#fafaf9'},
-            'Real Estate':       {'emoji': '🏢',  'bg': '#f0fdfa'},
-            'Finance (NBFC)':    {'emoji': '💰',  'bg': '#fefce8'},
-            'Insurance':         {'emoji': '🛡️', 'bg': '#eef2ff'},
-            'Consumer Durables': {'emoji': '📺',  'bg': '#f5f3ff'},
-            'Chemicals':         {'emoji': '🧪',  'bg': '#ecfccb'}
-        } %}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {% for key, companies in industries.items() %}
-            {% set icon = industry_icons.get(key, {'emoji': '🏢', 'bg': '#f1f5f9'}) %}
-            <button type="button"
-                    class="industry-card text-left p-5 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition bg-white"
-                    data-industry="{{ key }}">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                         style="background: {{ icon.bg }};">
-                        <span class="text-lg">{{ icon.emoji }}</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {% for key, r in roles.items() %}
+            <button type="button" class="role-card" data-role="{{ key }}">
+                <div class="flex items-start gap-3">
+                    <span class="rc-dot mt-0.5"></span>
+                    <div>
+                        <div class="rc-title">{{ r.label }}</div>
+                        <div class="rc-blurb">{{ r.blurb }}</div>
+                        <div class="rc-gets">{{ role_gets[key] }}</div>
                     </div>
-                    <svg class="check-icon w-5 h-5 text-indigo-600 opacity-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                    </svg>
-                </div>
-                <div class="font-semibold text-slate-900">{{ key }}</div>
-                <div class="mt-2 text-xs text-slate-500 leading-snug">
-                    {{ companies | map(attribute=0) | list | join(', ') }}
                 </div>
             </button>
             {% endfor %}
         </div>
 
+        <div id="step2" class="mt-8 hidden">
+            <div class="h-px bg-slate-100 mb-6"></div>
+
+            <div class="role-panel" data-for="cro">
+                <label class="ob-label" for="counterparties">Companies you're exposed to <span class="text-slate-400 font-normal">(optional)</span></label>
+                <textarea id="counterparties" name="counterparties" rows="5" class="ob-input" placeholder="One per line: name, NSE symbol or CIN, type, exposure&#10;Tata Steel, TATASTEEL, borrower, 250 cr&#10;Acme Components Pvt Ltd, vendor, 4.5 cr">{{ form.counterparties if form else '' }}</textarea>
+                <p class="ob-hint">Paste from a spreadsheet — commas or tabs both work. You can add more, or upload the full book, later.</p>
+            </div>
+
+            <div class="role-panel" data-for="compliance">
+                <label class="ob-label" for="symbol">Your company's NSE symbol <span class="text-slate-400 font-normal">(optional)</span></label>
+                <input id="symbol" name="symbol" class="ob-input" placeholder="e.g. HINDUNILVR" value="{{ form.symbol if form else '' }}" autocomplete="off">
+                <p class="ob-hint">We'll track its disclosures and set up your insider-trading register.</p>
+            </div>
+
+            <div class="role-panel" data-for="cs">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="ob-label" for="entity_name_cs">Company name</label>
+                        <input id="entity_name_cs" name="entity_name_cs" class="ob-input" placeholder="e.g. Acme Industries Private Limited" value="{{ form.entity_name_cs if form else '' }}">
+                    </div>
+                    <div>
+                        <label class="ob-label" for="entity_type_cs">Type</label>
+                        <select id="entity_type_cs" name="entity_type_cs" class="ob-input">
+                            {% for k, v in entity_types.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <p class="ob-hint">We'll build its compliance calendar — ROC, income tax, GST, labour and FEMA — from a few yes/no questions next.</p>
+            </div>
+
+            <div class="role-panel" data-for="pcs">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="ob-label" for="entity_name_pcs">First client <span class="text-slate-400 font-normal">(optional)</span></label>
+                        <input id="entity_name_pcs" name="entity_name_pcs" class="ob-input" placeholder="e.g. Blue River Foods LLP" value="{{ form.entity_name_pcs if form else '' }}">
+                    </div>
+                    <div>
+                        <label class="ob-label" for="entity_type_pcs">Type</label>
+                        <select id="entity_type_pcs" name="entity_type_pcs" class="ob-input">
+                            {% for k, v in entity_types.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <p class="ob-hint">Add the rest of your clients from the workspace — one at a time or in bulk.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+                <div>
+                    <label class="ob-label" for="industry">Sector <span id="industry-req" class="text-slate-400 font-normal">(optional)</span></label>
+                    <select id="industry" name="industry" class="ob-input">
+                        <option value="">Choose…</option>
+                        {% for key in industries.keys() %}<option value="{{ key }}" {{ 'selected' if form and form.industry == key else '' }}>{{ key }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="ob-label" for="company">Organisation <span class="text-slate-400 font-normal">(optional)</span></label>
+                    <input id="company" name="company" class="ob-input" value="{{ form.company if form else '' }}">
+                </div>
+                <div>
+                    <label class="ob-label" for="designation">Designation <span class="text-slate-400 font-normal">(optional)</span></label>
+                    <input id="designation" name="designation" class="ob-input" value="{{ form.designation if form else '' }}">
+                </div>
+            </div>
+            <p class="ob-hint" id="industry-hint">Used to seed a peer watchlist and tailor your regulatory news.</p>
+        </div>
+
         <div class="mt-8 flex items-center justify-between">
             <a href="/logout" class="text-sm text-slate-500 hover:text-slate-700">Sign out</a>
-            <button type="submit" id="continue-btn"
-                    class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                    style="width: auto; padding: 12px 28px;" disabled>
-                Continue →
-            </button>
+            <button type="submit" id="continue-btn" class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    style="width:auto;padding:12px 28px;" disabled>Open my workspace</button>
         </div>
     </form>
 </div>
 
 <script>
-    const cards = document.querySelectorAll('.industry-card');
-    const input = document.getElementById('industry-input');
+(function () {
+    const cards = document.querySelectorAll('.role-card');
+    const input = document.getElementById('role-input');
+    const step2 = document.getElementById('step2');
     const btn = document.getElementById('continue-btn');
-    cards.forEach(card => {
-        card.addEventListener('click', () => {
-            cards.forEach(c => {
-                c.classList.remove('border-indigo-500','bg-indigo-50');
-                c.classList.add('border-slate-200');
-                c.querySelector('.check-icon').classList.add('opacity-0');
-            });
-            card.classList.add('border-indigo-500','bg-indigo-50');
-            card.classList.remove('border-slate-200');
-            card.querySelector('.check-icon').classList.remove('opacity-0');
-            input.value = card.dataset.industry;
-            btn.disabled = false;
-        });
-    });
+    const industry = document.getElementById('industry');
+    const req = document.getElementById('industry-req');
+
+    function refreshButton() {
+        const needsIndustry = input.value === 'compliance';
+        btn.disabled = !input.value || (needsIndustry && !industry.value);
+    }
+    function pick(role) {
+        input.value = role;
+        cards.forEach(c => c.classList.toggle('on', c.dataset.role === role));
+        document.querySelectorAll('.role-panel').forEach(p => p.classList.toggle('on', p.dataset.for === role));
+        step2.classList.remove('hidden');
+        document.getElementById('step2-ind').classList.add('on');
+        req.textContent = role === 'compliance' ? '(required)' : '(optional)';
+        req.className = role === 'compliance' ? 'text-rose-500 font-normal' : 'text-slate-400 font-normal';
+        refreshButton();
+    }
+    cards.forEach(c => c.addEventListener('click', () => pick(c.dataset.role)));
+    industry.addEventListener('change', refreshButton);
+    if (input.value) pick(input.value);
+})();
 </script>
 {% endblock %}

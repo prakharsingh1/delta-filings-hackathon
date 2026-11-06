@@ -1,0 +1,994 @@
+{% extends 'app_base.html' %}
+{% block title %}{{ entity.name }}{% endblock %}
+
+{% block head %}
+<style>
+  .past-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 12px 18px 0; }
+</style>
+<style>
+  [hidden] { display: none !important; }
+  .eyebrow-link { color: inherit; text-decoration: none; }
+  .eyebrow-link:hover { text-decoration: underline; }
+  .ent-ids { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+  .ent-ids .lbl { color: var(--text-muted); margin-right: 4px; font-size: 12px; }
+  .mod-title { word-break: break-word; }
+  .tab-n { font-size: 11.5px; color: var(--text-muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .ws-kpis .kpi-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border); border-radius: 999px; font-size: 10px; letter-spacing: .04em; color: var(--text-muted); vertical-align: 1px; }
+  @media (max-width: 640px) {
+    .ws-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .ws-kpis .kpi { padding: 12px 14px; }
+    .ws-kpis .kpi-value { font-size: 21px; }
+  }
+  .panel-head.wrap { flex-wrap: wrap; }
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .tools .check-row { padding: 0; margin-right: 4px; font-size: 12.5px; color: var(--text-secondary); white-space: nowrap; }
+  .cal-tbl { min-width: 900px; }
+  .app-tbl { min-width: 720px; }
+  .ppl-tbl { min-width: 860px; }
+  .ev-tbl { min-width: 720px; }
+  .grp-row td { background: var(--surface-secondary); font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-secondary); padding: 8px 14px; }
+  .tbl tbody tr.grp-row:hover td { background: var(--surface-secondary); }
+  .grp-n { font-weight: 600; color: var(--text-muted); margin-left: 6px; letter-spacing: 0; }
+  .f-name { font-weight: 600; }
+  .f-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .small { font-size: 12px; }
+  .nowrap { white-space: nowrap; }
+  .rel { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .rel.late { color: #b91c1c; }
+  .acts { white-space: nowrap; text-align: right; }
+  .acts .btn + .btn { margin-left: 4px; }
+  .pen { cursor: help; border-bottom: 1px dotted var(--text-muted); }
+  .clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 32ch; }
+  .setup-note { margin-bottom: 16px; font-size: 13px; color: var(--text-secondary); border-left-color: var(--primary); }
+  .setup-note strong { color: var(--text-primary); }
+  .flag-sec { border: 0; margin: 18px 0 0; padding: 16px 0 0; border-top: 1px solid var(--border-light); min-width: 0; }
+  .flag-sec legend { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); padding: 0; float: left; width: 100%; margin-bottom: 6px; }
+  .flag-grid { clear: both; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2px 18px; }
+  .flag { cursor: pointer; }
+  .flag .fld-hint { display: block; margin-top: 1px; }
+  .flag.is-off { opacity: .5; cursor: default; }
+  .panel-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--border-light); }
+  .arch { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .arch p { margin-top: 2px; }
+  .btn-danger-text { color: #b91c1c; }
+  .dlg-x { display: inline-flex; padding: 4px; border: 0; border-radius: 6px; background: none; color: var(--text-muted); cursor: pointer; }
+  .dlg-x:hover { color: var(--text-primary); background: var(--surface-secondary); }
+  .dlg-foot { flex-wrap: wrap; }
+  .dlg-ctx { font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
+  .dlg-ctx strong { color: var(--text-primary); }
+  .ev-preview { margin-top: 4px; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface-secondary); font-size: 13px; }
+  .ev-preview:empty { display: none; }
+  .ev-title { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+  .ev-item { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 5px 0; border-top: 1px solid var(--border-light); }
+  .ev-item:first-of-type { border-top: 0; }
+  .ev-item .mono { min-width: 70px; }
+  .ev-ob { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 2px 0; font-size: 12.5px; }
+  .mono-in { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .kyc-note p + p { margin-top: 6px; }
+  html.dark .grp-row td { background: #101010; color: #a3a3a3; }
+  html.dark .tbl tbody tr.grp-row:hover td { background: #101010; }
+  html.dark .rel.late, html.dark .btn-danger-text { color: #fca5a5; }
+  html.dark .ev-preview { background: #101010; border-color: #262626; }
+  html.dark .setup-note { border-left-color: #6366f1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap" id="ent-page" data-setup="{{ '1' if setup else '0' }}">
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow"><a class="eyebrow-link" href="/workspace">Workspace</a></div>
+      <h1 class="mod-title" id="ent-title">{{ entity.name }}</h1>
+      <div class="ent-ids" id="ent-ids"></div>
+    </div>
+    <div class="mod-actions" id="ent-actions"></div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Entity sections">
+    <button type="button" class="tab" role="tab" data-tab="calendar" id="tab-calendar" aria-controls="pane-calendar">Calendar</button>
+    <button type="button" class="tab" role="tab" data-tab="profile" id="tab-profile" aria-controls="pane-profile">Profile</button>
+    <button type="button" class="tab" role="tab" data-tab="people" id="tab-people" aria-controls="pane-people">People<span class="tab-n" id="n-people"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="events" id="tab-events" aria-controls="pane-events">Events<span class="tab-n" id="n-events"></span></button>
+  </div>
+
+  {# ── Calendar ── #}
+  <div id="pane-calendar" role="tabpanel" aria-labelledby="tab-calendar" data-pane="calendar" hidden>
+    <div class="kpi-grid ws-kpis" id="cal-kpis"></div>
+    <section class="panel">
+      <div class="panel-head wrap">
+        <div>
+          <div class="panel-title">Calendar</div>
+          <div class="panel-sub" id="cal-sub"></div>
+        </div>
+        <div class="tools">
+          <label class="check-row"><input type="checkbox" id="show-closed"> Show filed / N/A</label>
+          <a class="btn btn-secondary btn-sm" href="/workspace/entity/{{ entity.id }}/calendar.csv">Download CSV</a>
+          <button type="button" class="btn btn-secondary btn-sm" data-open="dlg-task">Add task</button>
+          <button type="button" class="btn btn-primary btn-sm" data-open="dlg-event">Log an event</button>
+        </div>
+      </div>
+      <div class="note past-note" id="past-note" hidden>
+        <span id="past-note-text"></span>
+        <button type="button" class="btn btn-secondary btn-sm" id="past-filed-btn">Mark them all filed</button>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl cal-tbl">
+          <thead>
+            <tr><th>State</th><th>Due</th><th>Filing</th><th>Period</th><th class="num">Est. penalty</th><th>Status / SRN</th><th></th></tr>
+          </thead>
+          <tbody id="cal-body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="cal-empty" hidden></div>
+    </section>
+  </div>
+
+  {# ── Profile ── #}
+  <div id="pane-profile" role="tabpanel" aria-labelledby="tab-profile" data-pane="profile" hidden>
+    <div class="note setup-note" id="setup-note" hidden>
+      <strong>Answer these to build the calendar. You can change them any time.</strong><br>
+      Filings due since {{ tracking_from_label }} start as open. Mark the ones already done as filed, or move 'Track from' to today.
+    </div>
+
+    <form class="panel" id="form-profile" novalidate>
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Profile</div>
+          <div class="panel-sub">These answers decide which filings apply.</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="fld-grid">
+          <label class="fld">
+            <span class="fld-label">Name</span>
+            <input class="fld-input" name="name" maxlength="200" autocomplete="off" required>
+          </label>
+          <label class="fld">
+            <span class="fld-label">Type</span>
+            <select class="fld-select" name="entity_type">
+              {% for key, label in entity_types.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+            </select>
+          </label>
+          <label class="fld">
+            <span class="fld-label" id="cin-label">CIN</span>
+            <input class="fld-input mono-in" name="cin" maxlength="21" autocomplete="off" spellcheck="false" placeholder="U72900MH2015PTC123456">
+          </label>
+          <label class="fld">
+            <span class="fld-label">PAN</span>
+            <input class="fld-input mono-in" name="pan" maxlength="10" autocomplete="off" spellcheck="false" placeholder="AABCA1234B">
+          </label>
+          <label class="fld">
+            <span class="fld-label">GSTIN</span>
+            <input class="fld-input mono-in" name="gstin" maxlength="15" autocomplete="off" spellcheck="false" placeholder="27AABCA1234B1Z5">
+          </label>
+          <label class="fld">
+            <span class="fld-label">State</span>
+            <select class="fld-select" name="state">
+              <option value="">Not set</option>
+              {% for s in states %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+            </select>
+            <span class="fld-hint">Registered office. Decides state levies such as professional tax.</span>
+          </label>
+          <label class="fld">
+            <span class="fld-label">Incorporation date</span>
+            <input type="date" class="fld-input" name="incorporation_date">
+          </label>
+          <label class="fld">
+            <span class="fld-label" id="capital-label">Nominal share capital (&#8377;)</span>
+            <input class="fld-input" name="share_capital" inputmode="numeric" autocomplete="off" placeholder="1000000">
+            <span class="fld-hint" id="capital-hint">Sets the ROC normal fee, and so the late fee.</span>
+          </label>
+          <label class="fld" id="symbol-wrap">
+            <span class="fld-label">NSE symbol</span>
+            <input class="fld-input mono-in" name="symbol" maxlength="20" autocomplete="off" spellcheck="false" placeholder="INFY">
+          </label>
+          <label class="fld">
+            <span class="fld-label">Track from</span>
+            <input type="date" class="fld-input" name="tracking_from" required>
+            <span class="fld-hint">Filings due before this date are not tracked.</span>
+          </label>
+        </div>
+
+        {% for sec in flag_sections %}
+        <fieldset class="flag-sec">
+          <legend>{{ sec.title }}</legend>
+          <div class="flag-grid">
+            {% for f in sec.flags %}
+            <label class="check-row flag" data-parent="{{ f.parent }}" data-types="{{ f.types }}">
+              <input type="checkbox" name="flag" value="{{ f.key }}">
+              <span><span>{{ f.label }}</span><span class="fld-hint">{{ f.hint }}</span></span>
+            </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        {% endfor %}
+      </div>
+      <div class="panel-foot">
+        <button type="submit" class="btn btn-primary" id="btn-save">Save profile</button>
+      </div>
+    </form>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">What applies</div>
+          <div class="panel-sub" id="app-sub"></div>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl app-tbl">
+          <thead><tr><th>Filing</th><th>When</th><th>Penalty</th><th></th></tr></thead>
+          <tbody id="app-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-body arch">
+        <div>
+          <div class="panel-title">Archive</div>
+          <p class="muted small">Takes this entity off your workspace. Filed history is kept.</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm btn-danger-text" id="btn-archive">Archive entity</button>
+      </div>
+    </section>
+  </div>
+
+  {# ── People ── #}
+  <div id="pane-people" role="tabpanel" aria-labelledby="tab-people" data-pane="people" hidden>
+    <section class="panel">
+      <div class="panel-head wrap">
+        <div>
+          <div class="panel-title">Directors and KMP</div>
+          <div class="panel-sub">DIR-3 KYC and DSC renewals are tracked from these dates.</div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" data-open="dlg-person">Add person</button>
+      </div>
+      <div class="panel-body">
+        <div class="note kyc-note">
+          <p>From 31 March 2026, DIR-3 KYC is filed once every three financial years per DIN, by 30 June. DINs allotted up to 31 March 2025 are next due on 30 June 2028.</p>
+          <p>Add each DSC expiry date too: an expired DSC blocks every MCA form the director signs. A change in a director's mobile, email or address still needs an update within 30 days, so log it as an event.</p>
+        </div>
+      </div>
+      <div class="tbl-wrap" id="ppl-wrap">
+        <table class="tbl ppl-tbl">
+          <thead>
+            <tr><th>Name</th><th>Designation</th><th>DIN</th><th>DIN allotted on</th><th>Next KYC</th><th>DSC expiry</th><th>Appointed / ceased</th><th></th></tr>
+          </thead>
+          <tbody id="ppl-body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="ppl-empty" hidden>
+        <div class="empty-title">No directors or KMP yet</div>
+        Add them to track each DIN's KYC cycle and DSC expiry on the calendar.
+      </div>
+    </section>
+  </div>
+
+  {# ── Events ── #}
+  <div id="pane-events" role="tabpanel" aria-labelledby="tab-events" data-pane="events" hidden>
+    <section class="panel">
+      <div class="panel-head wrap">
+        <div>
+          <div class="panel-title">Events</div>
+          <div class="panel-sub">Each event adds its follow-up filings to the calendar.</div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" data-open="dlg-event">Log an event</button>
+      </div>
+      <div class="tbl-wrap" id="ev-wrap">
+        <table class="tbl ev-tbl">
+          <thead><tr><th>Date</th><th>Event</th><th>Details</th><th>Filings created</th></tr></thead>
+          <tbody id="ev-body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="ev-empty" hidden>
+        <div class="empty-title">No events logged</div>
+        Log board meetings, director changes, allotments and charges. Each one adds the filings that follow from it.
+      </div>
+    </section>
+  </div>
+</div>
+
+{% set close_btn %}<button type="button" class="dlg-x" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>{% endset %}
+
+{# ── Mark filed ── #}
+<dialog class="mod-dialog" id="dlg-filed" aria-labelledby="dlg-filed-title">
+  <form id="form-filed" novalidate>
+    <div class="dlg-head"><span id="dlg-filed-title">Mark as filed</span>{{ close_btn }}</div>
+    <div class="dlg-body">
+      <p class="dlg-ctx" id="filed-ctx"></p>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">Date filed</span>
+          <input type="date" class="fld-input" name="filed_on" required>
+        </label>
+        <label class="fld">
+          <span class="fld-label">SRN or acknowledgement <span class="muted">(optional)</span></span>
+          <input class="fld-input mono-in" name="srn" maxlength="40" autocomplete="off" spellcheck="false">
+        </label>
+      </div>
+      <label class="fld">
+        <span class="fld-label">Notes <span class="muted">(optional)</span></span>
+        <textarea class="fld-textarea" name="notes" maxlength="1000" rows="3"></textarea>
+      </label>
+      <p class="fld-hint" id="filed-late"></p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Mark filed</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Log an event ── #}
+<dialog class="mod-dialog" id="dlg-event" aria-labelledby="dlg-event-title">
+  <form id="form-event" novalidate>
+    <div class="dlg-head"><span id="dlg-event-title">Log an event</span>{{ close_btn }}</div>
+    <div class="dlg-body">
+      <label class="fld">
+        <span class="fld-label">What happened</span>
+        <select class="fld-select" name="event_type">
+          {% for key, label in event_types.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Date</span>
+        <input type="date" class="fld-input" name="event_date" required>
+        <span class="fld-hint" id="ev-date-hint" hidden>The date of the meeting.</span>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Details <span class="muted">(optional)</span></span>
+        <textarea class="fld-textarea" name="details" maxlength="500" rows="3" placeholder="Appointed Priya Nair (DIN 01234567) as additional director"></textarea>
+      </label>
+      <div class="ev-preview" id="ev-preview" aria-live="polite"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Log event</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Add task ── #}
+<dialog class="mod-dialog" id="dlg-task" aria-labelledby="dlg-task-title">
+  <form id="form-task" novalidate>
+    <div class="dlg-head"><span id="dlg-task-title">Add task</span>{{ close_btn }}</div>
+    <div class="dlg-body">
+      <label class="fld">
+        <span class="fld-label">Task</span>
+        <input class="fld-input" name="title" maxlength="200" autocomplete="off" required placeholder="Collect signed financials from the auditor">
+      </label>
+      <label class="fld">
+        <span class="fld-label">Due date</span>
+        <input type="date" class="fld-input" name="due_date" required>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Notes <span class="muted">(optional)</span></span>
+        <textarea class="fld-textarea" name="notes" maxlength="1000" rows="3"></textarea>
+      </label>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Add task</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Add person ── #}
+<dialog class="mod-dialog" id="dlg-person" aria-labelledby="dlg-person-title">
+  <form id="form-person" novalidate>
+    <div class="dlg-head"><span id="dlg-person-title">Add person</span>{{ close_btn }}</div>
+    <div class="dlg-body">
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">Name</span>
+          <input class="fld-input" name="name" maxlength="160" autocomplete="off" required>
+        </label>
+        <label class="fld">
+          <span class="fld-label">Designation</span>
+          <input class="fld-input" name="designation" maxlength="80" autocomplete="off" list="designations" placeholder="Director">
+        </label>
+        <label class="fld">
+          <span class="fld-label">DIN <span class="muted">(if a director)</span></span>
+          <input class="fld-input mono-in" name="din" maxlength="8" inputmode="numeric" autocomplete="off" placeholder="01234567">
+        </label>
+        <label class="fld">
+          <span class="fld-label">DIN allotted on</span>
+          <input type="date" class="fld-input" name="din_allotted_on">
+          <span class="fld-hint">Sets the KYC cycle. Leave blank if before April 2025.</span>
+        </label>
+        <label class="fld">
+          <span class="fld-label">DSC expiry</span>
+          <input type="date" class="fld-input" name="dsc_expiry">
+        </label>
+        <label class="fld">
+          <span class="fld-label">Appointed on</span>
+          <input type="date" class="fld-input" name="appointed_on">
+        </label>
+        <label class="fld">
+          <span class="fld-label">Ceased on <span class="muted">(optional)</span></span>
+          <input type="date" class="fld-input" name="ceased_on">
+        </label>
+      </div>
+      <p class="fld-hint">Newly appointed? Also log a "Director appointed" event so DIR-12 goes on the calendar.</p>
+      <datalist id="designations">
+        <option value="Director"><option value="Additional Director"><option value="Independent Director">
+        <option value="Nominee Director"><option value="Managing Director"><option value="Whole-time Director">
+        <option value="Chief Financial Officer"><option value="Company Secretary"><option value="Chief Executive Officer">
+        <option value="Designated Partner"><option value="Partner">
+      </datalist>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Add person</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Confirm ── #}
+<dialog class="mod-dialog" id="dlg-confirm" aria-labelledby="dlg-confirm-title">
+  <form method="dialog">
+    <div class="dlg-head"><span id="dlg-confirm-title"></span>{{ close_btn }}</div>
+    <div class="dlg-body"><p class="dlg-ctx" id="confirm-msg" style="margin:0"></p></div>
+    <div class="dlg-foot">
+      <button type="submit" class="btn btn-secondary" value="cancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" value="ok" id="confirm-ok">Confirm</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="application/json" id="ent-data">{{ data|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  var DATA = JSON.parse(document.getElementById('ent-data').textContent);
+  var EID = Number(DATA.entity.id);
+  var API = '/api/workspace/entities/' + EID;
+  var PAGE = document.getElementById('ent-page');
+  var SETUP = PAGE.dataset.setup === '1';
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var STATE_LABEL = { overdue: 'Overdue', due_soon: 'Due soon', upcoming: 'Upcoming', filed: 'Filed', na: 'N/A' };
+  var OPEN = { overdue: 1, due_soon: 1, upcoming: 1 };
+  var TABS = ['calendar', 'profile', 'people', 'events'];
+  var $ = function (id) { return document.getElementById(id); };
+  var showClosed = false;
+
+  // ── Formatting ──────────────────────────────────────────────────────────
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var p = String(iso).slice(0, 10).split('-');
+    return (+p[2]) + ' ' + MON[+p[1] - 1] + ' ' + p[0];
+  }
+  function daysFromToday(iso) { return Math.round((Date.parse(iso) - Date.parse(DATA.calendar.today)) / 86400000); }
+  function rel(d) {
+    if (d == null) return '';
+    if (d < 0) return (-d) + (d === -1 ? ' day late' : ' days late');
+    if (d === 0) return 'due today';
+    if (d === 1) return 'tomorrow';
+    return 'in ' + d + ' days';
+  }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+  function chip(state) { return '<span class="chip st-' + state + '">' + STATE_LABEL[state] + '</span>'; }
+  function maskPan(p) { return p && p.length === 10 ? p.slice(0, 2) + '*****' + p.slice(-3) : ''; }
+  function cleanPeriod(i) {
+    if (!i.period || i.origin === 'custom') return '';
+    return String(i.period).replace(/\s*(·\s*)?#\d+$/, '')
+      .replace(/\b\d{4}-\d{2}-\d{2}\b/g, function (m) { return fmtDate(m); });
+  }
+  function penaltyCell(p) {
+    if (!p) return '<span class="muted">&mdash;</span>';
+    if (p.amount == null) {
+      return p.basis ? '<span class="pen muted" tabindex="0" data-basis="' + dfEsc(p.basis) + '" title="' + dfEsc(p.basis) + '">Varies</span>'
+                     : '<span class="muted">&mdash;</span>';
+    }
+    return '<span class="pen" tabindex="0" data-basis="' + dfEsc(p.basis) + '" title="' + dfEsc(p.basis) + '">' + dfInr(p.amount) + '</span>';
+  }
+  function kpi(label, value, foot, cls) {
+    return '<div class="kpi ' + (cls || '') + '"><div class="kpi-label">' + label + '</div>' +
+      '<div class="kpi-value">' + value + '</div><div class="kpi-foot">' + foot + '</div></div>';
+  }
+
+  // ── Header ──────────────────────────────────────────────────────────────
+  function renderHeader() {
+    var e = DATA.entity;
+    $('ent-title').textContent = e.name;
+    document.title = e.name + ' · Delta Filings';
+    var ids = ['<span class="chip chip-info">' + dfEsc(e.type_label) + '</span>'];
+    if (e.cin) ids.push('<span><span class="lbl">' + (e.entity_type === 'llp' ? 'LLPIN' : 'CIN') + '</span><span class="mono">' + dfEsc(e.cin) + '</span></span>');
+    if (e.pan) ids.push('<span><span class="lbl">PAN</span><span class="mono">' + dfEsc(maskPan(e.pan)) + '</span></span>');
+    if (e.gstin) ids.push('<span><span class="lbl">GSTIN</span><span class="mono">' + dfEsc(e.gstin) + '</span></span>');
+    if (e.state) ids.push('<span>' + dfEsc(e.state) + '</span>');
+    $('ent-ids').innerHTML = ids.join('');
+    var acts = [
+      '<a class="btn btn-secondary btn-sm" href="/workspace/entity/' + EID + '/registers">Registers</a>',
+      '<a class="btn btn-secondary btn-sm" href="/workspace/entity/' + EID + '/meetings">Meetings</a>'
+    ];
+    if (e.entity_type === 'listed') acts.push('<a class="btn btn-secondary btn-sm" href="/sdd/' + EID + '">Insider trading</a>');
+    if (e.symbol) acts.push('<a class="btn btn-secondary btn-sm" href="/company/' + dfEsc(encodeURIComponent(e.symbol)) + '?tab=announcements">Disclosures</a>');
+    $('ent-actions').innerHTML = acts.join('');
+    $('cin-label').textContent = e.entity_type === 'llp' ? 'LLPIN' : 'CIN';
+  }
+
+  // ── Tabs ────────────────────────────────────────────────────────────────
+  function showTab(name, remember) {
+    if (TABS.indexOf(name) < 0) name = 'calendar';
+    TABS.forEach(function (t) {
+      var on = t === name;
+      $('tab-' + t).classList.toggle('active', on);
+      $('tab-' + t).setAttribute('aria-selected', on ? 'true' : 'false');
+      $('pane-' + t).hidden = !on;
+    });
+    if (remember && location.hash !== '#' + name) {
+      history.replaceState(null, '', location.pathname + location.search + '#' + name);
+    }
+  }
+  document.querySelectorAll('.tab[data-tab]').forEach(function (b) {
+    b.addEventListener('click', function () { showTab(b.dataset.tab, true); });
+  });
+  window.addEventListener('hashchange', function () { showTab(location.hash.slice(1), false); });
+
+  // ── Calendar ────────────────────────────────────────────────────────────
+  function renderCalendar() {
+    var cal = DATA.calendar, s = cal.summary;
+    var expFoot = s.exposure_uncomputed
+      ? '+' + s.exposure_uncomputed + ' more with interest-based or discretionary penalties'
+      : (s.overdue ? 'On overdue filings, as of today' : 'Nothing overdue');
+    $('cal-kpis').innerHTML =
+      kpi('Overdue', s.overdue, s.overdue ? 'Oldest first below' : 'Nothing late', s.overdue ? 'kpi-danger' : '') +
+      kpi('Due in next 15 days', s.due_soon, plural(s.upcoming, 'more', 'more') + ' in the next six months') +
+      kpi('Late-fee exposure<span class="kpi-tag">Indicative</span>', s.exposure ? dfInr(s.exposure) : '&#8377;0', expFoot) +
+      kpi('On-time rate', s.on_time_rate == null ? '&mdash;' : s.on_time_rate + '%',
+          s.on_time_rate == null ? 'Nothing filed or due yet' : plural(s.filed, 'filing', 'filings') + ' marked filed');
+    $('cal-sub').textContent = 'Tracked from ' + fmtDate(DATA.entity.tracking_from) + ', looking six months ahead.';
+    // A newly added company shows everything due since "Track from" as late,
+    // though most of it was filed before Delta knew about it.
+    $('past-note').hidden = !s.overdue;
+    $('past-note-text').textContent = s.overdue
+      ? 'Just added this ' + (DATA.entity.entity_type === 'llp' ? 'LLP' : 'company') + '? If the ' + plural(s.overdue, 'overdue item was', 'overdue items were') + ' filed before you started using Delta, clear them in one step.'
+      : '';
+
+    var items = cal.items.filter(function (i) { return showClosed || OPEN[i.state]; });
+    var perMonth = {};
+    items.forEach(function (i) { var k = i.due_date.slice(0, 7); perMonth[k] = (perMonth[k] || 0) + 1; });
+    var html = '', cur = '';
+    items.forEach(function (i) {
+      var k = i.due_date.slice(0, 7);
+      if (k !== cur) {
+        cur = k;
+        html += '<tr class="grp-row"><td colspan="7">' + MONTH[+k.slice(5, 7) - 1] + ' ' + k.slice(0, 4) +
+          '<span class="grp-n">' + perMonth[k] + '</span></td></tr>';
+      }
+      html += calRow(i);
+    });
+    $('cal-body').innerHTML = html;
+    var empty = $('cal-empty');
+    empty.hidden = items.length > 0;
+    if (!items.length) {
+      empty.innerHTML = cal.items.length
+        ? '<div class="empty-title">Nothing open</div>Everything on this calendar is filed or marked not applicable. Tick "Show filed / N/A" to see them.'
+        : '<div class="empty-title">No filings yet</div>Answer the profile questions and the filings that apply appear here.';
+    }
+  }
+
+  function exLink(url, text) {
+    return url ? '<a class="link" href="' + dfEsc(url) + '" target="_blank" rel="noopener">' + dfEsc(text) + '</a>' : dfEsc(text);
+  }
+
+  function calRow(i) {
+    var lateFiled = i.state === 'filed' && i.penalty;
+    var state = lateFiled ? '<span class="chip st-due_soon">Filed late</span>' : chip(i.state);
+    var status;
+    if (i.state === 'filed') {
+      status = '<div class="nowrap">' + (i.evidence_text ? 'On NSE ' : 'Filed ') + fmtDate(i.filed_on) + '</div>' + (i.srn ? '<div class="mono muted">' + dfEsc(i.srn) + '</div>' : '') +
+        (i.evidence_text ? '<div class="small muted clamp" title="' + dfEsc(i.evidence_text) + '">Checked against ' + exLink(i.evidence_url, i.evidence_text) + '</div>' : '');
+    } else if (i.state === 'na') {
+      status = '<span class="muted">Not applicable</span>';
+    } else if (i.suggest_text) {
+      // A possible match, never a closure: the CS checks it and confirms.
+      status = '<div class="small clamp" title="' + dfEsc(i.suggest_text) + '">Possible NSE filing ' + fmtDate(i.suggest_date) + ': ' +
+        exLink(i.suggest_url, i.suggest_text) + '</div><div class="small muted">Check it, then Mark filed</div>';
+    } else {
+      status = '<span class="muted">&mdash;</span>';
+    }
+    if (i.notes) status += '<div class="muted small clamp" title="' + dfEsc(i.notes) + '">' + dfEsc(i.notes) + '</div>';
+    var acts = OPEN[i.state]
+      ? '<button type="button" class="btn btn-sm btn-primary" data-act="filed" data-id="' + Number(i.id) + '">Mark filed</button>' +
+        '<button type="button" class="btn btn-sm btn-secondary" data-act="na" data-id="' + Number(i.id) + '" title="Mark not applicable">N/A</button>' +
+        (i.draft_url ? '<a class="btn btn-sm btn-secondary" href="' + dfEsc(i.draft_url) + '" title="Open this filing in the Draft wizard">Draft</a>' : '')
+      : '<button type="button" class="btn btn-sm btn-secondary" data-act="reopen" data-id="' + Number(i.id) + '">Reopen</button>';
+    var meta = (i.form ? '<span class="mono">' + dfEsc(i.form) + '</span>' : 'Task') +
+      (i.law ? ' <span class="muted">&middot; ' + dfEsc(i.law) + '</span>' : '') +
+      (i.source ? ' &middot; <a class="link" href="' + dfEsc(i.source) + '" target="_blank" rel="noopener">Source</a>' : '');
+    return '<tr>' +
+      '<td>' + state + '</td>' +
+      '<td class="nowrap"><div>' + fmtDate(i.due_date) + '</div>' +
+        (OPEN[i.state] ? '<div class="rel' + (i.days_to_due < 0 ? ' late' : '') + '">' + rel(i.days_to_due) + '</div>' : '') + '</td>' +
+      '<td><div class="f-name"' + (i.description ? ' title="' + dfEsc(i.description) + '"' : '') + '>' + dfEsc(i.name) + '</div><div class="f-meta">' + meta + '</div></td>' +
+      '<td class="small">' + dfEsc(cleanPeriod(i)) + '</td>' +
+      '<td class="num">' + penaltyCell(i.penalty) + '</td>' +
+      '<td>' + status + '</td>' +
+      '<td class="acts">' + acts + '</td>' +
+      '</tr>';
+  }
+
+  async function refreshCalendar() {
+    DATA.calendar = await dfApi(API + '/calendar');
+    renderCalendar();
+    renderEvents();
+  }
+
+  $('show-closed').addEventListener('change', function (e) { showClosed = e.target.checked; renderCalendar(); });
+  $('past-filed-btn').addEventListener('click', async function () {
+    var n = DATA.calendar.summary.overdue;
+    if (!confirm('Mark all ' + n + ' items due before today as filed on their due dates? You can reopen any of them later.')) return;
+    try {
+      var r = await dfApi(API + '/mark-past-filed', {method: 'POST', body: {}});
+      dfToast(plural(r.updated, 'item', 'items') + ' marked filed', 'ok');
+      await refreshCalendar();
+    } catch (err) { dfToast(err.message, 'err'); }
+  });
+
+  var current = null;
+  function findItem(id) { return DATA.calendar.items.filter(function (i) { return i.id === id; })[0]; }
+  $('cal-body').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var item = findItem(Number(b.dataset.id));
+    if (!item) return;
+    if (b.dataset.act === 'filed') return openFiled(item);
+    var status = b.dataset.act === 'na' ? 'na' : 'pending';
+    busy(b, async function () {
+      await dfApi('/api/workspace/obligations/' + item.id, { method: 'PATCH', body: { status: status } });
+      dfToast(status === 'na' ? 'Marked not applicable.' : 'Reopened.', 'ok');
+      await refreshCalendar();
+    });
+  });
+
+  function openFiled(item) {
+    current = item;
+    var f = $('form-filed');
+    f.reset();
+    f.filed_on.value = DATA.calendar.today;
+    f.filed_on.max = DATA.calendar.today;
+    f.srn.value = item.srn || '';
+    f.notes.value = item.notes || '';
+    $('filed-ctx').innerHTML = '<strong>' + dfEsc(item.name) + '</strong>' + (item.form ? ' (' + dfEsc(item.form) + ')' : '') +
+      (cleanPeriod(item) ? ', ' + dfEsc(cleanPeriod(item)) : '') + ', due ' + fmtDate(item.due_date) + '.';
+    // The AGM row records the date the meeting was held, and the forms that
+    // follow it (AOC-4, MGT-7, ADT-1 ...) are re-dated from it.
+    var isAgm = item.rule_id === 'IN-MCA-AGM';
+    $('dlg-filed-title').textContent = isAgm ? 'Record the AGM' : 'Mark as filed';
+    f.querySelector('.fld-label').textContent = isAgm ? 'Date the AGM was held' : 'Date filed';
+    if (isAgm) $('filed-ctx').innerHTML += ' AOC-4, MGT-7, ADT-1 and the other forms that follow the AGM will be re-dated from this.';
+    if (item.suggest_text) {
+      f.filed_on.value = item.suggest_date;
+      $('filed-ctx').innerHTML += '<br>Possible match on NSE, ' + fmtDate(item.suggest_date) + ': ' + exLink(item.suggest_url, item.suggest_text) +
+        '. Open it and check it is this period&rsquo;s filing. Keep this date to save it as the evidence.';
+    }
+    lateHint();
+    $('dlg-filed').showModal();
+  }
+  function lateHint() {
+    var v = $('form-filed').filed_on.value, el = $('filed-late');
+    if (!current || !v || v <= current.due_date) { el.textContent = ''; return; }
+    var days = Math.round((Date.parse(v) - Date.parse(current.due_date)) / 86400000);
+    el.textContent = plural(days, 'day', 'days') + ' after the due date. It counts as filed late.';
+  }
+  $('form-filed').filed_on.addEventListener('input', lateHint);
+  $('form-filed').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target, btn = f.querySelector('[type=submit]');
+    if (!f.filed_on.value) { dfToast('Enter the date it was filed.', 'err'); return; }
+    busy(btn, async function () {
+      await dfApi('/api/workspace/obligations/' + current.id, { method: 'PATCH', body: {
+        status: 'filed', filed_on: f.filed_on.value, srn: f.srn.value.trim(), notes: f.notes.value.trim(),
+        accept_suggestion: !!(current.suggest_text && f.filed_on.value === current.suggest_date) } });
+      $('dlg-filed').close();
+      dfToast('Marked filed.', 'ok');
+      await refreshCalendar();
+    });
+  });
+
+  // ── Events ──────────────────────────────────────────────────────────────
+  function renderEvents() {
+    var byEvent = {};
+    DATA.calendar.items.forEach(function (i) {
+      if (i.event_id) (byEvent[i.event_id] = byEvent[i.event_id] || []).push(i);
+    });
+    var evs = DATA.events || [];
+    $('n-events').textContent = evs.length ? evs.length : '';
+    $('ev-empty').hidden = evs.length > 0;
+    $('ev-wrap').hidden = evs.length === 0;
+    $('ev-body').innerHTML = evs.map(function (ev) {
+      var obs = byEvent[ev.id] || [];
+      var cells = obs.length ? obs.map(function (o) {
+        return '<div class="ev-ob">' + (o.state === 'filed' && o.penalty ? '<span class="chip st-due_soon">Filed late</span>' : chip(o.state)) +
+          '<span class="mono">' + dfEsc(o.form) + '</span><span>' + dfEsc(o.name) + '</span>' +
+          '<span class="muted">due ' + fmtDate(o.due_date) + '</span></div>';
+      }).join('') : '<span class="muted">Nothing to file for this entity type</span>';
+      return '<tr><td class="nowrap">' + fmtDate(ev.event_date) + '</td>' +
+        '<td class="f-name">' + dfEsc(ev.label) + '</td>' +
+        '<td class="muted small">' + (ev.details ? '<div class="clamp" title="' + dfEsc(ev.details) + '">' + dfEsc(ev.details) + '</div>' : '&mdash;') + '</td>' +
+        '<td>' + cells + '</td></tr>';
+    }).join('');
+  }
+
+  var fe = $('form-event'), previewSeq = 0;
+  function eventHint() { $('ev-date-hint').hidden = fe.event_type.value !== 'board_meeting_scheduled'; }
+  async function updatePreview() {
+    eventHint();
+    var box = $('ev-preview'), type = fe.event_type.value, d = fe.event_date.value;
+    if (!type || !d) { box.innerHTML = ''; return; }
+    var seq = ++previewSeq;
+    try {
+      var res = await dfApi(API + '/events/preview?type=' + encodeURIComponent(type) + '&date=' + encodeURIComponent(d));
+      if (seq !== previewSeq) return;
+      box.innerHTML = res.items.length
+        ? '<div class="ev-title">This adds</div>' + res.items.map(function (it) {
+            return '<div class="ev-item"><span class="mono">' + dfEsc(it.form) + '</span><span>' + dfEsc(it.name) +
+              '</span><span class="muted">due ' + fmtDate(it.due_date) + '</span></div>';
+          }).join('')
+        : '<span class="muted">No filing follows from this for a ' + dfEsc(DATA.entity.type_label) + '. The event is still recorded.</span>';
+    } catch (err) {
+      if (seq === previewSeq) box.innerHTML = '<span class="muted">' + dfEsc(err.message) + '</span>';
+    }
+  }
+  fe.event_type.addEventListener('change', updatePreview);
+  fe.event_date.addEventListener('change', updatePreview);
+  fe.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = fe.querySelector('[type=submit]');
+    if (!fe.event_date.value) { dfToast('Enter the date.', 'err'); return; }
+    busy(btn, async function () {
+      var res = await dfApi(API + '/events', { method: 'POST', body: {
+        event_type: fe.event_type.value, event_date: fe.event_date.value, details: fe.details.value.trim() } });
+      DATA.events = res.events;
+      $('dlg-event').close();
+      dfToast('Event logged. ' + (res.created.length ? plural(res.created.length, 'filing', 'filings') + ' added to the calendar.' : 'Nothing to file for it.'), 'ok');
+      await refreshCalendar();
+    });
+  });
+
+  // ── Tasks ───────────────────────────────────────────────────────────────
+  var ft = $('form-task');
+  ft.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = ft.querySelector('[type=submit]');
+    if (!ft.title.value.trim()) { dfToast('Give the task a title.', 'err'); ft.title.focus(); return; }
+    if (!ft.due_date.value) { dfToast('Enter a due date.', 'err'); return; }
+    busy(btn, async function () {
+      await dfApi(API + '/tasks', { method: 'POST', body: {
+        title: ft.title.value.trim(), due_date: ft.due_date.value, notes: ft.notes.value.trim() } });
+      $('dlg-task').close();
+      dfToast('Task added.', 'ok');
+      await refreshCalendar();
+    });
+  });
+
+  // ── Profile ─────────────────────────────────────────────────────────────
+  var fp = $('form-profile');
+  function cb(key) { return fp.querySelector('input[name=flag][value="' + key + '"]'); }
+  function fillProfile(e) {
+    ['name', 'entity_type', 'cin', 'pan', 'gstin', 'state', 'incorporation_date', 'symbol', 'tracking_from'].forEach(function (k) {
+      fp[k].value = e[k] || '';
+    });
+    fp.share_capital.value = e.share_capital ? e.share_capital : '';
+    fp.querySelectorAll('input[name=flag]').forEach(function (c) { c.checked = !!(e.flags || {})[c.value]; });
+    applyFlagRules();
+  }
+  function applyFlagRules() {
+    var type = fp.entity_type.value;
+    $('symbol-wrap').hidden = type !== 'listed';
+    // For an LLP the same field holds partners' contribution, which sets the
+    // LLP normal fee (and so the Form 8 / Form 11 late fee).
+    $('capital-label').textContent = type === 'llp' ? "Partners' contribution (\u20b9)" : 'Nominal share capital (\u20b9)';
+    $('capital-hint').textContent = type === 'llp' ? 'Sets the LLP normal fee, and so the late fee on Forms 8 and 11.' : 'Sets the ROC normal fee, and so the late fee.';
+    fp.querySelectorAll('.flag').forEach(function (row) {
+      var c = row.querySelector('input');
+      row.hidden = row.dataset.types.split(' ').indexOf(type) < 0;
+      var parent = row.dataset.parent;
+      var on = !parent || cb(parent).checked;
+      c.disabled = !on;
+      row.classList.toggle('is-off', !on);
+      if (!on) c.checked = false;
+    });
+    if (type === 'listed') { cb('secretarial_audit').checked = true; cb('secretarial_audit').disabled = true; }
+    if (cb('gst_turnover_5cr').checked && !cb('gst_turnover_5cr').disabled) {
+      cb('gst_turnover_2cr').checked = true; cb('gst_turnover_2cr').disabled = true;
+      cb('gst_qrmp').checked = false; cb('gst_qrmp').disabled = true;
+    }
+    fp.querySelectorAll('.flag-sec').forEach(function (sec) { sec.hidden = !sec.querySelector('.flag:not([hidden])'); });
+  }
+  fp.addEventListener('change', function (e) {
+    if (e.target.name === 'flag' || e.target.name === 'entity_type') applyFlagRules();
+  });
+  fp.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = $('btn-save');
+    if (!fp.name.value.trim()) { dfToast('Name is required.', 'err'); fp.name.focus(); return; }
+    if (!fp.tracking_from.value) { dfToast("Enter a 'Track from' date.", 'err'); fp.tracking_from.focus(); return; }
+    var flags = {};
+    fp.querySelectorAll('input[name=flag]').forEach(function (c) {
+      if (c.checked && !c.closest('.flag').hidden) flags[c.value] = true;
+    });
+    var type = fp.entity_type.value;
+    var body = {
+      name: fp.name.value.trim(), entity_type: type, cin: fp.cin.value.trim(), pan: fp.pan.value.trim(),
+      gstin: fp.gstin.value.trim(), state: fp.state.value, incorporation_date: fp.incorporation_date.value,
+      share_capital: fp.share_capital.value.trim(), symbol: type === 'listed' ? fp.symbol.value.trim() : '',
+      tracking_from: fp.tracking_from.value, flags: flags
+    };
+    busy(btn, async function () {
+      var res = await dfApi(API, { method: 'PATCH', body: body });
+      DATA.entity = res.entity;
+      DATA.applicable = res.applicable;
+      renderHeader();
+      fillProfile(res.entity);
+      renderApplies();
+      await refreshCalendar();
+      dfToast('Saved. ' + plural(res.open, 'open filing', 'open filings') + ' on the calendar.', 'ok');
+      if (SETUP) {
+        SETUP = false;
+        $('setup-note').hidden = true;
+        $('btn-save').textContent = 'Save profile';
+        history.replaceState(null, '', location.pathname + '#calendar');
+        showTab('calendar', false);
+        var main = document.querySelector('main');
+        if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  });
+
+  function renderApplies() {
+    var n = 0, html = '';
+    (DATA.applicable || []).forEach(function (g) {
+      html += '<tr class="grp-row"><td colspan="4">' + dfEsc(g.regime) + '<span class="grp-n">' + g.rules.length + '</span></td></tr>';
+      g.rules.forEach(function (r) {
+        n++;
+        html += '<tr><td><div class="f-name">' + dfEsc(r.name) + '</div><div class="f-meta"><span class="mono">' + dfEsc(r.form) +
+          '</span> <span class="muted">&middot; ' + dfEsc(r.law) + '</span></div></td>' +
+          '<td class="small">' + dfEsc(r.schedule) + '</td>' +
+          '<td class="small muted">' + dfEsc(r.penalty_text) + '</td>' +
+          '<td>' + (r.source ? '<a class="link small" href="' + dfEsc(r.source) + '" target="_blank" rel="noopener">Source</a>' : '') + '</td></tr>';
+      });
+    });
+    $('app-body').innerHTML = html;
+    $('app-sub').textContent = plural(n, 'obligation', 'obligations') + ' from this profile. Event-based ones go on the calendar when you log the event.';
+  }
+
+  // ── People ──────────────────────────────────────────────────────────────
+  function dscCell(iso) {
+    if (!iso) return '<span class="muted">&mdash;</span>';
+    var d = daysFromToday(iso);
+    if (d < 0) return '<span class="chip st-overdue">Expired ' + fmtDate(iso) + '</span>';
+    if (d <= 30) return '<span class="chip st-due_soon">' + fmtDate(iso) + '</span>';
+    return fmtDate(iso);
+  }
+  function renderPeople() {
+    var ppl = DATA.people || [];
+    $('n-people').textContent = ppl.length ? ppl.length : '';
+    $('ppl-empty').hidden = ppl.length > 0;
+    $('ppl-wrap').hidden = ppl.length === 0;
+    $('ppl-body').innerHTML = ppl.map(function (p) {
+      var dash = '<span class="muted">&mdash;</span>';
+      var tenure = (p.appointed_on ? fmtDate(p.appointed_on) : dash) +
+        (p.ceased_on ? '<div><span class="chip st-na">Ceased ' + fmtDate(p.ceased_on) + '</span></div>' : '');
+      return '<tr><td class="f-name">' + dfEsc(p.name) + '</td>' +
+        '<td>' + (p.designation ? dfEsc(p.designation) : dash) + '</td>' +
+        '<td class="mono">' + (p.din ? dfEsc(p.din) : dash) + '</td>' +
+        '<td class="nowrap">' + (p.din_allotted_on ? fmtDate(p.din_allotted_on) : (p.din ? '<span class="muted">Before Apr 2025</span>' : dash)) + '</td>' +
+        '<td class="nowrap">' + (p.next_kyc ? fmtDate(p.next_kyc) : dash) + '</td>' +
+        '<td class="nowrap">' + dscCell(p.dsc_expiry) + '</td>' +
+        '<td class="nowrap">' + tenure + '</td>' +
+        '<td class="acts"><button type="button" class="btn btn-sm btn-secondary" data-remove="' + Number(p.id) + '">Remove</button></td></tr>';
+    }).join('');
+  }
+  var fper = $('form-person');
+  fper.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = fper.querySelector('[type=submit]');
+    if (!fper.name.value.trim()) { dfToast('Enter the name.', 'err'); fper.name.focus(); return; }
+    var body = {};
+    ['name', 'designation', 'din', 'din_allotted_on', 'dsc_expiry', 'appointed_on', 'ceased_on'].forEach(function (k) {
+      body[k] = fper[k].value.trim();
+    });
+    busy(btn, async function () {
+      var res = await dfApi(API + '/people', { method: 'POST', body: body });
+      DATA.people = res.people;
+      renderPeople();
+      $('dlg-person').close();
+      dfToast('Added ' + body.name + '.', 'ok');
+      await refreshCalendar();
+    });
+  });
+  $('ppl-body').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-remove]');
+    if (!b) return;
+    var pid = Number(b.dataset.remove);
+    var person = (DATA.people || []).filter(function (p) { return p.id === pid; })[0];
+    if (!person) return;
+    var ok = await askConfirm('Remove ' + person.name + '?',
+      'Their open KYC and DSC reminders come off the calendar. Filed history stays. To record a resignation instead, log a "Director resigned" event.', 'Remove');
+    if (!ok) return;
+    busy(b, async function () {
+      var res = await dfApi(API + '/people/' + pid, { method: 'DELETE', body: {} });
+      DATA.people = res.people;
+      renderPeople();
+      dfToast('Removed ' + person.name + '.', 'ok');
+      await refreshCalendar();
+    });
+  });
+
+  // ── Archive ─────────────────────────────────────────────────────────────
+  $('btn-archive').addEventListener('click', async function () {
+    var b = this;
+    var ok = await askConfirm('Archive ' + DATA.entity.name + '?',
+      'It comes off your workspace and its open filings stop showing. Filed history is kept.', 'Archive');
+    if (!ok) return;
+    busy(b, async function () {
+      await dfApi(API, { method: 'DELETE', body: {} });
+      window.location.href = '/workspace';
+    });
+  });
+
+  // ── Dialog plumbing ─────────────────────────────────────────────────────
+  function askConfirm(title, msg, okLabel) {
+    var d = $('dlg-confirm');
+    $('dlg-confirm-title').textContent = title;
+    $('confirm-msg').textContent = msg;
+    $('confirm-ok').textContent = okLabel || 'Confirm';
+    d.returnValue = '';
+    d.showModal();
+    return new Promise(function (resolve) {
+      d.addEventListener('close', function once() {
+        d.removeEventListener('close', once);
+        resolve(d.returnValue === 'ok');
+      });
+    });
+  }
+  function openDlg(id) {
+    var d = $(id), f = d.querySelector('form');
+    if (f && id !== 'dlg-confirm') f.reset();
+    if (id === 'dlg-event') { fe.event_date.value = DATA.calendar.today; updatePreview(); }
+    d.showModal();
+    var first = d.querySelector('input:not([type=hidden]):not([disabled]), select, textarea');
+    if (first) first.focus();
+  }
+  document.addEventListener('click', function (e) {
+    var o = e.target.closest('[data-open]');
+    if (o) { openDlg(o.dataset.open); return; }
+    var c = e.target.closest('[data-close]');
+    if (c) { c.closest('dialog').close(); return; }
+    var pen = e.target.closest('.pen[data-basis]');
+    if (pen && pen.dataset.basis) dfToast(pen.dataset.basis);
+  });
+  document.querySelectorAll('dialog').forEach(function (d) {
+    d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
+  });
+  async function busy(btn, fn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try { await fn(); } catch (e) { dfToast(e.message, 'err'); } finally { btn.disabled = false; }
+  }
+
+  // ── Boot ────────────────────────────────────────────────────────────────
+  renderHeader();
+  fillProfile(DATA.entity);
+  renderApplies();
+  renderCalendar();
+  renderPeople();
+  renderEvents();
+  if (SETUP) {
+    $('setup-note').hidden = false;
+    $('btn-save').textContent = 'Build calendar';
+    showTab('profile', true);
+  } else {
+    showTab(location.hash.slice(1) || 'calendar', false);
+  }
+})();
+</script>
+{% endblock %}

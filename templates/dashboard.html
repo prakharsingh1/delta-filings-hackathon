@@ -7,24 +7,25 @@
     <title>Delta Filings — Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/app_ivory.css?v=2">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* Ambient dashboard background — soft tinted gradient washes so the
            white content cards pop instead of floating on flat white. */
         .dash-main {
             background:
-                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.13), transparent 60%),
-                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.11), transparent 55%),
+                radial-gradient(1100px 620px at 12% -12%, rgba(217,184,42,0.13), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(244,211,68,0.11), transparent 55%),
                 radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.09), transparent 55%),
-                linear-gradient(180deg, #f6f7fc 0%, #eef1fb 100%);
+                linear-gradient(180deg, #faf9f0 0%, #f6f2de 100%);
             background-attachment: fixed;
         }
         html.dark .dash-main {
             background:
-                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.20), transparent 60%),
-                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.14), transparent 55%),
+                radial-gradient(1100px 620px at 12% -12%, rgba(217,184,42,0.20), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(244,211,68,0.14), transparent 55%),
                 radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.11), transparent 55%),
-                #0a0a0a;
+                #000000;
             background-attachment: fixed;
         }
 
@@ -40,8 +41,8 @@
         .dash-hero {
             position: relative; overflow: hidden;
             border-radius: 24px; padding: 34px 36px 92px; color: #fff;
-            background: linear-gradient(115deg, #312e81 0%, #4338ca 32%, #6366f1 64%, #0ea5e9 100%);
-            box-shadow: 0 30px 70px -34px rgba(67,56,202,.7);
+            background: linear-gradient(115deg, #5e5216 0%, #8e7415 32%, #b59c2d 64%, #e0c442 100%);
+            box-shadow: 0 30px 70px -34px rgba(142,116,21,.7);
         }
         .kpi-row { margin-top: -58px; position: relative; z-index: 5; }
         .dash-hero::after {
@@ -56,7 +57,7 @@
             backdrop-filter: blur(6px); border-radius: 999px;
         }
         .hero-btn {
-            background:#fff; color:#4338ca; border-radius:12px; font-weight:600;
+            background:#fff; color:#8e7415; border-radius:12px; font-weight:600;
             transition: transform .18s ease, box-shadow .18s ease;
         }
         .hero-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -12px rgba(0,0,0,.45); }
@@ -68,53 +69,53 @@
 
         /* ── KPI cards ── */
         .kpi { position:relative; overflow:hidden; background:#fff; border:1px solid #eef0f4;
-               border-radius:20px; padding:20px; box-shadow: 0 12px 34px -18px rgba(15,23,42,.28);
+               border-radius:20px; padding:20px; box-shadow: 0 12px 34px -18px rgba(27,26,22,.28);
                transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
-        .kpi:hover { transform: translateY(-3px); box-shadow: 0 22px 48px -22px rgba(15,23,42,.42); border-color: rgba(99,102,241,.35); }
+        .kpi:hover { transform: translateY(-3px); box-shadow: 0 22px 48px -22px rgba(27,26,22,.42); border-color: rgba(217,184,42,.35); }
         .kpi-accent { position:absolute; top:0; left:0; right:0; height:3px; }
         .kpi-icon { width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; }
         .kpi-num { font-size:2rem; font-weight:800; line-height:1; letter-spacing:-.02em; }
-        html.dark .kpi { background:#141414; border-color:#262626; }
+        html.dark .kpi { background:#111111; border-color:#262626; }
 
         /* ── Section + chart + guide cards ── */
-        .sec-title { font-size:.7rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#94a3b8; }
+        .sec-title { font-size:.7rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#9b988c; }
         .panel { background:#fff; border:1px solid #eef0f4; border-radius:22px; }
-        html.dark .panel { background:#141414; border-color:#262626; }
+        html.dark .panel { background:#111111; border-color:#262626; }
         .guide-item { transition: transform .18s ease, background .18s ease; border-radius:14px; }
         .guide-item:hover { transform: translateY(-2px); }
 
         /* ── Gradient KPI cards ── */
         .gkpi { position:relative; overflow:hidden; border-radius:20px; padding:22px 22px 20px; color:#fff;
-                box-shadow:0 16px 40px -20px rgba(15,23,42,.45); transition:transform .2s ease, box-shadow .2s ease; }
-        .gkpi:hover { transform:translateY(-4px); box-shadow:0 26px 54px -22px rgba(15,23,42,.55); }
-        .gkpi-amber  { background:linear-gradient(135deg,#4f46e5,#6366f1); }
-        .gkpi-violet { background:linear-gradient(135deg,#2563eb,#0ea5e9); }
-        .gkpi-dark   { background:linear-gradient(135deg,#1e1b4b,#3730a3); }
+                box-shadow:0 16px 40px -20px rgba(27,26,22,.45); transition:transform .2s ease, box-shadow .2s ease; }
+        .gkpi:hover { transform:translateY(-4px); box-shadow:0 26px 54px -22px rgba(27,26,22,.55); }
+        .gkpi-amber  { background:linear-gradient(135deg,#a68b1a,#b59c2d); }
+        .gkpi-violet { background:linear-gradient(135deg,#c6a72c,#e0c442); }
+        .gkpi-dark   { background:linear-gradient(135deg,#3a351c,#77651b); }
         .gkpi-label { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; opacity:.9; }
         .gkpi-num   { font-size:2.15rem; font-weight:800; line-height:1.1; margin-top:8px; letter-spacing:-.02em; }
         .gkpi-sub   { font-size:.72rem; opacity:.82; margin-top:5px; }
         .gkpi-spark { position:absolute; top:18px; right:18px; width:22px; height:22px; opacity:.55; }
 
         /* ── Segmented tabs (rank panel + overview) ── */
-        .seg-tabs { display:inline-flex; gap:2px; padding:4px; background:#f1f5f9; border-radius:12px; }
+        .seg-tabs { display:inline-flex; gap:2px; padding:4px; background:#f4f2eb; border-radius:12px; }
         html.dark .seg-tabs { background:#1f1f1f; }
         .seg-tab { border:none; background:transparent; cursor:pointer; font-size:12px; font-weight:600;
-                   color:#64748b; padding:6px 14px; border-radius:9px; transition:all .2s ease; white-space:nowrap; }
-        .seg-tab:hover { color:#0f172a; }
+                   color:#6d6a60; padding:6px 14px; border-radius:9px; transition:all .2s ease; white-space:nowrap; }
+        .seg-tab:hover { color:#1b1a16; }
         html.dark .seg-tab:hover { color:#f5f5f5; }
-        .seg-tab.active { background:#fff; color:#4f46e5; box-shadow:0 1px 3px rgba(15,23,42,.12); }
-        html.dark .seg-tab.active { background:#0a0a0a; color:#a5b4fc; }
+        .seg-tab.active { background:#fff; color:#a68b1a; box-shadow:0 1px 3px rgba(27,26,22,.12); }
+        html.dark .seg-tab.active { background:#000000; color:#e8d783; }
 
         /* ── Rank rows + overview table ── */
         .rank-group { font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; margin-bottom:2px; padding:0 4px; }
         .rank-row { display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:12px;
                     transition:background .15s ease, transform .15s ease; text-decoration:none; }
-        .rank-row:hover { background:#f8fafc; transform:translateX(2px); }
-        html.dark .rank-row:hover { background:#1c1c1c; }
+        .rank-row:hover { background:#faf9f5; transform:translateX(2px); }
+        html.dark .rank-row:hover { background:#191919; }
         .ov-row { transition:background .15s ease; cursor:pointer; }
-        .ov-row:hover { background:#f8fafc; }
-        html.dark .ov-row:hover { background:#1c1c1c; }
-        .ov-row td, .ov-head th { border-bottom:1px solid #f1f5f9; }
+        .ov-row:hover { background:#faf9f5; }
+        html.dark .ov-row:hover { background:#191919; }
+        .ov-row td, .ov-head th { border-bottom:1px solid #f4f2eb; }
         html.dark .ov-row td, html.dark .ov-head th { border-bottom-color:#1f1f1f; }
 
         /* ════════════════════════════════════════════════
@@ -122,43 +123,43 @@
            Stacked dots per day (Actual). Hovered day reveals
            the AI Projected overlay as indigo dots on top.
            ════════════════════════════════════════════════ */
-        .da-seg { display:inline-flex; gap:2px; padding:3px; background:#f1f5f9; border-radius:10px; }
+        .da-seg { display:inline-flex; gap:2px; padding:3px; background:#f4f2eb; border-radius:10px; }
         html.dark .da-seg { background:#1f1f1f; }
         .da-seg-btn { border:none; background:transparent; cursor:pointer;
-            font-size:11.5px; font-weight:600; color:#64748b;
+            font-size:11.5px; font-weight:600; color:#6d6a60;
             padding:5px 11px; border-radius:7px;
             transition: background .2s ease, color .2s ease; }
-        .da-seg-btn:hover { color:#0f172a; }
-        .da-seg-btn.active { background:#fff; color:#4f46e5;
-            box-shadow:0 1px 3px rgba(15,23,42,0.10); }
-        html.dark .da-seg-btn.active { background:#0a0a0a; color:#a5b4fc; }
+        .da-seg-btn:hover { color:#1b1a16; }
+        .da-seg-btn.active { background:#fff; color:#a68b1a;
+            box-shadow:0 1px 3px rgba(27,26,22,0.10); }
+        html.dark .da-seg-btn.active { background:#000000; color:#e8d783; }
 
         .da-legend-dot { width:9px; height:9px; border-radius:50%;
-            box-shadow: 0 0 0 3px rgba(255,255,255,1), 0 0 0 4px rgba(15,23,42,0.04); }
-        html.dark .da-legend-dot { box-shadow: 0 0 0 3px #0a0a0a, 0 0 0 4px rgba(255,255,255,0.06); }
+            box-shadow: 0 0 0 3px rgba(255,255,255,1), 0 0 0 4px rgba(27,26,22,0.04); }
+        html.dark .da-legend-dot { box-shadow: 0 0 0 3px #000000, 0 0 0 4px rgba(255,255,255,0.06); }
 
         .da-insight {
             display:flex; align-items:flex-start; gap:9px;
             padding:12px 13px; border-radius:14px;
-            background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(14,165,233,0.05));
-            border:1px solid rgba(99,102,241,0.16);
+            background: linear-gradient(135deg, rgba(217,184,42,0.06), rgba(244,211,68,0.05));
+            border:1px solid rgba(217,184,42,0.16);
         }
         html.dark .da-insight {
-            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(14,165,233,0.08));
-            border-color: rgba(99,102,241,0.30);
+            background: linear-gradient(135deg, rgba(217,184,42,0.12), rgba(244,211,68,0.08));
+            border-color: rgba(217,184,42,0.30);
         }
 
         .da-run-btn {
             position: relative;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #b59c2d, #bca246);
             color:#fff; font-weight:700; font-size:13px;
             padding:12px 16px; border-radius:14px; border:none; cursor:pointer;
-            box-shadow: 0 10px 22px -10px rgba(99,102,241,0.55);
+            box-shadow: 0 10px 22px -10px rgba(217,184,42,0.55);
             transition: transform .2s ease, box-shadow .2s ease;
             overflow: hidden;
         }
         .da-run-btn:hover { transform: translateY(-1px);
-            box-shadow: 0 14px 28px -10px rgba(99,102,241,0.65); }
+            box-shadow: 0 14px 28px -10px rgba(217,184,42,0.65); }
         .da-run-btn:active { transform: translateY(0); }
         .da-run-btn::before {
             content:''; position:absolute; inset:0;
@@ -193,14 +194,14 @@
         .da-y-label {
             position: absolute; right: 6px;
             transform: translateY(50%);
-            font-size: 10px; line-height: 1; color: #94a3b8; font-weight: 600;
+            font-size: 10px; line-height: 1; color: #9b988c; font-weight: 600;
             white-space: nowrap;
         }
         html.dark .da-y-label { color:#737373; }
         .da-grid-line {
             position: absolute; left: 36px; right: 8px;
             height: 1px;
-            background: repeating-linear-gradient(to right, #e2e8f0 0 4px, transparent 4px 8px);
+            background: repeating-linear-gradient(to right, #e8e5dc 0 4px, transparent 4px 8px);
             pointer-events: none;
         }
         html.dark .da-grid-line { background: repeating-linear-gradient(to right, #2a2a2a 0 4px, transparent 4px 8px); }
@@ -224,7 +225,7 @@
         }
         /* Faint placeholder grid — gives every day visual presence even when filings are 0. */
         .da-dot.bg {
-            background: rgba(148,163,184,0.18);
+            background: rgba(155,152,140,0.18);
             width: 5px; height: 5px;
         }
         html.dark .da-dot.bg { background: rgba(120,120,120,0.22); }
@@ -237,8 +238,8 @@
         .da-dot.fill.in { opacity: 1; transform: translate(-50%, 50%); }
         /* AI projected overlay — indigo, only on active/hovered column */
         .da-dot.proj {
-            background: rgba(99,102,241,0.95);
-            box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
+            background: rgba(217,184,42,0.95);
+            box-shadow: 0 0 0 2px rgba(217,184,42,0.12);
             opacity: 0; transform: translate(-50%, 50%) scale(.4);
         }
         .da-col:hover .da-dot.fill { background:#10b981; box-shadow: 0 0 0 2px rgba(16,185,129,0.18); }
@@ -252,35 +253,35 @@
 
         .da-col-label {
             position: absolute; left: 50%; bottom: -24px; transform: translateX(-50%);
-            font-size: 10px; color: #94a3b8; font-weight: 600;
+            font-size: 10px; color: #9b988c; font-weight: 600;
             white-space: nowrap; transition: color .18s ease, bottom .2s ease;
         }
         .da-col.active .da-col-label {
             color: #fff;
-            background: linear-gradient(135deg,#4f46e5,#7c3aed);
+            background: linear-gradient(135deg,#a68b1a,#a68b2e);
             padding: 3px 9px; border-radius: 999px; bottom: -29px;
-            box-shadow: 0 6px 14px -4px rgba(99,102,241,0.45);
+            box-shadow: 0 6px 14px -4px rgba(217,184,42,0.45);
         }
 
         /* Floating tooltip */
         .da-tooltip {
             position: absolute; top: 6px; right: 6px; z-index: 5;
             min-width: 170px; padding: 12px 14px; border-radius: 14px;
-            background: #ffffff; border: 1px solid #e2e8f0;
-            box-shadow: 0 14px 30px -10px rgba(15,23,42,0.18);
-            font-size: 12.5px; color: #334155;
+            background: #ffffff; border: 1px solid #e8e5dc;
+            box-shadow: 0 14px 30px -10px rgba(27,26,22,0.18);
+            font-size: 12.5px; color: #3d3b34;
             opacity: 0; transform: translateY(-4px); pointer-events: none;
             transition: opacity .2s ease, transform .2s ease;
         }
-        html.dark .da-tooltip { background:#141414; border-color:#262626; color:#e2e8f0; }
+        html.dark .da-tooltip { background:#111111; border-color:#262626; color:#e8e5dc; }
         .da-tooltip.visible { opacity: 1; transform: none; }
         .da-tt-row { display:flex; justify-content:space-between; gap:14px; }
         .da-tt-row + .da-tt-row { margin-top: 4px; }
-        .da-tt-key { color: #64748b; font-weight: 500; }
-        .da-tt-val { color: #0f172a; font-weight: 800; }
+        .da-tt-key { color: #6d6a60; font-weight: 500; }
+        .da-tt-val { color: #1b1a16; font-weight: 800; }
         html.dark .da-tt-val { color: #f5f5f5; }
         .da-tt-head {
-            font-size: 11px; font-weight: 700; color: #4f46e5;
+            font-size: 11px; font-weight: 700; color: #a68b1a;
             text-transform: uppercase; letter-spacing: .06em;
             margin-bottom: 6px;
         }
@@ -288,7 +289,7 @@
         /* Dashed connector marker (y-line pointing to projected value) */
         .da-marker {
             position: absolute; top: 0; height: 0;
-            border-top: 1.5px dashed rgba(99,102,241,0.55);
+            border-top: 1.5px dashed rgba(217,184,42,0.55);
             opacity: 0; pointer-events: none;
             transition: opacity .2s ease;
         }
@@ -296,10 +297,10 @@
         .da-marker-pill {
             position: absolute; left: -6px; top: -11px;
             transform: translate(-100%, 0);
-            background: linear-gradient(135deg,#4f46e5,#7c3aed); color: white;
+            background: linear-gradient(135deg,#a68b1a,#a68b2e); color: white;
             font-size: 10.5px; font-weight: 700;
             padding: 3px 9px; border-radius: 999px;
-            box-shadow: 0 6px 14px -4px rgba(99,102,241,0.45);
+            box-shadow: 0 6px 14px -4px rgba(217,184,42,0.45);
             white-space: nowrap;
         }
 
@@ -310,11 +311,11 @@
             width: 32px; height: 32px;
             display: inline-flex; align-items: center; justify-content: center;
             border-radius: 9px;
-            background: #f1f5f9;
-            color: #475569; border: none; cursor: pointer;
+            background: #f4f2eb;
+            color: #5a5850; border: none; cursor: pointer;
             transition: transform .2s ease, background .2s ease, color .2s ease;
         }
-        .da-expand-btn:hover { background: #e2e8f0; color: #0f172a; transform: translateY(-1px); }
+        .da-expand-btn:hover { background: #e8e5dc; color: #1b1a16; transform: translateY(-1px); }
         html.dark .da-expand-btn { background: #1f1f1f; color: #a3a3a3; }
         html.dark .da-expand-btn:hover { background: #2a2a2a; color: #f5f5f5; }
         .da-expand-btn svg { width: 15px; height: 15px; }
@@ -322,7 +323,7 @@
         /* Overlay */
         .da-detail-overlay {
             position: fixed; inset: 0; z-index: 100;
-            background: rgba(15,23,42,0.50);
+            background: rgba(27,26,22,0.50);
             backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
             display: flex; align-items: center; justify-content: center;
             padding: 24px;
@@ -335,13 +336,13 @@
             background: #ffffff;
             width: 100%; max-width: 980px; max-height: 88vh;
             border-radius: 20px;
-            box-shadow: 0 40px 80px -25px rgba(15,23,42,0.35);
+            box-shadow: 0 40px 80px -25px rgba(27,26,22,0.35);
             display: flex; flex-direction: column;
             overflow: hidden;
             transform: translateY(20px) scale(.97); opacity: 0;
             transition: transform .35s cubic-bezier(.22,.61,.36,1), opacity .25s ease;
         }
-        html.dark .da-detail-card { background: #0f0f0f; box-shadow: 0 50px 100px -30px rgba(0,0,0,.8); }
+        html.dark .da-detail-card { background: #0e0e0e; box-shadow: 0 50px 100px -30px rgba(0,0,0,.8); }
         .da-detail-overlay.open .da-detail-card { transform: none; opacity: 1; }
 
         /* ── Header ── */
@@ -350,23 +351,23 @@
             padding: 22px 24px 18px;
         }
         .da-detail-title {
-            font-size: 19px; font-weight: 800; color: #0f172a;
+            font-size: 19px; font-weight: 800; color: #1b1a16;
             letter-spacing: -0.02em; line-height: 1.2;
         }
         html.dark .da-detail-title { color: #f5f5f5; }
         .da-detail-meta {
-            font-size: 12.5px; color: #64748b; margin-top: 4px; line-height: 1.5;
+            font-size: 12.5px; color: #6d6a60; margin-top: 4px; line-height: 1.5;
         }
-        .da-detail-meta span { color: #334155; font-weight: 600; }
+        .da-detail-meta span { color: #3d3b34; font-weight: 600; }
         html.dark .da-detail-meta { color: #a3a3a3; }
         html.dark .da-detail-meta span { color: #f5f5f5; }
         .da-detail-close {
             width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
             display: inline-flex; align-items: center; justify-content: center;
-            color: #64748b; background: transparent; border: none; cursor: pointer;
+            color: #6d6a60; background: transparent; border: none; cursor: pointer;
             transition: background .15s ease, color .15s ease, transform .2s ease;
         }
-        .da-detail-close:hover { background:#f1f5f9; color:#0f172a; transform: rotate(90deg); }
+        .da-detail-close:hover { background:#f4f2eb; color:#1b1a16; transform: rotate(90deg); }
         html.dark .da-detail-close:hover { background:#1f1f1f; color:#f5f5f5; }
 
         /* ── Toolbar (search + sort + filter toggle) ── */
@@ -378,26 +379,26 @@
         .da-search-wrap { position: relative; flex: 1; min-width: 240px; }
         .da-search-icon {
             position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-            width: 15px; height: 15px; color: #94a3b8; pointer-events: none;
+            width: 15px; height: 15px; color: #9b988c; pointer-events: none;
         }
         #da-detail-search {
             width: 100%; padding: 9px 12px 9px 34px;
             font-size: 13px; font-weight: 500;
-            background: #f8fafc; border: 1px solid transparent; border-radius: 10px;
-            outline: none; color: #0f172a;
+            background: #faf9f5; border: 1px solid transparent; border-radius: 10px;
+            outline: none; color: #1b1a16;
             transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
         }
-        #da-detail-search::placeholder { color: #94a3b8; font-weight: 400; }
+        #da-detail-search::placeholder { color: #9b988c; font-weight: 400; }
         #da-detail-search:focus {
-            background: #ffffff; border-color: #6366f1;
-            box-shadow: 0 0 0 4px rgba(99,102,241,.10);
+            background: #ffffff; border-color: #b59c2d;
+            box-shadow: 0 0 0 4px rgba(217,184,42,.10);
         }
         html.dark #da-detail-search { background:#161616; color:#f5f5f5; }
-        html.dark #da-detail-search:focus { background:#0a0a0a; border-color:#6366f1; }
+        html.dark #da-detail-search:focus { background:#000000; border-color:#b59c2d; }
 
         #da-detail-sort {
             padding: 8px 26px 8px 12px; font-size: 12.5px; font-weight: 600;
-            background-color: #f8fafc; color: #334155;
+            background-color: #faf9f5; color: #3d3b34;
             border: 1px solid transparent; border-radius: 10px;
             outline: none; cursor: pointer;
             background-image:
@@ -408,19 +409,19 @@
             transition: background-color .15s ease;
         }
         #da-detail-sort:hover { background-color: #eef1f7; }
-        html.dark #da-detail-sort { background-color:#161616; color:#e2e8f0; }
+        html.dark #da-detail-sort { background-color:#161616; color:#e8e5dc; }
 
         .da-tool-btn {
             display: inline-flex; align-items: center; gap: 6px;
             padding: 8px 12px; font-size: 12.5px; font-weight: 600;
-            background: #f8fafc; color: #334155;
+            background: #faf9f5; color: #3d3b34;
             border: 1px solid transparent; border-radius: 10px; cursor: pointer;
             transition: background .15s ease, color .15s ease;
         }
-        .da-tool-btn:hover { background: #eef1f7; color: #0f172a; }
+        .da-tool-btn:hover { background: #eef1f7; color: #1b1a16; }
         .da-tool-btn svg { width: 14px; height: 14px; }
         .da-tool-btn[aria-expanded="true"] {
-            background: rgba(99,102,241,0.08); color: #4f46e5;
+            background: rgba(217,184,42,0.08); color: #a68b1a;
         }
         .da-tool-btn-ghost { background: transparent; color: #ef4444; }
         .da-tool-btn-ghost:hover { background: #fef2f2; color: #dc2626; }
@@ -432,7 +433,7 @@
             font-size: 10px; font-weight: 700;
             min-width: 18px; padding: 0 6px; height: 18px;
             border-radius: 999px;
-            background: #4f46e5; color: #fff;
+            background: #a68b1a; color: #fff;
             display: inline-flex; align-items: center; justify-content: center;
         }
 
@@ -447,7 +448,7 @@
         .da-chip-group-label {
             flex-shrink: 0; width: 64px;
             font-size: 10px; font-weight: 700;
-            color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em;
+            color: #9b988c; text-transform: uppercase; letter-spacing: 0.08em;
             padding-top: 7px;
         }
         .da-chip-row {
@@ -458,21 +459,21 @@
         .da-chip {
             display: inline-flex; align-items: center; gap: 5px;
             padding: 4px 10px;
-            font-size: 11.5px; font-weight: 600; color: #64748b;
-            background: #f1f5f9; border: 1px solid transparent; border-radius: 999px;
+            font-size: 11.5px; font-weight: 600; color: #6d6a60;
+            background: #f4f2eb; border: 1px solid transparent; border-radius: 999px;
             cursor: pointer;
             transition: background .15s ease, color .15s ease;
             white-space: nowrap;
         }
-        .da-chip:hover { background: #e2e8f0; color: #0f172a; }
+        .da-chip:hover { background: #e8e5dc; color: #1b1a16; }
         .da-chip.active {
-            background: #4f46e5; color: #fff;
+            background: #a68b1a; color: #fff;
         }
-        html.dark .da-chip { background:#1c1c1c; color:#a3a3a3; }
+        html.dark .da-chip { background:#191919; color:#a3a3a3; }
         html.dark .da-chip:hover { background:#262626; color:#f5f5f5; }
         .da-chip-count {
             font-size: 10px; font-weight: 700;
-            color: #94a3b8;
+            color: #9b988c;
         }
         .da-chip.active .da-chip-count { color: rgba(255,255,255,0.75); }
 
@@ -484,28 +485,28 @@
         .da-active-pill {
             display: inline-flex; align-items: center; gap: 6px;
             padding: 4px 6px 4px 11px;
-            font-size: 11.5px; font-weight: 600; color: #4f46e5;
-            background: rgba(99,102,241,0.10);
+            font-size: 11.5px; font-weight: 600; color: #a68b1a;
+            background: rgba(217,184,42,0.10);
             border-radius: 999px;
             animation: pillIn .2s ease;
         }
         @keyframes pillIn { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: none; } }
         .da-active-pill .da-active-pill-key {
-            color: #64748b; font-weight: 500; text-transform: lowercase;
+            color: #6d6a60; font-weight: 500; text-transform: lowercase;
         }
         .da-active-pill button {
             border: none; background: transparent; padding: 2px;
-            color: #6366f1; cursor: pointer; border-radius: 999px;
+            color: #b59c2d; cursor: pointer; border-radius: 999px;
             display: inline-flex; align-items: center; justify-content: center;
             transition: background .15s ease;
         }
-        .da-active-pill button:hover { background: rgba(99,102,241,0.20); }
+        .da-active-pill button:hover { background: rgba(217,184,42,0.20); }
 
         /* ── Body — grouped list ── */
         .da-detail-body {
             flex: 1; overflow-y: auto;
             padding: 4px 24px 24px;
-            border-top: 1px solid #f1f5f9;
+            border-top: 1px solid #f4f2eb;
         }
         html.dark .da-detail-body { border-top-color: #1a1a1a; }
         .da-date-group { margin-bottom: 8px; }
@@ -516,12 +517,12 @@
             backdrop-filter: blur(8px);
             display: flex; align-items: baseline; gap: 10px;
             padding: 14px 0 8px;
-            font-size: 11px; font-weight: 700; color: #64748b;
+            font-size: 11px; font-weight: 700; color: #6d6a60;
             text-transform: uppercase; letter-spacing: 0.06em;
         }
         html.dark .da-date-head { background: rgba(15,15,15,0.94); color:#a3a3a3; }
         .da-date-head .da-date-count {
-            font-size: 10px; color: #94a3b8;
+            font-size: 10px; color: #9b988c;
             font-weight: 600; text-transform: none; letter-spacing: 0;
         }
 
@@ -534,25 +535,25 @@
             border-radius: 0;
         }
         .da-filing-row:last-child { border-bottom: none; }
-        .da-filing-row:hover { background: #f8fafc; padding-left: 10px; padding-right: 10px; border-radius: 10px; border-bottom-color: transparent; }
+        .da-filing-row:hover { background: #faf9f5; padding-left: 10px; padding-right: 10px; border-radius: 10px; border-bottom-color: transparent; }
         html.dark .da-filing-row { border-bottom-color: #1a1a1a; }
         html.dark .da-filing-row:hover { background: #161616; }
 
         .da-filing-time {
-            font-size: 11.5px; color: #94a3b8; font-weight: 600;
+            font-size: 11.5px; color: #9b988c; font-weight: 600;
             font-variant-numeric: tabular-nums;
             min-width: 46px; padding-top: 2px;
         }
         .da-filing-company {
             display: inline-block;
-            font-size: 10.5px; font-weight: 700; color: #4f46e5;
-            background: rgba(99,102,241,0.10);
+            font-size: 10.5px; font-weight: 700; color: #a68b1a;
+            background: rgba(217,184,42,0.10);
             padding: 2px 8px; border-radius: 5px;
             margin-right: 8px;
             letter-spacing: 0.02em;
         }
         .da-filing-title {
-            font-size: 13.5px; font-weight: 600; color: #0f172a;
+            font-size: 13.5px; font-weight: 600; color: #1b1a16;
             line-height: 1.45;
         }
         html.dark .da-filing-title { color:#f5f5f5; }
@@ -560,28 +561,28 @@
         .da-filing-tag {
             font-size: 10px; font-weight: 600;
             padding: 1px 7px; border-radius: 4px;
-            background: #f1f5f9; color: #64748b;
+            background: #f4f2eb; color: #6d6a60;
         }
-        html.dark .da-filing-tag { background: #1c1c1c; color: #a3a3a3; }
+        html.dark .da-filing-tag { background: #191919; color: #a3a3a3; }
         .da-filing-arrow {
-            color: #cbd5e1; flex-shrink: 0; padding-top: 4px;
+            color: #c3c0b4; flex-shrink: 0; padding-top: 4px;
             transition: transform .15s ease, color .15s ease;
         }
-        .da-filing-row:hover .da-filing-arrow { color:#4f46e5; transform: translateX(3px); }
+        .da-filing-row:hover .da-filing-arrow { color:#a68b1a; transform: translateX(3px); }
 
         /* Empty state */
         .da-empty {
             text-align: center; padding: 60px 20px;
-            color: #94a3b8; font-size: 13px;
+            color: #9b988c; font-size: 13px;
         }
         .da-empty-icon {
             width: 52px; height: 52px; margin: 0 auto 14px;
             border-radius: 999px;
-            background: #f1f5f9;
-            color: #94a3b8;
+            background: #f4f2eb;
+            color: #9b988c;
             display: inline-flex; align-items: center; justify-content: center;
         }
-        html.dark .da-empty-icon { background:#1c1c1c; }
+        html.dark .da-empty-icon { background:#191919; }
 
         /* Mobile tightening */
         @media (max-width: 720px) {
@@ -606,14 +607,14 @@
         html.dark .da-y-label { color: #8a8a8a; }   /* was #737373 — too dim */
         html.dark .da-chip-count { background: rgba(255,255,255,0.10); color: #b0b0b0; }
         html.dark .da-chip.active .da-chip-count { background: rgba(255,255,255,0.25); color: #fff; }
-        html.dark .da-active-pill { background: rgba(99,102,241,0.16); color: #a5b4fc; border-color: rgba(99,102,241,0.35); }
+        html.dark .da-active-pill { background: rgba(217,184,42,0.16); color: #e8d783; border-color: rgba(217,184,42,0.35); }
         html.dark .da-active-pill-key { color: #8a8a8a; }
         html.dark .da-tool-badge { background: rgba(255,255,255,0.10); color: #b0b0b0; }
         html.dark .da-search-icon { color: #6b6b6b; }
         html.dark .da-empty { color: #8a8a8a; }
         /* Soft neon edge on the data dots so the matrix reads on near-black */
         html.dark .da-dot.fill { box-shadow: 0 0 0 2px rgba(16,185,129,0.16), 0 0 10px rgba(16,185,129,0.20); }
-        html.dark .da-dot.proj { box-shadow: 0 0 0 2px rgba(99,102,241,0.20), 0 0 10px rgba(99,102,241,0.25); }
+        html.dark .da-dot.proj { box-shadow: 0 0 0 2px rgba(217,184,42,0.20), 0 0 10px rgba(217,184,42,0.25); }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -711,7 +712,7 @@
                                         <span class="da-legend-dot" style="background:#10b981"></span> Actual
                                     </div>
                                     <div class="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                                        <span class="da-legend-dot" style="background:#6366f1"></span>
+                                        <span class="da-legend-dot" style="background:#b59c2d"></span>
                                         Day-of-week baseline
                                         <span class="text-[10px] font-medium text-slate-400" title="Average filings on the same weekday across this window. Shown on hover/click.">ⓘ</span>
                                     </div>
@@ -826,7 +827,7 @@
 
                 <a href="/din-search" class="feature-card feature-card-purple">
                     <div class="feature-icon bg-purple-100">
-                        <svg fill="none" stroke="#8b5cf6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <svg fill="none" stroke="#bca246" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
                     <h3>DIN Search</h3>
                     <p>Find any director across all companies by DIN number</p>
@@ -836,7 +837,7 @@
                 {% if companies %}
                 <a href="/company/{{ companies[0] }}" class="feature-card feature-card-blue">
                     <div class="feature-icon bg-indigo-100">
-                        <svg fill="none" stroke="#4f46e5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <svg fill="none" stroke="#a68b1a" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     </div>
                     <h3>Corporate Filings</h3>
                     <p>Browse announcements, filings &amp; XBRL data for {{ companies[0] }}</p>
@@ -1142,11 +1143,11 @@ const USER_INDUSTRY = {{ user_industry | tojson }};
 const SYMBOL_DOMAINS = {{ symbol_domains | tojson }};
 const SYMBOL_TV_SLUGS = {{ symbol_tv_slugs | tojson }};
 const COMPANY_COLORS = [
-    {bg:'#dbeafe',text:'#1e40af',dot:'#3b82f6', darkBg:'rgba(59,130,246,0.18)',  darkText:'#93c5fd'},
+    {bg:'#faeeb7',text:'#7e6920',dot:'#cdb243', darkBg:'rgba(205,178,67,0.18)',  darkText:'#e6d17a'},
     {bg:'#dcfce7',text:'#166534',dot:'#22c55e', darkBg:'rgba(34,197,94,0.18)',   darkText:'#86efac'},
     {bg:'#fef3c7',text:'#92400e',dot:'#f59e0b', darkBg:'rgba(245,158,11,0.18)',  darkText:'#fcd34d'},
     {bg:'#fce7f3',text:'#9d174d',dot:'#ec4899', darkBg:'rgba(236,72,153,0.18)',  darkText:'#f9a8d4'},
-    {bg:'#ede9fe',text:'#5b21b6',dot:'#8b5cf6', darkBg:'rgba(139,92,246,0.18)',  darkText:'#c4b5fd'},
+    {bg:'#f6eed4',text:'#8b7433',dot:'#bca246', darkBg:'rgba(188,162,70,0.18)',  darkText:'#e9d79d'},
 ];
 function companyBadgeStyle(color) {
     const dark = document.documentElement.classList.contains('dark');
@@ -1202,14 +1203,14 @@ function fmtPrice(n) {
 // Deterministic gradient palette per symbol — same input always picks the
 // same colors so the same company keeps the same avatar across reloads.
 const AVATAR_PALETTES = [
-    ['#6366f1', '#8b5cf6'],  // indigo → violet
-    ['#0ea5e9', '#3b82f6'],  // sky → blue
-    ['#10b981', '#06b6d4'],  // emerald → cyan
+    ['#b59c2d', '#bca246'],  // indigo → violet
+    ['#e0c442', '#cdb243'],  // sky → blue
+    ['#10b981', '#cdbb51'],  // emerald → cyan
     ['#f59e0b', '#ef4444'],  // amber → red
     ['#ec4899', '#f43f5e'],  // pink → rose
-    ['#8b5cf6', '#ec4899'],  // violet → pink
-    ['#0d9488', '#0891b2'],  // teal → cyan
-    ['#7c3aed', '#2563eb'],  // violet → blue
+    ['#bca246', '#ec4899'],  // violet → pink
+    ['#0d9488', '#9c8e37'],  // teal → cyan
+    ['#a68b2e', '#c6a72c'],  // violet → blue
     ['#f97316', '#f59e0b'],  // orange → amber
     ['#14b8a6', '#22c55e'],  // teal → green
 ];
@@ -1253,8 +1254,7 @@ function avatarHtml(sym) {
     // Candidate cascade — local bundled SVG first (instant, never breaks),
     // then live sources. The local attempt is always included; if the file
     // isn't there it 404s and onerror advances to the next candidate.
-    const cands = [`/static/logos/${encodeURIComponent(sym)}.svg`];
-    if (domain) cands.push(`/logo/${encodeURIComponent(sym)}?v=2`);
+    const cands = [`/logo/${encodeURIComponent(sym)}?v=3`];
     if (tvSlug) cands.push(`https://s3-symbol-logo.tradingview.com/${tvSlug}--big.svg`);
     if (domain) {
         cands.push(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`);
@@ -1420,17 +1420,17 @@ const FILING_ACTIVITY = {{ filing_activity | tojson }};
 const BUSIEST_DAY_NAME = {{ busiest_day_name | tojson }};
 const BUSIEST_DAY_AVG  = {{ busiest_day_avg | tojson }};
 const ACTIVITY_FILINGS = {{ activity_filings | tojson }};
-const CHART_PALETTE = ['#4f46e5','#6366f1','#2563eb','#0ea5e9','#818cf8','#38bdf8','#3b82f6','#a5b4fc'];
+const CHART_PALETTE = ['#a68b1a','#b59c2d','#c6a72c','#e0c442','#d3bf63','#edda7b','#cdb243','#e8d783'];
 let _tagChart = null, _companyChart = null, _trendChart = null;
 
 function _isDark() { return document.documentElement.classList.contains('dark'); }
-function _axisColor() { return _isDark() ? '#a3a3a3' : '#64748b'; }
-function _gridColor() { return _isDark() ? 'rgba(255,255,255,.08)' : 'rgba(15,23,42,.07)'; }
+function _axisColor() { return _isDark() ? '#a3a3a3' : '#6d6a60'; }
+function _gridColor() { return _isDark() ? 'rgba(255,255,255,.08)' : 'rgba(27,26,22,.07)'; }
 
 function _tooltipStyle() {
     return {
-        backgroundColor: _isDark() ? '#1c1c1c' : '#0f172a',
-        titleColor: '#fff', bodyColor: '#e2e8f0',
+        backgroundColor: _isDark() ? '#191919' : '#1b1a16',
+        titleColor: '#fff', bodyColor: '#e8e5dc',
         padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
     };
 }
@@ -1453,10 +1453,10 @@ function buildCharts() {
                 const cy = (chartArea.top + chartArea.bottom) / 2;
                 ctx.save();
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillStyle = _isDark() ? '#f5f5f5' : '#0f172a';
+                ctx.fillStyle = _isDark() ? '#f5f5f5' : '#1b1a16';
                 ctx.font = '800 26px Inter, system-ui, sans-serif';
                 ctx.fillText(tagTotal.toLocaleString('en-IN'), cx, cy - 7);
-                ctx.fillStyle = _isDark() ? '#a3a3a3' : '#94a3b8';
+                ctx.fillStyle = _isDark() ? '#a3a3a3' : '#9b988c';
                 ctx.font = '700 10px Inter, system-ui, sans-serif';
                 ctx.fillText('TAGGED', cx, cy + 13);
                 ctx.restore();
@@ -1466,7 +1466,7 @@ function buildCharts() {
             type: 'doughnut',
             data: { labels: TOP_TAGS.map(t => t[0]), datasets: [{
                 data: TOP_TAGS.map(t => t[1]), backgroundColor: CHART_PALETTE,
-                borderWidth: 3, borderColor: _isDark() ? '#141414' : '#ffffff',
+                borderWidth: 3, borderColor: _isDark() ? '#111111' : '#ffffff',
                 hoverOffset: 8, spacing: 1 }] },
             options: { responsive: true, maintainAspectRatio: false, cutout: '70%',
                 plugins: {

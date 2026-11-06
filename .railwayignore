@@ -39,3 +39,9 @@ create_frd.js
 
 # Local backups (never deploy)
 _backup_pre_redesign/
+
+# UI snapshots (reference only, never deploy)
+ui_snapshots/
+
+# Client documents uploaded through document requests (live on the /data volume)
+uploads/

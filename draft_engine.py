@@ -1759,7 +1759,8 @@ def build_letter_data(company_name: str, registered_office: str = "",
                       letter_date: str = "",
                       annexures: Optional[List[Dict]] = None,
                       doc_kind: str = "",
-                      pdf_meta: Optional[Dict] = None) -> Dict:
+                      pdf_meta: Optional[Dict] = None,
+                      house: Optional[Dict] = None) -> Dict:
     """Normalize all fields used by both the PDF and DOCX renderers.
 
     `doc_kind` decides the document shape:
@@ -1769,8 +1770,12 @@ def build_letter_data(company_name: str, registered_office: str = "",
         company document: centered title, no exchange address, no greeting.
 
     `annexures` is a list of {title, body}; each renders on its own new page."""
+    house = house or {}
     if not letter_date:
         letter_date = datetime.now().strftime("%d %B, %Y")
+        if house.get("date_format"):
+            from draft_memory import format_date
+            letter_date = format_date(datetime.now().date(), house["date_format"])
     cleaned_annexures = []
     for a in (annexures or []):
         title = (a.get("title") or "").strip()
@@ -1778,7 +1783,9 @@ def build_letter_data(company_name: str, registered_office: str = "",
         if title and body_t:
             cleaned_annexures.append({"title": title, "body": body_t})
     addressed = doc_is_addressed(doc_kind)
+    shell = _letter_shell(house, company_name, signer_name, bse_code, nse_symbol, addressed, doc_kind)
     return {
+        **shell,
         "company_name": (company_name or "").strip().upper(),
         "registered_office": (registered_office or "").strip(),
         "cin": (cin or "").strip(),
@@ -1792,10 +1799,53 @@ def build_letter_data(company_name: str, registered_office: str = "",
         "annexures": cleaned_annexures,
         "doc_kind": doc_kind or "letter",
         "addressed": addressed,
-        "close_phrase": "Yours faithfully," if addressed else _CLOSE_PHRASE.get(doc_kind, ""),
+        "close_phrase": (shell["house_close"] or "Yours faithfully,") if addressed else _CLOSE_PHRASE.get(doc_kind, ""),
         # PDF Document Properties (what NSE/SEBI portals check). Defaults derive
         # from the letter; the CS can override them on export.
         "pdf_meta": _resolve_pdf_meta(pdf_meta, subject, company_name, cin),
+    }
+
+
+def _letter_shell(house: Dict, company_name: str, signer_name: str, bse_code: str, nse_symbol: str,
+                  addressed: bool, doc_kind: str) -> Dict:
+    """The parts of a letter around the body, in the company's own format
+    when draft memory has learned it, otherwise Delta's defaults."""
+    def _lines(key, default):
+        v = house.get(key)
+        return list(v) if isinstance(v, list) and len(v) >= 3 else list(default)
+
+    bse_lines = _lines("bse_block", LISTING_ADDRESSES[0]["lines"])
+    nse_lines = _lines("nse_block", LISTING_ADDRESSES[1]["lines"])
+    code_lines = [l for l in (house.get("code_lines") or []) if isinstance(l, str)]
+    # Use the learned stock-code block only when it is about this listing.
+    if code_lines and not any((bse_code and bse_code in l) or (nse_symbol and nse_symbol.upper() in l.upper())
+                              for l in code_lines):
+        code_lines = []
+    if not code_lines:
+        if bse_code:
+            bse_lines.append(f"Scrip Code: {bse_code}")
+        if nse_symbol:
+            nse_lines.append(f"Symbol: {nse_symbol}")
+    columns = [bse_lines, nse_lines]
+    if house.get("exchange_order") == "nse_first":
+        columns.reverse()
+    legal = (house.get("for_line") or "").strip()
+    membership = ""
+    if house.get("sig_membership") and signer_name and house.get("sig_name") and \
+            re.sub(r"\W", "", signer_name.lower()) == re.sub(r"\W", "", house["sig_name"].lower()):
+        membership = house["sig_membership"]
+    label = house.get("date_label")
+    return {
+        "address_columns": columns,
+        "code_lines": code_lines,
+        "subject_label": (house.get("subject_label") or "Subject:") if addressed else "",
+        "salutation": (house.get("salutation") or "Dear Sir / Madam,") if addressed else "",
+        "thanks_line": house.get("thanks_line") or "",
+        "house_close": house.get("close_phrase") or "",
+        "for_line": legal or (f"For {(company_name or '').strip().upper()}" if company_name else ""),
+        "signer_membership": membership,
+        "date_label": "" if label == "none" else (label or "Date: "),
+        "house_applied": bool(house),
     }
 
 
@@ -1862,6 +1912,12 @@ def _split_body_into_chunks(body: str) -> List[Tuple[str, object]]:
 def _safe_filename(s: str) -> str:
     s = re.sub(r"[^A-Za-z0-9_-]+", "_", s).strip("_")
     return s[:80] or "letter"
+
+
+def _x(text) -> str:
+    """Escape text for a ReportLab Paragraph ("&" in a designation breaks it)."""
+    from xml.sax.saxutils import escape
+    return escape(str(text or ""))
 
 
 def render_pdf(letter: Dict) -> bytes:
@@ -1940,16 +1996,11 @@ def render_pdf(letter: Dict) -> bytes:
 
     if _addressed:
         # ── Date ──
-        story.append(Paragraph(f"Date: {letter['letter_date']}", body_style))
-        # ── Two-column listing addresses ──
-        bse_lines = list(LISTING_ADDRESSES[0]["lines"])
-        nse_lines = list(LISTING_ADDRESSES[1]["lines"])
-        if letter["bse_code"]:
-            bse_lines.append(f"<b>Scrip Code:</b> {letter['bse_code']}")
-        if letter["nse_symbol"]:
-            nse_lines.append(f"<b>Symbol:</b> {letter['nse_symbol']}")
-        bse_paras = [Paragraph(l, addr_style) for l in bse_lines]
-        nse_paras = [Paragraph(l, addr_style) for l in nse_lines]
+        story.append(Paragraph(_x(f"{letter.get('date_label', 'Date: ')}{letter['letter_date']}"), body_style))
+        # ── Two-column listing addresses (the company's own, when learned) ──
+        left, right = letter.get("address_columns") or [LISTING_ADDRESSES[0]["lines"], LISTING_ADDRESSES[1]["lines"]]
+        bse_paras = [Paragraph(_x(l), addr_style) for l in left]
+        nse_paras = [Paragraph(_x(l), addr_style) for l in right]
         addr_table = Table([[bse_paras, nse_paras]], colWidths=[85 * mm, 85 * mm])
         addr_table.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -1958,12 +2009,16 @@ def render_pdf(letter: Dict) -> bytes:
         ]))
         story.append(addr_table)
         story.append(Spacer(1, 6 * mm))
+        for cl in letter.get("code_lines") or []:
+            story.append(Paragraph(f"<b>{_x(cl)}</b>", addr_style))
+        if letter.get("code_lines"):
+            story.append(Spacer(1, 4 * mm))
         # ── Subject ──
         if letter["subject"]:
             story.append(Paragraph(
-                f"<b><u>Subject: {letter['subject']}</u></b>", subject_style))
+                f"<b><u>{_x(letter.get('subject_label') or 'Subject:')} {_x(letter['subject'])}</u></b>", subject_style))
         # ── Greeting ──
-        story.append(Paragraph("Dear Sir / Madam,", body_style))
+        story.append(Paragraph(_x(letter.get("salutation") or "Dear Sir / Madam,"), body_style))
     else:
         # Standalone company document (resolution / notice / minutes / etc.):
         # centered document title, no exchange address, no greeting.
@@ -2010,16 +2065,20 @@ def render_pdf(letter: Dict) -> bytes:
 
     # ── Sign-off ──
     story.append(Spacer(1, 8 * mm))
+    if letter.get("addressed", True) and letter.get("thanks_line"):
+        story.append(Paragraph(_x(letter["thanks_line"]), body_style))
     if letter.get("close_phrase"):
-        story.append(Paragraph(letter["close_phrase"], body_style))
+        story.append(Paragraph(_x(letter["close_phrase"]), body_style))
         story.append(Spacer(1, 2 * mm))
-    if letter["company_name"]:
-        story.append(Paragraph(f"<b>For {letter['company_name']}</b>", sig_style))
+    if letter.get("for_line"):
+        story.append(Paragraph(f"<b>{_x(letter['for_line'])}</b>", sig_style))
     story.append(Spacer(1, 14 * mm))   # space for physical signature
     if letter["signer_name"]:
-        story.append(Paragraph(f"<b>{letter['signer_name']}</b>", sig_style))
+        story.append(Paragraph(f"<b>{_x(letter['signer_name'])}</b>", sig_style))
     if letter["signer_designation"]:
-        story.append(Paragraph(letter["signer_designation"], sig_style))
+        story.append(Paragraph(_x(letter["signer_designation"]), sig_style))
+    if letter.get("signer_membership"):
+        story.append(Paragraph(_x(letter["signer_membership"]), sig_style))
 
     # ── Annexures: each on its own page, with a centered title heading ──
     annexure_title_style = ParagraphStyle(
@@ -2102,14 +2161,9 @@ def render_docx(letter: Dict) -> bytes:
     if _addressed:
         # ── Date ──
         p_date = doc.add_paragraph()
-        p_date.add_run(f"Date: {letter['letter_date']}").font.size = Pt(11)
-        # ── Two-column addresses via table ──
-        bse_lines = list(LISTING_ADDRESSES[0]["lines"])
-        nse_lines = list(LISTING_ADDRESSES[1]["lines"])
-        if letter["bse_code"]:
-            bse_lines.append(f"Scrip Code: {letter['bse_code']}")
-        if letter["nse_symbol"]:
-            nse_lines.append(f"Symbol: {letter['nse_symbol']}")
+        p_date.add_run(f"{letter.get('date_label', 'Date: ')}{letter['letter_date']}").font.size = Pt(11)
+        # ── Two-column addresses via table (the company's own, when learned) ──
+        bse_lines, nse_lines = letter.get("address_columns") or [LISTING_ADDRESSES[0]["lines"], LISTING_ADDRESSES[1]["lines"]]
         table = doc.add_table(rows=1, cols=2)
         table.autofit = True
         cells = table.rows[0].cells
@@ -2122,15 +2176,19 @@ def render_docx(letter: Dict) -> bytes:
                 cp = cell.add_paragraph()
                 cp.add_run(ln).font.size = Pt(10)
         doc.add_paragraph()
+        for cl in letter.get("code_lines") or []:
+            rc = doc.add_paragraph().add_run(cl)
+            rc.bold = True
+            rc.font.size = Pt(10)
         # ── Subject ──
         if letter["subject"]:
             p_subj = doc.add_paragraph()
-            run = p_subj.add_run(f"Subject: {letter['subject']}")
+            run = p_subj.add_run(f"{letter.get('subject_label') or 'Subject:'} {letter['subject']}")
             run.bold = True
             run.underline = True
             run.font.size = Pt(11)
         # ── Greeting ──
-        doc.add_paragraph().add_run("Dear Sir / Madam,").font.size = Pt(11)
+        doc.add_paragraph().add_run(letter.get("salutation") or "Dear Sir / Madam,").font.size = Pt(11)
     else:
         # Standalone company document: centered title, date, no address/greeting.
         if letter["subject"]:
@@ -2170,11 +2228,13 @@ def render_docx(letter: Dict) -> bytes:
 
     # ── Sign-off ──
     doc.add_paragraph()
+    if letter.get("addressed", True) and letter.get("thanks_line"):
+        doc.add_paragraph().add_run(letter["thanks_line"]).font.size = Pt(11)
     if letter.get("close_phrase"):
         doc.add_paragraph().add_run(letter["close_phrase"]).font.size = Pt(11)
-    if letter["company_name"]:
+    if letter.get("for_line"):
         p_for = doc.add_paragraph()
-        rf = p_for.add_run(f"For {letter['company_name']}")
+        rf = p_for.add_run(letter["for_line"])
         rf.bold = True
         rf.font.size = Pt(11)
     # Space for signature
@@ -2187,6 +2247,8 @@ def render_docx(letter: Dict) -> bytes:
         rs.font.size = Pt(11)
     if letter["signer_designation"]:
         doc.add_paragraph().add_run(letter["signer_designation"]).font.size = Pt(11)
+    if letter.get("signer_membership"):
+        doc.add_paragraph().add_run(letter["signer_membership"]).font.size = Pt(11)
 
     # ── Annexures: each on a new page with a centered title heading ──
     from docx.enum.text import WD_BREAK

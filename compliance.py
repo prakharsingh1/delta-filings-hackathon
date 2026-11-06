@@ -2,6 +2,7 @@
 
 import sqlite3
 import os
+import re
 import json
 import calendar as _cal
 from datetime import datetime, date, timedelta
@@ -72,8 +73,8 @@ SEBI_MANDATES = [
     {
         "id": "LODR-REG13", "name": "Reg 13(3) — Investor Grievance Report",
         "regulation": "SEBI LODR Reg 13", "form": "Integrated Filing (Governance)",
-        "description": "Statement of investor complaints within 21 days of quarter end (part of Integrated Filing-Governance).",
-        "frequency": "quarterly", "due_days_after_quarter": 21,
+        "description": "Statement of investor complaints within 30 days of quarter end, as part of the Integrated Filing-Governance (it was 21 days before the Dec-2024 circular).",
+        "frequency": "quarterly", "due_days_after_quarter": 30,
         "category": "Investor Relations", "regime": "SEBI", "applies_to": "Listed companies",
         "penalty": "₹1,000/day per exchange (SOP).",
         "filed_via": "Integrated Filing- Governance",
@@ -84,8 +85,8 @@ SEBI_MANDATES = [
     {
         "id": "LODR-REG74", "name": "Reg 74(5) — RTA / Demat Certificate",
         "regulation": "SEBI LODR Reg 74", "form": "RTA certificate to exchanges",
-        "description": "Certificate from the Registrar & Transfer Agent on timely dematerialisation of shares, within 30 days of quarter end.",
-        "frequency": "quarterly", "due_days_after_quarter": 30,
+        "description": "Certificate from the Registrar & Transfer Agent on timely dematerialisation of shares, within 15 days of quarter end.",
+        "frequency": "quarterly", "due_days_after_quarter": 15,
         "category": "Compliance", "regime": "SEBI", "applies_to": "Listed companies",
         "penalty": "Advisory/penal action by exchange.",
         "keywords": ["regulation 74", "registrar", "dematerialization", "demat"],
@@ -104,10 +105,10 @@ SEBI_MANDATES = [
     {
         "id": "LODR-REG23-RPT", "name": "Reg 23(9) — Related Party Transactions",
         "regulation": "SEBI LODR Reg 23(9)", "form": "RPT disclosure to exchanges",
-        "description": "Disclosure of related-party transactions on a consolidated basis, within 15 days of the half-year (aligned to financial results from FY24).",
-        "frequency": "half_yearly", "due_days_after_half": 15,
+        "description": "Disclosure of related-party transactions on a consolidated basis every six months, on the day the half-year's financial results are published: by 14 November for April–September and 30 May for October–March.",
+        "frequency": "half_yearly", "due_days_after_half": 45, "due_days_after_half_h2": 60,
         "category": "Governance", "regime": "SEBI", "applies_to": "Listed companies",
-        "penalty": "₹2,000/day per exchange (SOP).",
+        "penalty": "₹5,000/day per exchange (SOP).",
         "keywords": ["related party", "rpt", "regulation 23"],
         "sebi_source_key": "lodr", "section_ref": "Chapter IV, Regulation 23(9)",
     },
@@ -124,8 +125,8 @@ SEBI_MANDATES = [
     {
         "id": "LODR-REG34-AR", "name": "Reg 34 — Annual Report",
         "regulation": "SEBI LODR Reg 34", "form": "Annual report to exchanges + members",
-        "description": "Annual report submitted to exchanges within 21 working days of the AGM, and sent to members ≥21 days before the AGM.",
-        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "description": "Annual report sent to the exchanges no later than the day dispatch to members begins, which is at least 21 clear days before the AGM: by about 8 September for an AGM on 30 September.",
+        "frequency": "annual", "due_month": 9, "due_day": 8,
         "category": "Periodic", "regime": "SEBI", "applies_to": "Listed companies",
         "penalty": "₹2,000/day per exchange (SOP).",
         "keywords": ["annual report", "regulation 34"],
@@ -148,7 +149,7 @@ SEBI_MANDATES = [
         "description": "Prior intimation of board meetings — ≥2 working days normally; ≥5 days when financial results are considered.",
         "frequency": "event_based",
         "category": "Disclosure", "regime": "SEBI", "applies_to": "Listed companies",
-        "penalty": "₹1,000/day per exchange (SOP).",
+        "penalty": "₹10,000 per instance, per item, per exchange (SOP).",
         "keywords": ["board meeting intimation", "regulation 29", "prior intimation"],
         "sebi_source_key": "lodr", "section_ref": "Chapter IV, Regulation 29",
     },
@@ -176,8 +177,8 @@ SEBI_MANDATES = [
     {
         "id": "LODR-BRSR", "name": "BRSR — Business Responsibility & Sustainability Report",
         "regulation": "SEBI LODR Reg 34(2)(f)", "form": "BRSR (in annual report)",
-        "description": "ESG disclosure across 9 NGRBC principles, mandatory for the top 1,000 listed companies by market cap, as part of the annual report.",
-        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "description": "ESG disclosure across 9 NGRBC principles, mandatory for the top 1,000 listed companies by market cap, as part of the annual report (so due with it, by about 8 September).",
+        "frequency": "annual", "due_month": 9, "due_day": 8,
         "category": "Governance", "regime": "SEBI", "applies_to": "Top 1,000 listed companies",
         "penalty": "₹2,000/day per exchange (SOP).",
         "keywords": ["brsr", "business responsibility", "sustainability", "esg"],
@@ -186,8 +187,8 @@ SEBI_MANDATES = [
     {
         "id": "LODR-BRSR-CORE", "name": "BRSR Core — Reasonable Assurance",
         "regulation": "SEBI LODR (BRSR Core)", "form": "Assured BRSR Core KPIs",
-        "description": "Reasonable assurance of 9 BRSR Core attributes (incl. GHG emissions intensity, water, energy, waste) — top 250 listed cos, expanding by market cap. Value-chain disclosure phased in.",
-        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "description": "Reasonable assurance of 9 BRSR Core attributes (incl. GHG emissions intensity, water, energy, waste) — top 250 listed cos, expanding by market cap. Value-chain disclosure phased in. Due with the annual report.",
+        "frequency": "annual", "due_month": 9, "due_day": 8,
         "category": "Governance", "regime": "SEBI", "applies_to": "Top 250 listed (phased)",
         "penalty": "₹2,000/day per exchange (SOP).",
         "keywords": ["brsr core", "assurance", "ghg", "esg", "value chain"],
@@ -229,14 +230,14 @@ SEBI_MANDATES = [
 
     # ════════ SEBI · SAST (takeover) ════════
     {
-        "id": "SAST-REG30", "name": "SAST Reg 30(1) — Annual Shareholding Disclosure",
-        "regulation": "SEBI SAST Reg 30", "form": "Disclosure to company + exchanges",
-        "description": "Promoters/PACs holding ≥25% disclose aggregate shareholding & voting rights as on 31 March, within 7 working days of year end.",
-        "frequency": "annual", "due_month": 4, "due_day": 7,
+        "id": "SAST-REG31-4", "name": "SAST Reg 31(4) — Annual No-Encumbrance Declaration",
+        "regulation": "SEBI SAST Reg 31(4)", "form": "Declaration to exchanges + audit committee",
+        "description": "Promoters (with persons acting in concert) declare, within 7 working days of year end, that they made no encumbrance other than those already disclosed. (The Reg 30(1)/(2) annual shareholding disclosures were omitted from 1 April 2022.)",
+        "frequency": "annual", "due_month": 4, "due_day": 9,
         "category": "Disclosure", "regime": "SEBI", "applies_to": "Listed companies",
         "penalty": "Up to ₹1 lakh/day, max ₹1 crore (s.15A).",
-        "keywords": ["sast", "takeover", "regulation 30", "shareholding disclosure"],
-        "sebi_source_key": "sast", "section_ref": "Chapter V, Regulation 30",
+        "keywords": ["sast", "encumbrance", "regulation 31"],
+        "sebi_source_key": "sast", "section_ref": "Chapter V, Regulation 31(4)",
     },
 
     # ════════ MCA · Companies Act 2013 — ROC e-forms ════════
@@ -283,8 +284,8 @@ SEBI_MANDATES = [
     {
         "id": "MCA-DIR3KYC", "name": "DIR-3 KYC — Director KYC",
         "regulation": "Companies Act / Rule 12A", "form": "DIR-3 KYC / KYC-Web",
-        "description": "Every DIN holder files annual KYC by 30 September. DIN is deactivated on default (₹5,000 reactivation fee).",
-        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "description": "From 31 March 2026 every DIN holder files DIR-3 KYC Web once every three financial years, by 30 June after the third year (anchored to the DIN's allotment year); contact changes within 30 days. DIN is deactivated on default (₹5,000 to reactivate). Tracked per director in the Workspace.",
+        "frequency": "ongoing",
         "category": "Compliance", "regime": "MCA", "applies_to": "All DIN holders",
         "penalty": "₹5,000 per DIN to reactivate.",
         "keywords": ["dir-3 kyc", "director kyc", "din"],
@@ -323,8 +324,8 @@ SEBI_MANDATES = [
     {
         "id": "MCA-CSR2", "name": "CSR-2 — CSR Report",
         "regulation": "Companies Act s.135", "form": "CSR-2",
-        "description": "Annual report on CSR spending, filed with the ROC by 31 December (separate from AOC-4).",
-        "frequency": "annual", "due_month": 12, "due_day": 31,
+        "description": "Annual report on CSR spending, filed with the ROC as a linked form with AOC-4, within 30 days of the AGM (30 October for an AGM on 30 September).",
+        "frequency": "annual", "due_month": 10, "due_day": 30,
         "category": "Governance", "regime": "MCA", "applies_to": "CSR-applicable companies",
         "penalty": "2× unspent (max ₹1 cr) on company; officer up to ₹2 lakh (s.135(7)).",
         "keywords": ["csr-2", "corporate social responsibility", "section 135"],
@@ -333,8 +334,8 @@ SEBI_MANDATES = [
     {
         "id": "MCA-BOARD", "name": "Board Meetings (min. 4/year)",
         "regulation": "Companies Act s.173", "form": "Board meeting + minutes (SS-1)",
-        "description": "Hold at least 4 board meetings a year with a gap of ≤120 days between two meetings; minutes per Secretarial Standard SS-1.",
-        "frequency": "quarterly", "due_days_after_quarter": 30,
+        "description": "Hold at least 4 board meetings a year with a gap of ≤120 days between two meetings; minutes per Secretarial Standard SS-1. Tracked as one meeting by each quarter end.",
+        "frequency": "quarterly", "due_days_after_quarter": 0,
         "category": "Governance", "regime": "MCA", "applies_to": "All companies",
         "penalty": "₹25,000 per officer in default.",
         "keywords": ["board meeting", "section 173", "ss-1", "minutes"],
@@ -413,8 +414,8 @@ SEBI_MANDATES = [
     {
         "id": "MCA-CRA4", "name": "CRA-2 / CRA-4 — Cost Audit",
         "regulation": "Companies Act s.148", "form": "CRA-2 (appt.) / CRA-4 (report)",
-        "description": "For specified industries above thresholds: appoint cost auditor (CRA-2) and file the cost audit report (CRA-4) within 30 days of receipt.",
-        "frequency": "annual", "due_month": 9, "due_day": 30,
+        "description": "For specified industries above thresholds: appoint cost auditor (CRA-2) and file the cost audit report (CRA-4) within 30 days of receipt. The report is due within 180 days of year end, so CRA-4 by 27 October at the latest.",
+        "frequency": "annual", "due_month": 10, "due_day": 27,
         "category": "Financial", "regime": "MCA", "applies_to": "Cost-audit-applicable companies",
         "penalty": "Up to ₹5 lakh (company) / ₹1 lakh (officer).",
         "keywords": ["cra-4", "cost audit", "section 148"],
@@ -478,7 +479,7 @@ SEBI_MANDATES = [
         "id": "TAX-TDS", "name": "TDS Returns (24Q / 26Q / 27Q)",
         "regulation": "Income-tax Act s.200", "form": "24Q / 26Q / 27Q",
         "description": "Quarterly TDS returns by the last day of the month following the quarter (Q4 by 31 May).",
-        "frequency": "quarterly", "due_days_after_quarter": 31,
+        "frequency": "quarterly", "due_days_after_quarter": 31, "due_days_q4": 61,
         "category": "Financial", "regime": "Tax & Labour", "applies_to": "All deductors",
         "penalty": "₹200/day (s.234E) + penalty u/s 271H.",
         "keywords": ["tds", "24q", "26q", "tds return"],
@@ -847,6 +848,49 @@ def init_compliance_db():
     if "filing_url" not in existing_cols:
         c.execute("ALTER TABLE compliance_obligations ADD COLUMN filing_url TEXT DEFAULT ''")
 
+    # The old keyword match linked obligations to unrelated announcements and
+    # took their dates. Re-derive every closed row from what counts as proof
+    # now: an authoritative feed, or an announcement in the mandate's own
+    # category. Anything else goes back to be checked again.
+    c.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    if not c.execute("SELECT 1 FROM settings WHERE key = 'migr_tracker_keyword_links_undone'").fetchone():
+        rows = c.execute("""SELECT o.id, o.mandate_id, o.status, o.due_date, o.evidence_json, o.filing_id, o.filed_date,
+                                   f.title FROM compliance_obligations o LEFT JOIN filings f ON f.id = o.filing_id""").fetchall()
+        for oid, mandate_id, status, due, ev_json, filing_id, filed, title in rows:
+            linked_ok = bool(filing_id) and (title or "").strip().lower() in ANNOUNCEMENT_CATEGORIES.get(mandate_id, ())
+            if status not in ("submitted", "delayed"):
+                if filing_id and not linked_ok:
+                    c.execute("UPDATE compliance_obligations SET filing_id = NULL WHERE id = ?", (oid,))
+                continue
+            try:
+                evidence = json.loads(ev_json) if (ev_json or "").strip() else []
+            except ValueError:
+                evidence = []
+            auth = sorted(e["match"]["filed_date"] for e in evidence
+                          if e.get("source") in AUTHORITATIVE_SOURCES and e.get("match") and e["match"].get("filed_date"))
+            if auth:
+                delay = max(0, (date.fromisoformat(auth[0]) - date.fromisoformat(due)).days) if due else 0
+                c.execute("""UPDATE compliance_obligations SET status = ?, filed_date = ?, delay_days = ?,
+                             filing_id = ? WHERE id = ?""",
+                          ("delayed" if delay else "submitted", auth[0], delay, filing_id if linked_ok else None, oid))
+            elif linked_ok or any(e.get("source") in AUTHORITATIVE_SOURCES and e.get("match") for e in evidence):
+                continue
+            else:
+                c.execute("""UPDATE compliance_obligations SET status = ?, filing_id = NULL, filed_date = NULL,
+                             delay_days = 0, confidence = 'low' WHERE id = ?""",
+                          ("unverified" if evidence else "pending", oid))
+        c.execute("INSERT INTO settings (key, value) VALUES ('migr_tracker_keyword_links_undone', ?)",
+                  (datetime.now().isoformat(),))
+
+    _redate_all(c)
+
+    # SAST Reg 30(1)/(2) annual disclosures were omitted from 1 April 2022.
+    c.execute("DELETE FROM compliance_obligations WHERE mandate_id = 'SAST-REG30'")
+
+    # DIR-3 KYC moved to a per-director 3-year cycle (31 March 2026) and is
+    # tracked in the Workspace; the old annual 30-Sep rows would sit overdue.
+    c.execute("DELETE FROM compliance_obligations WHERE mandate_id = 'MCA-DIR3KYC'")
+
     conn.commit()
     conn.close()
 
@@ -875,6 +919,52 @@ def get_current_quarter():
         return 2, date(today.year, 9, 30), today.year
     else:
         return 3, date(today.year, 12, 31), today.year
+
+
+def _due_for_period(mandate, period):
+    """The due date the current catalog gives this mandate's period, or None
+    where the period label does not say enough (event and calendar items)."""
+    freq = mandate.get("frequency")
+    m = re.match(r"Q([1-4]) FY(\d{4})-\d{2}$", period or "")
+    if freq == "quarterly" and m:
+        q, fy = int(m.group(1)), int(m.group(2))
+        days = mandate.get("due_days_after_quarter", 30)
+        if q == 4:
+            days = mandate.get("due_days_q4") or mandate.get("due_days_annual") or days
+        return get_quarter_end_dates(fy)[q - 1] + timedelta(days=days)
+    m = re.match(r"H([12]) FY(\d{4})-\d{2}$", period or "")
+    if freq == "half_yearly" and m and not mandate.get("due_dates"):
+        h, fy = int(m.group(1)), int(m.group(2))
+        dh = mandate.get("due_days_after_half", 15)
+        if h == 2:
+            return date(fy + 1, 3, 31) + timedelta(days=mandate.get("due_days_after_half_h2", dh))
+        return date(fy, 9, 30) + timedelta(days=dh)
+    m = re.match(r"FY(\d{4})-\d{2}$", period or "")
+    if freq == "annual" and m and mandate.get("due_month", 9) > 3:
+        return date(int(m.group(1)) + 1, mandate.get("due_month", 9), mandate.get("due_day", 30))
+    return None
+
+
+def _redate_all(conn):
+    """Bring every row's due date in line with the catalog, and with it
+    whether a filed row counts as late. Rows outside the window that
+    generate_obligations_for_company revisits would otherwise keep a
+    deadline that was corrected (Reg 13(3) at 21 days, Reg 74(5) at 30)."""
+    by_id = {m["id"]: m for m in SEBI_MANDATES}
+    for oid, mandate_id, period, due in conn.execute(
+            "SELECT id, mandate_id, period, due_date FROM compliance_obligations").fetchall():
+        mandate = by_id.get(mandate_id)
+        new = _due_for_period(mandate, period) if mandate else None
+        if not new or new.isoformat() == due:
+            continue
+        d = new.isoformat()
+        conn.execute(
+            """UPDATE compliance_obligations SET due_date = ?,
+                   status = CASE WHEN status IN ('submitted', 'delayed') AND COALESCE(filed_date, '') != ''
+                                 THEN CASE WHEN filed_date > ? THEN 'delayed' ELSE 'submitted' END ELSE status END,
+                   delay_days = CASE WHEN status IN ('submitted', 'delayed') AND COALESCE(filed_date, '') != ''
+                                     THEN MAX(0, CAST(julianday(filed_date) - julianday(?) AS INTEGER)) ELSE delay_days END
+               WHERE id = ?""", (d, d, d, oid))
 
 
 def get_period_label(quarter_num, fy_year):
@@ -920,7 +1010,10 @@ def generate_obligations_for_company(symbol):
         if freq == "quarterly":
             days_after = mandate.get("due_days_after_quarter", 30)
             for q, fy, q_end_dt, period in quarters_to_check:
-                due = q_end_dt + timedelta(days=days_after)
+                # Year-end quarters can run longer: audited results get 60
+                # days (Reg 33), the Q4 TDS return is due 31 May.
+                q_days = (mandate.get("due_days_q4") or mandate.get("due_days_annual") or days_after) if q == 4 else days_after
+                due = q_end_dt + timedelta(days=q_days)
                 _upsert_obligation(conn, symbol, mandate["id"], period, due.isoformat(), now_iso)
 
         elif freq == "half_yearly":
@@ -937,10 +1030,11 @@ def generate_obligations_for_company(symbol):
                         due_list.append((date(today.year, mo, dy), f"{_cal.month_abbr[mo]} {today.year}"))
             else:
                 dh = mandate.get("due_days_after_half", 15)
+                dh2 = mandate.get("due_days_after_half_h2", dh)   # Oct–Mar can run longer (audited results)
                 for he, lbl in ((date(today.year - 1, 9, 30), f"H1 FY{today.year-1}-{str(today.year)[-2:]}"),
                                 (date(today.year, 3, 31), f"H2 FY{today.year-1}-{str(today.year)[-2:]}"),
                                 (date(today.year, 9, 30), f"H1 FY{today.year}-{str(today.year+1)[-2:]}")):
-                    due_list.append((he + timedelta(days=dh), lbl))
+                    due_list.append((he + timedelta(days=dh2 if lbl.startswith("H2") else dh), lbl))
             for due, period in due_list:
                 _upsert_obligation(conn, symbol, mandate["id"], period, due.isoformat(), now_iso)
 
@@ -970,18 +1064,41 @@ def _upsert_obligation(conn, symbol, mandate_id, period, due_date, now_iso):
                VALUES (?, ?, ?, ?, 'pending', ?, ?)""",
             (symbol, mandate_id, period, due_date, now_iso, now_iso),
         )
-        # If the mandate's due-days rule changed, correct existing rows.
+        # If the mandate's due-days rule changed, correct existing rows, and
+        # whether a filed row was late, which was measured against the old date.
         conn.execute(
             """UPDATE compliance_obligations
-               SET due_date = ?, updated_at = ?
+               SET due_date = ?, updated_at = ?,
+                   status = CASE WHEN status IN ('submitted', 'delayed') AND COALESCE(filed_date, '') != ''
+                                 THEN CASE WHEN filed_date > ? THEN 'delayed' ELSE 'submitted' END ELSE status END,
+                   delay_days = CASE WHEN status IN ('submitted', 'delayed') AND COALESCE(filed_date, '') != ''
+                                     THEN MAX(0, CAST(julianday(filed_date) - julianday(?) AS INTEGER)) ELSE delay_days END
                WHERE symbol = ? AND mandate_id = ? AND period = ? AND due_date != ?""",
-            (due_date, now_iso, symbol, mandate_id, period, due_date),
+            (due_date, now_iso, due_date, due_date, symbol, mandate_id, period, due_date),
         )
     except sqlite3.IntegrityError:
         pass
 
 
 # ── Filing Linkage ──
+
+# Mandate -> the NSE announcement categories that are that filing and nothing
+# else. An announcement's title is its category ("Financial Result Updates"),
+# so this is an exact match, not a keyword search: keywords closed Reg 33 on
+# "General Updates" and Reg 31 on "Sale or disposal". Mandates filed through
+# their own channel (shareholding pattern, governance report, grievances,
+# annual report) are not here: no announcement stands for them, and the
+# authoritative feeds in compliance_verification check them instead.
+AUTHORITATIVE_SOURCES = ("nse_integrated_filing", "nse_cg_master", "nse_shp_master")
+ANNOUNCEMENT_CATEGORIES = {
+    "LODR-REG33": ("financial result updates", "financial results updates", "integrated filing- financial"),
+    "LODR-REG74": ("certificate under sebi (depositories and participants) regulations, 2018",),
+    "LODR-REG23-RPT": ("related party transactions", "related party transaction"),
+    "LODR-REG24A": ("annual secretarial compliance report",),
+    "LODR-BRSR": ("business responsibility & sustainability report (brsr)",),
+    "PIT-TRADING-WINDOW": ("trading window", "closure of trading window"),
+}
+
 
 def link_filings_to_obligations(symbol):
     """Scan existing filings and link them to matching obligations."""
@@ -994,6 +1111,7 @@ def link_filings_to_obligations(symbol):
         "SELECT * FROM compliance_obligations WHERE symbol = ?", (symbol,)
     ).fetchall()
 
+    linked = set()   # matched to an announcement in this pass; not re-checked below
     for ob in obligations:
         mandate = get_mandate_by_id(ob["mandate_id"])
         if not mandate:
@@ -1007,7 +1125,9 @@ def link_filings_to_obligations(symbol):
         if ob["status"] in ("submitted", "delayed"):
             continue
 
-        keywords = mandate.get("keywords", [])
+        categories = ANNOUNCEMENT_CATEGORIES.get(ob["mandate_id"])
+        if not categories:
+            continue
         due_date = ob["due_date"]
 
         try:
@@ -1020,19 +1140,17 @@ def link_filings_to_obligations(symbol):
         search_end = (due_dt + timedelta(days=30)).isoformat()
 
         best_match = None
-        best_score = 0
-
         for f in filings:
             sd = f.get("sort_date", f.get("date", ""))[:10]
             if not sd or sd < search_start or sd > search_end:
                 continue
-            title_lower = (f.get("title", "") + " " + f.get("description", "")).lower()
-            score = sum(1 for kw in keywords if kw in title_lower)
-            if score > best_score:
-                best_score = score
+            if (f.get("title") or "").strip().lower() not in categories:
+                continue
+            if best_match is None or sd < best_match.get("sort_date", best_match.get("date", ""))[:10]:
                 best_match = f
 
-        if best_match and best_score >= 1:
+        if best_match:
+            linked.add(ob["id"])
             filed_date = best_match.get("sort_date", best_match.get("date", ""))[:10]
             try:
                 filed_dt = datetime.strptime(filed_date, "%Y-%m-%d").date()
@@ -1060,7 +1178,7 @@ def link_filings_to_obligations(symbol):
     # when multiple independent sources confirm the filing does not exist.
     # Otherwise it is "submitted" / "delayed" (if found anywhere) or "unverified".
     for ob in obligations:
-        if ob["filing_id"]:
+        if ob["filing_id"] or ob["id"] in linked:
             continue
         if ob["status"] not in ("pending", "missed", "unverified"):
             continue
@@ -1084,9 +1202,10 @@ def link_filings_to_obligations(symbol):
         mandate = get_mandate_by_id(ob["mandate_id"])
         if not mandate:
             continue
-        if mandate.get("frequency") == "quarterly":
-            days_after = mandate.get("due_days_after_quarter", 30)
-            q_end = due_dt - timedelta(days=days_after)
+        pm = re.match(r"Q([1-4]) FY(\d{4})", ob["period"] or "")
+        if mandate.get("frequency") == "quarterly" and pm:
+            # From the period, not the due date: Q4 items have longer deadlines.
+            q_end = get_quarter_end_dates(int(pm.group(2)))[int(pm.group(1)) - 1]
         else:
             q_end = due_dt
 

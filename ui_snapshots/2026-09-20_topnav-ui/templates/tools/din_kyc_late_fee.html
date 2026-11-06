@@ -1,0 +1,88 @@
+{% extends 'public_base.html' %}
+{% block title %}DIN KYC Late Fee Calculator · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">Financial year (DIN held as on 31-Mar of)</label>
+                <select id="fy" class="input">
+                    <option value="2026">FY 2025-26 (due 30-Sep-2026)</option>
+                    <option value="2025">FY 2024-25 (due 30-Sep-2025)</option>
+                    <option value="2024">FY 2023-24 (due 30-Sep-2024)</option>
+                </select>
+            </div>
+            <div>
+                <label class="label">Date of (planned) filing</label>
+                <input id="filing-date" type="date" class="input">
+            </div>
+        </div>
+
+        <div class="result mt-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Penalty</div>
+                    <div class="mt-1 text-3xl font-extrabold text-slate-900" id="penalty">₹0</div>
+                </div>
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">DIN status</div>
+                    <div class="mt-1 text-lg font-bold" id="status-text">—</div>
+                    <div class="mt-1 text-xs text-slate-600" id="status-detail"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Every individual holding a DIN as on 31-March of a financial year must file DIR-3 KYC by 30-September of the immediately following financial year. Filing after the due date carries a flat ₹5,000 penalty, and the DIN is deactivated until reactivation through the same form. As per Rule 12A of the Companies (Appointment and Qualification of Directors) Rules, 2014.
+    </div>
+</section>
+
+<script>
+// Default the filing date to today
+document.getElementById('filing-date').valueAsDate = new Date();
+
+function compute() {
+    const fy = parseInt(document.getElementById('fy').value);
+    const filingDate = new Date(document.getElementById('filing-date').value);
+    const dueDate = new Date(fy, 8, 30); // 30 September
+
+    const penaltyEl = document.getElementById('penalty');
+    const statusEl  = document.getElementById('status-text');
+    const detailEl  = document.getElementById('status-detail');
+
+    if (isNaN(filingDate.getTime())) {
+        penaltyEl.textContent = '—';
+        statusEl.textContent = 'Pick a filing date';
+        detailEl.textContent = '';
+        return;
+    }
+
+    if (filingDate <= dueDate) {
+        penaltyEl.textContent = '₹0';
+        statusEl.textContent = 'Active';
+        statusEl.style.color = '#059669';
+        const daysLeft = Math.ceil((dueDate - filingDate) / (1000 * 60 * 60 * 24));
+        detailEl.textContent = `Filing within the due window. ${daysLeft} days remaining until ${dueDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}.`;
+    } else {
+        penaltyEl.textContent = '₹5,000';
+        statusEl.textContent = 'Deactivated';
+        statusEl.style.color = '#dc2626';
+        const daysLate = Math.ceil((filingDate - dueDate) / (1000 * 60 * 60 * 24));
+        detailEl.textContent = `Filing ${daysLate} days after the due date. DIN is deactivated and reactivates only on payment of ₹5,000 along with DIR-3 KYC submission.`;
+    }
+}
+document.getElementById('fy').addEventListener('change', compute);
+document.getElementById('filing-date').addEventListener('change', compute);
+compute();
+</script>
+{% endblock %}

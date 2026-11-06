@@ -1,0 +1,95 @@
+{% extends 'public_base.html' %}
+{% block title %}GST Calculator · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">Amount (₹)</label>
+                <input id="amount" type="number" min="0" step="100" value="10000" class="input">
+            </div>
+            <div>
+                <label class="label">GST rate</label>
+                <select id="rate" class="input">
+                    {% for r in rates %}<option value="{{ r }}"{% if r == 0.18 %} selected{% endif %}>{{ (r*100)|round(0,'common')|int }}%</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label">Direction</label>
+                <select id="mode" class="input">
+                    <option value="add">Add GST (amount is exclusive of GST)</option>
+                    <option value="remove">Remove GST (amount is inclusive of GST)</option>
+                </select>
+            </div>
+            <div>
+                <label class="label">Transaction type</label>
+                <select id="type" class="input">
+                    <option value="intra">Intra-state (CGST + SGST)</option>
+                    <option value="inter">Inter-state (IGST)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="result mt-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Base amount</div>
+                    <div class="mt-1 text-2xl font-extrabold text-slate-900" id="base">₹0</div>
+                </div>
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Total GST</div>
+                    <div class="mt-1 text-2xl font-extrabold text-slate-900" id="gst">₹0</div>
+                    <div class="mt-1 text-xs text-slate-600" id="split"></div>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t" style="border-color:rgba(99,102,241,0.18);">
+                <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Total (incl. GST)</div>
+                <div class="mt-1 text-3xl font-extrabold text-slate-900" id="total">₹0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> For intra-state supplies GST splits equally into CGST and SGST; for inter-state supplies the full rate is charged as IGST. Standard slabs are 0%, 5%, 12%, 18% and 28%. Some goods attract a compensation cess in addition — not modelled here. Verify HSN/SAC-specific rates with your tax advisor.
+    </div>
+</section>
+
+<script>
+function fmt(n) { return '₹' + (Math.round(n * 100) / 100).toLocaleString('en-IN', {maximumFractionDigits: 2}); }
+
+function compute() {
+    const amount = Math.max(0, parseFloat(document.getElementById('amount').value || 0));
+    const rate = parseFloat(document.getElementById('rate').value);
+    const mode = document.getElementById('mode').value;
+    const type = document.getElementById('type').value;
+
+    let base, gst;
+    if (mode === 'add') {
+        base = amount;
+        gst = amount * rate;
+    } else {
+        base = rate > 0 ? amount / (1 + rate) : amount;
+        gst = amount - base;
+    }
+    const total = base + gst;
+
+    document.getElementById('base').textContent = fmt(base);
+    document.getElementById('gst').textContent = fmt(gst);
+    document.getElementById('total').textContent = fmt(total);
+    document.getElementById('split').textContent = (type === 'intra')
+        ? `CGST ${fmt(gst/2)} · SGST ${fmt(gst/2)}`
+        : `IGST ${fmt(gst)}`;
+}
+['amount','rate','mode','type'].forEach(id => document.getElementById(id).addEventListener('input', compute));
+compute();
+</script>
+{% endblock %}

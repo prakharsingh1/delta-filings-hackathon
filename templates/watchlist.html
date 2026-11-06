@@ -7,6 +7,7 @@
     <title>Watchlist - Delta Filings</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/app_ivory.css?v=2">
 </head>
 <body class="bg-slate-50 text-gray-900">
 
@@ -50,7 +51,7 @@
                 {% set sym = w.symbol if w is mapping else w %}
                 <div class="wl-card group">
                     <a href="/company/{{ sym }}" class="flex items-start gap-3 flex-1 min-w-0">
-                        <span class="wl-card-dot" style="background: {{ ['#3b82f6','#22c55e','#f59e0b','#ec4899','#8b5cf6'][loop.index0 % 5] }}"></span>
+                        <span class="wl-card-dot" style="background: {{ ['#b4961f','#22c55e','#f59e0b','#ec4899','#b4961f'][loop.index0 % 5] }}"></span>
                         <div class="min-w-0">
                             <div class="font-bold text-gray-900 truncate">{{ sym }}</div>
                             {% if w is mapping and w.name %}
@@ -83,20 +84,20 @@
     .wl-card {
         display: flex; align-items: flex-start; justify-content: space-between;
         gap: 12px; padding: 16px 18px;
-        background: #fff; border: 1px solid var(--border, #e5e7eb);
+        background: #fff; border: 1px solid var(--border, #e8e5dc);
         border-radius: 14px; transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
     }
-    .wl-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.07); transform: translateY(-2px); border-color: #c7d2fe; }
+    .wl-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.07); transform: translateY(-2px); border-color: #eadb97; }
     .wl-card-dot { width: 12px; height: 12px; border-radius: 9999px; flex-shrink: 0; margin-top: 4px; }
     .wl-card-remove {
-        flex-shrink: 0; color: #9ca3af; padding: 4px; border-radius: 8px;
+        flex-shrink: 0; color: #9b988c; padding: 4px; border-radius: 8px;
         transition: color .15s ease, background .15s ease;
     }
     .wl-card-remove:hover { color: #e11d48; background: #fef2f2; }
-    html.dark .wl-card { background: var(--surface, #141414); border-color: var(--border, #262626); }
-    html.dark .wl-card:hover { border-color: #4f46e5; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
-    html.dark #wl-add-input { background: var(--surface, #141414); border-color: var(--border, #333); color: var(--text, #f5f5f5); }
-    html.dark #wl-add-suggestions { background: var(--surface, #1c1c1c); border-color: var(--border, #333); }
+    html.dark .wl-card { background: var(--surface, #111111); border-color: var(--border, #262626); }
+    html.dark .wl-card:hover { border-color: #9b801c; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+    html.dark #wl-add-input { background: var(--surface, #111111); border-color: var(--border, #333); color: var(--text, #f5f5f5); }
+    html.dark #wl-add-suggestions { background: var(--surface, #191919); border-color: var(--border, #333); }
 </style>
 
 <script>

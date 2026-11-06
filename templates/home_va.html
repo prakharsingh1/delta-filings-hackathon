@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+    {% include 'analytics.html' %}
+    <script>
+      // Public pages are light-mode only. analytics.html may have added the
+      // dark class from a saved or system preference; take it off again.
+      document.documentElement.classList.remove('dark');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>Delta Filings: corporate compliance for Indian companies</title>
+    <meta name="description" content="A dated calendar of what an Indian company owes under the Companies Act, SEBI regulations, income tax, GST, labour law and FEMA, with the late fee on every line. Plus SEBI and RBI news, board papers, exchange letters, the insider-trading database and counterparty risk.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper: #F6F5F1;
+            --card: #FFFFFF;
+            --card-soft: #FAFAF7;
+            --ink: #17171C;
+            --ink-2: #3F4049;
+            --ink-3: #62636D;
+            --rule: #DCD9D0;
+            --rule-soft: #EAE7E0;
+            --chip: #F0EFEA;
+            --accent: #4F46E5;
+            --accent-ink: #4338CA;
+            --accent-wash: #EEEDFB;
+            --navy: #2D2A7C;
+            --late: #B42318;
+            --late-wash: #FBEDEA;
+            --soon: #8A5300;
+            --soon-wash: #FBF1DE;
+            --ok: #1E6B45;
+            --ok-wash: #E7F3EC;
+            --serif: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+            --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--sans);
+            font-size: 16px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+        @media (min-width: 768px) { body { font-size: 17px; } }
+        img, svg { display: block; max-width: 100%; }
+        a { color: var(--accent-ink); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+        a:hover { color: var(--ink); }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+        p { margin: 0; }
+        .num { font-variant-numeric: tabular-nums lining-nums; }
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+        }
+        .skip {
+            position: absolute; left: 16px; top: -48px; z-index: 50;
+            background: var(--ink); color: #fff; padding: 10px 14px; border-radius: 6px;
+            font-size: 14px; text-decoration: none;
+        }
+        .skip:focus { top: 12px; color: #fff; }
+
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+        @media (min-width: 640px) { .wrap { padding: 0 32px; } }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            font: 500 15px/1.2 var(--sans); letter-spacing: 0.005em;
+            padding: 14px 22px; border-radius: 6px; text-decoration: none;
+            border: 1px solid transparent; transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+            white-space: nowrap;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-ink); color: #fff; }
+        .btn-quiet { color: var(--ink); border-color: var(--rule); background: transparent; }
+        .btn-quiet:hover { border-color: var(--ink); color: var(--ink); }
+        .btn-sm { padding: 9px 14px; font-size: 14px; }
+        .btn svg { width: 16px; height: 16px; }
+
+        /* ── Header ── */
+        .site-head { position: sticky; top: 0; z-index: 20; background: var(--paper); border-bottom: 1px solid var(--rule); }
+        .head-in { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px; }
+        .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+        .brand:hover { color: var(--ink); }
+        .brand svg { width: 22px; height: 26px; color: var(--navy); flex-shrink: 0; }
+        .nav { display: none; }
+        .nav a { color: var(--ink-2); text-decoration: none; font-size: 14.5px; }
+        .nav a:hover { color: var(--ink); text-decoration: underline; }
+        @media (min-width: 960px) { .nav { display: flex; gap: 28px; } }
+        .head-actions { display: flex; align-items: center; gap: 16px; }
+        .head-actions .signin { color: var(--ink-2); text-decoration: none; font-size: 14.5px; }
+        .head-actions .signin:hover { color: var(--ink); text-decoration: underline; }
+
+        /* ── Type ── */
+        .kicker {
+            display: flex; align-items: center; gap: 12px;
+            font: 600 12px/1.3 var(--sans); letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--ink-3); margin: 0 0 20px;
+        }
+        .kicker::before { content: ""; width: 28px; height: 1px; background: currentColor; flex-shrink: 0; }
+        h1, h2, h3 { font-family: var(--serif); font-weight: 400; margin: 0; color: var(--ink); font-optical-sizing: auto; }
+        h1 {
+            font-size: clamp(2.5rem, 1.2rem + 5.6vw, 5rem);
+            line-height: 1.02; letter-spacing: -0.022em;
+            text-wrap: balance;
+        }
+        h1 em { display: block; font-style: italic; color: var(--ink-2); }
+        h2 {
+            font-size: clamp(2rem, 1.35rem + 2.4vw, 3.3rem);
+            line-height: 1.06; letter-spacing: -0.018em; text-wrap: balance;
+        }
+        h3 { text-wrap: balance; }
+        .dek { font-size: 18px; line-height: 1.6; color: var(--ink-2); max-width: 36em; }
+        @media (min-width: 768px) { .dek { font-size: 19px; } }
+
+        /* ── Hero ── */
+        .hero { padding: 48px 0 72px; }
+        @media (min-width: 768px) { .hero { padding: 88px 0 96px; } }
+        .hero-grid { display: grid; gap: 32px; margin-top: 32px; }
+        @media (min-width: 1024px) {
+            .hero-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: 72px; align-items: end; margin-top: 40px; }
+        }
+        .hero-cta { display: flex; flex-direction: column; gap: 18px; }
+        .cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+        .fine { font-size: 14px; line-height: 1.55; color: var(--ink-3); }
+        .fine a { color: var(--ink-2); }
+
+        /* ── Ledger (hero calendar) ── */
+        .ledger {
+            margin: 56px 0 0; background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+            box-shadow: 0 1px 2px rgba(23,23,28,.04), 0 24px 48px -36px rgba(23,23,28,.35);
+            overflow: hidden;
+        }
+        .ledger-top {
+            display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+            gap: 10px 24px; padding: 16px 20px; border-bottom: 1px solid var(--rule-soft);
+        }
+        .ledger-title { font-weight: 600; font-size: 15px; }
+        .ledger-sub { display: block; font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+        .ledger-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-3); margin: 0; padding: 0; list-style: none; }
+        .ledger-sum b { color: var(--ink); font-weight: 600; }
+        .ledger-sum .is-late b { color: var(--late); }
+        .ledger-head, .lrow {
+            display: grid; grid-template-columns: 64px minmax(0, 1fr); column-gap: 14px; row-gap: 3px;
+            padding: 14px 20px;
+        }
+        .ledger-head { display: none; }
+        .lrows { list-style: none; margin: 0; padding: 0; }
+        .lrow { border-top: 1px solid var(--rule-soft); font-size: 14.5px; line-height: 1.45; }
+        .lrows .lrow:first-child { border-top: 0; }
+        .lrow.is-late { box-shadow: inset 3px 0 0 var(--late); background: #FFFBFA; }
+        .c-due { grid-row: span 3; }
+        .c-due .d { display: block; font-weight: 600; }
+        .c-due .st { display: block; font-size: 12.5px; color: var(--ink-3); }
+        .is-late .c-due .st { color: var(--late); font-weight: 600; }
+        .c-ob .f { font-weight: 600; margin-right: 6px; }
+        .c-ob .w { color: var(--ink-2); }
+        .c-law { font-size: 13px; color: var(--ink-3); }
+        .c-fee { font-size: 13.5px; color: var(--ink-2); }
+        .c-fee .amt { font-weight: 600; color: var(--late); margin-right: 6px; }
+        .c-fee .basis { color: var(--ink-3); }
+        @media (min-width: 900px) {
+            .ledger-head, .lrow { grid-template-columns: 100px minmax(0, 1fr) 132px 210px; column-gap: 20px; align-items: baseline; }
+            .ledger-head {
+                display: grid; padding-top: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--rule-soft);
+                font-size: 11.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+                background: var(--card-soft);
+            }
+            .ledger-head span:last-child, .c-fee { text-align: right; }
+            .c-due { grid-row: auto; }
+            .c-law { font-size: 14px; }
+            .c-fee { font-size: 14px; }
+            .c-fee .amt { margin-right: 0; }
+            .c-fee .basis { display: block; font-size: 12.5px; }
+        }
+        .ledger-foot {
+            display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px;
+            padding: 12px 20px; border-top: 1px solid var(--rule-soft); background: var(--card-soft);
+            font-size: 13px; color: var(--ink-3);
+        }
+
+        /* ── Sections ── */
+        .sec { padding: 72px 0; border-top: 1px solid var(--rule); scroll-margin-top: 64px; }
+        @media (min-width: 768px) { .sec { padding: 104px 0; } }
+        .sec-head { display: grid; gap: 20px; margin-bottom: 48px; }
+        @media (min-width: 1024px) {
+            .sec-head { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 72px; align-items: end; margin-bottom: 64px; }
+        }
+
+        /* Contents list for the day */
+        .toc { list-style: none; margin: 0 0 8px; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; border-top: 1px solid var(--ink); }
+        @media (min-width: 900px) { .toc { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0 24px; } }
+        .toc a { display: block; padding: 12px 0 14px; border-bottom: 1px solid var(--rule); text-decoration: none; color: var(--ink); font-size: 14.5px; line-height: 1.35; }
+        .toc a:hover { color: var(--accent-ink); }
+        .toc .t { display: block; font-size: 12.5px; color: var(--ink-3); margin-bottom: 2px; }
+        .toc li:last-child { grid-column: span 2; }
+        @media (min-width: 900px) { .toc li:last-child { grid-column: auto; } }
+
+        /* ── Chapters ── */
+        .chapter { display: grid; gap: 20px 48px; padding: 48px 0; border-top: 1px solid var(--rule); scroll-margin-top: 64px; }
+        .chapter:first-of-type { border-top: 0; }
+        @media (min-width: 768px) {
+            .chapter { grid-template-columns: 96px minmax(0, 1fr); padding: 64px 0; }
+            .chapter .frag-col { grid-column: 2; }
+        }
+        @media (min-width: 1100px) {
+            .chapter { grid-template-columns: 104px minmax(0, 5fr) minmax(0, 6fr); gap: 56px; }
+            .chapter .frag-col { grid-column: 3; }
+        }
+        .ch-meta { display: flex; align-items: baseline; gap: 14px; }
+        @media (min-width: 768px) { .ch-meta { flex-direction: column; gap: 6px; } }
+        .ch-time { font-family: var(--serif); font-size: 30px; line-height: 1; letter-spacing: -0.01em; color: var(--ink); }
+        .ch-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-ink); line-height: 1.4; }
+        .ch-body h3 { font-size: clamp(1.55rem, 1.2rem + 1.1vw, 2.1rem); line-height: 1.14; letter-spacing: -0.012em; margin-bottom: 20px; }
+        .ch-body p { color: var(--ink-2); margin-bottom: 14px; max-width: 34em; }
+        .ch-body p.fine { color: var(--ink-3); font-size: 14.5px; }
+
+        /* ── Product fragments ── */
+        .frag {
+            background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+            font-size: 14px; line-height: 1.45; color: var(--ink);
+            box-shadow: 0 1px 2px rgba(23,23,28,.04), 0 20px 44px -34px rgba(23,23,28,.4);
+            overflow: hidden; overflow-wrap: anywhere; margin: 0;
+        }
+        .frag + .frag { margin-top: 16px; }
+        @media (min-width: 1100px) { .frag.offset { margin-left: 40px; } }
+        .frag-bar {
+            display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;
+            padding: 12px 16px; border-bottom: 1px solid var(--rule-soft); font-size: 13px; color: var(--ink-3);
+        }
+        .frag-bar strong { color: var(--ink); font-weight: 600; font-size: 13.5px; }
+        .frag-bar .sample { font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; }
+        .frag-pad { padding: 16px; }
+        .frag-note { padding: 10px 16px; border-top: 1px solid var(--rule-soft); background: var(--card-soft); font-size: 12.5px; color: var(--ink-3); }
+        .tag {
+            display: inline-block; font-size: 11.5px; line-height: 1.2; font-weight: 500;
+            padding: 3px 7px; border-radius: 4px; background: var(--chip); color: #4A4B55; white-space: nowrap;
+        }
+        .tag.accent { background: var(--accent-wash); color: var(--accent-ink); }
+        .tag.late { background: var(--late-wash); color: var(--late); }
+        .tag.soon { background: var(--soon-wash); color: var(--soon); }
+        .tag.ok { background: var(--ok-wash); color: var(--ok); }
+        .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+        /* 01 news */
+        .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--rule-soft); }
+        .chip { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-2); white-space: nowrap; }
+        .chip.on { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-wash); }
+        .news { list-style: none; margin: 0; padding: 0; }
+        .news li { padding: 13px 16px; border-top: 1px solid var(--rule-soft); }
+        .news li:first-child { border-top: 0; }
+        .news .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; color: var(--ink-3); margin-bottom: 3px; }
+        .news .meta .src { font-weight: 600; color: var(--ink); letter-spacing: 0.03em; }
+        .news .title { font-weight: 500; font-size: 14.5px; line-height: 1.4; }
+
+        /* 02 obligation */
+        .ob-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+        .ob-form { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+        .ob-name { color: var(--ink-3); margin-top: 2px; }
+        .facts { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px 14px; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px solid var(--rule-soft); }
+        .facts dt { font-size: 12.5px; color: var(--ink-3); padding-top: 1px; }
+        .facts dd { margin: 0; color: var(--ink-2); }
+        .ladder-k { margin-top: 18px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+        .ladder { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--rule-soft); border-radius: 8px; }
+        .ladder li { padding: 10px 10px 12px; border-left: 1px solid var(--rule-soft); }
+        .ladder li:first-child { border-left: 0; }
+        .ladder .n { display: block; font-size: 12px; color: var(--ink-3); }
+        .ladder .v { display: block; font-family: var(--serif); font-size: 21px; line-height: 1.2; margin-top: 2px; }
+        .ladder li.hot .v { color: var(--late); }
+        @media (max-width: 480px) {
+            .ladder li { padding: 8px 8px 10px; }
+            .ladder .v { font-size: 17px; }
+        }
+
+        /* 03 meeting + letter */
+        .checkline { display: flex; gap: 10px; align-items: flex-start; padding: 10px 16px; border-bottom: 1px solid var(--rule-soft); font-size: 13px; color: var(--ink-2); background: #F7FBF8; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-top: 5px; flex-shrink: 0; }
+        .agenda { margin: 0; padding: 12px 16px 12px 40px; }
+        .agenda li { padding: 4px 0; color: var(--ink-2); }
+        .agenda li::marker { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+        .agenda .tag { margin-left: 6px; vertical-align: 1px; }
+        .file { display: flex; align-items: center; gap: 12px; margin: 0 16px 14px; padding: 10px 12px; border: 1px solid var(--rule-soft); border-radius: 8px; background: var(--card-soft); }
+        .file svg { width: 20px; height: 24px; color: var(--ink-3); flex-shrink: 0; }
+        .file b { display: block; font-weight: 600; font-size: 13.5px; }
+        .file span { display: block; font-size: 12.5px; color: var(--ink-3); }
+        .fu-k { padding: 10px 16px; border-top: 1px solid var(--rule-soft); font-size: 12.5px; color: var(--ink-3); }
+        .fu { list-style: none; margin: 0; padding: 0 16px 12px; }
+        .fu li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; padding: 7px 0; border-top: 1px dashed var(--rule-soft); align-items: baseline; }
+        .fu li:first-child { border-top: 0; }
+        .fu .f { font-weight: 600; font-size: 13px; }
+        .fu .w { color: var(--ink-2); font-size: 13.5px; }
+        .fu .d { font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+        .letter { padding: 18px 18px 16px; font-family: var(--serif); font-size: 15.5px; line-height: 1.55; color: var(--ink-2); }
+        .letter p + p { margin-top: 10px; }
+        .letter .subj { color: var(--ink); font-weight: 500; }
+        .letter .blank { background: var(--soon-wash); color: var(--soon); padding: 0 4px; border-radius: 3px; font-family: var(--sans); font-size: 13px; }
+        .exports { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        /* 04 SDD */
+        .upsi { padding: 12px 16px; border-bottom: 1px solid var(--rule-soft); font-size: 13.5px; }
+        .upsi b { font-weight: 600; }
+        .upsi span { display: block; font-size: 12.5px; color: var(--ink-3); }
+        .sdd { list-style: none; margin: 0; padding: 0; }
+        .sdd li { padding: 12px 16px; border-top: 1px solid var(--rule-soft); display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 2px 12px; }
+        .sdd li:first-child { border-top: 0; }
+        .sdd .no { font-weight: 600; color: var(--ink-3); font-size: 13px; }
+        .sdd .who { color: var(--ink); }
+        .sdd .when { font-size: 12.5px; color: var(--ink-3); }
+        .sdd .hash { grid-column: 2; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: 4px; }
+        .sdd .hash i { font-style: normal; color: var(--ink-2); }
+        .verify { display: flex; gap: 10px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--rule-soft); background: var(--ok-wash); color: var(--ok); font-size: 13px; font-weight: 500; }
+        .verify svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .pair { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--rule-soft); }
+        .pair > div { padding: 12px 16px; }
+        .pair > div + div { border-left: 1px solid var(--rule-soft); }
+        .pair .k { display: block; font-size: 12px; color: var(--ink-3); }
+        .pair .v { display: block; font-weight: 600; font-size: 14px; margin-top: 2px; }
+        .pair .s { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+
+        /* 05 risk */
+        .cp-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: baseline; }
+        .cp-name { font-weight: 600; font-size: 16px; }
+        .cp-sub { font-size: 13px; color: var(--ink-3); }
+        .cp-exp { text-align: right; }
+        .cp-exp .k { display: block; font-size: 12px; color: var(--ink-3); }
+        .cp-exp .v { font-weight: 600; font-size: 15px; }
+        .score { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 16px; margin-top: 16px; }
+        .score .big { font-family: var(--serif); font-size: 56px; line-height: 0.9; letter-spacing: -0.02em; }
+        .score .of { font-size: 14px; color: var(--ink-3); margin-left: 2px; }
+        .score .chg { font-size: 13px; color: var(--ink-3); }
+        .scale { margin-top: 14px; }
+        .scale-bar { position: relative; display: grid; grid-template-columns: 15fr 20fr 25fr 40fr; gap: 2px; height: 8px; }
+        .scale-bar span { border-radius: 2px; }
+        .scale-bar span:nth-child(1) { background: #E4E2DB; }
+        .scale-bar span:nth-child(2) { background: #D2CEC3; }
+        .scale-bar span:nth-child(3) { background: #E7A79F; }
+        .scale-bar span:nth-child(4) { background: #C4483D; }
+        .scale-bar .mark { position: absolute; top: -4px; width: 2px; height: 16px; background: var(--ink); border-radius: 1px; }
+        .scale-legend { display: grid; grid-template-columns: 15fr 20fr 25fr 40fr; gap: 2px; margin-top: 6px; font-size: 11.5px; color: var(--ink-3); }
+        .reasons { list-style: none; margin: 16px 0 0; padding: 0; border-top: 1px solid var(--rule-soft); }
+        .reasons li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--rule-soft); }
+        .reasons .pts { font-weight: 600; color: var(--late); font-size: 14px; }
+        .reasons .t { font-weight: 500; }
+        .reasons .s { grid-column: 2; font-size: 12.5px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+        .decay { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+
+        /* ── Roles ── */
+        .roles { display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--ink); }
+        .role { padding: 28px 0 32px; border-bottom: 1px solid var(--rule); }
+        @media (min-width: 700px) {
+            .roles { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 40px; }
+        }
+        @media (min-width: 1100px) {
+            .roles { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 0; }
+            .role { padding: 28px 28px 8px; border-bottom: 0; border-left: 1px solid var(--rule); }
+            .role:first-child { padding-left: 0; border-left: 0; }
+            .role:last-child { padding-right: 0; }
+        }
+        .role .who { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+        .role h3 { font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 8px 0 10px; }
+        .role .blurb { color: var(--ink-2); }
+        .role .opens { margin-top: 14px; font-size: 14px; color: var(--ink-3); }
+        .role .opens b { color: var(--accent-ink); font-weight: 600; }
+        .role ul { list-style: none; margin: 16px 0 0; padding: 16px 0 0; border-top: 1px solid var(--rule-soft); }
+        .role li { position: relative; padding-left: 18px; font-size: 15px; line-height: 1.5; color: var(--ink-2); margin-top: 10px; }
+        .role li:first-child { margin-top: 0; }
+        .role li::before { content: ""; position: absolute; left: 0; top: 0.72em; width: 8px; height: 1px; background: var(--ink-3); }
+
+        /* ── Coverage ── */
+        .cov-grid { display: grid; gap: 48px; }
+        @media (min-width: 1024px) { .cov-grid { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 72px; } }
+        .stat { border-top: 1px solid var(--ink); padding-top: 20px; }
+        .stat .big { font-family: var(--serif); font-size: clamp(3rem, 2.2rem + 3vw, 4.6rem); line-height: 1; letter-spacing: -0.02em; }
+        .stat p { margin-top: 14px; color: var(--ink-2); max-width: 26em; }
+        .stat p.fine { color: var(--ink-3); }
+        table.cov { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.45; }
+        .cov caption { text-align: left; }
+        .cov th, .cov td { text-align: left; vertical-align: top; padding: 13px 12px 13px 0; border-bottom: 1px solid var(--rule); }
+        .cov thead th { font-size: 11.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); border-top: 1px solid var(--ink); padding-top: 12px; padding-bottom: 10px; }
+        .cov tbody th { font-weight: 600; color: var(--ink); width: 30%; }
+        .cov td.n { width: 52px; font-family: var(--serif); font-size: 21px; line-height: 1.1; color: var(--ink); }
+        .cov td.ex { color: var(--ink-2); padding-right: 0; }
+        .cov tfoot th, .cov tfoot td { border-bottom: 0; border-top: 1px solid var(--ink); }
+        .cov tfoot td.ex { font-size: 14px; color: var(--ink-3); }
+        @media (max-width: 520px) {
+            table.cov { font-size: 14px; }
+            .cov th, .cov td { padding-right: 8px; }
+            .cov tbody th { width: 31%; }
+            .cov td.n { width: 38px; font-size: 18px; }
+        }
+        .cov-notes { margin-top: 20px; display: grid; gap: 8px; }
+
+        /* ── Sources ── */
+        .src-grid { display: grid; gap: 48px; }
+        @media (min-width: 1024px) { .src-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 72px; } }
+        .src-k { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
+        .sources { margin: 0; }
+        .sources div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 16px 0; border-bottom: 1px solid var(--rule); }
+        @media (min-width: 560px) { .sources div { grid-template-columns: 128px minmax(0, 1fr); gap: 20px; } }
+        .sources dt { font-family: var(--serif); font-size: 21px; line-height: 1.25; }
+        .sources dd { margin: 0; color: var(--ink-2); }
+        .limits { list-style: none; margin: 0; padding: 0; }
+        .limits li { padding: 16px 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); }
+        .limits li b { color: var(--ink); font-weight: 600; }
+
+        /* ── Closing CTA ── */
+        .close { padding: 88px 0 96px; border-top: 1px solid var(--ink); }
+        @media (min-width: 768px) { .close { padding: 120px 0 128px; } }
+        .close-grid { display: grid; gap: 32px; }
+        @media (min-width: 1024px) { .close-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: 72px; align-items: end; } }
+        .close h2 { font-size: clamp(2.4rem, 1.4rem + 3.6vw, 4.4rem); line-height: 1.02; }
+        .close .dek { margin-top: 20px; }
+
+        /* ── Footer ── */
+        .site-foot { border-top: 1px solid var(--rule); padding: 32px 0 48px; font-size: 14px; color: var(--ink-3); }
+        .foot-in { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px 32px; }
+        .foot-brand { display: flex; align-items: center; gap: 10px; }
+        .foot-brand svg { width: 18px; height: 21px; color: var(--navy); }
+        .foot-brand b { color: var(--ink); font-weight: 600; }
+        .foot-links { display: flex; flex-wrap: wrap; gap: 8px 22px; list-style: none; margin: 0; padding: 0; }
+        .foot-links a { color: var(--ink-2); text-decoration: none; }
+        .foot-links a:hover { color: var(--ink); text-decoration: underline; }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after { transition-duration: 0.01ms !important; }
+        }
+    </style>
+</head>
+<body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="site-head">
+        <div class="wrap head-in">
+            <a href="/" class="brand">
+                <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                    <polygon points="8,42 34,30 34,108 8,120"/>
+                    <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+                </svg>
+                <span>Delta Filings</span>
+            </a>
+            <nav class="nav" aria-label="Main">
+                <a href="#day">How it works</a>
+                <a href="#roles">Who it's for</a>
+                <a href="/tools">Tools</a>
+                <a href="/blog">Blog</a>
+                <a href="/about">About</a>
+            </nav>
+            <div class="head-actions">
+                <a href="/signin" class="signin">Sign in</a>
+                <a href="/signup" class="btn btn-primary btn-sm">Get started</a>
+            </div>
+        </div>
+    </header>
+
+    <main id="main">
+
+        <!-- ── Hero ── -->
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="wrap">
+                <p class="kicker">Corporate compliance, India</p>
+                <h1 id="hero-title">Know what is due. <em>Know what it costs to be late.</em></h1>
+
+                <div class="hero-grid">
+                    <p class="dek">
+                        Delta Filings turns a company's profile into a dated calendar of what it owes under the Companies Act,
+                        SEBI regulations, income tax, GST, labour law and FEMA. Each line shows the late fee or interest that applies.
+                        Around the calendar sits the rest of the job: SEBI and RBI news, board papers, exchange letters,
+                        the insider-trading database, and a watch on the companies your institution is exposed to.
+                    </p>
+                    <div class="hero-cta">
+                        <div class="cta-row">
+                            <a href="/signup" class="btn btn-primary">Create workspace</a>
+                            <a href="/signin" class="btn btn-quiet">Sign in</a>
+                        </div>
+                        <p class="fine">The ROC, GST and DIN KYC late-fee calculators are free and need no account. <a href="/tools">Open the tools</a></p>
+                    </div>
+                </div>
+
+                <figure class="ledger" aria-labelledby="ledger-cap">
+                    <div class="ledger-top">
+                        <div>
+                            <span class="ledger-title" id="ledger-cap">Compliance calendar, as at 29 September</span>
+                            <span class="ledger-sub">Sample: a private limited company in Maharashtra that is GST registered, deducts TDS and pays PF</span>
+                        </div>
+                        <ul class="ledger-sum num" aria-label="Summary">
+                            <li class="is-late">Overdue <b>1</b></li>
+                            <li class="is-late">Late fees so far <b>₹400</b></li>
+                            <li>Due in 15 days <b>5</b></li>
+                        </ul>
+                    </div>
+                    <div class="ledger-head" aria-hidden="true">
+                        <span>Due</span><span>Filing</span><span>Law</span><span>If late</span>
+                    </div>
+                    <ol class="lrows num">
+                        <li class="lrow is-late">
+                            <div class="c-due"><span class="d">11 Sep</span><span class="st">18 days late</span></div>
+                            <div class="c-ob"><span class="f">DIR-12</span><span class="w">Change in directors, for an appointment made on 12 Aug</span></div>
+                            <div class="c-law">Companies Act s.170</div>
+                            <div class="c-fee"><span class="amt">₹400</span><span class="basis">2× the ₹200 normal fee</span></div>
+                        </li>
+                        <li class="lrow">
+                            <div class="c-due"><span class="d">30 Sep</span><span class="st">Tomorrow</span></div>
+                            <div class="c-ob"><span class="f">AGM</span><span class="w">Annual general meeting for FY2025-26</span></div>
+                            <div class="c-law">Companies Act s.96</div>
+                            <div class="c-fee">Up to ₹1 lakh, plus ₹5,000 a day</div>
+                        </li>
+                        <li class="lrow">
+                            <div class="c-due"><span class="d">7 Oct</span><span class="st">In 8 days</span></div>
+                            <div class="c-ob"><span class="f">Challan 281</span><span class="w">Deposit TDS deducted in September</span></div>
+                            <div class="c-law">Income-tax Act 2025 s.397</div>
+                            <div class="c-fee">Interest at 1.5% a month</div>
+                        </li>
+                        <li class="lrow">
+                            <div class="c-due"><span class="d">20 Oct</span><span class="st">In 21 days</span></div>
+                            <div class="c-ob"><span class="f">GSTR-3B</span><span class="w">Summary return and tax for September</span></div>
+                            <div class="c-law">CGST Act s.39</div>
+                            <div class="c-fee">₹50 a day, up to ₹10,000, plus interest</div>
+                        </li>
+                        <li class="lrow">
+                            <div class="c-due"><span class="d">30 Oct</span><span class="st">In 31 days</span></div>
+                            <div class="c-ob"><span class="f">AOC-4</span><span class="w">Financial statements for FY2025-26</span></div>
+                            <div class="c-law">Companies Act s.137</div>
+                            <div class="c-fee">₹100 a day</div>
+                        </li>
+                        <li class="lrow">
+                            <div class="c-due"><span class="d">29 Nov</span><span class="st">In 61 days</span></div>
+                            <div class="c-ob"><span class="f">MGT-7</span><span class="w">Annual return for FY2025-26</span></div>
+                            <div class="c-law">Companies Act s.92</div>
+                            <div class="c-fee">₹100 a day</div>
+                        </li>
+                    </ol>
+                    <figcaption class="ledger-foot">
+                        <span>A few of the dates up to 29 November are shown. {{ sample_a_applies }} of the {{ rule_count }} rules in the rulebook apply to this profile.</span>
+                        <span>Late fees are indicative. Each one shows its basis.</span>
+                    </figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <!-- ── A day, followed through ── -->
+        <section class="sec" id="day" aria-labelledby="day-title">
+            <div class="wrap">
+                <div class="sec-head">
+                    <div>
+                        <p class="kicker">How it works</p>
+                        <h2 id="day-title">One working day, from the first circular to the last alert.</h2>
+                    </div>
+                    <p class="dek">
+                        Five moments from an ordinary day in late September: four at a listed company, one in a bank's risk team.
+                        The companies, people and headlines are samples. The rules, forms and time limits are the ones Delta Filings applies.
+                    </p>
+                </div>
+
+                <ol class="toc">
+                    <li><a href="#ch-news"><span class="t num">09:00</span>Regulatory news</a></li>
+                    <li><a href="#ch-calendar"><span class="t num">10:30</span>The calendar and late fees</a></li>
+                    <li><a href="#ch-meeting"><span class="t num">13:00</span>Board papers and drafting</a></li>
+                    <li><a href="#ch-sdd"><span class="t num">16:00</span>Insider-trading record</a></li>
+                    <li><a href="#ch-risk"><span class="t num">18:10</span>Counterparty risk</a></li>
+                </ol>
+
+                <!-- 01 News -->
+                <article class="chapter" id="ch-news" aria-labelledby="ch-news-t">
+                    <div class="ch-meta">
+                        <span class="ch-time num">09:00</span>
+                        <span class="ch-label">01 · News</span>
+                    </div>
+                    <div class="ch-body">
+                        <h3 id="ch-news-t">The morning's circulars, already sorted by subject.</h3>
+                        <p>Delta Filings reads the SEBI and RBI feeds through the day and tags every circular, order, consultation and press release by what it is about.</p>
+                        <p>You open on the subjects that fit your job. A listed company's compliance officer sees LODR and insider trading first. A risk officer sees lending, NBFC rules, prudential norms and enforcement.</p>
+                        <p class="fine">SEBI orders are also matched against a risk team's counterparties. That comes back at 18:10.</p>
+                    </div>
+                    <div class="frag-col">
+                        <figure class="frag" aria-label="Sample regulatory news feed">
+                            <div class="frag-bar"><strong>Regulatory news</strong><span>For you: compliance officer, listed company <span class="sample">· Sample</span></span></div>
+                            <div class="chips" aria-hidden="true">
+                                <span class="chip">All</span>
+                                <span class="chip on">LODR</span>
+                                <span class="chip">Insider trading</span>
+                                <span class="chip">Takeovers and M&amp;A</span>
+                                <span class="chip">Enforcement</span>
+                            </div>
+                            <ul class="news">
+                                <li>
+                                    <div class="meta"><span class="src">SEBI</span><span>Master circular</span><span class="num">08:12</span></div>
+                                    <div class="title">Master circular on compliance with the LODR Regulations by listed entities</div>
+                                    <div class="tags"><span class="tag accent">LODR</span></div>
+                                </li>
+                                <li>
+                                    <div class="meta"><span class="src">SEBI</span><span>Order</span><span class="num">07:40</span></div>
+                                    <div class="title">Adjudication order on delayed disclosure of material events by a listed company</div>
+                                    <div class="tags"><span class="tag accent">LODR</span><span class="tag">Enforcement</span></div>
+                                </li>
+                                <li>
+                                    <div class="meta"><span class="src">SEBI</span><span>Consultation</span><span>Yesterday</span></div>
+                                    <div class="title">Consultation paper on amendments to the insider trading regulations</div>
+                                    <div class="tags"><span class="tag">Insider trading</span></div>
+                                </li>
+                            </ul>
+                            <div class="frag-note">From the SEBI and RBI feeds, checked every two hours</div>
+                        </figure>
+                    </div>
+                </article>
+
+                <!-- 02 Calendar -->
+                <article class="chapter" id="ch-calendar" aria-labelledby="ch-calendar-t">
+                    <div class="ch-meta">
+                        <span class="ch-time num">10:30</span>
+                        <span class="ch-label">02 · Calendar</span>
+                    </div>
+                    <div class="ch-body">
+                        <h3 id="ch-calendar-t">The AGM is tomorrow. AOC-4 is due 30 days after it.</h3>
+                        <p>The calendar is built from the company's profile: its type, whether it is listed, and whether it has GST registration, employees, foreign investment or TDS to deduct. Change the profile and the calendar follows.</p>
+                        <p>Every line says what lateness costs and how the figure was reached. AOC-4 and MGT-7 each run at ₹100 a day with no upper limit, so two months late on both comes to ₹12,000.</p>
+                        <p>Events add their own filings. Log a director's appointment and DIR-12 is due in 30 days. Allot shares on a private placement and PAS-3 is due in 15. Each DIN carries its own DIR-3 KYC date on the three-year cycle, and DSC expiry sits on the same calendar, because an expired certificate blocks every form that director signs.</p>
+                    </div>
+                    <div class="frag-col">
+                        <figure class="frag" aria-label="Sample obligation with late-fee estimate">
+                            <div class="frag-bar"><strong>Obligation</strong><span>Listed company · FY2025-26 <span class="sample">· Sample</span></span></div>
+                            <div class="frag-pad">
+                                <div class="ob-head">
+                                    <div>
+                                        <div class="ob-form">AOC-4 / AOC-4 XBRL</div>
+                                        <div class="ob-name">Financial statements</div>
+                                    </div>
+                                    <span class="tag accent num">Due in 31 days</span>
+                                </div>
+                                <dl class="facts">
+                                    <dt>Law</dt><dd>Companies Act s.137</dd>
+                                    <dt>Due</dt><dd class="num">30 October, within 30 days of the AGM</dd>
+                                    <dt>Late fee</dt><dd>₹100 a day, no upper limit</dd>
+                                    <dt>Source</dt><dd>MCA company e-forms, mca.gov.in</dd>
+                                </dl>
+                                <div class="ladder-k">If it is filed late</div>
+                                <ol class="ladder num">
+                                    <li><span class="n">15 days</span><span class="v">₹1,500</span></li>
+                                    <li><span class="n">30 days</span><span class="v">₹3,000</span></li>
+                                    <li class="hot"><span class="n">60 days</span><span class="v">₹6,000</span></li>
+                                    <li><span class="n">90 days</span><span class="v">₹9,000</span></li>
+                                </ol>
+                            </div>
+                            <div class="frag-note">Indicative. Basis: ₹100 a day × days late. Verify at source.</div>
+                        </figure>
+                    </div>
+                </article>
+
+                <!-- 03 Meeting and drafting -->
+                <article class="chapter" id="ch-meeting" aria-labelledby="ch-meeting-t">
+                    <div class="ch-meta">
+                        <span class="ch-time num">13:00</span>
+                        <span class="ch-label">03 · Meetings and drafting</span>
+                    </div>
+                    <div class="ch-body">
+                        <h3 id="ch-meeting-t">The board meets. Its follow-up filings are dated the same afternoon.</h3>
+                        <p>The agenda was picked last week from a library of standard items, such as appointing an additional director under s.161 and approving borrowings under s.179(3)(d). Delta drafted the notice, agenda, resolutions and minutes skeleton as one Word file, and checked the notice period: seven days for a board meeting, 21 clear days for an AGM.</p>
+                        <p>Marking the meeting held puts the follow-ups on the calendar with their dates: the Regulation 30 disclosure, DIR-12, MGT-14 for the borrowing resolution, and minutes to be signed within 30 days.</p>
+                        <p>Then the exchange letter. Draft writes it with AI in the company's own style, using its past NSE filings as the reference. Nothing is submitted for you, and every draft carries a notice to review it first.</p>
+                    </div>
+                    <div class="frag-col">
+                        <figure class="frag" aria-label="Sample board meeting kit and follow-up filings">
+                            <div class="frag-bar"><strong>Board meeting</strong><span class="num">29 Sep, 13:00 · Video conference <span class="sample">· Sample</span></span></div>
+                            <div class="checkline"><span class="dot" aria-hidden="true"></span><span class="num">Notice went out on 21 Sep, eight days ahead. Seven are required.</span></div>
+                            <ol class="agenda">
+                                <li>Leave of absence</li>
+                                <li>Confirm minutes of the previous meeting</li>
+                                <li>Note directors' disclosures (MBP-1, DIR-8)</li>
+                                <li>Appoint an additional director (s.161)</li>
+                                <li>Approve borrowings (s.179(3)(d)) <span class="tag">MGT-14</span></li>
+                            </ol>
+                            <div class="file">
+                                <svg viewBox="0 0 20 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true" focusable="false"><path d="M3 1.5h9.5L17 6v16.5H3z"/><path d="M12.5 1.5V6H17"/><path d="M6.5 11h7M6.5 14h7M6.5 17h4.5"/></svg>
+                                <div><b>Board meeting kit.docx</b><span>Notice, agenda, resolutions and minutes</span></div>
+                            </div>
+                            <div class="fu-k num">Marked held at 15:20. Added to the calendar:</div>
+                            <ul class="fu num">
+                                <li><span class="f">Reg 30</span><span class="w">Outcome and appointment, to the exchanges</span><span class="d">30 Sep</span></li>
+                                <li><span class="f">DIR-12</span><span class="w">Additional director appointed</span><span class="d">29 Oct</span></li>
+                                <li><span class="f">MGT-14</span><span class="w">Borrowings resolution</span><span class="d">29 Oct</span></li>
+                                <li><span class="f">Minutes</span><span class="w">Sign the minutes (SS-1)</span><span class="d">29 Oct</span></li>
+                            </ul>
+                        </figure>
+                        <figure class="frag offset" aria-label="Sample draft exchange letter">
+                            <div class="frag-bar"><strong>Draft · Regulation 30</strong><span class="tag soon">Review before submitting</span></div>
+                            <div class="letter">
+                                <p>To, The Listing Department, National Stock Exchange of India Limited</p>
+                                <p class="subj">Sub: Disclosure regarding change in Directors / KMP under Regulation 30 of SEBI (LODR) Regulations, 2015</p>
+                                <p>Pursuant to Regulation 30, we inform you that the Board of Directors, at its meeting held today, appointed <span class="blank">name</span> (DIN <span class="blank">number</span>) as an Additional Director with effect from 29 September&hellip;</p>
+                            </div>
+                            <div class="frag-note exports"><span class="tag">PDF</span><span class="tag">Word</span></div>
+                        </figure>
+                    </div>
+                </article>
+
+                <!-- 04 SDD -->
+                <article class="chapter" id="ch-sdd" aria-labelledby="ch-sdd-t">
+                    <div class="ch-meta">
+                        <span class="ch-time num">16:00</span>
+                        <span class="ch-label">04 · Insider trading</span>
+                    </div>
+                    <div class="ch-body">
+                        <h3 id="ch-sdd-t">The quarter's first estimates go to the auditor, into a record nobody can quietly edit.</h3>
+                        <p>Sharing unpublished price-sensitive information is logged in the structured digital database that SEBI's insider-trading regulations require. Entries can be added and never edited or deleted.</p>
+                        <p>Each entry stores a SHA-256 hash of the previous entry's hash plus its own contents. One altered row breaks the chain, and the check names the first row that fails. A mistake is fixed with a correction entry that points at the original.</p>
+                        <p>The quarter ends tomorrow. The trading window closes on 1 October and reopens 48 hours after results. While it is closed, pre-clearance cannot be approved, and approvals last seven trading days.</p>
+                    </div>
+                    <div class="frag-col">
+                        <figure class="frag" aria-label="Sample structured digital database entries">
+                            <div class="frag-bar"><strong>Structured digital database</strong><span>SEBI PIT Reg 3(5) <span class="sample">· Sample</span></span></div>
+                            <div class="upsi"><b>UPSI:</b> Financial results for the quarter and half year ending 30 September<span class="num">Opened 22 Sep</span></div>
+                            <ol class="sdd num">
+                                <li>
+                                    <span class="no">#118</span>
+                                    <div><div class="who">CFO to audit committee chair <span class="tag">Designated</span></div><div class="when">29 Sep, 11:04 IST · Q2 estimates</div></div>
+                                    <div class="hash">prev <i>8b07…11d4</i> · hash <i>5c1e…a0b9</i></div>
+                                </li>
+                                <li>
+                                    <span class="no">#119</span>
+                                    <div><div class="who">CFO to statutory auditor <span class="tag">External</span></div><div class="when">29 Sep, 16:02 IST · Limited review planning</div></div>
+                                    <div class="hash">prev <i>5c1e…a0b9</i> · hash <i>9d44…71fe</i></div>
+                                </li>
+                                <li>
+                                    <span class="no">#120</span>
+                                    <div><div class="who">Correction to #119 <span class="tag">Correction</span></div><div class="when">29 Sep, 16:09 IST · Auditor's firm name</div></div>
+                                    <div class="hash">prev <i>9d44…71fe</i> · hash <i>3b0a…e2c7</i></div>
+                                </li>
+                            </ol>
+                            <div class="verify">
+                                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3L13 4.5"/></svg>
+                                <span class="num">Chain verified. All 120 entries match.</span>
+                            </div>
+                            <div class="pair num">
+                                <div><span class="k">Trading window</span><span class="v">Closes 1 Oct</span><span class="s">Reopens 48 hours after results</span></div>
+                                <div><span class="k">Pre-clearance</span><span class="v">Blocked while closed</span><span class="s">Approvals last 7 trading days</span></div>
+                            </div>
+                        </figure>
+                    </div>
+                </article>
+
+                <!-- 05 Risk -->
+                <article class="chapter" id="ch-risk" aria-labelledby="ch-risk-t">
+                    <div class="ch-meta">
+                        <span class="ch-time num">18:10</span>
+                        <span class="ch-label">05 · Risk desk</span>
+                    </div>
+                    <div class="ch-body">
+                        <h3 id="ch-risk-t">In a bank's risk team, a borrower shows up in an IBBI announcement.</h3>
+                        <p>The risk team lists every company the bank is exposed to, with the rupee amount: borrowers, vendors, investees and guarantors. Delta checks each one against exchange filings, SEBI orders, IBBI insolvency announcements and one-day share-price falls of 5% or more. IBBI covers unlisted companies too.</p>
+                        <p>Each signal carries points that fade with age. They add up to a score out of 100, with a band and the reasons written beside it. Critical and high signals go to Telegram.</p>
+                        <p>The director network shows who sits on the boards of more than one counterparty. The committee report is ready for the next risk committee meeting.</p>
+                    </div>
+                    <div class="frag-col">
+                        <figure class="frag" aria-label="Sample counterparty risk score">
+                            <div class="frag-bar"><strong>Risk desk · Counterparty</strong><span>Alert sent to Telegram, 18:10 <span class="sample">· Sample</span></span></div>
+                            <div class="frag-pad">
+                                <div class="cp-head">
+                                    <div>
+                                        <div class="cp-name">Borrower: auto components maker</div>
+                                        <div class="cp-sub">Listed on NSE · Term loan</div>
+                                    </div>
+                                    <div class="cp-exp"><span class="k">Exposure</span><span class="v num">₹42 crore</span></div>
+                                </div>
+                                <div class="score num">
+                                    <div><span class="big">54</span><span class="of">/ 100</span></div>
+                                    <span class="tag late">High</span>
+                                    <span class="chg">Up 34 in 30 days, from Moderate</span>
+                                </div>
+                                <div class="scale" aria-hidden="true">
+                                    <div class="scale-bar"><span></span><span></span><span></span><span></span><i class="mark" style="left:54%"></i></div>
+                                    <div class="scale-legend num"><span>Low</span><span>Moderate</span><span>High</span><span>Severe 60+</span></div>
+                                </div>
+                                <ul class="reasons num">
+                                    <li>
+                                        <span class="pts">+40.0</span><span class="t">IBBI: insolvency (CIRP) announced</span>
+                                        <span class="s"><span>IBBI · 29 Sep</span><span class="tag late">Critical</span></span>
+                                    </li>
+                                    <li>
+                                        <span class="pts">+14.0</span><span class="t">Statutory auditor resigned</span>
+                                        <span class="s"><span>Exchange filing · 8 Aug</span><span class="tag soon">High</span></span>
+                                    </li>
+                                </ul>
+                                <p class="decay">Points count in full for 30 days, then fall to 70%, 45% and 25% over the year.</p>
+                            </div>
+                        </figure>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- ── Who it's for ── -->
+        <section class="sec" id="roles" aria-labelledby="roles-title">
+            <div class="wrap">
+                <div class="sec-head">
+                    <div>
+                        <p class="kicker">Who it's for</p>
+                        <h2 id="roles-title">Four jobs, and a different first screen for each.</h2>
+                    </div>
+                    <p class="dek">You pick your role when you sign up. It decides where you land and what the top bar shows first. Every module stays one click away under All tools.</p>
+                </div>
+
+                <div class="roles">
+                    <article class="role" aria-labelledby="role-cs">
+                        <p class="who">In a company</p>
+                        <h3 id="role-cs">Company secretary</h3>
+                        <p class="blurb">Your company's filings, meetings, registers and deadlines.</p>
+                        <p class="opens">Opens on <b>Workspace</b></p>
+                        <ul>
+                            <li>One calendar across all seven areas of law, with late fees on every line</li>
+                            <li>Board and general meeting kits drafted as Word files</li>
+                            <li>Six statutory registers, from members (MGT-1) to charges (CHG-7), with every change kept as a new version</li>
+                            <li>DIR-3 KYC and DSC dates for each director</li>
+                        </ul>
+                    </article>
+                    <article class="role" aria-labelledby="role-co">
+                        <p class="who">In a listed company</p>
+                        <h3 id="role-co">Compliance officer</h3>
+                        <p class="blurb">Exchange disclosures, insider-trading controls and the LODR calendar.</p>
+                        <p class="opens">Opens on <b>Dashboard</b></p>
+                        <ul>
+                            <li>Your NSE filings and your peers', each with a diff against the previous filing of its kind</li>
+                            <li>Letters under Regulations 29, 30 and 33 drafted in your house style</li>
+                            <li>Structured digital database, trading window and pre-clearance</li>
+                            <li>LODR, PIT and SAST dates, with the per-day fines under SEBI's SOP</li>
+                        </ul>
+                    </article>
+                    <article class="role" aria-labelledby="role-pcs">
+                        <p class="who">In practice</p>
+                        <h3 id="role-pcs">Practising CS or firm</h3>
+                        <p class="blurb">Every client's compliance calendar in one place.</p>
+                        <p class="opens">Opens on <b>Workspace</b></p>
+                        <ul>
+                            <li>One morning view across clients: what is overdue, what is due soon, and the late fees adding up</li>
+                            <li>Private, public, listed, OPC, Section 8 and LLP clients side by side</li>
+                            <li>Document requests: send one private link and the client uploads without an account</li>
+                            <li>Your on-time rate, worked out from what was filed and when</li>
+                        </ul>
+                    </article>
+                    <article class="role" aria-labelledby="role-cro">
+                        <p class="who">In a bank or NBFC</p>
+                        <h3 id="role-cro">Risk officer</h3>
+                        <p class="blurb">Borrowers, vendors and investees, watched for early warning signs.</p>
+                        <p class="opens">Opens on <b>Risk desk</b></p>
+                        <ul>
+                            <li>Counterparties with rupee exposure and a score out of 100</li>
+                            <li>An alert queue to acknowledge, assign and resolve, with a log of who did what</li>
+                            <li>Director network across counterparties and your own companies</li>
+                            <li>A committee report, and RBI news on lending and NBFCs</li>
+                        </ul>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Coverage ── -->
+        <section class="sec" id="coverage" aria-labelledby="cov-title">
+            <div class="wrap">
+                <div class="sec-head">
+                    <div>
+                        <p class="kicker">The rulebook</p>
+                        <h2 id="cov-title">What the rulebook covers today.</h2>
+                    </div>
+                    <p class="dek">{{ rule_count }} rules across seven areas of Indian law. Each rule carries its due-date pattern and its penalty, with a link to where it comes from.</p>
+                </div>
+
+                <div class="cov-grid">
+                    <div class="stat">
+                        <div class="big num">1.85 million</div>
+                        <p>Roughly how many companies were active in India in March 2025, by the MCA's count. Every one of them files financial statements and an annual return each year.</p>
+                        <p class="fine">What else a company owes depends on what it is and what it does. Delta asks once, then builds the calendar from the answers.</p>
+                    </div>
+                    <div>
+                        <table class="cov">
+                            <caption class="sr-only">Rules in the Delta Filings rulebook, by area of law</caption>
+                            <thead>
+                                <tr><th scope="col">Area</th><th scope="col">Rules</th><th scope="col">What it tracks, for example</th></tr>
+                            </thead>
+                            <tbody class="num">
+                                <tr><th scope="row">Companies Act</th><td class="n">{{ regime_counts['Companies Act'] }}</td><td class="ex">AGM, AOC-4 and CFS, MGT-7, MGT-15, DIR-12, DIR-3 KYC, MGT-14, CHG-1, PAS-3, PAS-6, DPT-3, MSME-1, ADT-3, MBP-1, board meetings, minutes</td></tr>
+                                <tr><th scope="row">SEBI</th><td class="n">{{ regime_counts['SEBI'] }}</td><td class="ex">Reg 33 results, Reg 32, Reg 31, Reg 30, Reg 29, Reg 23(9), Reg 24A, Reg 44, Reg 47, BRSR, SAST Reg 31(4), SDD certificate, trading window</td></tr>
+                                <tr><th scope="row">Income tax</th><td class="n">{{ regime_counts['Income Tax'] }}</td><td class="ex">Advance tax, TDS and TCS, Forms 138 / 140 / 143 / 144, Forms 130 and 131, SFT, tax audit, Form 3CEB, ITR-6, ITR-5</td></tr>
+                                <tr><th scope="row">GST</th><td class="n">{{ regime_counts['GST'] }}</td><td class="ex">GSTR-1 and GSTR-3B, monthly or under QRMP, PMT-06, GSTR-9, GSTR-9C, ITC-04, LUT</td></tr>
+                                <tr><th scope="row">FEMA / RBI</th><td class="n">{{ regime_counts['FEMA / RBI'] }}</td><td class="ex">FLA return, ODI annual performance report, Form OPI, Form DI, ECB-2, FC-GPR, FC-TRS, allotment within 60 days</td></tr>
+                                <tr><th scope="row">Labour</th><td class="n">{{ regime_counts['Labour'] }}</td><td class="ex">PF, ESI, professional tax and labour welfare fund in Maharashtra and Karnataka, POSH annual report</td></tr>
+                                <tr><th scope="row">LLP Act</th><td class="n">{{ regime_counts['LLP Act'] }}</td><td class="ex">Form 11, Form 8, Forms 3 and 4</td></tr>
+                            </tbody>
+                            <tfoot>
+                                <tr><th scope="row">Total</th><td class="n num">{{ rule_count }}</td><td class="ex">Including DIR-3 KYC for every DIN on its three-year cycle. DSC renewal dates are tracked too.</td></tr>
+                            </tfoot>
+                        </table>
+                        <div class="cov-notes fine">
+                            <p>Entity types: private limited, public unlisted, listed, one person company, Section 8 and LLP.</p>
+                            <p>India today. Every rule carries a jurisdiction code, so other countries can be added as data later.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Sources and limits ── -->
+        <section class="sec" id="sources" aria-labelledby="src-title">
+            <div class="wrap">
+                <div class="sec-head">
+                    <div>
+                        <p class="kicker">Sources and limits</p>
+                        <h2 id="src-title">Where the data comes from, and where it stops.</h2>
+                    </div>
+                    <p class="dek">A compliance tool that overstates itself is worse than none. This is what Delta reads, and what you should still check yourself.</p>
+                </div>
+
+                <div class="src-grid">
+                    <div>
+                        <p class="src-k">Sources</p>
+                        <dl class="sources">
+                            <div><dt>SEBI</dt><dd>Circulars, orders, recovery proceedings and press releases from SEBI's own feed. Its orders are also matched against risk-desk counterparties.</dd></div>
+                            <div><dt>RBI</dt><dd>Notifications and press releases, tagged by subject: NBFC, KYC and AML, lending, payments, FEMA and more.</dd></div>
+                            <div><dt>IBBI</dt><dd>Public announcements of insolvency (CIRP) and liquidation. These cover unlisted companies as well as listed ones.</dd></div>
+                            <div><dt>NSE</dt><dd>Corporate announcements, governance filings with board composition and DINs, and share prices.</dd></div>
+                            <div><dt>Rulebook</dt><dd>Written from the Acts, rules and regulations, with each rule linked to its source, usually the regulator's own site.</dd></div>
+                        </dl>
+                    </div>
+                    <div>
+                        <p class="src-k">What to check yourself</p>
+                        <ul class="limits">
+                            <li><b>Late fees are estimates.</b> The real figure can depend on share capital, turnover or the tax involved, so each one shows its basis and says to verify at source.</li>
+                            <li><b>MCA updates are not in the news feed,</b> because the MCA site blocks automated access. Delta does not file forms on the MCA portal for you.</li>
+                            <li><b>Unlisted companies' MCA records</b> such as charges, filing defaults and struck-off status need a licensed data source. The risk desk does not scrape them.</li>
+                            <li><b>Drafts are drafts.</b> Nothing goes to an exchange or a regulator unless you send it.</li>
+                            <li><b>Name matches can be wrong.</b> When a SEBI order or IBBI notice matches a counterparty only in part, the signal says so and asks you to verify.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Close ── -->
+        <section class="close" aria-labelledby="close-title">
+            <div class="wrap close-grid">
+                <div>
+                    <h2 id="close-title">Start with one company.</h2>
+                    <p class="dek">Add your own company, your first client or the companies you are exposed to. The calendar or the risk desk, and the news that applies to you, will be there when you finish.</p>
+                </div>
+                <div class="hero-cta">
+                    <div class="cta-row">
+                        <a href="/signup" class="btn btn-primary">Create workspace</a>
+                        <a href="/signin" class="btn btn-quiet">Sign in</a>
+                    </div>
+                    <p class="fine">Or start with the free <a href="/tools">late-fee calculators</a>, or read the <a href="/blog">blog</a>.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-foot">
+        <div class="wrap foot-in">
+            <div class="foot-brand">
+                <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                    <polygon points="8,42 34,30 34,108 8,120"/>
+                    <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+                </svg>
+                <span><b>Delta Filings</b> · Corporate compliance for Indian companies</span>
+            </div>
+            <nav aria-label="Footer">
+                <ul class="foot-links">
+                    <li><a href="#day">How it works</a></li>
+                    <li><a href="/tools">Tools</a></li>
+                    <li><a href="/blog">Blog</a></li>
+                    <li><a href="/about">About</a></li>
+                    <li><a href="/signin">Sign in</a></li>
+                    <li><a href="/signup">Create account</a></li>
+                </ul>
+            </nav>
+        </div>
+    </footer>
+</body>
+</html>

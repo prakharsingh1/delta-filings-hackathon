@@ -7,19 +7,21 @@
     <title>Draft - Delta Filings</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/app_ivory.css?v=2">
+    <link rel="stylesheet" href="/static/draft_desk.css?v=1">
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
     <style>
         .wizard-step { transition: opacity 0.2s, transform 0.2s; }
         .step-pill { display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:9999px; font-size:11px; font-weight:600; }
         .step-pill.done { background:#ecfdf5; color:#059669; }
-        .step-pill.active { background:#eef2ff; color:#4f46e5; }
-        .step-pill.todo { background:#f1f5f9; color:#94a3b8; }
+        .step-pill.active { background:#fff9dc; color:#9b801c; }
+        .step-pill.todo { background:#f4f2eb; color:#9b988c; }
 
         /* Quill polish to match the SEBI-letter feel */
         .ql-toolbar.ql-snow {
             border: none;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e8e5dc;
             padding: 8px 12px;
             background: #fafafa;
         }
@@ -32,7 +34,7 @@
             padding: 24px 28px;
         }
         .ql-editor::-webkit-scrollbar { width: 8px; }
-        .ql-editor::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        .ql-editor::-webkit-scrollbar-thumb { background: #d6d2c6; border-radius: 4px; }
 
         /* Highlight {token} placeholders in body so they're easy to spot */
         .placeholder-pill {
@@ -49,7 +51,7 @@
         /* ── Smart recommendation cards ── */
         .rec-spark { width:24px; height:24px; border-radius:7px; display:inline-flex;
             align-items:center; justify-content:center; color:#fff;
-            background:linear-gradient(135deg,#4f46e5,#7c3aed); flex-shrink:0; }
+            background:linear-gradient(135deg,#9b801c,#9b801c); flex-shrink:0; }
         /* ── Filing register ──
            A compliance professional reads a schedule, not a wall of cards.
            Dense rows, tabular numerals, regulation and penalty exposure on
@@ -58,37 +60,37 @@
         .reg-row { display:grid; grid-template-columns:62px 1fr 132px 108px 92px;
             gap:14px; align-items:center; width:100%; text-align:left;
             padding:12px 16px 12px 13px; background:#fff; cursor:pointer;
-            border:1px solid transparent; border-left:3px solid var(--rb,#cbd5e1);
-            border-bottom:1px solid #f1f5f9; transition:background .12s, border-color .12s; }
-        .reg-row:hover { background:#fafbfd; border-color:#e2e8f0;
-            border-left-color:var(--rb,#cbd5e1); }
+            border:1px solid transparent; border-left:3px solid var(--rb,#c3c0b4);
+            border-bottom:1px solid #f4f2eb; transition:background .12s, border-color .12s; }
+        .reg-row:hover { background:#fafbfd; border-color:#e8e5dc;
+            border-left-color:var(--rb,#c3c0b4); }
         .reg-row:last-child { border-bottom:none; }
 
         .reg-when { font-variant-numeric:tabular-nums; font-size:15px; font-weight:800;
-            color:#0f172a; letter-spacing:-.02em; line-height:1.05; }
-        .reg-when-u { font-size:9.5px; font-weight:700; color:#94a3b8;
+            color:#1b1a16; letter-spacing:-.02em; line-height:1.05; }
+        .reg-when-u { font-size:9.5px; font-weight:700; color:#9b988c;
             text-transform:uppercase; letter-spacing:.06em; margin-top:1px; }
-        .reg-title { font-size:13.5px; font-weight:650; color:#0f172a; letter-spacing:-.01em; }
-        .reg-sub { font-size:11px; color:#64748b; margin-top:2px; line-height:1.45; }
+        .reg-title { font-size:13.5px; font-weight:650; color:#1b1a16; letter-spacing:-.01em; }
+        .reg-sub { font-size:11px; color:#6d6a60; margin-top:2px; line-height:1.45; }
         .reg-pen { font-size:10.5px; color:#b45309; margin-top:3px; }
         .reg-id { font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-            font-size:10.5px; font-weight:600; color:#4338ca;
-            background:#eef2ff; padding:2px 7px; border-radius:5px; display:inline-block; }
-        .reg-regime { font-size:10px; font-weight:700; color:#64748b;
+            font-size:10.5px; font-weight:600; color:#7d6716;
+            background:#fff9dc; padding:2px 7px; border-radius:5px; display:inline-block; }
+        .reg-regime { font-size:10px; font-weight:700; color:#6d6a60;
             text-transform:uppercase; letter-spacing:.05em; }
         .reg-date { font-family:ui-monospace,Menlo,monospace; font-size:11px;
-            color:#475569; font-variant-numeric:tabular-nums; }
-        .reg-go { font-size:11.5px; font-weight:700; color:var(--rb,#4f46e5);
+            color:#5a5850; font-variant-numeric:tabular-nums; }
+        .reg-go { font-size:11.5px; font-weight:700; color:var(--rb,#9b801c);
             display:inline-flex; align-items:center; gap:4px; justify-content:flex-end; }
         .reg-row:hover .reg-go { gap:7px; }
 
         .rec-section-head { display:flex; align-items:baseline; gap:10px; margin:18px 0 0;
-            padding:0 16px 8px; border-bottom:1px solid #e2e8f0; }
-        .rec-section-title { font-size:11px; font-weight:800; color:#334155;
+            padding:0 16px 8px; border-bottom:1px solid #e8e5dc; }
+        .rec-section-title { font-size:11px; font-weight:800; color:#3d3b34;
             text-transform:uppercase; letter-spacing:.08em; }
-        .rec-section-sub { font-size:11px; color:#94a3b8; flex:1; }
-        .rec-section-ct { font-size:10.5px; font-weight:700; color:#64748b;
-            background:#f1f5f9; padding:1px 8px; border-radius:999px;
+        .rec-section-sub { font-size:11px; color:#9b988c; flex:1; }
+        .rec-section-ct { font-size:10.5px; font-weight:700; color:#6d6a60;
+            background:#f4f2eb; padding:1px 8px; border-radius:999px;
             font-variant-numeric:tabular-nums; }
 
         html.dark .reg-row { background:#0f0f10; border-bottom-color:#1c1c1f; }
@@ -97,36 +99,36 @@
         html.dark .reg-when-u { color:#71717a; }
         html.dark .reg-sub { color:#a1a1aa; }
         html.dark .reg-pen { color:#fcd34d; }
-        html.dark .reg-id { background:#1e1b4b; color:#a5b4fc; }
+        html.dark .reg-id { background:#1e1b4b; color:#dcc766; }
         html.dark .reg-regime { color:#a1a1aa; }
         html.dark .reg-date { color:#a1a1aa; }
         html.dark .rec-section-head { border-bottom-color:#232326; }
         html.dark .rec-section-title { color:#d4d4d8; }
         html.dark .rec-section-ct { background:#1c1c1f; color:#a1a1aa; }
 
-        .hdr-ctx { font-weight:600; color:#334155; }
+        .hdr-ctx { font-weight:600; color:#3d3b34; }
         html.dark .hdr-ctx { color:#e4e4e7; }
         /* Step rail — a progress indicator for a professional workflow, not a
            consumer onboarding carousel. */
         .step-pill { position:relative; display:inline-flex; align-items:center; gap:7px;
             padding:5px 12px 5px 8px; border-radius:7px; font-size:11.5px; font-weight:600;
-            background:transparent; color:#94a3b8; border:1px solid transparent; }
+            background:transparent; color:#9b988c; border:1px solid transparent; }
         .step-pill .step-n { width:17px; height:17px; border-radius:5px; flex-shrink:0;
             display:inline-flex; align-items:center; justify-content:center;
-            font-size:9.5px; font-weight:800; background:#f1f5f9; color:#94a3b8;
+            font-size:9.5px; font-weight:800; background:#f4f2eb; color:#9b988c;
             font-variant-numeric:tabular-nums; }
-        .step-pill.done { color:#475569; }
+        .step-pill.done { color:#5a5850; }
         .step-pill.done .step-n { background:#dcfce7; color:#15803d; }
-        .step-pill.active { color:#0f172a; background:#fff; border-color:#e2e8f0;
-            box-shadow:0 1px 2px rgba(15,23,42,.05); }
-        .step-pill.active .step-n { background:#4f46e5; color:#fff; }
+        .step-pill.active { color:#1b1a16; background:#fff; border-color:#e8e5dc;
+            box-shadow:0 1px 2px rgba(27,26,22,.05); }
+        .step-pill.active .step-n { background:#9b801c; color:#fff; }
         html.dark .step-pill { color:#71717a; }
         html.dark .step-pill .step-n { background:#1c1c1f; color:#71717a; }
         html.dark .step-pill.done { color:#a1a1aa; }
         html.dark .step-pill.done .step-n { background:#052e20; color:#6ee7b7; }
         html.dark .step-pill.active { color:#fafafa; background:#141416; border-color:#27272a; }
-        html.dark .step-pill.active .step-n { background:#6366f1; color:#fff; }
-        .reg-group { border:1px solid #e2e8f0; border-top:none;
+        html.dark .step-pill.active .step-n { background:#b4961f; color:#fff; }
+        .reg-group { border:1px solid #e8e5dc; border-top:none;
             border-radius:0 0 10px 10px; overflow:hidden; }
         html.dark .reg-group { border-color:#232326; }
 
@@ -174,7 +176,13 @@
                         <span id="hdr-ctx" class="hdr-ctx">select a company to begin</span>
                     </p>
                 </div>
-                <div id="step-pills" class="hidden md:flex items-center gap-2"></div>
+                <div class="flex items-center gap-3">
+                    <div id="step-pills" class="hidden md:flex items-center gap-2"></div>
+                    <button type="button" id="dd-memory-btn" onclick="ddOpenMemory()" class="dd-btn dd-btn-sm hidden" title="What Delta knows about how this company and your team write">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.5c-1.6-1.4-3.8-2-6.5-2H4v13h1.5c2.7 0 4.9.6 6.5 2m0-13c1.6-1.4 3.8-2 6.5-2H20v13h-1.5c-2.7 0-4.9.6-6.5 2m0-13v13"/></svg>
+                        Draft memory <span id="dd-memory-btn-n" class="dd-pill dd-pill-yellow"></span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -287,46 +295,63 @@
                 <div id="filing-type-grid"></div>
             </div>
 
-            <!-- ── STEP 3: Past Examples & New Info ── -->
-            <div id="step-3" class="wizard-step bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-5 hidden">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Step 3</span>
-                    <h3 class="text-lg font-bold text-gray-900">Past examples & new information</h3>
-                </div>
+            <!-- ── STEP 3: Brief + what Delta will use ── -->
+            <div id="step-3" class="wizard-step hidden mb-5">
+                <div class="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-4 items-start">
+                    <section class="dd-card p-6">
+                        <div class="flex items-start justify-between gap-4 mb-1">
+                            <div>
+                                <p class="dd-eyebrow">Step 3 · Brief</p>
+                                <h3 class="dd-h mt-1">What happened?</h3>
+                            </div>
+                            <span id="dd-brief-type" class="dd-pill dd-pill-yellow mt-1"></span>
+                        </div>
+                        <p class="dd-sub mb-4">Give Delta the facts. It writes the filing in <span id="dd-brief-co" class="font-semibold">the company</span>'s own words, using the draft memory on the right, and leaves a marked gap for anything you don't say.</p>
 
-                <div class="mb-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <p class="text-[11px] font-bold uppercase tracking-wider text-gray-500">Past filings of this type <span id="past-count" class="text-gray-400 font-medium normal-case"></span></p>
-                        <button onclick="learnStyle()" id="learn-style-btn"
-                                class="text-[10px] font-semibold px-2.5 py-1 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                            🧠 Re-learn company language
-                        </button>
-                    </div>
-                    <div id="past-examples" class="space-y-2"></div>
-                </div>
+                        <div id="dd-req-box" class="hidden mb-4 rounded-xl border p-4" style="border-color:var(--dd-line);background:var(--dd-canvas)">
+                            <div class="flex items-center justify-between gap-3 mb-1">
+                                <p class="dd-h2">What this filing must disclose</p>
+                                <span id="dd-req-count" class="dd-pill"></span>
+                            </div>
+                            <p id="dd-req-source" class="dd-tiny mb-2"></p>
+                            <div id="dd-req-list"></div>
+                        </div>
 
-                <!-- Learned style summary — what the AI picked up -->
-                <div id="style-fingerprint" class="hidden mb-4 border border-indigo-200 bg-indigo-50/60 rounded-lg p-3.5">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <p class="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Learned house style</p>
-                        <span id="style-meta" class="text-[10px] text-indigo-500"></span>
-                    </div>
-                    <pre id="style-fingerprint-text" class="text-[11px] text-gray-700 whitespace-pre-wrap font-mono leading-relaxed"></pre>
-                </div>
+                        <label for="new-info" class="dd-h2 block mb-1.5">Your brief</label>
+                        <textarea id="new-info" class="dd-textarea dd-brief" oninput="ddBriefChanged()"
+                                  placeholder="e.g. Board meeting on 13 November 2026 appointed Mr. Arun Mehta (DIN 01234567) as Additional Director (Independent) for five years from 14 November 2026, subject to shareholders' approval. 30 years in FMCG supply chain; former CEO of Marico Logistics. Not related to any director; not debarred by any SEBI order."></textarea>
+                        <div id="dd-req-chips" class="flex flex-wrap gap-1.5 mt-2"></div>
+                        <p class="dd-tiny mt-2">Names, DINs, dates, amounts and the reason. Delta never invents these: whatever is missing becomes a field you fill on the next screen.</p>
 
-                <div class="mb-3">
-                    <label class="text-[11px] font-bold uppercase tracking-wider text-gray-500 block mb-1.5">What's new — describe the event</label>
-                    <textarea id="new-info" rows="5" placeholder="e.g. We need to disclose appointment of Mr. John Doe as Chief Financial Officer, effective 10 May 2026. He brings 20 years of experience in finance, last serving as VP-Finance at XYZ Limited. DIN: 12345678."
-                              class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"></textarea>
-                    <p class="text-[10px] text-gray-400 mt-1">Be specific — names, dates, designations, amounts. The more facts you give, the less the AI has to ask you to fill in.</p>
-                </div>
+                        <div id="dd-compose-error" class="hidden mt-4"></div>
+                        <div class="flex items-center justify-between mt-5 pt-4 dd-divider">
+                            <button onclick="goBackToStep(2)" class="dd-btn dd-btn-ghost dd-btn-sm">← Change filing type</button>
+                            <div class="flex items-center gap-3">
+                                <span id="dd-compose-status" class="dd-tiny"></span>
+                                <button onclick="generateDraft()" id="generate-btn" class="dd-btn dd-btn-primary dd-btn-lg">
+                                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m12 3 1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4ZM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8Z"/></svg>
+                                    Write the draft
+                                </button>
+                            </div>
+                        </div>
+                    </section>
 
-                <div class="flex items-center justify-between">
-                    <button onclick="goBackToStep(2)" class="text-xs text-gray-500 hover:text-gray-700">← Change filing type</button>
-                    <button onclick="generateDraft()" id="generate-btn"
-                            class="text-sm font-semibold px-5 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                        ✨ Generate draft with AI
-                    </button>
+                    <aside class="dd-card p-5 xl:sticky xl:top-4" id="dd-memory-panel">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <p class="dd-eyebrow">Draft memory</p>
+                                <p class="dd-h2 mt-0.5">What Delta will use</p>
+                            </div>
+                            <button class="dd-btn dd-btn-sm" onclick="ddOpenMemory()">Manage</button>
+                        </div>
+                        <div id="dd-memory-summary"><div class="dd-skel mb-2"></div><div class="dd-skel mb-2" style="width:70%"></div><div class="dd-skel" style="width:50%"></div></div>
+                        <div class="mt-4 pt-3 dd-divider">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <p class="dd-h2">Past filings of this type <span id="past-count" class="dd-tiny font-normal"></span></p>
+                            </div>
+                            <div id="past-examples" class="space-y-1.5"></div>
+                        </div>
+                    </aside>
                 </div>
             </div>
 
@@ -337,12 +362,20 @@
                     <h3 class="text-lg font-bold text-gray-900">Edit &amp; finalize</h3>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
+                <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] 2xl:grid-cols-[300px_1fr_330px] gap-4 items-start">
 
                     <!-- ── LEFT: Letter details + auto-detected placeholders ── -->
                     <aside class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 h-fit lg:sticky lg:top-4 max-h-[calc(100vh-80px)] overflow-y-auto">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2">Letter details</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Letter details</p>
+                            <span id="dd-details-src" class="dd-tiny"></span>
+                        </div>
                         <div class="space-y-2.5">
+                            <div>
+                                <label class="text-[10px] text-gray-500 block mb-0.5">Company (letterhead)</label>
+                                <input id="field-company" type="text"
+                                       class="w-full px-2.5 py-1.5 text-xs font-semibold border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            </div>
                             <div>
                                 <label class="text-[10px] text-gray-500 block mb-0.5">Subject</label>
                                 <input id="field-subject" type="text"
@@ -409,29 +442,23 @@
                             </div>
                         </div>
 
-                        <!-- Auto-extracted {placeholder} fields from the body+annexures -->
+                        <!-- Fields: every gap in the draft, one per occurrence, with its context -->
                         <div id="placeholders-section" class="mt-5 pt-4 border-t border-gray-100 hidden">
-                            <div class="flex items-center justify-between mb-2">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Fields in document</p>
-                                <button onclick="rescanPlaceholders()"
-                                        class="text-[10px] text-indigo-600 hover:underline">Rescan</button>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Fields to complete</p>
+                                <span id="dd-fields-count" class="dd-tiny"></span>
                             </div>
-                            <p class="text-[10px] text-gray-400 mb-2">Click <strong>AI Fill</strong> to auto-populate what the AI can confidently answer, then review and click <strong>Apply to document</strong>.</p>
+                            <div class="dd-progress mb-2"><i id="dd-fields-bar" style="width:0%"></i></div>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <button onclick="aiFillPlaceholders()" id="ai-fill-btn" class="dd-btn dd-btn-accent dd-btn-sm">
+                                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m12 3 1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4Z"/></svg>
+                                    Fill with AI
+                                </button>
+                                <button onclick="applyPlaceholders()" id="apply-placeholders-btn" class="dd-btn dd-btn-primary dd-btn-sm">Apply to draft</button>
+                            </div>
+                            <p id="apply-status" class="dd-tiny mb-2"></p>
                             <div id="placeholder-fields" class="space-y-2"></div>
-
-                            <div class="mt-3 grid grid-cols-2 gap-2">
-                                <button onclick="aiFillPlaceholders()" id="ai-fill-btn"
-                                        class="text-xs font-semibold px-3 py-2 rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center gap-1.5">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                                    AI Fill
-                                </button>
-                                <button onclick="applyPlaceholders()" id="apply-placeholders-btn"
-                                        class="text-xs font-semibold px-3 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 flex items-center justify-center gap-1.5">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                    Apply
-                                </button>
-                            </div>
-                            <p id="apply-status" class="text-[10px] text-gray-400 mt-1.5 text-center"></p>
+                            <p class="dd-tiny mt-2">AI only fills what it can trace to your brief, the company's particulars or its own filings, and says where each answer came from.</p>
                         </div>
                     </aside>
 
@@ -544,28 +571,69 @@
                             </div>
                         </div>
                     </main>
+
+                    <!-- ── RIGHT: assistant ── -->
+                    <aside id="dd-assistant" class="dd-card p-4 h-fit 2xl:sticky 2xl:top-4 lg:col-span-2 2xl:col-span-1">
+                        <div class="dd-tabs mb-3" role="tablist">
+                            <button class="dd-tab" role="tab" aria-selected="true" data-ddtab="assist" onclick="ddTab('assist')">Rewrite</button>
+                            <button class="dd-tab" role="tab" aria-selected="false" data-ddtab="cover" onclick="ddTab('cover')">SEBI coverage</button>
+                            <button class="dd-tab" role="tab" aria-selected="false" data-ddtab="memory" onclick="ddTab('memory')">Memory</button>
+                        </div>
+                        <div data-ddpanel="assist">
+                            <div class="space-y-1.5">
+                                <button class="dd-mode" onclick="improveBody('house')"><b>Match house style</b><span>Reword like the company's own letters</span></button>
+                                <button class="dd-mode" onclick="improveBody('polish')"><b>Polish</b><span>Grammar and clarity, same facts</span></button>
+                                <button class="dd-mode" onclick="improveBody('formal')"><b>More formal</b><span>SEBI-conventional register</span></button>
+                                <button class="dd-mode" onclick="improveBody('shorter')"><b>Tighter</b><span>Cut repetition, keep every disclosure</span></button>
+                            </div>
+                            <label class="dd-h2 block mt-3 mb-1" for="dd-instruction">Or tell Delta what to change</label>
+                            <textarea id="dd-instruction" rows="3" class="dd-textarea" placeholder="e.g. Add that the appointment is subject to shareholders' approval at the next general meeting"></textarea>
+                            <div class="flex items-center justify-between mt-2">
+                                <span id="dd-rewrite-status" class="dd-tiny"></span>
+                                <button class="dd-btn dd-btn-primary dd-btn-sm" id="dd-instruct-btn" onclick="modifyDraft()">Apply</button>
+                            </div>
+                            <div id="dd-questions" class="hidden mt-4 pt-3 dd-divider"></div>
+                            <div id="dd-compose-note" class="hidden mt-4 pt-3 dd-divider dd-tiny"></div>
+                        </div>
+                        <div data-ddpanel="cover" class="hidden">
+                            <p class="dd-sub mb-2">What SEBI requires for this filing, and whether the draft says it yet. The full AI check runs before export.</p>
+                            <div id="dd-cover-list"></div>
+                        </div>
+                        <div data-ddpanel="memory" class="hidden">
+                            <div id="dd-desk-memory"></div>
+                            <label class="dd-h2 block mt-3 mb-1" for="dd-remember">Remember a rule</label>
+                            <textarea id="dd-remember" rows="2" class="dd-textarea" placeholder="e.g. Always write 'the Company', never 'we'"></textarea>
+                            <div class="flex items-center justify-between mt-2 gap-2">
+                                <select id="dd-remember-scope" class="dd-input" style="width:auto;padding:6px 8px;font-size:12px">
+                                    <option value="company">For this company</option>
+                                    <option value="team">For every company</option>
+                                </select>
+                                <button class="dd-btn dd-btn-primary dd-btn-sm" onclick="ddRememberFromDesk()">Remember</button>
+                            </div>
+                            <p id="dd-remember-status" class="dd-tiny mt-1"></p>
+                        </div>
+                    </aside>
                 </div>
             </div>
 
             <!-- ── STEP 5: Preview & Download ── -->
             <div id="step-5" class="wizard-step bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-5 hidden">
-                <div class="flex items-center justify-between mb-3">
+                <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
                     <div>
-                        <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Step 5</span>
-                        <h3 class="text-lg font-bold text-gray-900">Preview &amp; download</h3>
+                        <p class="dd-eyebrow">Step 5 · Check &amp; export</p>
+                        <h3 class="dd-h mt-1">Check it, then file it</h3>
+                        <p class="dd-sub mt-1">Delta checks names, addresses, codes, dates and spelling against the company's own records, and whether the draft answers what SEBI asks for this filing.</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="downloadLetter('pdf')" id="dl-pdf"
-                                class="text-sm font-semibold px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
-                            ⬇ PDF
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="ddRunCheck()" id="dd-check-btn" class="dd-btn dd-btn-accent">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.5l2 2 4-4.5M12 3l7.5 3v5.5c0 4.6-3.2 8.1-7.5 9.5-4.3-1.4-7.5-4.9-7.5-9.5V6Z"/></svg>
+                            Check with AI
                         </button>
-                        <button onclick="downloadLetter('docx')" id="dl-docx"
-                                class="text-sm font-semibold px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">
-                            ⬇ Word
-                        </button>
+                        <button onclick="downloadLetter('pdf')" id="dl-pdf" class="dd-btn dd-btn-primary">Export PDF</button>
+                        <button onclick="downloadLetter('docx')" id="dl-docx" class="dd-btn">Export Word</button>
                     </div>
                 </div>
-                <p class="text-xs text-gray-500 mb-4">Final document as it will appear on the official letterhead. Both formats render identically — you can edit the Word file later if needed.</p>
+                <div id="dd-check" class="mb-5"></div>
 
                 <!-- ── Pre-filing check + signature routing ────────────────
                      The draft is only half the job: it has to survive review
@@ -575,24 +643,18 @@
                     <div class="flex items-center justify-between gap-3 px-4 py-3 bg-gradient-to-r from-indigo-50 to-white border-b border-gray-200">
                         <div class="flex items-center gap-2.5">
                             <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            <span class="text-sm font-bold text-gray-900">Pre-filing check &amp; signature</span>
+                            <span class="text-sm font-bold text-gray-900">Signature</span>
                         </div>
-                        <span id="lint-score" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">not run</span>
+                        
                     </div>
 
                     <div class="p-4">
                         <div class="flex flex-wrap gap-2 mb-3">
-                            <button onclick="runLint()" id="lint-btn"
-                                    class="text-sm font-semibold px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
-                                Run pre-filing check
-                            </button>
                             <button onclick="loadSignatories()" id="sig-btn"
                                     class="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:border-gray-300">
                                 Suggest signatories
                             </button>
                         </div>
-
-                        <div id="lint-results" class="hidden mb-4"></div>
 
                         <div id="sig-block" class="hidden">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
@@ -741,11 +803,11 @@ const _REC_STYLES = {
     // Past its due date with no submission matched. Presented as a task
     // ("Verify filing") rather than as a missed deadline, which would be an
     // unsupported claim about a listed issuer.
-    to_verify:   {pill: 'bg-indigo-100 text-indigo-700', label: 'Verify filing', border: '#6366f1'},
+    to_verify:   {pill: 'bg-indigo-100 text-indigo-700', label: 'Verify filing', border: '#b4961f'},
     due_today: {pill: 'bg-rose-100 text-rose-700',    label: 'Due today', border: '#f43f5e'},
     due_soon:  {pill: 'bg-amber-100 text-amber-700',  label: 'Due soon',  border: '#f59e0b'},
-    upcoming:  {pill: 'bg-blue-100 text-blue-700',    label: 'Upcoming',  border: '#3b82f6'},
-    event:     {pill: 'bg-violet-100 text-violet-700',label: 'Triggered', border: '#8b5cf6'},
+    upcoming:  {pill: 'bg-blue-100 text-blue-700',    label: 'Upcoming',  border: '#b4961f'},
+    event:     {pill: 'bg-violet-100 text-violet-700',label: 'Triggered', border: '#b4961f'},
     seasonal:  {pill: 'bg-teal-100 text-teal-700',    label: 'This season',border: '#0d9488'},
     sector:    {pill: 'bg-orange-100 text-orange-700',label: 'Sector',    border: '#ea580c'},
 };
@@ -910,6 +972,13 @@ function loadFilingTypes() {
               ).join('');
         document.getElementById('filing-type-search').value = '';
         renderFilingTypes(_allFilingTypes);
+        // Deep link from the Workspace / risk desk / news: jump straight
+        // to the requested filing type once the catalogue is loaded.
+        if (window._pendingDraftType) {
+            const want = window._pendingDraftType;
+            window._pendingDraftType = null;
+            if (_allFilingTypes.some(t => t.id === want)) pickFilingType(want);
+        }
     });
 }
 
@@ -963,128 +1032,13 @@ function pickFilingType(typeId) {
 }
 
 // ── Step 3: examples + new info ──
-function loadPastExamples() {
-    const wrap = document.getElementById('past-examples');
-    const countEl = document.getElementById('past-count');
-    const fpWrap = document.getElementById('style-fingerprint');
-    wrap.innerHTML = '<p class="text-xs text-gray-400">Searching past filings (this can take a few seconds for new companies)…</p>';
-    countEl.textContent = '';
-    fpWrap.classList.add('hidden');
+/* loadPastExamples: replaced by static/draft_desk.js */
 
-    fetch(`/api/draft/examples?symbol=${encodeURIComponent(STATE.company.symbol)}&filing_type=${encodeURIComponent(STATE.filing_type.id)}`)
-        .then(r => r.json()).then(data => {
-            STATE.examples = data.examples || [];
-            countEl.textContent = STATE.examples.length
-                ? `(showing ${STATE.examples.length} of last filings; ${data.total_filings || 0} total cached)`
-                : `(none found yet — ${data.total_filings || 0} filings cached overall)`;
+/* _renderFingerprint: replaced by static/draft_desk.js */
 
-            if (!STATE.examples.length) {
-                wrap.innerHTML = `<div class="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
-                    No past <em>${escapeHtml(STATE.filing_type.label.toLowerCase())}</em> from ${escapeHtml(STATE.company.symbol)} found in our cache.
-                    The AI will draft from SEBI conventions only. Paste any reference letter you have into the body box after generation if you want a closer style match.
-                </div>`;
-            } else {
-                wrap.innerHTML = STATE.examples.map((ex, i) => `
-                    <details class="border border-gray-200 rounded-lg" ${i === 0 ? 'open' : ''}>
-                        <summary class="cursor-pointer px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between">
-                            <span class="min-w-0 flex-1 truncate">
-                                <span class="font-medium text-gray-900">${escapeHtml(ex.title || 'Past filing')}</span>
-                                <span class="text-gray-400 ml-2">${escapeHtml(ex.date || '')}</span>
-                            </span>
-                            ${ex.pdf_link ? `<a href="${ex.pdf_link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="text-[10px] text-indigo-600 hover:underline ml-2 flex-shrink-0">PDF ↗</a>` : ''}
-                        </summary>
-                        <div class="px-3 py-2 text-[11px] text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 border-t border-gray-200 max-h-56 overflow-y-auto">${escapeHtml(ex.text || ex.description || '(text not available)')}</div>
-                    </details>
-                `).join('');
-            }
+/* learnStyle: replaced by static/draft_desk.js */
 
-            // Show cached fingerprint if available; otherwise auto-trigger
-            // a fresh learn pass so the user sees the AI's understanding
-            // before they click Generate.
-            if (data.style_fingerprint) {
-                _renderFingerprint(data.style_fingerprint, data.style_learned_at, STATE.examples.length);
-            } else if (STATE.examples.length >= 2) {
-                learnStyle();   // run automatically the first time
-            }
-        });
-}
-
-function _renderFingerprint(text, learnedAt, exampleCount) {
-    const wrap = document.getElementById('style-fingerprint');
-    document.getElementById('style-fingerprint-text').textContent = text;
-    let meta = '';
-    if (exampleCount) meta += `${exampleCount} letters analyzed`;
-    if (learnedAt) {
-        const t = new Date(learnedAt);
-        if (!isNaN(t)) meta += (meta ? ' · ' : '') + `learned ${t.toLocaleString()}`;
-    }
-    document.getElementById('style-meta').textContent = meta;
-    wrap.classList.remove('hidden');
-}
-
-function learnStyle() {
-    const btn = document.getElementById('learn-style-btn');
-    const orig = btn.textContent;
-    btn.disabled = true; btn.textContent = '🧠 Reading past letters…';
-    fetch('/api/draft/learn-style', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({symbol: STATE.company.symbol, filing_type: STATE.filing_type.id}),
-    }).then(r => r.json()).then(data => {
-        btn.disabled = false; btn.textContent = orig;
-        if (data.error) {
-            alert(data.message || 'Style learning failed');
-            return;
-        }
-        _renderFingerprint(data.fingerprint || '', new Date().toISOString(), data.example_count);
-    }).catch(() => {
-        btn.disabled = false; btn.textContent = orig;
-    });
-}
-
-function generateDraft() {
-    STATE.new_info = document.getElementById('new-info').value.trim();
-    if (!STATE.new_info) {
-        alert("Please describe what's new — names, dates, designations.");
-        return;
-    }
-    const btn = document.getElementById('generate-btn');
-    btn.disabled = true; btn.textContent = '✨ Drafting…';
-
-    fetch('/api/draft/generate', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            company_name: STATE.company.name,
-            symbol: STATE.company.symbol,
-            filing_type: STATE.filing_type.id,
-            new_info: STATE.new_info,
-            subject: STATE.subject,
-            examples: STATE.examples.map(e => ({text: e.text, description: e.description, date: e.date})),
-        }),
-    }).then(r => r.json()).then(data => {
-        btn.disabled = false; btn.textContent = '✨ Generate draft with AI';
-        if (data.error) { alert(data.message || 'Draft failed'); return; }
-        STATE.subject = data.subject || STATE.subject;
-        STATE.body = data.body || '';
-        STATE.annexures = (data.annexures || []).map(a => ({title: a.title || '', body: a.body || ''}));
-        STATE.draft_id = data.draft_id || null;
-        document.getElementById('field-subject').value = STATE.subject;
-        _setEditorPlainText(STATE.body);
-        renderAnnexureEditors();
-        showStep(4);
-        rescanPlaceholders();
-        if (STATE.draft_id) {
-            const s = document.getElementById('save-draft-status');
-            if (s) s.textContent = `Auto-saved as draft #${STATE.draft_id}`;
-            loadMyDraftsCount();
-            loadTeam();
-        }
-    }).catch(() => {
-        btn.disabled = false; btn.textContent = '✨ Generate draft with AI';
-        alert('Network error. Try again.');
-    });
-}
+/* generateDraft: replaced by static/draft_desk.js */
 
 // ── Team panel ───────────────────────────────────────────
 let _myEffectiveRole = 'owner';   // updated when team loads
@@ -1325,296 +1279,7 @@ function _setEditorPlainText(text) {
     // Quill leaves a trailing \n; that's fine for editing.
 }
 
-// ── Step 4: AI improvements ──
-function improveBody(mode) {
-    _initQuillIfNeeded();
-    const txt = _getEditorPlainText().trim();
-    if (!txt) return;
-    const status = document.getElementById('ai-status');
-    const buttons = ['btn-polish','btn-tone','btn-formal','btn-modify'].map(id => document.getElementById(id));
-    buttons.forEach(b => b.disabled = true);
-    status.textContent = 'AI is rewriting…';
-
-    fetch('/api/draft/improve', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            text: txt, mode,
-            examples: STATE.examples.map(e => ({text: e.text, description: e.description})),
-        }),
-    }).then(r => r.json()).then(data => {
-        buttons.forEach(b => b.disabled = false);
-        if (data.error) { status.innerHTML = `<span class="text-red-500">${escapeHtml(data.message)}</span>`; return; }
-        _setEditorPlainText(data.text || txt);
-        STATE.body = data.text || txt;
-        rescanPlaceholders();
-        status.innerHTML = `<span class="text-emerald-600">✓ Updated. Review the changes — your previous text was replaced.</span>`;
-        setTimeout(() => { status.textContent = ''; }, 6000);
-    }).catch(() => {
-        buttons.forEach(b => b.disabled = false);
-        status.innerHTML = '<span class="text-red-500">Network error</span>';
-    });
-}
-
-// "Modify Draft" — free-form instruction that the AI applies to the whole body.
-function modifyDraft() {
-    _initQuillIfNeeded();
-    const txt = _getEditorPlainText().trim();
-    if (!txt) return;
-    const instruction = prompt(
-        "Tell the AI what to change in this draft.\n\n" +
-        "Examples:\n" +
-        " • make it shorter\n" +
-        " • add a paragraph about regulatory approvals required\n" +
-        " • emphasise that the appointment is effective immediately\n" +
-        " • soften the tone, less legalese"
-    );
-    if (!instruction || !instruction.trim()) return;
-
-    const status = document.getElementById('ai-status');
-    const btn = document.getElementById('btn-modify');
-    btn.disabled = true;
-    status.textContent = 'AI is applying your instruction…';
-
-    fetch('/api/draft/improve', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            text: txt, mode: 'custom', instruction,
-            examples: STATE.examples.map(e => ({text: e.text, description: e.description})),
-        }),
-    }).then(r => r.json()).then(data => {
-        btn.disabled = false;
-        if (data.error) { status.innerHTML = `<span class="text-red-500">${escapeHtml(data.message)}</span>`; return; }
-        _setEditorPlainText(data.text || txt);
-        STATE.body = data.text || txt;
-        rescanPlaceholders();
-        status.innerHTML = `<span class="text-emerald-600">✓ Modified per your instruction.</span>`;
-        setTimeout(() => { status.textContent = ''; }, 6000);
-    }).catch(() => {
-        btn.disabled = false;
-        status.innerHTML = '<span class="text-red-500">Network error</span>';
-    });
-}
-
-// ── Placeholder detection + auto-fill ──
-// Picks up two patterns from the body + annexures:
-//   {snake_case_token}  — Gemini's named placeholders
-//   [PLEASE FILL — hint] — fallback for when the AI doesn't have a value
-// Each unique token gets a labeled input. Typing in the input replaces all
-// instances of that token in the editor + every annexure body.
-function _extractPlaceholders(allText) {
-    const out = new Map();   // token → {kind, label, hint}
-    // {snake_case}
-    for (const m of allText.matchAll(/\{([a-z][a-z0-9_]{2,60})\}/g)) {
-        const tok = m[1];
-        if (!out.has(tok)) {
-            out.set(tok, {
-                kind: 'curly',
-                pattern: '{' + tok + '}',
-                label: tok.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-                hint: '',
-            });
-        }
-    }
-    // [PLEASE FILL — hint]
-    for (const m of allText.matchAll(/\[\s*PLEASE\s*FILL[^\]]*\]/gi)) {
-        const literal = m[0];
-        const tok = literal;       // use the full literal as the token key
-        if (!out.has(tok)) {
-            // Pull the hint after a dash if present
-            const hint = (literal.match(/[—\-:]\s*([^\]]+)\]/) || [])[1] || '';
-            out.set(tok, {
-                kind: 'bracket',
-                pattern: literal,
-                label: 'Please fill',
-                hint: hint.trim(),
-            });
-        }
-    }
-    return out;
-}
-
-function rescanPlaceholders() {
-    _initQuillIfNeeded();
-    _syncAnnexuresFromDOM();
-    const bodyText = _getEditorPlainText();
-    const annxText = STATE.annexures.map(a => (a.title || '') + '\n' + (a.body || '')).join('\n\n');
-    const tokens = _extractPlaceholders(bodyText + '\n\n' + annxText);
-
-    const section = document.getElementById('placeholders-section');
-    const list = document.getElementById('placeholder-fields');
-    if (!list) return;
-    if (!tokens.size) {
-        section.classList.add('hidden');
-        list.innerHTML = '';
-        return;
-    }
-    section.classList.remove('hidden');
-
-    // Render the inputs (preserving any existing typed values)
-    const oldValues = {};
-    list.querySelectorAll('input[data-token]').forEach(inp => {
-        oldValues[inp.dataset.token] = inp.value;
-    });
-
-    // Each input is identified by its index — we use that to read all values
-    // back when the user clicks "Apply to document". No keystroke-by-keystroke
-    // mutation; one batch substitution on demand.
-    const tokenList = Array.from(tokens.entries());
-    list.innerHTML = tokenList.map(([tok, info], i) => `
-        <div>
-            <label class="text-[10px] text-gray-500 block mb-0.5" title="${escapeAttr(info.pattern)}">
-                ${escapeHtml(info.label)}${info.hint ? ' <span class="text-amber-600">— ' + escapeHtml(info.hint) + '</span>' : ''}
-            </label>
-            <input type="text" data-token-idx="${i}" data-pattern="${escapeAttr(info.pattern)}"
-                   value="${escapeAttr(oldValues[tok] || '')}"
-                   placeholder="Fill in and click Apply…"
-                   class="w-full px-2.5 py-1.5 text-xs border border-amber-200 bg-amber-50/40 rounded focus:outline-none focus:ring-2 focus:ring-amber-400">
-        </div>
-    `).join('');
-    // Submit on Enter inside any field
-    list.querySelectorAll('input[data-pattern]').forEach(inp => {
-        inp.addEventListener('keydown', e => {
-            if (e.key === 'Enter') { e.preventDefault(); applyPlaceholders(); }
-        });
-    });
-}
-
-// AI-fill: ask the server to pre-populate placeholders it can answer
-// confidently from the user's description, the body context, and public
-// knowledge of the company. User reviews before clicking Apply.
-function aiFillPlaceholders() {
-    _initQuillIfNeeded();
-    const list = document.getElementById('placeholder-fields');
-    if (!list) return;
-
-    const placeholders = [];
-    list.querySelectorAll('input[data-pattern]').forEach(inp => {
-        const pat = inp.getAttribute('data-pattern') || '';
-        if (!pat) return;
-        // Re-derive label/hint from the input's label sibling for context.
-        const label = inp.previousElementSibling ? inp.previousElementSibling.textContent.trim() : '';
-        placeholders.push({pattern: pat, label});
-    });
-    if (!placeholders.length) {
-        return;
-    }
-
-    const status = document.getElementById('apply-status');
-    const btn = document.getElementById('ai-fill-btn');
-    if (status) status.innerHTML = '<span class="text-indigo-600">AI is filling what it can…</span>';
-    btn.disabled = true; btn.textContent = '⌛ Filling…';
-
-    fetch('/api/draft/ai-fill', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            company_name: STATE.company ? STATE.company.name : '',
-            symbol: STATE.company ? STATE.company.symbol : '',
-            filing_type: STATE.filing_type ? STATE.filing_type.id : '',
-            new_info: STATE.new_info || '',
-            body: _getEditorPlainText(),
-            annexures: STATE.annexures.map(a => ({title: a.title, body: a.body})),
-            placeholders,
-        }),
-    }).then(r => r.json()).then(data => {
-        btn.disabled = false; btn.textContent = '✨ AI Fill';
-        if (data.error) {
-            if (status) status.innerHTML = `<span class="text-red-600">${escapeHtml(data.message || 'AI fill failed')}</span>`;
-            return;
-        }
-        const fills = data.fills || [];
-        if (!fills.length) {
-            if (status) status.innerHTML = '<span class="text-amber-600">AI couldn\'t confidently fill any field — please fill manually.</span>';
-            return;
-        }
-        // Match fills to inputs by pattern, populate.
-        const byPattern = {};
-        for (const f of fills) byPattern[f.pattern] = f.value;
-        let filled = 0;
-        list.querySelectorAll('input[data-pattern]').forEach(inp => {
-            const pat = inp.getAttribute('data-pattern');
-            if (pat in byPattern && !inp.value) {
-                inp.value = byPattern[pat];
-                inp.classList.add('border-indigo-300', 'bg-indigo-50/60');
-                inp.classList.remove('border-amber-200', 'bg-amber-50/40');
-                inp.title = '✨ AI-filled — review before applying';
-                filled++;
-            }
-        });
-        if (status) {
-            const skipped = placeholders.length - filled;
-            status.innerHTML = `<span class="text-emerald-600">✓ AI filled ${filled} field${filled === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} for you to fill` : ''}. Review then click Apply.</span>`;
-        }
-    }).catch(() => {
-        btn.disabled = false; btn.textContent = '✨ AI Fill';
-        if (status) status.innerHTML = '<span class="text-red-600">Network error</span>';
-    });
-}
-
-// One-shot batch substitution. Reads every placeholder field, swaps each
-// non-empty value into the body + annexures, then rescans (filled tokens
-// disappear from the sidebar; un-filled ones remain).
-function applyPlaceholders() {
-    _initQuillIfNeeded();
-    const list = document.getElementById('placeholder-fields');
-    if (!list) return;
-
-    // Collect (pattern → value) entries from the sidebar, dropping blanks so
-    // un-filled tokens stay as visible {tokens} in the document.
-    const entries = [];
-    list.querySelectorAll('input[data-pattern]').forEach(inp => {
-        const pat = inp.getAttribute('data-pattern') || '';
-        const val = (inp.value || '').trim();
-        if (pat && val) entries.push([pat, val]);
-    });
-
-    const status = document.getElementById('apply-status');
-    if (!entries.length) {
-        if (status) status.innerHTML = '<span class="text-amber-600">Type at least one value first.</span>';
-        return;
-    }
-
-    // ── Body: do the substitutions on plain text, then write back. We
-    // rebuild the entire editor content rather than diff-patching because
-    // that's far more reliable than juggling Quill indices around multi-
-    // pass replacements. Trade-off: any rich-text formatting in the body
-    // is reset to plain — acceptable for SEBI letters which are flat prose.
-    let bodyText = _getEditorPlainText();
-    let touchedCount = 0;
-    for (const [pat, val] of entries) {
-        const before = bodyText;
-        bodyText = bodyText.split(pat).join(val);
-        if (before !== bodyText) touchedCount++;
-    }
-    _setEditorPlainText(bodyText);
-    STATE.body = bodyText;
-
-    // ── Annexures: same substitution on each title/body, then re-render.
-    let annexTouched = false;
-    STATE.annexures = STATE.annexures.map(a => {
-        let title = a.title || '';
-        let body  = a.body  || '';
-        let changed = false;
-        for (const [pat, val] of entries) {
-            if (title.includes(pat)) { title = title.split(pat).join(val); changed = true; }
-            if (body.includes(pat))  { body  = body.split(pat).join(val);  changed = true; }
-        }
-        if (changed) annexTouched = true;
-        return {title, body};
-    });
-    if (annexTouched) renderAnnexureEditors();
-
-    // Refresh the sidebar — filled tokens are gone, only unfilled remain.
-    rescanPlaceholders();
-
-    if (status) {
-        const total = entries.length;
-        status.innerHTML = `<span class="text-emerald-600">✓ Applied ${total} value${total === 1 ? '' : 's'} to the document.</span>`;
-        setTimeout(() => { status.textContent = ''; }, 4000);
-    }
-}
+/* Rewrite, placeholder fields and AI fill live in static/draft_desk.js. */
 
 // ── Helpful / Not helpful — local rating, used to gate future telemetry ──
 function rateDraft(verdict) {
@@ -1683,23 +1348,7 @@ function deleteAnnexure(i) {
     renderAnnexureEditors();
 }
 
-function improveAnnexure(i, mode) {
-    _syncAnnexuresFromDOM();
-    const annx = STATE.annexures[i];
-    if (!annx || !annx.body.trim()) return;
-    fetch('/api/draft/improve', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            text: annx.body, mode,
-            examples: STATE.examples.map(e => ({text: e.text, description: e.description})),
-        }),
-    }).then(r => r.json()).then(data => {
-        if (data.error) { alert(data.message || 'Rewrite failed'); return; }
-        STATE.annexures[i].body = data.text || annx.body;
-        renderAnnexureEditors();
-    });
-}
+/* improveAnnexure: replaced by static/draft_desk.js */
 
 // ── Step 5: preview ──
 function _gatherLetter() {
@@ -1708,9 +1357,10 @@ function _gatherLetter() {
     STATE.body = bodyText;
     return {
         draft_id: STATE.draft_id,
-        company_name: STATE.company ? STATE.company.name : '',
+        company_name: ((document.getElementById('field-company') || {}).value || '').trim() || (STATE.company ? STATE.company.name : ''),
         symbol: STATE.company ? STATE.company.symbol : '',
         filing_type: STATE.filing_type ? STATE.filing_type.id : '',
+        use_house_format: true,
         registered_office: document.getElementById('field-regoffice').value,
         cin: document.getElementById('field-cin').value,
         subject: document.getElementById('field-subject').value,
@@ -2184,10 +1834,10 @@ function _renderBodyHtml(text) {
                 const header = rows[0];
                 const body = rows.slice(1);
                 return `<table style="width:100%; border-collapse:collapse; margin:0 0 14px 0; font-size:12px;">
-                    <thead><tr style="background:#f1f5f9;">${header.map(h =>
-                        `<th style="border:1px solid #94a3b8; padding:6px 8px; text-align:left;">${escapeHtml(h)}</th>`).join('')}</tr></thead>
+                    <thead><tr style="background:#f4f2eb;">${header.map(h =>
+                        `<th style="border:1px solid #9b988c; padding:6px 8px; text-align:left;">${escapeHtml(h)}</th>`).join('')}</tr></thead>
                     <tbody>${body.map(r => `<tr>${r.map(c =>
-                        `<td style="border:1px solid #94a3b8; padding:6px 8px;">${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+                        `<td style="border:1px solid #9b988c; padding:6px 8px;">${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody>
                 </table>`;
             }
         }
@@ -2195,106 +1845,20 @@ function _renderBodyHtml(text) {
     }).join('');
 }
 
-function goToPreview() {
-    STATE.body = _quill ? _getEditorPlainText() : (STATE.body || '');
-    STATE.subject = document.getElementById('field-subject').value;
-    _seedPdfMeta();
-    const L = _gatherLetter();
-    const today = new Date().toLocaleDateString('en-IN', {day: '2-digit', month: 'long', year: 'numeric'});
+/* goToPreview: replaced by static/draft_desk.js */
 
-    const bodyHtml = _renderBodyHtml(L.body);
-
-    const annexurePages = (L.annexures || []).filter(a => a.title || a.body).map(a => `
-        <div style="page-break-before: always; border-top: 2px dashed #cbd5e1; margin-top: 32px; padding-top: 28px;">
-            <p style="text-align:center; font-size:11px; color:#666; margin:0 0 8px 0;">${escapeHtml(L.company_name || '')}</p>
-            <h2 style="text-align:center; font-size:15px; font-weight:bold; text-decoration:underline; margin:6px 0 18px 0;">${escapeHtml(a.title || 'Annexure')}</h2>
-            ${_renderBodyHtml(a.body)}
-        </div>`).join('');
-
-    // Document kind decides the layout: exchange letter vs standalone document
-    // (resolution / notice / minutes etc.).
-    const LETTER_KINDS = ['', 'letter', 'exchange_letter'];
-    const docKind = (STATE.filing_type && STATE.filing_type.doc_kind) || 'letter';
-    const addressed = LETTER_KINDS.includes(docKind);
-    const CLOSE = {resolution: 'By order of the Board', notice: 'By order of the Board'};
-    const closePhrase = addressed ? 'Yours faithfully,' : (CLOSE[docKind] || '');
-
-    const headerBlock = `
-        <div style="text-align:center; margin-bottom:6px;">
-            <h1 style="font-size:18px; font-weight:bold; margin:0; letter-spacing:0.5px;">${escapeHtml((L.company_name || '').toUpperCase())}</h1>
-            ${L.registered_office ? `<p style="font-size:11px; color:#444; margin:4px 0 0 0;">${escapeHtml(L.registered_office)}</p>` : ''}
-            ${L.cin ? `<p style="font-size:11px; color:#444; margin:2px 0 0 0;">CIN: ${escapeHtml(L.cin)}</p>` : ''}
-        </div>
-        <hr style="border:none; border-top:1px solid #000; margin:10px 0 24px 0;">`;
-
-    let topBlock;
-    if (addressed) {
-        topBlock = `
-        <p style="margin:0 0 18px 0;">Date: ${today}</p>
-        <table style="width:100%; margin:0 0 18px 0; border-collapse:collapse;">
-            <tr style="vertical-align:top;">
-                <td style="width:50%; padding-right:10px; font-size:13px; line-height:1.45;">
-                    The Manager<br>Listing Department<br>BSE Limited<br>Phiroze Jeejeebhoy Towers, Dalal Street<br>Mumbai – 400 001
-                    ${L.bse_code ? `<br><b>Scrip Code:</b> ${escapeHtml(L.bse_code)}` : ''}
-                </td>
-                <td style="width:50%; padding-left:10px; font-size:13px; line-height:1.45;">
-                    The Manager<br>Listing Department<br>National Stock Exchange of India Limited<br>Exchange Plaza, Bandra Kurla Complex<br>Bandra (East), Mumbai – 400 051
-                    ${L.nse_symbol ? `<br><b>Symbol:</b> ${escapeHtml(L.nse_symbol)}` : ''}
-                </td>
-            </tr>
-        </table>
-        ${L.subject ? `<p style="margin:0 0 16px 0;"><b><u>Subject: ${escapeHtml(L.subject)}</u></b></p>` : ''}
-        <p style="margin:0 0 14px 0;">Dear Sir / Madam,</p>`;
-    } else {
-        topBlock = `
-        ${L.subject ? `<p style="text-align:center; margin:0 0 16px 0;"><b><u>${escapeHtml((L.subject || '').toUpperCase())}</u></b></p>` : ''}
-        <p style="margin:0 0 16px 0;">Date: ${today}</p>`;
-    }
-
-    document.getElementById('preview').innerHTML = `
-        ${headerBlock}
-        ${topBlock}
-        ${bodyHtml}
-        ${closePhrase ? `<p style="margin:24px 0 0 0;">${escapeHtml(closePhrase)}</p>` : '<div style="height:18px;"></div>'}
-        <p style="margin:8px 0 0 0;"><b>For ${escapeHtml(L.company_name || '')}</b></p>
-        <div style="height:50px;"></div>
-        ${L.signer_name ? `<p style="margin:0;"><b>${escapeHtml(L.signer_name)}</b></p>` : ''}
-        ${L.signer_designation ? `<p style="margin:2px 0 0 0;">${escapeHtml(L.signer_designation)}</p>` : ''}
-        ${annexurePages}
-    `;
-    showStep(5);
-}
-
-function downloadLetter(format) {
-    const L = _gatherLetter();
-    const btn = document.getElementById(format === 'pdf' ? 'dl-pdf' : 'dl-docx');
-    const orig = btn.textContent;
-    btn.disabled = true; btn.textContent = 'Generating…';
-
-    fetch(`/api/draft/export/${format}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(L),
-    }).then(r => {
-        btn.disabled = false; btn.textContent = orig;
-        if (!r.ok) { r.json().then(d => alert(d.message || 'Export failed')); return; }
-        return r.blob().then(blob => {
-            const ext = format === 'pdf' ? 'pdf' : 'docx';
-            const fname = ((L.company_name || 'letter') + '_' + (L.subject || 'sebi-letter')).replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 80) + '.' + ext;
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = fname;
-            document.body.appendChild(a); a.click(); a.remove();
-            URL.revokeObjectURL(url);
-        });
-    }).catch(() => {
-        btn.disabled = false; btn.textContent = orig;
-        alert('Network error');
-    });
-}
+/* downloadLetter: replaced by static/draft_desk.js */
 
 // Init
 showStep(1);
+(function applyDeepLink() {
+    // /draft?company=SYMBOL_OR_NAME&name=Display+Name&type=filing_type_id
+    const q = new URLSearchParams(window.location.search);
+    const company = (q.get('company') || '').trim();
+    if (!company) return;
+    window._pendingDraftType = (q.get('type') || '').trim() || null;
+    _selectCompany(company, (q.get('name') || company).trim());
+})();
 loadMyDraftsCount();
 loadTeamsOverview();
 
@@ -2311,53 +1875,7 @@ function _draftPayload() {
     };
 }
 
-async function runLint() {
-    const btn = document.getElementById('lint-btn');
-    btn.disabled = true; btn.textContent = 'Checking…';
-    try {
-        const r = await fetch('/api/draft/lint', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(_draftPayload()),
-        });
-        const d = await r.json();
-
-        const pill = document.getElementById('lint-score');
-        pill.textContent = d.ready ? `Ready · ${d.score}%` : `${d.blocking.length} blocking · ${d.score}%`;
-        pill.className = 'text-[11px] font-bold px-2.5 py-1 rounded-full ' +
-            (d.ready ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700');
-
-        const authored = d.checks.filter(c => !c.by_template);
-        let h = '<div class="space-y-1.5">';
-        authored.forEach(c => {
-            const icon = c.ok
-                ? '<span class="text-emerald-600">&#10003;</span>'
-                : (c.severity === 'blocking' ? '<span class="text-rose-600">&#10007;</span>'
-                                             : '<span class="text-amber-500">!</span>');
-            h += `<div class="flex gap-2.5 text-xs"><span class="w-3 flex-shrink-0">${icon}</span>
-                  <span><span class="font-semibold text-gray-800">${_esc(c.label)}</span>
-                  ${c.ok ? '' : `<span class="block text-gray-500 mt-0.5">${_esc(c.detail)}</span>`}</span></div>`;
-        });
-        h += '</div>';
-
-        if (d.template_supplied && d.template_supplied.length) {
-            h += `<p class="text-[11px] text-gray-400 mt-3">Added by the letterhead at render time: ${
-                d.template_supplied.map(_esc).join(', ')}.</p>`;
-        }
-        if (d.notes && d.notes.length) {
-            h += '<div class="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">' +
-                 d.notes.map(n => `<p class="text-[11px] text-amber-900 leading-relaxed">${_esc(n)}</p>`).join('') +
-                 '</div>';
-        }
-        const box = document.getElementById('lint-results');
-        box.innerHTML = h; box.classList.remove('hidden');
-    } catch (e) {
-        document.getElementById('lint-results').innerHTML =
-            `<p class="text-xs text-rose-600">Check failed: ${_esc(e.message)}</p>`;
-        document.getElementById('lint-results').classList.remove('hidden');
-    } finally {
-        btn.disabled = false; btn.textContent = 'Run pre-filing check';
-    }
-}
+/* runLint: replaced by static/draft_desk.js */
 
 function _esc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
 
@@ -2464,5 +1982,22 @@ async function sendEsign(id) {
 }
 </script>
 
+
+<!-- ── Draft memory drawer ── -->
+<div id="dd-drawer-back" class="dd-drawer-back" onclick="ddCloseMemory()"></div>
+<aside id="dd-drawer" class="dd-drawer" aria-label="Draft memory" aria-hidden="true">
+    <div class="dd-drawer-head">
+        <div class="flex items-start justify-between gap-3">
+            <div>
+                <p class="dd-eyebrow">Draft memory</p>
+                <h3 class="dd-h mt-1">How <span id="dd-drawer-co">this company</span> writes</h3>
+                <p class="dd-sub mt-1">Teach Delta once. Every draft for this company follows the house style, your team's rules, your reference letters and the company's particulars. Letters you export are added automatically.</p>
+            </div>
+            <button class="dd-btn dd-btn-ghost dd-btn-sm" onclick="ddCloseMemory()" aria-label="Close">✕</button>
+        </div>
+    </div>
+    <div class="dd-drawer-body" id="dd-drawer-body"></div>
+</aside>
+<script src="/static/draft_desk.js?v=1"></script>
 </body>
 </html>

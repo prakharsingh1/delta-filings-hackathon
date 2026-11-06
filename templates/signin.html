@@ -1,17 +1,31 @@
 {% extends "auth_base.html" %}
-{% set page_title = "Sign In · Delta Filings" %}
+{% set page_title = "Sign in · Delta Filings" %}
+{% set split = true %}
+{% block aside %}
+<p class="eyebrow">Sign in</p>
+<h2 class="h2">Back to your calendar.</h2>
+<p class="sec-lede">Overdue items first, with what lateness costs. Then the meetings, registers, insider-trading record, drafts and counterparty alerts for the companies you look after.</p>
+<ul class="checks">
+    <li>Compliance calendar across ROC, SEBI, tax, GST, labour and FEMA</li>
+    <li>Meeting packs and statutory registers</li>
+    <li>Insider-trading database with trading window and pre-clearance</li>
+    <li>SEBI and RBI news tagged by topic</li>
+    <li>Counterparty risk desk for risk officers</li>
+</ul>
+<p class="fine">New here? <a href="/signup">Create a workspace</a>, or read <a href="/product">what it does</a> and <a href="/security">how your data is handled</a>.</p>
+{% endblock %}
 {% block content %}
-<div class="auth-card w-full max-w-md p-8 sm:p-10">
+<div class="auth-card w-full p-8 sm:p-10">
     <div class="mb-6">
         <h1 class="text-2xl font-bold tracking-tight">Welcome back</h1>
-        <p class="text-sm text-slate-500 mt-1">Sign in to access your governance dashboard.</p>
+        <p class="text-sm text-slate-500 mt-1">Sign in to your workspace.</p>
     </div>
 
     {% if error %}
     <div class="error-box">{{ error }}</div>
     {% endif %}
     {% if notice %}
-    <div class="error-box" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a;">{{ notice }}</div>
+    <div class="error-box" style="background:#fff9dc;border-color:#eadb97;color:#43370c;">{{ notice }}</div>
     {% endif %}
 
     <form method="POST" action="/signin" class="space-y-4" autocomplete="on">
@@ -25,13 +39,13 @@
             <input class="field" type="password" id="password" name="password"
                    placeholder="Your password" required>
         </div>
-        <button class="btn-primary" type="submit">Sign In →</button>
+        <button class="btn-primary" type="submit">Sign in</button>
     </form>
 
     <div class="divider">or</div>
 
     <p class="text-sm text-center text-slate-600">
-        New to Delta Filings? <a href="/signup" class="font-semibold text-indigo-600 hover:text-indigo-700">Create an account</a>
+        New to Delta Filings? <a href="/signup" style="color:var(--indigo-2);font-weight:600">Create an account</a>
     </p>
 </div>
 {% endblock %}

@@ -1,0 +1,25 @@
+{% extends "site_base.html" %}
+{% block title %}FAQ · Delta Filings{% endblock %}
+{% block meta_description %}Answers on scope, accuracy, data, and how Delta Filings works.{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <p class="eyebrow">FAQ</p>
+    <h1 class="h1">Straight answers.</h1>
+    <p class="lede">What it covers, how accurate it is, where your data lives and what it cannot do yet.</p>
+  </div>
+</section>
+<section class="sec">
+  <div class="wrap-narrow">
+    {% for group, items in faq %}
+    <h2 class="h3" style="margin:{{ '0' if loop.first else '48px' }} 0 4px;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo-2)">{{ group }}</h2>
+    <div class="faq">
+      {% for q, a in items %}
+      <details><summary>{{ q }}</summary><div class="ans">{{ a|safe }}</div></details>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <div class="callout" style="margin-top:48px"><b>Something missing?</b> Tell us what you need before you rely on it. Where something is not built, we would rather say so than imply it.</div>
+  </div>
+</section>
+{% endblock %}

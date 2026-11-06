@@ -1,0 +1,186 @@
+{% extends 'public_base.html' %}
+{% block title %}{{ post.title }} · Delta Filings Blogs{% endblock %}
+{% block meta_description %}{{ post.summary }}{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+    .chart-block {
+        margin: 2.2rem 0;
+        padding: 22px;
+        background: white;
+        border: 1px solid #eef1f7;
+        border-radius: 18px;
+        box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    }
+    .chart-title { font-size: 0.92rem; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .chart-note  { font-size: 0.78rem; color: #64748b; margin-top: 10px; line-height: 1.55; }
+    .chart-canvas-wrap { position: relative; height: 320px; }
+    @media (max-width: 640px) { .chart-canvas-wrap { height: 260px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<article class="max-w-3xl mx-auto px-6 pt-8 pb-16">
+    <!-- Breadcrumb -->
+    <div class="mb-6 text-sm text-slate-500">
+        <a href="/blog" class="hover:text-slate-800">← Back to Blogs</a>
+    </div>
+
+    <!-- Header -->
+    <header class="mb-10">
+        <div class="flex items-center gap-3 mb-4">
+            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded
+                         {% if post.tag_color == 'indigo' %}bg-indigo-100 text-indigo-700
+                         {% elif post.tag_color == 'emerald' %}bg-emerald-100 text-emerald-700
+                         {% elif post.tag_color == 'purple' %}bg-purple-100 text-purple-700
+                         {% elif post.tag_color == 'amber' %}bg-amber-100 text-amber-700
+                         {% elif post.tag_color == 'rose' %}bg-rose-100 text-rose-700
+                         {% elif post.tag_color == 'blue' %}bg-blue-100 text-blue-700{% endif %}">{{ post.category }}</span>
+            <span class="text-xs text-slate-500">{{ post.read_minutes }} min read · {{ post.published }}</span>
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.15] text-slate-900">{{ post.title }}</h1>
+        <p class="mt-4 text-base text-slate-500">By {{ post.author }}</p>
+    </header>
+
+    {% if post.hero_image %}
+    <figure class="mb-10 -mx-2 sm:mx-0">
+        <img src="{{ post.hero_image }}" alt="{{ post.image_alt or post.title }}"
+             loading="eager" decoding="async"
+             class="w-full rounded-2xl shadow-lg object-cover"
+             style="aspect-ratio: 16 / 7; max-height: 480px;">
+    </figure>
+    {% endif %}
+
+    <!-- Body -->
+    <div class="prose">
+        {{ post.html | safe }}
+    </div>
+
+    <!-- Charts (rendered after body so they sit visually below the analysis they support) -->
+    {% if post.charts %}
+    <section class="mt-10">
+        <h2 class="text-xl font-extrabold text-slate-900 mb-2">The data, charted</h2>
+        <p class="text-sm text-slate-500 mb-6">Source data referenced throughout the article, visualised.</p>
+        {% for c in post.charts %}
+        <figure class="chart-block">
+            <figcaption class="chart-title">{{ c.title }}</figcaption>
+            <div class="chart-canvas-wrap">
+                <canvas id="{{ c.id }}"></canvas>
+            </div>
+            {% if c.note %}<div class="chart-note">{{ c.note }}</div>{% endif %}
+        </figure>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- CTA -->
+    <div class="mt-14 p-6 rounded-2xl border text-center"
+         style="background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(14,165,233,0.05)); border-color: rgba(99,102,241,0.2);">
+        <h3 class="text-lg font-bold text-slate-900 mb-2">Track filings without the manual work</h3>
+        <p class="text-sm text-slate-600 mb-4 max-w-xl mx-auto">Delta Filings ingests NSE & BSE corporate filings, drafts SEBI letters with AI, tracks insider trading windows, and runs your compliance calendar — all in one place.</p>
+        <a href="/signup" class="btn-primary text-sm">Get Started for ₹4,999/year</a>
+    </div>
+
+    {% if related %}
+    <section class="mt-16">
+        <h2 class="text-xl font-bold text-slate-900 mb-5">Related articles</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for r in related %}
+            <a href="/blog/{{ r.slug }}" class="card-glass p-5 block">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ r.category }} · {{ r.read_minutes }} min</span>
+                <h4 class="font-bold text-slate-900 text-sm mt-2 leading-snug">{{ r.title }}</h4>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</article>
+{% endblock %}
+
+{% block scripts %}
+{% if post.charts %}
+<script>
+    (function () {
+        if (!window.Chart) return;
+        Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+        Chart.defaults.color = '#475569';
+        Chart.defaults.borderColor = 'rgba(148,163,184,0.18)';
+
+        const charts = {{ post.charts | tojson }};
+        charts.forEach(function (c) {
+            const el = document.getElementById(c.id);
+            if (!el) return;
+            const ctx = el.getContext('2d');
+
+            // Normalise datasets — Chart.js wants per-type styling.
+            const datasets = (c.datasets || []).map(function (ds) {
+                const colour = ds.color || '#4f46e5';
+                if (c.kind === 'line') {
+                    return {
+                        label: ds.label, data: ds.data,
+                        borderColor: colour,
+                        backgroundColor: Array.isArray(colour) ? colour[0] : (colour + '22'),
+                        tension: 0.32, fill: true, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2,
+                    };
+                }
+                if (c.kind === 'doughnut') {
+                    return {
+                        label: ds.label, data: ds.data,
+                        backgroundColor: Array.isArray(colour) ? colour : [colour],
+                        borderColor: '#ffffff', borderWidth: 2,
+                    };
+                }
+                if (c.kind === 'radar') {
+                    return {
+                        label: ds.label, data: ds.data,
+                        borderColor: colour,
+                        backgroundColor: colour + '33',
+                        pointBackgroundColor: colour, borderWidth: 2,
+                    };
+                }
+                // bar
+                return {
+                    label: ds.label, data: ds.data,
+                    backgroundColor: Array.isArray(colour) ? colour : (colour + 'cc'),
+                    borderColor: Array.isArray(colour) ? colour : colour,
+                    borderWidth: 0, borderRadius: 6,
+                };
+            });
+
+            const isCircular = (c.kind === 'doughnut' || c.kind === 'radar');
+            const config = {
+                type: c.kind || 'bar',
+                data: { labels: c.labels || [], datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: datasets.length > 1 || c.kind === 'doughnut',
+                            position: 'bottom',
+                            labels: { boxWidth: 12, padding: 14, font: { size: 11 } },
+                        },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            padding: 10, cornerRadius: 8,
+                            titleFont: { size: 12 }, bodyFont: { size: 12 },
+                        },
+                    },
+                    scales: isCircular ? {} : {
+                        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(148,163,184,0.18)' },
+                            ticks: { font: { size: 11 } },
+                            title: c.y_label ? { display: true, text: c.y_label, font: { size: 11, weight: '600' }, color: '#64748b' } : undefined,
+                        },
+                    },
+                },
+            };
+            new Chart(ctx, config);
+        });
+    })();
+</script>
+{% endif %}
+{% endblock %}

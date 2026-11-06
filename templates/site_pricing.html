@@ -1,0 +1,51 @@
+{% extends "site_base.html" %}
+{% block title %}Pricing · Delta Filings{% endblock %}
+{% block meta_description %}Delta Filings is free during the beta. Planned pricing is per company with unlimited users, not per seat.{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <p class="eyebrow">Pricing</p>
+    <h1 class="h1">Free while we build. Per company after that.</h1>
+    <p class="lede">Delta Filings is free during the beta, with everything switched on. When billing starts, it will be priced per company with unlimited users, because a compliance team's size says nothing about how many companies it looks after.</p>
+    <div class="cta-row"><a href="/signup" class="btn btn-primary">Create workspace</a></div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Planned</p><h2 class="h2">How we expect to charge.</h2>
+      <p class="sec-lede">These are the planned tiers, not a price list. Amounts are per year, before GST, and may change before billing starts. Beta users get notice first.</p></div>
+    <div class="grid g4">
+      <div class="card price-card"><span class="tag tag-green">Free</span><div class="amt">₹0</div><div class="for">Trying it, or a small practice</div>
+        <ul class="checks"><li>Up to 3 companies</li><li>Compliance calendar</li><li>DSC, DIN and DIR-3 KYC tracking</li><li>Calendar reminders</li></ul></div>
+      <div class="card price-card hl"><span class="tag">Practice</span><div class="amt">₹15,000 <small>/ year</small></div><div class="for">Practising CS firms. Up to 25 companies; a larger tier for up to 100.</div>
+        <ul class="checks"><li>Registers and meetings</li><li>Document requests</li><li>Bulk import</li><li>Unlimited users</li></ul></div>
+      <div class="card price-card"><span class="tag">Company</span><div class="amt">₹40,000 <small>/ year</small></div><div class="for">An unlisted company's in-house CS</div>
+        <ul class="checks"><li>One company</li><li>Everything in Practice</li><li>Drafting from past filings</li><li>Group discounts</li></ul></div>
+      <div class="card price-card"><span class="tag">Listed</span><div class="amt">₹75,000 <small>/ year</small></div><div class="for">Per listed company</div>
+        <ul class="checks"><li>SEBI calendar with exchange fines</li><li>Insider-trading database</li><li>Reg 30, 29, 33, 44 drafts</li><li>Penalty estimates</li></ul></div>
+    </div>
+    <div class="grid g2" style="margin-top:20px">
+      <div class="card"><span class="tag tag-grey">Larger listed companies and groups</span><h3 style="margin-top:6px">From ₹2.5 lakh a year</h3><p>Adds group operations, single sign-on and multi-factor sign-in, and audit exports. These features are not built yet.</p></div>
+      <div class="card"><span class="tag tag-grey">Banks, NBFCs and insurers</span><h3 style="margin-top:6px">From ₹5 lakh a year, by quote</h3><p>Adds the risk desk, India-only hosting and audit rights. India hosting and licensed unlisted-company data are not in place yet, so we are not selling this tier today.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt">
+  <div class="wrap">
+    <div class="split">
+      <div><p class="eyebrow">Why per company</p><h2 class="h2">A seat count does not describe the work.</h2></div>
+      <div class="prose-site">
+        <p>A practice with three people may look after eighty companies. A listed company's compliance officer may be the only user. Charging by company keeps the price tied to the number of calendars you rely on, and lets everyone who needs to see the calendar see it.</p>
+        <p>GST is added to all prices. A two-year prepayment discount and a cap on price rises are planned.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec final-cta">
+  <div class="wrap"><h2 class="h2">Questions on pricing?</h2><p class="lede" style="margin-left:auto;margin-right:auto">Read the <a href="/faq" style="color:var(--indigo-2)">FAQ</a>, or start free and see what you need.</p>
+    <div class="cta-row"><a href="/signup" class="btn btn-primary">Create workspace</a></div></div>
+</section>
+{% endblock %}

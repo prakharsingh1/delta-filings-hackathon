@@ -3,230 +3,62 @@
 <head>
     {% include 'analytics.html' %}
     <script>
-      // Public pages are light-mode only. Strip any dark class the global analytics script may have added.
-      (function() {
-        document.documentElement.classList.remove('dark');
-        try { localStorage.removeItem('theme'); } catch (e) {}
-      })();
+      // Public pages are light-only. Remove the dark class the shared analytics snippet may add,
+      // without clearing the saved theme the signed-in app uses.
+      (function() { document.documentElement.classList.remove('dark'); })();
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="{% block meta_description %}Delta Filings — India's modern governance intelligence platform for Company Secretaries, MCA filings, SEBI compliance and CS practice management.{% endblock %}">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="{% block meta_description %}Delta Filings: deadlines, late fees, meetings, registers, insider-trading records, drafting and counterparty risk for Indian companies.{% endblock %}">
     <title>{% block title %}Delta Filings{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/site.css">
     <style>
-        html, body { font-family: 'Inter', system-ui, sans-serif; }
-        body {
-            background:
-              radial-gradient(1000px 500px at 10% -10%, rgba(99,102,241,0.18), transparent 60%),
-              radial-gradient(900px 500px at 110% 10%, rgba(56,189,248,0.18), transparent 60%),
-              radial-gradient(700px 500px at 50% 120%, rgba(236,72,153,0.10), transparent 60%),
-              #fbfbfe;
-            color: #0f172a;
-            min-height: 100vh;
-        }
-        html.dark body {
-            background:
-              radial-gradient(1100px 600px at 10% -10%, rgba(99,102,241,0.18), transparent 60%),
-              radial-gradient(900px 600px at 110% 10%, rgba(56,189,248,0.12), transparent 60%),
-              #0a0a0a;
-            color: #f5f5f5;
-        }
-        .glass {
-            background: rgba(255,255,255,0.75);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            border: 1px solid rgba(255,255,255,0.7);
-        }
-        html.dark .glass {
-            background: rgba(20,20,20,0.7);
-            border-color: rgba(255,255,255,0.06);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg,#4f46e5,#6366f1);
-            color: white; font-weight: 600;
-            padding: 11px 20px; border-radius: 10px;
-            box-shadow: 0 10px 25px -10px rgba(79,70,229,0.55);
-            transition: transform .15s ease, box-shadow .15s ease;
-            display: inline-flex; align-items: center; gap: 8px;
-        }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 30px -10px rgba(79,70,229,0.65); }
-        .btn-ghost {
-            background: rgba(255,255,255,0.8);
-            color: #1e293b; font-weight: 600;
-            padding: 11px 20px; border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            transition: background .15s ease;
-        }
-        .btn-ghost:hover { background: white; }
-        html.dark .btn-ghost {
-            background: rgba(255,255,255,0.04);
-            color: #f5f5f5;
-            border-color: #262626;
-        }
-        html.dark .btn-ghost:hover { background: rgba(255,255,255,0.08); }
-        .gradient-text {
-            background: linear-gradient(120deg,#4f46e5 0%, #0ea5e9 50%, #ec4899 100%);
-            -webkit-background-clip: text; background-clip: text; color: transparent;
-        }
-        .tag {
-            display: inline-flex; align-items: center; gap: 6px;
-            font-size: 11px; font-weight: 600;
-            background: rgba(99,102,241,0.10); color: #4f46e5;
-            padding: 5px 11px; border-radius: 999px;
-            border: 1px solid rgba(99,102,241,0.2);
-        }
-        html.dark .tag {
-            background: rgba(129,140,248,0.14);
-            color: #c7d2fe;
-            border-color: rgba(129,140,248,0.3);
-        }
-        .card-glass {
-            background: white;
-            border: 1px solid #eef1f7;
-            border-radius: 18px;
-            transition: transform .2s ease, box-shadow .2s ease;
-        }
-        .card-glass:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 24px 50px -25px rgba(15,23,42,0.18);
-        }
-        html.dark .card-glass {
-            background: #141414;
-            border-color: #262626;
-        }
-        html.dark .card-glass:hover {
-            box-shadow: 0 24px 50px -10px rgba(0,0,0,0.7), 0 0 0 1px rgba(129,140,248,0.18);
-        }
-        .nav-link { transition: color .15s ease; }
-        .nav-link:hover { color: #0f172a; }
-        html.dark .nav-link { color: #a3a3a3; }
-        html.dark .nav-link:hover { color: #f5f5f5; }
-        html.dark .text-slate-900, html.dark .text-slate-800 { color: #f5f5f5 !important; }
-        html.dark .text-slate-700, html.dark .text-slate-600 { color: #d4d4d4 !important; }
-        html.dark .text-slate-500 { color: #a3a3a3 !important; }
-        html.dark .text-slate-400 { color: #737373 !important; }
-        html.dark .border-slate-200, html.dark .border-slate-100 { border-color: #262626 !important; }
-
-        /* Inputs styled for both themes */
-        .input {
-            width: 100%;
-            padding: 10px 12px;
-            border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            background: white;
-            font-size: 14px;
-            color: #0f172a;
-            transition: border-color .15s ease, box-shadow .15s ease;
-        }
-        .input:focus { outline: none; border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.18); }
-        html.dark .input {
-            background: #1c1c1c;
-            border-color: #2a2a2a;
-            color: #f5f5f5;
-        }
-        html.dark .input:focus { border-color: #818cf8; }
-        .label { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; display: block; }
-        html.dark .label { color: #a3a3a3; }
-
-        /* Result panel */
-        .result {
-            margin-top: 24px;
-            padding: 20px;
-            border-radius: 14px;
-            background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(56,189,248,0.08));
-            border: 1px solid rgba(99,102,241,0.2);
-        }
-        html.dark .result {
-            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(56,189,248,0.06));
-            border-color: rgba(99,102,241,0.3);
-        }
-
-        /* Article prose */
-        .prose h2 { font-size: 1.65rem; font-weight: 800; margin: 2.2rem 0 0.9rem; letter-spacing: -0.02em; color: #0f172a; }
-        .prose h3 { font-size: 1.2rem; font-weight: 700; margin: 1.6rem 0 0.6rem; color: #1e293b; }
-        .prose p { line-height: 1.78; color: #334155; margin-bottom: 1rem; font-size: 1.0625rem; }
-        .prose p.lead { font-size: 1.2rem; line-height: 1.65; color: #475569; margin-bottom: 1.6rem; }
+        /* Compatibility layer: the blog and calculator templates use these class
+           names. Mapped onto the flat site look (no gradients, one accent). */
+        body.site { background: var(--paper); }
+        .glass { background: #fff; border: 1px solid var(--line); }
+        .btn-primary { background: var(--indigo); color: #fff; font-weight: 600; padding: 11px 20px; border-radius: 8px;
+            display: inline-flex; align-items: center; gap: 8px; border: 1px solid transparent; transition: background-color .15s ease; }
+        .btn-primary:hover { background: var(--indigo-2); }
+        .btn-ghost { background: #fff; color: var(--ink); font-weight: 600; padding: 11px 20px; border-radius: 8px; border: 1px solid var(--line); }
+        .btn-ghost:hover { border-color: #c4c4cd; }
+        .gradient-text { color: var(--indigo-2); background: none; -webkit-background-clip: initial; background-clip: initial; }
+        .card-glass { background: #fff; border: 1px solid var(--line); border-radius: 12px; transition: border-color .15s ease; }
+        .card-glass:hover { border-color: var(--indigo-line); transform: none; box-shadow: none; }
+        .nav-link:hover { color: var(--ink); }
+        .input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: #fff; font-size: 15px; color: var(--ink); font-family: var(--sans); }
+        .input:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+        .label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; display: block; font-family: var(--mono); }
+        .result { margin-top: 24px; padding: 20px; border-radius: 12px; background: var(--indigo-bg); border: 1px solid var(--indigo-line); }
+        /* The blog and tools set their own tag look in Tailwind; keep ours out of their way. */
+        .prose h2 { font-size: 1.5rem; font-weight: 600; margin: 2.2rem 0 .8rem; letter-spacing: -.02em; color: var(--ink); }
+        .prose h3 { font-size: 1.15rem; font-weight: 600; margin: 1.6rem 0 .6rem; color: var(--ink); }
+        .prose p { line-height: 1.75; color: var(--ink-2); margin-bottom: 1rem; font-size: 1.0625rem; }
+        .prose p.lead { font-size: 1.2rem; line-height: 1.65; color: var(--ink-2); margin-bottom: 1.6rem; }
         .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 1.2rem; }
-        .prose li { line-height: 1.78; color: #334155; margin-bottom: 0.4rem; font-size: 1.0625rem; }
-        .prose strong { color: #0f172a; font-weight: 700; }
-        html.dark .prose h2, html.dark .prose h3, html.dark .prose strong { color: #f5f5f5; }
-        html.dark .prose p, html.dark .prose li { color: #d4d4d4; }
-        html.dark .prose p.lead { color: #e5e5e5; }
-
-        /* Theme toggle */
-        .theme-toggle-public {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 38px; height: 38px; border-radius: 10px;
-            border: 1px solid #e2e8f0; background: rgba(255,255,255,0.7);
-            color: #475569; cursor: pointer; transition: all .15s ease;
-        }
-        .theme-toggle-public:hover { background: white; color: #0f172a; }
-        html.dark .theme-toggle-public { background: rgba(255,255,255,0.04); border-color: #262626; color: #d4d4d4; }
-        html.dark .theme-toggle-public:hover { background: rgba(255,255,255,0.08); color: #f5f5f5; }
-        .theme-toggle-public .icon-sun { display: none; }
-        html.dark .theme-toggle-public .icon-sun { display: block; }
-        html.dark .theme-toggle-public .icon-moon { display: none; }
-
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-        }
+        .prose ul { list-style: disc; } .prose ol { list-style: decimal; }
+        .prose li { line-height: 1.75; color: var(--ink-2); margin-bottom: .4rem; font-size: 1.0625rem; }
+        .prose strong { color: var(--ink); font-weight: 600; }
+        .prose a { color: var(--indigo-2); }
+        .text-slate-900, .text-slate-800 { color: var(--ink); } .text-slate-700, .text-slate-600 { color: var(--ink-2); }
+        .text-slate-500 { color: var(--muted); }
+        .page-body { padding-top: 24px; }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
     </style>
     {% block head_extra %}{% endblock %}
 </head>
-<body>
-    <!-- ── Nav (shared with home.html) ── -->
-    <header class="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between relative z-10">
-        <a href="/" class="flex items-center gap-2">
-            <div class="w-9 h-9 flex items-center justify-center">
-                <svg class="w-7 h-7" style="color:#2D2A7C" viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="Delta Filings">
-                    <polygon points="8,42 34,30 34,108 8,120"/>
-                    <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
-                </svg>
-            </div>
-            <div>
-                <div class="font-bold text-slate-900 text-lg leading-tight">Delta Filings</div>
-                <div class="text-[11px] text-slate-500 -mt-0.5">Governance Intelligence</div>
-            </div>
-        </a>
-        <nav class="hidden md:flex items-center gap-7 text-sm text-slate-600 font-medium">
-            <a href="/#features" class="hover:text-slate-900 transition">Features</a>
-            <a href="/#use-cases" class="hover:text-slate-900 transition">Use Cases</a>
-            <a href="/tools" class="hover:text-slate-900 transition">Tools</a>
-            <a href="/blog" class="hover:text-slate-900 transition">Blog</a>
-        </nav>
-        <div class="flex items-center gap-3">
-            <a href="/signin" class="hidden sm:inline-flex btn-ghost text-sm">Sign In</a>
-            <a href="/signup" class="btn-primary text-sm">Get Started</a>
-        </div>
-    </header>
-
-    <main class="relative z-10">
+<body class="site">
+    <a href="#main" class="skip">Skip to content</a>
+    {% include 'site_header.html' %}
+    <main id="main" class="page-body">
         {% block content %}{% endblock %}
     </main>
-
-    <!-- ── Footer ── -->
-    <footer class="border-t border-slate-200 mt-20 pt-10 pb-12 relative z-10">
-        <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
-            <div class="flex items-center gap-2">
-                <div class="w-6 h-6 flex items-center justify-center">
-                    <svg class="w-5 h-5" style="color:#2D2A7C" viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="Delta Filings">
-                        <polygon points="8,42 34,30 34,108 8,120"/>
-                        <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
-                    </svg>
-                </div>
-                <span>© Delta Filings · Governance Intelligence</span>
-            </div>
-            <div class="flex gap-6">
-                <a href="/tools" class="hover:text-slate-800 transition">Tools</a>
-                <a href="/blog" class="hover:text-slate-800 transition">Blogs</a>
-                <a href="/about" class="hover:text-slate-800 transition">About</a>
-                <a href="/signin" class="hover:text-slate-800 transition">Sign In</a>
-                <a href="/signup" class="hover:text-slate-800 transition">Sign Up</a>
-            </div>
-        </div>
-    </footer>
+    {% include 'site_footer.html' %}
     {% block scripts %}{% endblock %}
 </body>
 </html>

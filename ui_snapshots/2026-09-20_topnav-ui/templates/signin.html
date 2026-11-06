@@ -1,0 +1,37 @@
+{% extends "auth_base.html" %}
+{% set page_title = "Sign In · Delta Filings" %}
+{% block content %}
+<div class="auth-card w-full max-w-md p-8 sm:p-10">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold tracking-tight">Welcome back</h1>
+        <p class="text-sm text-slate-500 mt-1">Sign in to access your governance dashboard.</p>
+    </div>
+
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+    {% if notice %}
+    <div class="error-box" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a;">{{ notice }}</div>
+    {% endif %}
+
+    <form method="POST" action="/signin" class="space-y-4" autocomplete="on">
+        <div>
+            <label class="label" for="email">Email</label>
+            <input class="field" type="email" id="email" name="email" placeholder="you@company.com"
+                   value="{{ form.email or '' }}" required>
+        </div>
+        <div>
+            <label class="label" for="password">Password</label>
+            <input class="field" type="password" id="password" name="password"
+                   placeholder="Your password" required>
+        </div>
+        <button class="btn-primary" type="submit">Sign In →</button>
+    </form>
+
+    <div class="divider">or</div>
+
+    <p class="text-sm text-center text-slate-600">
+        New to Delta Filings? <a href="/signup" class="font-semibold text-indigo-600 hover:text-indigo-700">Create an account</a>
+    </p>
+</div>
+{% endblock %}

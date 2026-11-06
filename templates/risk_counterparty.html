@@ -1,0 +1,573 @@
+{% extends 'app_base.html' %}
+{% block title %}{{ cp.name }}{% endblock %}
+
+{% macro sev_chip(sev) -%}
+<span class="chip chip-{{ sev }}">{{ sev_label.get(sev, sev|title) }}</span>
+{%- endmacro %}
+{% macro status_chip(st) -%}
+<span class="chip {{ {'open': 'chip-info', 'acknowledged': 'chip-medium', 'resolved': 'chip-ok', 'dismissed': 'chip-low'}.get(st, 'chip-low') }}">{{ statuses.get(st, st|title) }}</span>
+{%- endmacro %}
+
+{% block head %}
+<style>
+  :root { --rk-up: #b91c1c; --rk-down: #047857; --rk-line: #4f46e5; --rk-area: rgba(79,70,229,.10); --rk-guide: #cbd5e1; }
+  html.dark { --rk-up: #fca5a5; --rk-down: #6ee7b7; --rk-line: #a5b4fc; --rk-area: rgba(129,140,248,.14); --rk-guide: #3f3f46; }
+
+  .rk-crumb { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .rk-crumb a { color: var(--text-secondary); text-decoration: none; font-weight: 600; }
+  .rk-crumb a:hover { color: var(--primary); }
+  .rk-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .rk-facts { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+  .rk-facts b { font-weight: 650; color: var(--text-primary); }
+
+  .rk-top { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; margin-bottom: 18px; align-items: stretch; }
+  @media (max-width: 900px) { .rk-top { grid-template-columns: minmax(0, 1fr); } }
+  .rk-top > .panel { margin: 0; }
+  .rk-scorebig { display: flex; align-items: baseline; gap: 10px; }
+  .rk-scorebig b { font-size: 52px; line-height: 1; font-weight: 780; letter-spacing: -.03em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .rk-scorebig span.muted { font-size: 14px; }
+  .rk-scorelist { margin-top: 16px; display: grid; gap: 8px; font-size: 13px; }
+  .rk-scorelist div { display: flex; justify-content: space-between; gap: 12px; }
+  .rk-scorelist dt { color: var(--text-muted); }
+  .rk-up { color: var(--rk-up); font-weight: 650; }
+  .rk-down { color: var(--rk-down); font-weight: 650; }
+
+  .rk-reasons { list-style: none; margin: 0; padding: 0; }
+  .rk-reasons li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 18px; border-bottom: 1px solid var(--border-light); font-size: 13.5px; }
+  .rk-reasons li:last-child { border-bottom: 0; }
+  .rk-pts { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; color: var(--text-primary); }
+  .rk-pts small { font-weight: 500; color: var(--text-muted); font-size: 11px; }
+  .rk-reason-title { min-width: 0; }
+  .rk-reason-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .rk-spark { width: 100%; height: auto; display: block; }
+  .rk-spark .guide { stroke: var(--rk-guide); stroke-width: 1; stroke-dasharray: 4 4; }
+  .rk-spark .guide-label { fill: var(--text-muted); font-size: 10.5px; font-family: inherit; }
+  .rk-spark .line { fill: none; stroke: var(--rk-line); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+  .rk-spark .area { fill: var(--rk-area); stroke: none; }
+  .rk-spark .last { fill: var(--rk-line); }
+  .rk-spark-foot { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--text-muted); margin-top: 6px; flex-wrap: wrap; }
+
+  .rk-sigtabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--border-light); overflow-x: auto; scrollbar-width: none; }
+  .rk-sigtabs .tab { padding: 10px 10px; font-size: 13px; }
+  .rk-sigs { list-style: none; margin: 0; padding: 0; }
+  .rk-sig { padding: 14px 18px; border-bottom: 1px solid var(--border-light); }
+  .rk-sig:last-child { border-bottom: 0; }
+  .rk-sig-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+  .rk-sig-title { font-weight: 650; font-size: 14px; color: var(--text-primary); }
+  .rk-sig-meta { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .rk-sig-body { margin-left: 0; margin-top: 8px; }
+  .rk-det summary, .rk-log summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); list-style: none; display: inline-flex; align-items: center; gap: 4px; }
+  .rk-det summary::-webkit-details-marker, .rk-log summary::-webkit-details-marker { display: none; }
+  .rk-det summary::before, .rk-log summary::before { content: '+'; display: inline-block; width: 12px; font-weight: 700; color: var(--text-muted); }
+  .rk-det[open] summary::before, .rk-log[open] summary::before { content: '\2212'; }
+  .rk-det p { font-size: 13px; color: var(--text-secondary); margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .rk-sig-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+  .rk-log { width: 100%; margin-top: 4px; }
+  .rk-log ol { list-style: none; margin: 8px 0 0; padding: 0 0 0 12px; border-left: 2px solid var(--border); font-size: 12.5px; }
+  .rk-log li { padding: 3px 0 3px 10px; color: var(--text-secondary); }
+  .rk-log li .muted { font-size: 11.5px; }
+
+  .rk-empty-note { padding: 28px 18px; text-align: center; color: var(--text-secondary); font-size: 13.5px; }
+  .rk-amount { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
+  .rk-spin { width: 14px; height: 14px; border-width: 2px; }
+  .req { color: #b91c1c; }
+  html.dark .req { color: #fca5a5; }
+  html.dark .rk-reasons li, html.dark .rk-sig, html.dark .rk-sigtabs { border-color: #1f1f1f; }
+  html.dark .rk-log ol { border-color: #333; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap">
+  <nav class="rk-crumb" aria-label="Breadcrumb"><a href="/risk">Counterparty watch</a><span aria-hidden="true">/</span><span>{{ cp.name }}</span></nav>
+
+  <div class="mod-head">
+    <div style="min-width:0">
+      <div class="mod-eyebrow">Counterparty</div>
+      <div class="rk-title-row">
+        <h1 class="mod-title">{{ cp.name }}</h1>
+        <span class="chip chip-low">{{ categories.get(cp.category, 'Other') }}</span>
+      </div>
+      <div class="rk-facts">
+        <span>Exposure <b>{{ cp.exposure_inr | risk_inr }}</b></span>
+        {% if cp.symbol %}<span>NSE <b class="mono">{{ cp.symbol }}</b></span>{% endif %}
+        {% if cp.cin %}<span>CIN <b class="mono">{{ cp.cin }}</b></span>{% endif %}
+        {% if cp.pan %}<span>PAN <b class="mono">{{ cp.pan | risk_mask_pan }}</b></span>{% endif %}
+        <span>Owner <b>{{ cp.owner or 'Not set' }}</b></span>
+      </div>
+      {% if cp.notes %}<p class="mod-sub" style="white-space:pre-wrap">{{ cp.notes }}</p>{% endif %}
+    </div>
+    <div class="mod-actions">
+      {% if cp.symbol %}<a class="btn btn-secondary" href="/company/{{ cp.symbol | urlencode }}?tab=announcements">Disclosures</a>{% endif %}
+      <button type="button" class="btn btn-secondary" data-open="edit-dlg">Edit</button>
+      <button type="button" class="btn btn-secondary" data-open="archive-dlg">Archive</button>
+      <button type="button" class="btn btn-primary" id="scan-btn">Scan now</button>
+    </div>
+  </div>
+
+  <div class="rk-top">
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">Risk score</div><span class="chip band-{{ sc.band }}">{{ sc.band }}</span></div>
+      <div class="panel-body">
+        <div class="rk-scorebig"><b>{{ sc.score }}</b><span class="muted">out of 100</span></div>
+        <dl class="rk-scorelist">
+          <div><dt>30-day change</dt><dd>
+            {% if change is none %}<span class="muted">—</span>
+            {% elif change > 0 %}<span class="rk-up">&uarr; up {{ change }}</span>
+            {% elif change < 0 %}<span class="rk-down">&darr; down {{ -change }}</span>
+            {% else %}<span class="muted">No change</span>{% endif %}</dd></div>
+          <div><dt>Active alerts</dt><dd>{{ counts.alerts }}{% if counts.active > counts.alerts %} <span class="muted">+ {{ counts.active - counts.alerts }} {{ 'note' if counts.active - counts.alerts == 1 else 'notes' }}</span>{% endif %}</dd></div>
+          <div><dt>Last scanned</dt><dd title="{{ (cp.last_scanned_at or '')[:16]|replace('T', ' ') }}">{{ cp.last_scanned_at | risk_rel }}</dd></div>
+        </dl>
+        <p class="fld-hint" style="margin-top:14px">Bands: Low under 15, Moderate 15 to 34, High 35 to 59, Severe 60 and above. An open critical signal from the last 90 days puts a name in Severe on its own.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">Why this score</div><div class="panel-sub">Largest contributions first</div></div>
+      {% if sc.reasons %}
+      <ul class="rk-reasons">
+        {% for r in sc.reasons %}
+        <li>
+          <span class="rk-pts">{{ r.points }}<small> pts</small></span>
+          <div class="rk-reason-title">
+            <div>{{ r.title }}</div>
+            <div class="rk-reason-meta">{{ r.source }} · {{ r.event_date | risk_date }}</div>
+          </div>
+          {{ sev_chip(r.severity) }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% if sc.floored %}
+      <div class="rk-empty-note">Signals add up to {{ sc.raw_score }}. The score is raised to {{ sc.score }} because an open critical signal from the last 90 days puts a name in Severe on its own.</div>
+      {% endif %}
+      {% else %}
+      <div class="rk-empty-note">No live signals, so the score is 0. Anything found in filings, SEBI orders or IBBI notices will show here with the points it adds.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:18px">
+    <div class="panel-head">
+      <div class="panel-title">Score, last 90 days</div>
+      <div class="panel-sub">{% if spark %}Range {{ spark.min }} to {{ spark.max }}{% endif %}</div>
+    </div>
+    <div class="panel-body">
+      {% if spark %}
+      <svg class="rk-spark" viewBox="0 0 {{ spark.w }} {{ spark.h }}" role="img" aria-label="Score history from {{ spark.first_day }} to {{ spark.last_day }}, between {{ spark.min }} and {{ spark.max }}">
+        {% for b in spark.bands %}
+        <line class="guide" x1="0" x2="{{ spark.w }}" y1="{{ b.y }}" y2="{{ b.y }}"></line>
+        <text class="guide-label" x="{{ spark.w - 4 }}" y="{{ b.y - 4 }}" text-anchor="end">{{ b.label }}</text>
+        {% endfor %}
+        <path class="area" d="{{ spark.area }}"></path>
+        <polyline class="line" points="{{ spark.line }}"></polyline>
+        <circle class="last" cx="{{ spark.last_x }}" cy="{{ spark.last_y }}" r="4"></circle>
+      </svg>
+      <div class="rk-spark-foot">
+        <span>{{ spark.first_day }}</span>
+        <span>{% if rebuilt_until == 'today' %}Rebuilt weekly from signal dates until daily scans record a history.{% elif rebuilt_until %}Rebuilt from signal dates before {{ rebuilt_until }}; recorded daily since.{% else %}Recorded after each scan.{% endif %}</span>
+        <span>{{ spark.last_day }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:18px">
+    <div class="panel-head">
+      <div class="panel-title">Signals</div>
+      <button type="button" class="btn btn-sm btn-secondary" data-open="signal-dlg">Log a signal</button>
+    </div>
+    {% if signals %}
+    <div class="rk-sigtabs" role="tablist">
+      {% for key, label in [('active', 'Active'), ('resolved', 'Resolved'), ('dismissed', 'Dismissed'), ('all', 'All')] %}
+      <button type="button" class="tab {{ 'active' if key == 'active' }}" role="tab" data-filter="{{ key }}" aria-selected="{{ 'true' if key == 'active' else 'false' }}">{{ label }} <span class="muted">{{ counts[key] if key != 'all' else signals|length }}</span></button>
+      {% endfor %}
+    </div>
+    <ul class="rk-sigs" id="sig-list">
+      {% for s in signals %}
+      {% set href = s.source_url | risk_url %}
+      <li class="rk-sig" data-status="{{ s.status }}" data-sid="{{ s.id }}">
+        <div class="rk-sig-top">
+          {{ sev_chip(s.severity) }}
+          <div style="min-width:0">
+            <div class="rk-sig-title">{{ s.title }}</div>
+            <div class="rk-sig-meta">
+              <span>{{ s.event_date | risk_date }}</span>
+              <span>{{ s.source }}{% if href %} · <a class="link" href="{{ href }}" target="_blank" rel="noopener">Source</a>{% endif %}</span>
+              {% if s.assignee %}<span>Assigned to {{ s.assignee }}</span>{% endif %}
+            </div>
+          </div>
+          {{ status_chip(s.status) }}
+        </div>
+        {% if s.detail %}
+        <details class="rk-det rk-sig-body"><summary>Details</summary><p>{{ s.detail }}</p></details>
+        {% endif %}
+        <div class="rk-sig-actions">
+          {% if s.status == 'open' %}
+            <button type="button" class="btn btn-sm btn-secondary" data-act="acknowledged">Acknowledge</button>
+          {% endif %}
+          {% if s.status in ('open', 'acknowledged') %}
+            <button type="button" class="btn btn-sm btn-secondary" data-act="resolved">Resolve</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-act="dismissed">Dismiss</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-act="assign" data-assignee="{{ s.assignee or '' }}">{{ 'Reassign' if s.assignee else 'Assign' }}</button>
+          {% else %}
+            <button type="button" class="btn btn-sm btn-secondary" data-act="open">Reopen</button>
+          {% endif %}
+          <details class="rk-log" data-sid="{{ s.id }}"><summary>Activity</summary><ol><li class="muted">Loading</li></ol></details>
+        </div>
+      </li>
+      {% endfor %}
+      <li class="rk-empty-note" id="sig-none" hidden>Nothing here.</li>
+    </ul>
+    {% else %}
+    <div class="rk-empty-note">No signals yet. Scans check filings{{ ' for ' ~ cp.symbol if cp.symbol }}, SEBI orders and IBBI notices. Log a payment delay or covenant breach yourself with Log a signal.</div>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">Directors</div>
+        <div class="panel-sub">Shared directors across your names show on the <a class="link" href="/risk/network">director network</a>.</div>
+      </div>
+      <button type="button" class="btn btn-sm btn-secondary" data-open="person-dlg">Add director</button>
+    </div>
+    {% if people %}
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Name</th><th>DIN</th><th>Designation</th><th>Source</th><th></th></tr></thead>
+        <tbody>
+          {% for p in people %}
+          <tr>
+            <td>{{ p.name }}</td>
+            <td class="mono">{{ p.din or '—' }}</td>
+            <td>{{ p.designation or '—' }}</td>
+            <td>{% if p.source == 'governance' %}<span class="chip chip-info">From governance filings</span>{% else %}<span class="chip chip-low">Added by you</span>{% endif %}</td>
+            <td class="num">{% if p.source == 'manual' %}<button type="button" class="btn btn-sm btn-secondary" data-remove-person="{{ p.id }}" data-person-name="{{ p.name }}">Remove</button>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="rk-empty-note">
+      {% if cp.symbol %}No board on record yet. The latest board with DINs loads from {{ cp.symbol }}'s governance filings on the next live scan.{% else %}Add directors with their DIN to find people who also sit on your other counterparties or your own companies.{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Edit ── #}
+<dialog class="mod-dialog" id="edit-dlg" aria-labelledby="edit-title">
+  <form id="edit-form" method="dialog" novalidate>
+    <div class="dlg-head"><span id="edit-title">Edit counterparty</span><button type="button" class="btn btn-sm btn-secondary" data-close>Close</button></div>
+    <div class="dlg-body">
+      <label class="fld"><span class="fld-label">Name <span class="req">*</span></span>
+        <input class="fld-input" name="name" required maxlength="200" value="{{ cp.name }}"></label>
+      <div class="fld-grid">
+        <label class="fld"><span class="fld-label">NSE symbol</span>
+          <input class="fld-input mono" name="symbol" maxlength="20" value="{{ cp.symbol }}" autocomplete="off"></label>
+        <label class="fld"><span class="fld-label">Category</span>
+          <select class="fld-select" name="category">
+            {% for k, v in categories.items() %}<option value="{{ k }}" {{ 'selected' if k == cp.category }}>{{ v }}</option>{% endfor %}
+          </select></label>
+      </div>
+      <div class="fld-grid">
+        <label class="fld"><span class="fld-label">CIN or LLPIN</span>
+          <input class="fld-input mono" name="cin" maxlength="25" value="{{ cp.cin }}" autocomplete="off"></label>
+        {# A div, not a label: the checkbox below has a label of its own. #}
+        <div class="fld"><label class="fld-label" for="edit-pan">PAN</label>
+          <input class="fld-input mono" id="edit-pan" name="pan" maxlength="10" autocomplete="off" placeholder="{{ cp.pan | risk_mask_pan if cp.pan else 'AAACA1234B' }}">
+          {% if cp.pan %}<span class="fld-hint">Leave blank to keep the saved PAN.</span>
+          <span class="check-row"><input type="checkbox" name="clear_pan" id="clear-pan"><label for="clear-pan">Remove the saved PAN</label></span>{% endif %}
+        </div>
+      </div>
+      <div class="fld"><span class="fld-label" id="edit-exp-label">Exposure</span>
+        <div class="rk-amount">
+          {% set ex = cp.exposure_inr or 0 %}
+          {% if ex >= 1e7 %}{% set unit, amt = 10000000, ex / 1e7 %}{% elif ex >= 1e5 %}{% set unit, amt = 100000, ex / 1e5 %}{% else %}{% set unit, amt = 1, ex %}{% endif %}
+          <input class="fld-input" name="amount" inputmode="decimal" autocomplete="off" value="{{ ('%.4f' % amt).rstrip('0').rstrip('.') if ex else '' }}" aria-labelledby="edit-exp-label">
+          <select class="fld-select" name="unit" aria-label="Unit">
+            <option value="10000000" {{ 'selected' if unit == 10000000 }}>crore</option>
+            <option value="100000" {{ 'selected' if unit == 100000 }}>lakh</option>
+            <option value="1" {{ 'selected' if unit == 1 }}>rupees</option>
+          </select>
+        </div>
+        <span class="fld-hint" data-amount-hint>{{ cp.exposure_inr | risk_inr }}</span>
+      </div>
+      <label class="fld"><span class="fld-label">Relationship owner</span>
+        <input class="fld-input" name="owner" maxlength="120" value="{{ cp.owner }}"></label>
+      <label class="fld"><span class="fld-label">Notes</span>
+        <textarea class="fld-textarea" name="notes" maxlength="1000">{{ cp.notes }}</textarea></label>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Archive ── #}
+<dialog class="mod-dialog" id="archive-dlg" aria-labelledby="archive-title">
+  <div class="dlg-head"><span id="archive-title">Archive {{ cp.name }}?</span></div>
+  <div class="dlg-body">
+    <p style="font-size:13.5px;color:var(--text-secondary)">It leaves your watch list, the alert queue and the committee report, and scans stop. Its signals and activity log are kept.</p>
+  </div>
+  <div class="dlg-foot">
+    <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+    <button type="button" class="btn btn-primary" id="archive-go">Archive</button>
+  </div>
+</dialog>
+
+{# ── Signal action (resolve / dismiss / assign) ── #}
+<dialog class="mod-dialog" id="act-dlg" aria-labelledby="act-title">
+  <form id="act-form" method="dialog" novalidate>
+    <div class="dlg-head"><span id="act-title">Resolve alert</span><button type="button" class="btn btn-sm btn-secondary" data-close>Close</button></div>
+    <div class="dlg-body">
+      <p id="act-signal" style="font-size:13.5px;font-weight:600;margin-bottom:12px"></p>
+      <label class="fld" id="act-assignee-wrap"><span class="fld-label">Assign to</span>
+        <input class="fld-input" name="assignee" maxlength="120" autocomplete="off" placeholder="Name of the colleague following up">
+        <span class="fld-hint">Leave blank to unassign.</span></label>
+      <label class="fld"><span class="fld-label">Note</span>
+        <textarea class="fld-textarea" name="note" maxlength="500" placeholder="What was checked, and what happens next"></textarea></label>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary" id="act-go">Resolve</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Log a signal ── #}
+<dialog class="mod-dialog" id="signal-dlg" aria-labelledby="signal-title">
+  <form id="signal-form" method="dialog" novalidate>
+    <div class="dlg-head"><span id="signal-title">Log a signal</span><button type="button" class="btn btn-sm btn-secondary" data-close>Close</button></div>
+    <div class="dlg-body">
+      <div class="fld-grid">
+        <label class="fld"><span class="fld-label">Severity</span>
+          <select class="fld-select" name="severity">
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select></label>
+        <label class="fld"><span class="fld-label">Date</span>
+          <input class="fld-input" type="date" name="event_date" value="{{ today }}" max="{{ today }}"></label>
+      </div>
+      <label class="fld"><span class="fld-label">What happened <span class="req">*</span></span>
+        <input class="fld-input" name="title" maxlength="300" autocomplete="off" placeholder="Interest due 30 Sep not received"></label>
+      <label class="fld"><span class="fld-label">Detail</span>
+        <textarea class="fld-textarea" name="detail" maxlength="1000" placeholder="Amount, facility, who reported it"></textarea></label>
+      <label class="fld"><span class="fld-label">Link</span>
+        <input class="fld-input" type="url" name="url" maxlength="600" autocomplete="off" placeholder="https://"></label>
+      <p class="fld-hint">Critical adds 40 points, high 20, medium 8, low 2, fading as the date ages.</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Log signal</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Add director ── #}
+<dialog class="mod-dialog" id="person-dlg" aria-labelledby="person-title">
+  <form id="person-form" method="dialog" novalidate>
+    <div class="dlg-head"><span id="person-title">Add director</span><button type="button" class="btn btn-sm btn-secondary" data-close>Close</button></div>
+    <div class="dlg-body">
+      <label class="fld"><span class="fld-label">Name <span class="req">*</span></span>
+        <input class="fld-input" name="name" maxlength="160" autocomplete="off"></label>
+      <div class="fld-grid">
+        <label class="fld"><span class="fld-label">DIN</span>
+          <input class="fld-input mono" name="din" maxlength="8" inputmode="numeric" autocomplete="off" placeholder="00280529">
+          <span class="fld-hint">8 digits. Needed to find overlaps.</span></label>
+        <label class="fld"><span class="fld-label">Designation</span>
+          <input class="fld-input" name="designation" maxlength="120" autocomplete="off" placeholder="Managing Director"></label>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Add director</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var CID = {{ cp.id|tojson }};
+  var CP_NAME = {{ cp.name|tojson }};
+  function flash(msg) { try { sessionStorage.setItem('rk-flash', msg); } catch (e) {} }
+  try { var f = sessionStorage.getItem('rk-flash'); if (f) { sessionStorage.removeItem('rk-flash'); dfToast(f, 'ok'); } } catch (e) {}
+  function done(msg) { flash(msg); window.location.reload(); }
+
+  document.querySelectorAll('[data-open]').forEach(function (b) {
+    b.addEventListener('click', function () { document.getElementById(b.dataset.open).showModal(); });
+  });
+  document.querySelectorAll('dialog [data-close]').forEach(function (b) {
+    b.addEventListener('click', function () { b.closest('dialog').close(); });
+  });
+  function busy(btn, label) { btn.dataset.label = btn.textContent; btn.disabled = true; btn.textContent = label; }
+  function idle(btn) { btn.disabled = false; btn.textContent = btn.dataset.label || btn.textContent; }
+
+  // ── Edit ──
+  var ef = document.getElementById('edit-form'), E = ef.elements;
+  function hint() {
+    var raw = (E['amount'].value || '').replace(/,/g, '').trim(), n = Number(raw);
+    ef.querySelector('[data-amount-hint]').textContent = !raw ? 'No exposure recorded.' : (isFinite(n) && n >= 0 ? '= ' + dfInr(n * Number(E['unit'].value)) : 'Enter a number.');
+  }
+  E['amount'].addEventListener('input', hint);
+  E['unit'].addEventListener('change', hint);
+  ef.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var btn = ef.querySelector('[type=submit]');
+    var raw = (E['amount'].value || '').replace(/,/g, '').trim(), amt = raw ? Number(raw) : 0;
+    if (!E['name'].value.trim()) { dfToast('Name is required.', 'err'); return; }
+    if (!isFinite(amt) || amt < 0) { dfToast('Exposure must be a number.', 'err'); return; }
+    var body = { name: E['name'].value.trim(), symbol: E['symbol'].value.trim(), cin: E['cin'].value.trim(),
+      category: E['category'].value, owner: E['owner'].value.trim(), notes: E['notes'].value.trim(),
+      exposure_inr: Math.round(amt * Number(E['unit'].value) * 100) / 100 };
+    if (E['pan'].value.trim()) body.pan = E['pan'].value.trim();
+    else if (E['clear_pan'] && E['clear_pan'].checked) body.pan = '';
+    busy(btn, 'Saving');
+    try { await dfApi('/api/risk/counterparties/' + CID, { method: 'PATCH', body: body }); done('Saved.'); }
+    catch (e) { dfToast(e.message, 'err'); idle(btn); }
+  });
+
+  // ── Archive ──
+  document.getElementById('archive-go').addEventListener('click', async function () {
+    var btn = this; busy(btn, 'Archiving');
+    try {
+      await dfApi('/api/risk/counterparties/' + CID, { method: 'DELETE', body: {} });
+      flash(CP_NAME + ' archived.');
+      window.location.href = '/risk';
+    } catch (e) { dfToast(e.message, 'err'); idle(btn); }
+  });
+
+  // ── Scan now (live for this name) ──
+  var scanBtn = document.getElementById('scan-btn');
+  scanBtn.addEventListener('click', async function () {
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = '<span class="spinner rk-spin"></span> Scanning';
+    try {
+      var res = await dfApi('/api/risk/counterparties/' + CID + '/scan', { method: 'POST', body: {} });
+      var msg = res.new ? res.new + ' new signal' + (res.new === 1 ? '' : 's') + '. Score ' + res.score + ' (' + res.band + ').' : 'No new signals. Score ' + res.score + ' (' + res.band + ').';
+      done(msg);
+    } catch (e) {
+      dfToast(e.message, 'err');
+      scanBtn.disabled = false; scanBtn.textContent = 'Scan now';
+    }
+  });
+
+  // ── Signal tabs ──
+  var list = document.getElementById('sig-list');
+  if (list) {
+    var none = document.getElementById('sig-none');
+    var tabs = document.querySelectorAll('.rk-sigtabs .tab');
+    function filter(key) {
+      var shown = 0;
+      list.querySelectorAll('.rk-sig').forEach(function (li) {
+        var st = li.dataset.status;
+        var ok = key === 'all' || (key === 'active' ? (st === 'open' || st === 'acknowledged') : st === key);
+        li.hidden = !ok; if (ok) shown++;
+      });
+      none.hidden = shown !== 0;
+      none.textContent = key === 'active' ? 'No active signals. Resolved and dismissed ones are under their tabs.' : 'Nothing here.';
+      tabs.forEach(function (t) { var on = t.dataset.filter === key; t.classList.toggle('active', on); t.setAttribute('aria-selected', on ? 'true' : 'false'); });
+    }
+    tabs.forEach(function (t) { t.addEventListener('click', function () { filter(t.dataset.filter); }); });
+    filter({{ ('active' if counts.active else 'all') | tojson }});
+  }
+
+  // ── Signal actions ──
+  var actDlg = document.getElementById('act-dlg'), actForm = document.getElementById('act-form'), A = actForm.elements;
+  var pending = null;
+  var LABELS = { resolved: ['Resolve alert', 'Resolve'], dismissed: ['Dismiss alert', 'Dismiss'], assign: ['Assign alert', 'Save'] };
+  async function act(sid, action, note, assignee) {
+    return dfApi('/api/risk/signals/' + sid + '/action', { method: 'POST', body: { action: action, note: note || '', assignee: assignee || '' } });
+  }
+  document.querySelectorAll('[data-act]').forEach(function (b) {
+    b.addEventListener('click', async function () {
+      var li = b.closest('.rk-sig'), sid = Number(li.dataset.sid), action = b.dataset.act;
+      if (action === 'acknowledged' || action === 'open') {
+        b.disabled = true;
+        try { await act(sid, action); done(action === 'open' ? 'Alert reopened.' : 'Alert acknowledged.'); }
+        catch (e) { dfToast(e.message, 'err'); b.disabled = false; }
+        return;
+      }
+      pending = { sid: sid, action: action };
+      document.getElementById('act-title').textContent = LABELS[action][0];
+      document.getElementById('act-go').textContent = LABELS[action][1];
+      document.getElementById('act-signal').textContent = li.querySelector('.rk-sig-title').textContent;
+      document.getElementById('act-assignee-wrap').hidden = action !== 'assign';
+      A['assignee'].value = b.dataset.assignee || '';
+      A['note'].value = '';
+      actDlg.showModal();
+      (action === 'assign' ? A['assignee'] : A['note']).focus();
+    });
+  });
+  actForm.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    if (!pending) return;
+    var btn = document.getElementById('act-go'); busy(btn, 'Saving');
+    try {
+      await act(pending.sid, pending.action, A['note'].value.trim(), A['assignee'].value.trim());
+      done({ resolved: 'Alert resolved.', dismissed: 'Alert dismissed.', assign: 'Assignment saved.' }[pending.action]);
+    } catch (e) { dfToast(e.message, 'err'); idle(btn); }
+  });
+
+  // ── Activity log (loaded when opened) ──
+  document.querySelectorAll('.rk-log').forEach(function (d) {
+    d.addEventListener('toggle', async function () {
+      if (!d.open || d.dataset.loaded) return;
+      var ol = d.querySelector('ol');
+      try {
+        var res = await dfApi('/api/risk/signals/' + d.dataset.sid + '/log');
+        d.dataset.loaded = '1';
+        if (!res.log.length) { ol.innerHTML = '<li class="muted">No actions yet. Detected by the scanner.</li>'; return; }
+        ol.innerHTML = res.log.map(function (e) {
+          var action = e.action.charAt(0).toUpperCase() + e.action.slice(1);
+          return '<li><span>' + dfEsc(action) + '</span> <span class="muted">' + dfEsc(e.date) + '</span>' +
+            (e.note ? '<div>' + dfEsc(e.note) + '</div>' : '') + '</li>';
+        }).join('');
+      } catch (e) { ol.innerHTML = '<li class="muted">' + dfEsc(e.message) + '</li>'; }
+    });
+  });
+
+  // ── Log a signal ──
+  var sf = document.getElementById('signal-form'), S = sf.elements;
+  sf.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    if (!S['title'].value.trim()) { dfToast('Say what happened.', 'err'); S['title'].focus(); return; }
+    var btn = sf.querySelector('[type=submit]'); busy(btn, 'Saving');
+    try {
+      await dfApi('/api/risk/counterparties/' + CID + '/signals', { method: 'POST', body: {
+        severity: S['severity'].value, title: S['title'].value.trim(), detail: S['detail'].value.trim(),
+        event_date: S['event_date'].value, url: S['url'].value.trim() } });
+      done('Signal logged.');
+    } catch (e) { dfToast(e.message, 'err'); idle(btn); }
+  });
+
+  // ── Directors ──
+  var pf = document.getElementById('person-form'), P = pf.elements;
+  pf.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    if (!P['name'].value.trim()) { dfToast('Name is required.', 'err'); P['name'].focus(); return; }
+    var btn = pf.querySelector('[type=submit]'); busy(btn, 'Adding');
+    try {
+      await dfApi('/api/risk/counterparties/' + CID + '/people', { method: 'POST', body: {
+        name: P['name'].value.trim(), din: P['din'].value.trim(), designation: P['designation'].value.trim() } });
+      done('Director added.');
+    } catch (e) { dfToast(e.message, 'err'); idle(btn); }
+  });
+  document.querySelectorAll('[data-remove-person]').forEach(function (b) {
+    b.addEventListener('click', async function () {
+      if (!window.confirm('Remove ' + b.dataset.personName + '?')) return;
+      b.disabled = true;
+      try { await dfApi('/api/risk/counterparties/' + CID + '/people/' + b.dataset.removePerson, { method: 'DELETE', body: {} }); done('Director removed.'); }
+      catch (e) { dfToast(e.message, 'err'); b.disabled = false; }
+    });
+  });
+})();
+</script>
+{% endblock %}

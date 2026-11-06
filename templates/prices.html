@@ -7,22 +7,23 @@
     <title>Stock Prices - Delta Filings</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/app_ivory.css?v=2">
     <style>
         /* Ambient background so the white price cards pop (matches dashboard). */
         .dash-main {
             background:
-                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.13), transparent 60%),
-                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.11), transparent 55%),
+                radial-gradient(1100px 620px at 12% -12%, rgba(166,139,26,0.13), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(180,150,31,0.11), transparent 55%),
                 radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.09), transparent 55%),
                 linear-gradient(180deg, #f6f7fc 0%, #eef1fb 100%);
             background-attachment: fixed;
         }
         html.dark .dash-main {
             background:
-                radial-gradient(1100px 620px at 12% -12%, rgba(99,102,241,0.20), transparent 60%),
-                radial-gradient(950px 540px at 112% 4%, rgba(14,165,233,0.14), transparent 55%),
+                radial-gradient(1100px 620px at 12% -12%, rgba(166,139,26,0.20), transparent 60%),
+                radial-gradient(950px 540px at 112% 4%, rgba(180,150,31,0.14), transparent 55%),
                 radial-gradient(850px 620px at 48% 118%, rgba(236,72,153,0.11), transparent 55%),
-                #0a0a0a;
+                #000000;
             background-attachment: fixed;
         }
         /* Subtle lift on price cards */
@@ -269,7 +270,7 @@ function changeArrow(pChange) {
 /* ── Company logo avatar (local SVG first, then live fallbacks) ── */
 const SYMBOL_DOMAINS = {{ symbol_domains | tojson }};
 const SYMBOL_TV_SLUGS = {{ symbol_tv_slugs | tojson }};
-const AVATAR_PALETTES = [['#6366f1','#8b5cf6'],['#0ea5e9','#06b6d4'],['#f59e0b','#f97316'],['#ec4899','#f43f5e'],['#22c55e','#16a34a'],['#14b8a6','#0d9488']];
+const AVATAR_PALETTES = [['#b4961f','#b4961f'],['#b4961f','#06b6d4'],['#f59e0b','#f97316'],['#ec4899','#f43f5e'],['#22c55e','#16a34a'],['#14b8a6','#0d9488']];
 function avatarColor(sym){let h=0;const s=String(sym||'');for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return AVATAR_PALETTES[Math.abs(h)%AVATAR_PALETTES.length];}
 function avatarInitials(sym){return String(sym||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'?';}
 function logoFallback(img){let list;try{list=JSON.parse(img.dataset.cands||'[]');}catch(e){list=[];}const i=parseInt(img.dataset.idx||'0',10)+1;img.dataset.idx=String(i);if(i<list.length)img.src=list[i];else img.style.display='none';}
@@ -280,8 +281,7 @@ function avatarHtml(sym, size){
     const initials = escapeHtml(avatarInitials(sym));
     const tvSlug = SYMBOL_TV_SLUGS[sym] || '';
     const domain = SYMBOL_DOMAINS[sym] || '';
-    const cands = [`/static/logos/${encodeURIComponent(sym)}.svg`];
-    if (domain) cands.push(`/logo/${encodeURIComponent(sym)}?v=2`);
+    const cands = [`/logo/${encodeURIComponent(sym)}?v=3`];
     if (tvSlug) cands.push(`https://s3-symbol-logo.tradingview.com/${tvSlug}--big.svg`);
     if (domain) {
         cands.push(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`);
@@ -731,7 +731,7 @@ function renderRating(rating) {
 
     const score = rating.score;
     const label = rating.label || 'Hold';
-    const color = _RATING_COLORS[label] || '#6b7280';
+    const color = _RATING_COLORS[label] || '#6d6a60';
     const a = rating.analyst;
     const t = rating.technical;
     const pct = Math.max(0, Math.min(100, score * 10));
@@ -818,7 +818,7 @@ function renderRating(rating) {
                     <div class="h-2.5 rounded-full" style="background:linear-gradient(90deg,#dc2626,#f59e0b,#059669)"></div>
                     <div class="relative h-0">
                         <div style="position:absolute;left:${pct}%;transform:translateX(-50%);top:-9px;">
-                            <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #111827;"></div>
+                            <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #1b1a16;"></div>
                         </div>
                     </div>
                     <div class="flex justify-between text-[9px] text-gray-400 mt-1.5"><span>Sell</span><span>Hold</span><span>Strong Buy</span></div>

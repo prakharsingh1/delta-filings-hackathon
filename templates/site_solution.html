@@ -1,0 +1,70 @@
+{% extends "site_base.html" %}
+{% block title %}{{ s.label }} · Delta Filings{% endblock %}
+{% block meta_description %}{{ s.lede }}{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <p class="crumb"><a href="/solutions">Solutions</a> / {{ s.label }}</p>
+    <p class="eyebrow">{{ s.short }}</p>
+    <h1 class="h1">{{ s.headline }}</h1>
+    <p class="lede">{{ s.lede }}</p>
+    <div class="cta-row"><a href="/signup" class="btn btn-primary">Create workspace</a><a href="/product" class="btn btn-quiet">See the whole product</a></div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">A working day</p><h2 class="h2">What it looks like in use.</h2></div>
+    <div class="grid g2">
+      {% for when, what in s.day %}
+      <div class="card"><span class="tag tag-grey">{{ when }}</span><p style="margin-top:12px;color:var(--ink);font-size:16px">{{ what }}</p></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">What you get</p><h2 class="h2">The parts you will use.</h2></div>
+    <div class="grid g3">
+      {% for name, desc in s.modules %}
+      <div class="card"><h3>{{ name }}</h3><p>{{ desc }}</p></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <p class="eyebrow">First 15 minutes</p><h2 class="h2">Setting up.</h2>
+        <ol class="steps" style="margin-top:24px">
+          {% for t, d in s.steps %}<li><div><b>{{ t }}</b><span>{{ d }}</span></div></li>{% endfor %}
+        </ol>
+      </div>
+      <div>
+        <p class="eyebrow">Be aware</p><h2 class="h2">What it does not do.</h2>
+        <ul class="checks no" style="margin-top:24px">
+          {% for n in s.not %}<li>{{ n }}</li>{% endfor %}
+        </ul>
+        <p style="margin-top:18px;font-size:15px;color:var(--muted)">More in the <a href="/faq" style="color:var(--indigo-2)">FAQ</a> and on the <a href="/security" style="color:var(--indigo-2)">security page</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Other roles</p></div>
+    <div class="grid g3">
+      {% for k, o in others.items() %}<a class="card" href="/solutions/{{ k }}"><h3>{{ o.label }}</h3><p>{{ o.short }}</p><span class="card-link">Read more &rarr;</span></a>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="sec final-cta">
+  <div class="wrap"><h2 class="h2">Try it on one company.</h2>
+    <div class="cta-row"><a href="/signup" class="btn btn-primary">Create workspace</a></div></div>
+</section>
+{% endblock %}

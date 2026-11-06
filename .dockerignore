@@ -10,3 +10,15 @@ Delta_Filings_*.pdf
 create_*.js
 node_modules
 .logocache
+
+# Client documents uploaded through document requests — never bake into an image
+uploads/
+
+# Secrets and data: the image must never carry credentials or a database
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+*.sqlite
+*.bak

@@ -1,0 +1,88 @@
+{% extends 'public_base.html' %}
+{% block title %}MSME Classification Tool · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">Investment in plant & machinery / equipment (₹ crore)</label>
+                <input id="inv" type="number" min="0" step="0.01" value="0.5" class="input">
+            </div>
+            <div>
+                <label class="label">Turnover (₹ crore)</label>
+                <input id="tov" type="number" min="0" step="0.01" value="3" class="input">
+            </div>
+        </div>
+
+        <div class="result mt-6">
+            <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Classification</div>
+            <div class="mt-2 text-4xl font-extrabold" id="category">—</div>
+            <div class="mt-2 text-sm text-slate-600" id="reason"></div>
+        </div>
+
+        <table class="w-full mt-6 text-sm">
+            <thead>
+                <tr class="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                    <th class="py-2 pr-3">Category</th>
+                    <th class="py-2 pr-3">Investment ≤</th>
+                    <th class="py-2">Turnover ≤</th>
+                </tr>
+            </thead>
+            <tbody class="text-slate-700">
+                {% for l in limits %}
+                <tr class="border-b border-slate-100">
+                    <td class="py-2 pr-3 font-semibold">{{ l.category }}</td>
+                    <td class="py-2 pr-3">₹{{ l.investment_max_cr }} cr</td>
+                    <td class="py-2">₹{{ l.turnover_max_cr }} cr</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Classification follows the revised criteria notified on 1-Jun-2020 (Notification S.O. 2119(E)). The enterprise must satisfy BOTH the investment AND the turnover ceiling to fall in a given class. Crossing either threshold moves the unit up to the next category. Register on the Udyam Registration portal (udyamregistration.gov.in).
+    </div>
+</section>
+
+<script>
+const LIMITS = {{ limits | tojson }};
+
+function compute() {
+    const inv = parseFloat(document.getElementById('inv').value || 0);
+    const tov = parseFloat(document.getElementById('tov').value || 0);
+
+    let category = null;
+    for (const l of LIMITS) {
+        if (inv <= l.investment_max_cr && tov <= l.turnover_max_cr) { category = l; break; }
+    }
+
+    const catEl = document.getElementById('category');
+    const reasonEl = document.getElementById('reason');
+
+    if (category) {
+        catEl.textContent = category.category;
+        catEl.className = 'mt-2 text-4xl font-extrabold ' + (
+            category.category === 'Micro' ? 'text-emerald-600' :
+            category.category === 'Small' ? 'text-blue-600' : 'text-purple-600'
+        );
+        reasonEl.textContent = `Investment ₹${inv} cr ≤ ₹${category.investment_max_cr} cr AND turnover ₹${tov} cr ≤ ₹${category.turnover_max_cr} cr.`;
+    } else {
+        catEl.textContent = 'Not MSME';
+        catEl.className = 'mt-2 text-4xl font-extrabold text-rose-600';
+        reasonEl.textContent = `Either investment or turnover exceeds the Medium-enterprise ceiling (₹50 cr / ₹250 cr). The unit is outside MSME classification.`;
+    }
+}
+['inv','tov'].forEach(id => document.getElementById(id).addEventListener('input', compute));
+compute();
+</script>
+{% endblock %}

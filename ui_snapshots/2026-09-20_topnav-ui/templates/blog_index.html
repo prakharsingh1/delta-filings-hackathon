@@ -1,0 +1,585 @@
+{% extends 'public_base.html' %}
+{% block title %}Delta Filings Blogs — Learn CS, MCA & Compliance for India 2026{% endblock %}
+{% block meta_description %}The most practical learning hub for Indian Company Secretaries — Varsity-style modules, deep-dive guides, and weekly regulatory news. Built by Delta Filings.{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* ── HERO ─────────────────────────────────────────────── */
+    .hero-blog {
+        background:
+            radial-gradient(ellipse 70% 60% at 20% 0%, rgba(99,102,241,0.08), transparent 70%),
+            radial-gradient(ellipse 60% 60% at 80% 100%, rgba(236,72,153,0.06), transparent 70%),
+            linear-gradient(135deg, rgba(99,102,241,0.04), rgba(14,165,233,0.03) 50%, rgba(236,72,153,0.03));
+        border: 1px solid rgba(99,102,241,0.12);
+        border-radius: 28px;
+        padding: 56px 40px 48px;
+    }
+    @media (max-width: 640px) { .hero-blog { padding: 36px 22px; border-radius: 22px; } }
+
+    /* ── SEARCH ───────────────────────────────────────────── */
+    .search-wrap {
+        position: relative; max-width: 640px; margin: 32px auto 0;
+    }
+    .search-wrap svg.search-icon {
+        position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+        width: 20px; height: 20px; color: #94a3b8;
+        transition: color .2s ease;
+        pointer-events: none;
+    }
+    #blog-search {
+        width: 100%;
+        padding: 16px 56px 16px 52px;
+        border-radius: 999px;
+        border: 1.5px solid #e2e8f0;
+        background: #ffffff;
+        font-size: 15px;
+        font-weight: 500;
+        color: #0f172a;
+        outline: none;
+        box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+        transition: border-color .2s ease, box-shadow .2s ease;
+    }
+    #blog-search::placeholder { color: #94a3b8; font-weight: 400; }
+    #blog-search:focus {
+        border-color: rgba(99,102,241,0.55);
+        box-shadow: 0 0 0 4px rgba(99,102,241,0.10), 0 1px 2px rgba(15,23,42,0.04);
+    }
+    .search-wrap:focus-within svg.search-icon { color: #4f46e5; }
+    .search-clear {
+        position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+        width: 28px; height: 28px; border-radius: 999px;
+        background: #f1f5f9; color: #64748b; border: none; cursor: pointer;
+        display: none; align-items: center; justify-content: center;
+        transition: background .15s ease, color .15s ease, transform .15s ease;
+    }
+    .search-clear.visible { display: inline-flex; }
+    .search-clear:hover { background: #e2e8f0; color: #0f172a; transform: translateY(-50%) scale(1.05); }
+
+    /* ── TAB NAV (cute animated pills) ────────────────────── */
+    .tab-nav {
+        display: inline-flex;
+        gap: 4px;
+        padding: 6px;
+        background: rgba(241, 245, 249, 0.85);
+        backdrop-filter: blur(6px);
+        border-radius: 999px;
+        border: 1px solid #e2e8f0;
+        position: relative;
+    }
+    .tab-pill {
+        position: relative; z-index: 2;
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 10px 22px;
+        border-radius: 999px;
+        font-size: 14px; font-weight: 600;
+        color: #475569;
+        background: transparent;
+        border: none; cursor: pointer;
+        transition: color .25s ease;
+        white-space: nowrap;
+    }
+    .tab-pill .badge {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 22px; height: 20px; padding: 0 7px;
+        font-size: 11px; font-weight: 700;
+        background: #e2e8f0; color: #64748b;
+        border-radius: 999px;
+        transition: background .25s ease, color .25s ease;
+    }
+    .tab-pill:hover { color: #1e293b; }
+    .tab-pill.active { color: #ffffff; }
+    .tab-pill.active .badge { background: rgba(255,255,255,0.25); color: #ffffff; }
+    .tab-indicator {
+        position: absolute; z-index: 1;
+        top: 6px; bottom: 6px; left: 6px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        box-shadow: 0 4px 16px -4px rgba(99,102,241,0.55);
+        transition: transform .35s cubic-bezier(.22,.61,.36,1), width .35s cubic-bezier(.22,.61,.36,1);
+    }
+
+    /* ── SUBTITLE under tabs ──────────────────────────────── */
+    .tab-sub {
+        text-align: center; font-size: 14px; color: #64748b;
+        max-width: 580px; margin: 14px auto 0;
+        opacity: 0; transform: translateY(4px);
+        animation: fadeUp .4s ease forwards .15s;
+    }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* ── TAB PANELS (cross-fade) ──────────────────────────── */
+    .tab-panel { display: none; animation: panelIn .35s ease; }
+    .tab-panel.active { display: block; }
+    @keyframes panelIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: none; }
+    }
+
+    /* ── MODULE CARDS ─────────────────────────────────────── */
+    .module-card {
+        background: white;
+        border: 1px solid #eef1f7;
+        border-radius: 22px;
+        padding: 28px;
+        transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .module-card:hover { transform: translateY(-3px); box-shadow: 0 24px 50px -25px rgba(15,23,42,0.18); border-color: rgba(99,102,241,0.3); }
+    .module-card::before {
+        content: '';
+        position: absolute; top: 0; left: 0; right: 0; height: 4px;
+        background: var(--module-grad, linear-gradient(90deg, #4f46e5, #0ea5e9));
+    }
+    .module-card.color-indigo   { --module-grad: linear-gradient(90deg, #4f46e5, #6366f1); }
+    .module-card.color-emerald  { --module-grad: linear-gradient(90deg, #10b981, #14b8a6); }
+    .module-card.color-rose     { --module-grad: linear-gradient(90deg, #f43f5e, #ec4899); }
+    .module-card.color-purple   { --module-grad: linear-gradient(90deg, #7c3aed, #a855f7); }
+    .module-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: inline-flex; align-items: center; justify-content: center;
+        margin-bottom: 16px;
+    }
+    .module-card.color-indigo  .module-icon { background: rgba(99,102,241,0.12);  color: #4f46e5; }
+    .module-card.color-emerald .module-icon { background: rgba(16,185,129,0.12);  color: #059669; }
+    .module-card.color-rose    .module-icon { background: rgba(244,63,94,0.12);   color: #e11d48; }
+    .module-card.color-purple  .module-icon { background: rgba(124,58,237,0.12);  color: #7c3aed; }
+    .level-pill {
+        display: inline-block;
+        font-size: 10px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.06em;
+        padding: 3px 9px; border-radius: 999px;
+        background: #f1f5f9; color: #64748b;
+    }
+    .chapter-row {
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: 10px 0; border-top: 1px solid #f1f5f9;
+        transition: background .15s ease, padding-left .15s ease;
+    }
+    .chapter-row:hover { background: rgba(99,102,241,0.04); padding-left: 6px; }
+    .chapter-num {
+        flex: 0 0 26px; height: 26px;
+        border-radius: 7px;
+        background: #f1f5f9; color: #475569;
+        font-size: 12px; font-weight: 700;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .module-card.color-indigo  .chapter-num { background: rgba(99,102,241,0.10); color: #4f46e5; }
+    .module-card.color-emerald .chapter-num { background: rgba(16,185,129,0.10); color: #059669; }
+    .module-card.color-rose    .chapter-num { background: rgba(244,63,94,0.10);  color: #e11d48; }
+    .module-card.color-purple  .chapter-num { background: rgba(124,58,237,0.10); color: #7c3aed; }
+
+    /* ── CATEGORY PILLS (cute) ────────────────────────────── */
+    .cat-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .cat-pill {
+        padding: 8px 18px; border-radius: 999px;
+        font-size: 12px; font-weight: 600;
+        border: 1.5px solid #e2e8f0; background: #ffffff;
+        color: #475569; cursor: pointer;
+        transition: transform .15s ease, background .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease;
+    }
+    .cat-pill:hover { transform: translateY(-1px); border-color: #cbd5e1; }
+    .cat-pill.active {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: #ffffff; border-color: transparent;
+        box-shadow: 0 6px 18px -8px rgba(99,102,241,0.55);
+    }
+
+    /* ── POST CARDS ───────────────────────────────────────── */
+    .post-card {
+        background: white;
+        border: 1px solid #eef1f7;
+        border-radius: 18px;
+        overflow: hidden;
+        display: flex; flex-direction: column;
+        transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    }
+    .post-card:hover { transform: translateY(-3px); box-shadow: 0 24px 45px -25px rgba(15,23,42,0.18); border-color: rgba(99,102,241,0.25); }
+    .post-card .thumb { aspect-ratio: 16/9; overflow: hidden; background: #f1f5f9; }
+    .post-card .thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease; }
+    .post-card:hover .thumb img { transform: scale(1.04); }
+    .post-card .body { padding: 22px; display: flex; flex-direction: column; flex: 1; }
+
+    /* News date strip */
+    .news-date-strip {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 11px; font-weight: 600;
+        color: #4f46e5;
+        background: rgba(99,102,241,0.08);
+        padding: 4px 10px; border-radius: 999px;
+        margin-bottom: 10px;
+    }
+    .news-pulse {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #4f46e5;
+        animation: pulseDot 1.8s ease-in-out infinite;
+    }
+    @keyframes pulseDot {
+        0%,100% { transform: scale(1);   opacity: 1; }
+        50%     { transform: scale(1.6); opacity: 0.5; }
+    }
+
+    /* ── EMPTY STATE ──────────────────────────────────────── */
+    .empty-state {
+        text-align: center; padding: 60px 20px;
+        color: #64748b;
+    }
+    .empty-state .empty-icon {
+        width: 64px; height: 64px; margin: 0 auto 16px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(236,72,153,0.08));
+        display: inline-flex; align-items: center; justify-content: center;
+        color: #4f46e5;
+    }
+
+    /* ── STAGGER REVEAL ───────────────────────────────────── */
+    .stagger > * {
+        opacity: 0; transform: translateY(8px);
+        animation: cardIn .45s ease forwards;
+    }
+    .stagger > *:nth-child(1)  { animation-delay: .02s; }
+    .stagger > *:nth-child(2)  { animation-delay: .06s; }
+    .stagger > *:nth-child(3)  { animation-delay: .10s; }
+    .stagger > *:nth-child(4)  { animation-delay: .14s; }
+    .stagger > *:nth-child(5)  { animation-delay: .18s; }
+    .stagger > *:nth-child(6)  { animation-delay: .22s; }
+    .stagger > *:nth-child(7)  { animation-delay: .26s; }
+    .stagger > *:nth-child(8)  { animation-delay: .30s; }
+    .stagger > *:nth-child(n+9) { animation-delay: .34s; }
+    @keyframes cardIn { to { opacity: 1; transform: none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── HERO ─────────────────────────────────────────────── -->
+<section class="max-w-6xl mx-auto px-6 pt-10 pb-8">
+    <div class="hero-blog">
+        <div class="text-center max-w-3xl mx-auto">
+            <span class="tag mb-4 inline-flex">Delta Filings Blogs · A learning hub for CS, MCA & Compliance</span>
+            <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.05] text-slate-900">
+                Learn the practice of <span class="gradient-text">Company Secretarial work</span>, the way it is actually done in India in 2026.
+            </h1>
+            <p class="mt-5 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto">
+                Curated modules. Real charts. SEO-rich guides for working CS, MCA aspirants, and founders. Plus a weekly news pulse so you don't miss what just changed.
+            </p>
+        </div>
+
+        <!-- Global search -->
+        <div class="search-wrap">
+            <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+            </svg>
+            <input id="blog-search" type="search" autocomplete="off"
+                   placeholder="Search across guides, modules and news…" aria-label="Search the blog">
+            <button class="search-clear" id="search-clear" aria-label="Clear search">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+</section>
+
+{% if not_found %}
+<div class="max-w-3xl mx-auto mb-6 mx-6 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm">
+    Article not found: <code>{{ not_found }}</code>. Browse below.
+</div>
+{% endif %}
+
+<!-- ── TAB NAV ──────────────────────────────────────────── -->
+<section class="max-w-6xl mx-auto px-6 pb-2">
+    <div class="flex flex-col items-center">
+        <div class="tab-nav" role="tablist" aria-label="Blog sections">
+            <span class="tab-indicator" id="tab-indicator"></span>
+            <button class="tab-pill active" role="tab" data-tab="learn" aria-selected="true">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/></svg>
+                Learn
+                <span class="badge" data-count="learn">{{ modules|length }}</span>
+            </button>
+            <button class="tab-pill" role="tab" data-tab="articles" aria-selected="false">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Articles
+                <span class="badge" data-count="articles">{{ articles|length }}</span>
+            </button>
+            <button class="tab-pill" role="tab" data-tab="news" aria-selected="false">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2M7 8h6M7 12h6M7 16h6"/></svg>
+                News
+                <span class="badge" data-count="news">{{ news|length }}</span>
+            </button>
+        </div>
+        <p class="tab-sub" id="tab-sub">Pick a learning track. Read it end-to-end like Varsity.</p>
+    </div>
+</section>
+
+
+<!-- ── LEARN PANEL (default) ────────────────────────────── -->
+<section class="tab-panel active max-w-6xl mx-auto px-6 pt-8 pb-16" data-panel="learn">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 stagger" data-cards="learn">
+        {% for module in modules %}
+        <div class="module-card color-{{ module.color }} searchable"
+             data-search="{{ module.title|lower }} {{ module.subtitle|lower }} {% for ch in module.chapters %}{{ ch.title|lower }} {% endfor %}">
+            <div class="flex items-start justify-between mb-1">
+                <div class="module-icon">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {% if module.icon == 'academic-cap' %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path>
+                        {% elif module.icon == 'briefcase' %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        {% elif module.icon == 'shield-check' %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        {% elif module.icon == 'chart-bar' %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        {% endif %}
+                    </svg>
+                </div>
+                <span class="level-pill">{{ module.level }}</span>
+            </div>
+            <h3 class="font-extrabold text-slate-900 text-xl leading-snug">{{ module.title }}</h3>
+            <p class="text-sm text-slate-600 mt-2 mb-5 leading-relaxed">{{ module.subtitle }}</p>
+            <div>
+                {% for ch in module.chapters %}
+                <a href="/blog/{{ ch.slug }}" class="chapter-row">
+                    <div class="chapter-num">{{ loop.index }}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-semibold text-slate-900 leading-snug">{{ ch.title }}</div>
+                        <div class="text-xs text-slate-500 mt-0.5">{{ ch.read_minutes }} min · {{ ch.category }}</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="empty-state" data-empty="learn" style="display:none">
+        <div class="empty-icon">
+            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+        </div>
+        <p class="font-semibold text-slate-700">No modules match that search.</p>
+        <p class="text-sm mt-1">Try the Articles or News tab — they cover more ground.</p>
+    </div>
+</section>
+
+
+<!-- ── ARTICLES PANEL ───────────────────────────────────── -->
+<section class="tab-panel max-w-6xl mx-auto px-6 pt-8 pb-16" data-panel="articles">
+    <!-- Category filter pills -->
+    <div class="cat-row mb-10">
+        <button type="button" data-cat="all" class="cat-pill active">All</button>
+        {% for cat in categories %}
+        <button type="button" data-cat="{{ cat }}" class="cat-pill">{{ cat }}</button>
+        {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger" data-cards="articles">
+        {% for post in articles %}
+        <a href="/blog/{{ post.slug }}" class="post-card searchable"
+           data-cat="{{ post.category }}"
+           data-search="{{ post.title|lower }} {{ post.summary|lower }} {{ post.category|lower }}">
+            {% if post.hero_image %}
+            <div class="thumb">
+                <img src="{{ post.hero_image }}" alt="{{ post.image_alt or post.title }}" loading="lazy" decoding="async">
+            </div>
+            {% endif %}
+            <div class="body">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded
+                                 {% if post.tag_color == 'indigo' %}bg-indigo-100 text-indigo-700
+                                 {% elif post.tag_color == 'emerald' %}bg-emerald-100 text-emerald-700
+                                 {% elif post.tag_color == 'purple' %}bg-purple-100 text-purple-700
+                                 {% elif post.tag_color == 'amber' %}bg-amber-100 text-amber-700
+                                 {% elif post.tag_color == 'rose' %}bg-rose-100 text-rose-700
+                                 {% elif post.tag_color == 'blue' %}bg-blue-100 text-blue-700{% endif %}">{{ post.category }}</span>
+                    <span class="text-xs text-slate-500">{{ post.read_minutes }} min read</span>
+                </div>
+                <h3 class="font-bold text-slate-900 text-lg mb-2 leading-snug">{{ post.title }}</h3>
+                <p class="text-sm text-slate-600 leading-relaxed mb-4 flex-1">{{ post.summary }}</p>
+                <div class="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
+                    <span>{{ post.published }}</span>
+                    <span class="font-medium text-indigo-600">Read article →</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    <div class="empty-state" data-empty="articles" style="display:none">
+        <div class="empty-icon">
+            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+        </div>
+        <p class="font-semibold text-slate-700">No articles match.</p>
+        <p class="text-sm mt-1">Try a broader keyword or check the News tab.</p>
+    </div>
+</section>
+
+
+<!-- ── NEWS PANEL ───────────────────────────────────────── -->
+<section class="tab-panel max-w-6xl mx-auto px-6 pt-8 pb-16" data-panel="news">
+    <div class="text-center mb-8">
+        <p class="text-sm text-slate-600 max-w-xl mx-auto">
+            What just changed and what to do about it — SEBI moves, MCA waves, DPDP rules, T+0, AIF overhaul, decoded for the working CS. Newest first.
+        </p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger" data-cards="news">
+        {% for post in news %}
+        <a href="/blog/{{ post.slug }}" class="post-card searchable"
+           data-search="{{ post.title|lower }} {{ post.summary|lower }} {{ post.category|lower }}">
+            {% if post.hero_image %}
+            <div class="thumb">
+                <img src="{{ post.hero_image }}" alt="{{ post.image_alt or post.title }}" loading="lazy" decoding="async">
+            </div>
+            {% endif %}
+            <div class="body">
+                <span class="news-date-strip"><span class="news-pulse"></span> {{ post.published }}</span>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded
+                                 {% if post.tag_color == 'indigo' %}bg-indigo-100 text-indigo-700
+                                 {% elif post.tag_color == 'emerald' %}bg-emerald-100 text-emerald-700
+                                 {% elif post.tag_color == 'purple' %}bg-purple-100 text-purple-700
+                                 {% elif post.tag_color == 'amber' %}bg-amber-100 text-amber-700
+                                 {% elif post.tag_color == 'rose' %}bg-rose-100 text-rose-700
+                                 {% elif post.tag_color == 'blue' %}bg-blue-100 text-blue-700{% endif %}">{{ post.category }}</span>
+                    <span class="text-xs text-slate-500">{{ post.read_minutes }} min read</span>
+                </div>
+                <h3 class="font-bold text-slate-900 text-lg mb-2 leading-snug">{{ post.title }}</h3>
+                <p class="text-sm text-slate-600 leading-relaxed mb-4 flex-1">{{ post.summary }}</p>
+                <div class="flex items-center justify-end text-xs text-slate-500 pt-3 border-t border-slate-100">
+                    <span class="font-medium text-indigo-600">Read article →</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    <div class="empty-state" data-empty="news" style="display:none">
+        <div class="empty-icon">
+            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+        </div>
+        <p class="font-semibold text-slate-700">Nothing in news matches.</p>
+        <p class="text-sm mt-1">The Learn or Articles tabs may have it.</p>
+    </div>
+</section>
+
+
+<!-- ── CTA STRIP ──────────────────────────────────────── -->
+<section class="max-w-6xl mx-auto px-6 pb-16">
+    <div class="rounded-3xl p-10 text-center"
+         style="background: linear-gradient(135deg, rgba(99,102,241,0.10), rgba(14,165,233,0.08) 50%, rgba(236,72,153,0.06));
+                border: 1px solid rgba(99,102,241,0.20);">
+        <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">Reading is good. Filing on time is better.</h3>
+        <p class="mt-3 text-slate-600 max-w-2xl mx-auto">Delta Filings ingests NSE & BSE corporate filings, drafts SEBI replies with AI, tracks insider trading windows, and runs your full compliance calendar — all in one place.</p>
+        <a href="/signup" class="btn-primary text-sm mt-6">Start free trial · ₹4,999/year after</a>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    // ── TABS ────────────────────────────────────────────────
+    const pills = document.querySelectorAll('.tab-pill');
+    const panels = document.querySelectorAll('.tab-panel');
+    const indicator = document.getElementById('tab-indicator');
+    const tabSub = document.getElementById('tab-sub');
+    const SUBS = {
+        learn:    'Pick a learning track. Read it end-to-end like Varsity.',
+        articles: 'Every evergreen guide we have published. Filter by category.',
+        news:     'Recent regulatory news, decoded for the working CS.',
+    };
+
+    function moveIndicator(activePill) {
+        const navRect = activePill.parentElement.getBoundingClientRect();
+        const r = activePill.getBoundingClientRect();
+        indicator.style.width = r.width + 'px';
+        indicator.style.transform = 'translateX(' + (r.left - navRect.left - 6) + 'px)';
+    }
+
+    function switchTab(name) {
+        pills.forEach(p => {
+            const isActive = p.dataset.tab === name;
+            p.classList.toggle('active', isActive);
+            p.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            if (isActive) moveIndicator(p);
+        });
+        panels.forEach(panel => {
+            panel.classList.toggle('active', panel.dataset.panel === name);
+        });
+        tabSub.textContent = SUBS[name] || '';
+        // Re-apply search filter to newly visible panel
+        applySearch();
+    }
+
+    pills.forEach(p => p.addEventListener('click', () => switchTab(p.dataset.tab)));
+
+    // Initial indicator placement (after fonts settle)
+    requestAnimationFrame(() => moveIndicator(document.querySelector('.tab-pill.active')));
+    window.addEventListener('resize', () => {
+        const a = document.querySelector('.tab-pill.active'); if (a) moveIndicator(a);
+    });
+
+    // ── CATEGORY FILTER (Articles tab) ──────────────────────
+    let activeCat = 'all';
+    const catPills = document.querySelectorAll('.cat-pill');
+    catPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            catPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            activeCat = pill.dataset.cat;
+            applySearch();
+        });
+    });
+
+    // ── SEARCH (global, live) ───────────────────────────────
+    const input = document.getElementById('blog-search');
+    const clearBtn = document.getElementById('search-clear');
+    let query = '';
+
+    function tokenise(s) {
+        return s.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    }
+
+    function applySearch() {
+        const tokens = tokenise(query);
+        clearBtn.classList.toggle('visible', query.length > 0);
+
+        ['learn','articles','news'].forEach(name => {
+            const cards = document.querySelectorAll('[data-cards="'+name+'"] .searchable');
+            let visible = 0;
+            cards.forEach(card => {
+                const hay = card.dataset.search || '';
+                const matchesQuery = tokens.every(t => hay.includes(t));
+                let matchesCat = true;
+                if (name === 'articles' && activeCat !== 'all') {
+                    matchesCat = card.dataset.cat === activeCat;
+                }
+                const show = matchesQuery && matchesCat;
+                card.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+            // Update tab badge
+            const badge = document.querySelector('[data-count="'+name+'"]');
+            if (badge) badge.textContent = visible;
+            // Empty state inside currently-active panel
+            const empty = document.querySelector('[data-empty="'+name+'"]');
+            if (empty) empty.style.display = visible === 0 ? '' : 'none';
+        });
+    }
+
+    input.addEventListener('input', (e) => {
+        query = e.target.value;
+        applySearch();
+    });
+    clearBtn.addEventListener('click', () => {
+        input.value = ''; query = ''; input.focus(); applySearch();
+    });
+
+    // Allow ⌘K / Ctrl+K to focus search
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault(); input.focus();
+        }
+        if (e.key === 'Escape' && document.activeElement === input) {
+            input.value = ''; query = ''; applySearch(); input.blur();
+        }
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delta Filings</title>
+<style>
+  :root { color-scheme: light dark; --bg: #faf9f5; --ink: #1b1a16; --muted: #6d6a60; --accent: #ffe24a; --olive: #8a7b2b; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #000; --ink: #f1efe6; --muted: #9a978a; } }
+  html, body { height: 100%; margin: 0; }
+  body { display: grid; place-items: center; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif; }
+  main { text-align: center; max-width: 420px; padding: 24px; }
+  svg { width: 44px; height: 50px; color: var(--olive); }
+  h1 { font-size: 20px; font-weight: 650; margin: 18px 0 6px; letter-spacing: -.01em; }
+  p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .bar { width: 160px; height: 3px; margin: 22px auto 0; border-radius: 3px; overflow: hidden; background: rgba(127,127,127,.18); }
+  .bar i { display: block; width: 40%; height: 100%; background: var(--accent); animation: slide 1.1s ease-in-out infinite; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  .err { display: none; margin-top: 18px; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(185,70,62,.4); background: rgba(185,70,62,.08); color: var(--ink); font-size: 13.5px; text-align: left; }
+  @media (prefers-reduced-motion: reduce) { .bar i { animation: none; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <svg viewBox="0 0 104 120" fill="currentColor" aria-hidden="true"><polygon points="8,42 34,30 34,108 8,120"/><polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/></svg>
+  <h1>Starting Delta Filings</h1>
+  <p>Your workspace, documents and AI stay on this computer.</p>
+  <div class="bar" id="bar"><i></i></div>
+  <div class="err" id="err" role="alert"></div>
+</main>
+<script>
+  window.deltaBackendFailed = function (msg) {
+    document.getElementById('bar').style.display = 'none';
+    var e = document.getElementById('err'); e.textContent = msg; e.style.display = 'block';
+  };
+</script>
+</body>
+</html>

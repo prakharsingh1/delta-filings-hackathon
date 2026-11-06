@@ -1,0 +1,70 @@
+{% extends "site_base.html" %}
+{% block title %}Security · Delta Filings{% endblock %}
+{% block meta_description %}How Delta Filings handles your data today: what is in place, what is not, and where the data lives.{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <p class="eyebrow">Security</p>
+    <h1 class="h1">What is in place today, and what is not.</h1>
+    <p class="lede">Compliance records are confidential. Here is how Delta Filings handles them now, written so you can decide whether it is enough for your company. Where something is missing, we say so.</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <p class="eyebrow">In place</p><h2 class="h2">What we do today.</h2>
+        <ul class="checks" style="margin-top:20px">
+          <li><b>Encrypted in transit.</b> The site is served over HTTPS and session cookies are marked secure and HTTP-only.</li>
+          <li><b>Managed sign-in.</b> Accounts use email and password through Supabase Auth. We do not store your password.</li>
+          <li><b>Your records are yours alone.</b> Every query is scoped to your account, and another user's record returns "not found". Your review decisions and notes are visible only to you. This is covered by automated tests.</li>
+          <li><b>PAN masked on screen.</b> PANs show as AB•••••34K in tables and are shown in full only in the exports you ask for.</li>
+          <li><b>Tamper-evident insider-trading log.</b> Entries cannot be edited or deleted through the app. Each stores the hash of the one before, and the page names the first broken entry. UPSI records, trading-window closures, pre-clearance decisions and the designated persons list are chained too, and deleting the newest entries is detected.</li>
+          <li><b>Client uploads are fenced.</b> Document-request links are long random tokens. Files are checked for type and size, stored under random names, and sent back as downloads. Closing the request switches the link off.</li>
+          <li><b>History kept.</b> Register edits are saved as new versions, and risk alerts keep a log of every action.</li>
+        </ul>
+      </div>
+      <div>
+        <p class="eyebrow">Not in place</p><h2 class="h2">What we do not have yet.</h2>
+        <ul class="checks no" style="margin-top:20px">
+          <li><b>India hosting.</b> Data sits on a Railway server in US West (California).</li>
+          <li><b>Scheduled off-site backups.</b> We do not run our own. Export your registers and logs to keep your own copy.</li>
+          <li><b>Multi-factor sign-in and single sign-on.</b> Not built.</li>
+          <li><b>Team roles and a full audit log.</b> Accounts are per person. Some modules keep logs; there is no single trail across the product.</li>
+          <li><b>Certifications.</b> No ISO 27001 or SOC 2 report.</li>
+          <li><b>A signed data-processing agreement,</b> and tools for deletion and export requests under the DPDP Act.</li>
+          <li><b>The insider-trading chain is anchored in the database only.</b> Someone with direct database access could rebuild it. Record the head hash in your minutes to cover that.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Data handling</p><h2 class="h2">Who else touches your data.</h2></div>
+    <div class="tbl-scroll">
+      <table class="t">
+        <thead><tr><th>Service</th><th>What for</th><th>What it sees</th></tr></thead>
+        <tbody>
+          <tr><td>Railway</td><td>Hosting and storage</td><td>Everything stored in the app, including uploaded documents</td></tr>
+          <tr><td>Supabase</td><td>Sign-in</td><td>Your name, email, role and password hash</td></tr>
+          <tr><td>Google Gemini, OpenRouter</td><td>AI summaries and drafting, only when you use them</td><td>The text you send for that request</td></tr>
+          <tr><td>Google Analytics</td><td>Page-view statistics on this site and the app</td><td>Page views and device details, not your records</td></tr>
+          <tr><td>Telegram</td><td>Alerts, only if you link it</td><td>The alert text</td></tr>
+          <tr><td>Razorpay</td><td>Payments, once billing starts</td><td>Payment details, handled by Razorpay</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sec-lede" style="font-size:15px">We do not sell data and we do not train models on it. AI providers have their own terms: avoid sending text you may not share with them.</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="callout"><b>Choosing whether to use it.</b> Delta Filings is in beta. For a listed company or a regulated entity, the missing items above may block procurement today. For a practice or an unlisted company that wants a better calendar, they are usually acceptable. If you need something specific, tell us before you rely on it.</div>
+    <div class="cta-row"><a href="/signup" class="btn btn-primary">Create workspace</a><a href="/faq" class="btn btn-quiet">Read the FAQ</a></div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logos Diagnostic | Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-slate-50 text-gray-900">
+
+<div class="flex h-screen overflow-hidden">
+    {% set active_page = 'dashboard' %}
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 overflow-y-auto">
+        <div class="page-header">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="page-title">Logos Diagnostic</h2>
+                    <p class="page-subtitle">{{ ok_count }} / {{ total }} symbols resolved a valid brand image</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="/dashboard" class="btn btn-secondary text-xs">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-8 py-6 space-y-4">
+
+            <!-- Legend -->
+            <div class="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-3 items-center text-xs text-gray-600">
+                <span class="font-bold text-gray-700 mr-2">Source priority:</span>
+                <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">apple-touch-icon</span>
+                <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-semibold">og:image</span>
+                <span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 font-semibold">icon-svg</span>
+                <span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 font-semibold">icon</span>
+                <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-semibold">missing</span>
+            </div>
+
+            <!-- Filter chips -->
+            <div class="flex gap-2 text-xs">
+                <button onclick="filter('all')"   class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-indigo-300 font-medium">All ({{ total }})</button>
+                <button onclick="filter('ok')"    class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-emerald-300 font-medium">Resolved ({{ ok_count }})</button>
+                <button onclick="filter('miss')"  class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-rose-300 font-medium">Missing ({{ total - ok_count }})</button>
+                <button onclick="filter('apple')" class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-emerald-300 font-medium">apple-touch only</button>
+                <button onclick="filter('og')"    class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-indigo-300 font-medium">og:image only</button>
+            </div>
+
+            <!-- Grid -->
+            <div id="grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {% for r in rows %}
+                {% set has_url = r.url %}
+                {% set src = r.source or '' %}
+                {% set src_cls = (
+                    'bg-emerald-100 text-emerald-800' if src == 'apple-touch-icon' else
+                    'bg-indigo-100 text-indigo-800'   if src == 'og:image'         else
+                    'bg-violet-100 text-violet-800'   if src == 'icon-svg'         else
+                    'bg-sky-100 text-sky-800'         if src == 'icon'             else
+                    'bg-rose-100 text-rose-800'
+                ) %}
+                <div class="logo-card bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3 hover:shadow-md transition-shadow"
+                     data-status="{{ 'ok' if has_url else 'miss' }}"
+                     data-source="{{ src }}">
+                    <div class="flex items-center gap-3">
+                        <div class="w-14 h-14 rounded-xl bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {% if has_url %}
+                            <img src="{{ r.url }}"
+                                 alt="{{ r.symbol }}"
+                                 referrerpolicy="no-referrer"
+                                 class="w-full h-full object-contain bg-white p-1"
+                                 onerror="this.outerHTML='<span class=\'text-rose-500 text-[10px] font-bold\'>BROKEN</span>'">
+                            {% else %}
+                            <span class="text-gray-300 text-[10px] font-bold">NO IMG</span>
+                            {% endif %}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-bold text-gray-900 truncate">{{ r.symbol }}</p>
+                            <p class="text-[11px] text-gray-500 truncate">{{ r.domain or '—' }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
+                        {% if has_url %}
+                            <span class="px-1.5 py-0.5 rounded {{ src_cls }} font-semibold">{{ src }}</span>
+                            {% if r.width %}
+                                <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{{ r.width }}×{{ r.height }}</span>
+                            {% endif %}
+                            {% if r.bytes %}
+                                <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{{ (r.bytes / 1024)|round(1) }} KB</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-semibold">{{ r.error or 'missing' }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if has_url %}
+                    <a href="{{ r.url }}" target="_blank" rel="noopener"
+                       class="text-[10px] text-indigo-600 hover:text-indigo-800 truncate block">{{ r.url }}</a>
+                    {% endif %}
+
+                    {% if r.rejected %}
+                    <details class="text-[10px] text-gray-500">
+                        <summary class="cursor-pointer hover:text-gray-700">{{ r.rejected|length }} rejected candidate{{ 's' if r.rejected|length != 1 }}</summary>
+                        <ul class="mt-1.5 space-y-1">
+                            {% for rej in r.rejected %}
+                            <li class="leading-snug">
+                                <span class="font-semibold">{{ rej.source }}</span>
+                                {% if rej.width %} <span class="text-gray-400">({{ rej.width }}×{{ rej.height }})</span>{% endif %}
+                                <span class="text-rose-500">— {{ rej.reason }}</span>
+                                <br>
+                                <a href="{{ rej.url }}" target="_blank" rel="noopener"
+                                   class="text-indigo-500 hover:underline truncate inline-block max-w-full">{{ rej.url }}</a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+function filter(mode) {
+    document.querySelectorAll('.logo-card').forEach(card => {
+        const status = card.dataset.status;
+        const src    = card.dataset.source;
+        let show = true;
+        if      (mode === 'ok')    show = status === 'ok';
+        else if (mode === 'miss')  show = status === 'miss';
+        else if (mode === 'apple') show = src === 'apple-touch-icon';
+        else if (mode === 'og')    show = src === 'og:image';
+        card.style.display = show ? '' : 'none';
+    });
+}
+</script>
+</body>
+</html>

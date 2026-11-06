@@ -1,0 +1,93 @@
+{% extends 'public_base.html' %}
+{% block title %}HRA Exemption Calculator · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">Basic salary + DA per year (₹)</label>
+                <input id="salary" type="number" min="0" step="10000" value="600000" class="input">
+            </div>
+            <div>
+                <label class="label">HRA received per year (₹)</label>
+                <input id="hra" type="number" min="0" step="10000" value="240000" class="input">
+            </div>
+            <div>
+                <label class="label">Rent paid per year (₹)</label>
+                <input id="rent" type="number" min="0" step="10000" value="216000" class="input">
+            </div>
+            <div>
+                <label class="label">City</label>
+                <select id="city" class="input">
+                    <option value="metro">Metro (Delhi, Mumbai, Kolkata, Chennai)</option>
+                    <option value="non">Non-metro</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="result mt-6">
+            <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Exempt HRA (least of the three)</div>
+            <div class="mt-2 text-4xl font-extrabold text-slate-900" id="exempt">₹0</div>
+            <div class="mt-2 text-sm text-slate-600" id="taxable"></div>
+        </div>
+
+        <div class="mt-6">
+            <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">The three statutory limits</div>
+            <div id="breakdown" class="space-y-2 text-sm"></div>
+        </div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Under Section 10(13A) and Rule 2A, exempt HRA is the least of: (a) actual HRA received, (b) rent paid minus 10% of salary, and (c) 50% of salary (metro) or 40% (non-metro), where salary = basic + DA. HRA exemption is available only under the <strong>Old Tax Regime</strong> — it is not allowed under the New Regime. Figures are annual. Verify with your tax advisor.
+</div>
+</section>
+
+<script>
+const CFG = {{ cfg | tojson }};
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+function compute() {
+    const salary = Math.max(0, parseFloat(document.getElementById('salary').value || 0));
+    const hra = Math.max(0, parseFloat(document.getElementById('hra').value || 0));
+    const rent = Math.max(0, parseFloat(document.getElementById('rent').value || 0));
+    const isMetro = document.getElementById('city').value === 'metro';
+
+    const limit1 = hra;
+    const limit2 = Math.max(0, rent - CFG.rent_excess_pct_of_salary * salary);
+    const pct = isMetro ? CFG.metro_pct : CFG.non_metro_pct;
+    const limit3 = pct * salary;
+
+    const exempt = Math.min(limit1, limit2, limit3);
+    const taxable = Math.max(0, hra - exempt);
+
+    document.getElementById('exempt').textContent = fmt(exempt);
+    document.getElementById('taxable').textContent = `Taxable HRA: ${fmt(taxable)} (added to your taxable salary).`;
+
+    const rows = [
+        {label: 'Actual HRA received', amount: limit1},
+        {label: `Rent paid − 10% of salary (${fmt(rent)} − ${fmt(0.10*salary)})`, amount: limit2},
+        {label: `${isMetro ? '50%' : '40%'} of salary (metro ${isMetro ? 'yes' : 'no'})`, amount: limit3},
+    ];
+    const minVal = exempt;
+    document.getElementById('breakdown').innerHTML = rows.map(r => {
+        const isMin = Math.abs(r.amount - minVal) < 0.5;
+        return `<div class="flex justify-between gap-3 py-1.5 border-b border-slate-100">
+            <span class="${isMin ? 'font-semibold text-indigo-600' : 'text-slate-600'}">${r.label}${isMin ? ' ← exempt' : ''}</span>
+            <span class="font-semibold ${isMin ? 'text-indigo-600' : 'text-slate-900'}">${fmt(r.amount)}</span>
+        </div>`;
+    }).join('');
+}
+['salary','hra','rent','city'].forEach(id => document.getElementById(id).addEventListener('input', compute));
+compute();
+</script>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends 'public_base.html' %}
+{% block title %}GST Late Fee & Interest Calculator · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">Return type</label>
+                <select id="ret" class="input">
+                    {% for r in returns %}<option value="{{ loop.index0 }}">{{ r.code }} — {{ r.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label">Return filed as</label>
+                <select id="nil" class="input">
+                    <option value="false">Normal return</option>
+                    <option value="true">Nil return</option>
+                </select>
+            </div>
+            <div>
+                <label class="label">Days of delay</label>
+                <input id="days" type="number" min="0" value="15" class="input">
+            </div>
+            <div>
+                <label class="label">Tax liability (₹) — for interest</label>
+                <input id="tax" type="number" min="0" value="0" class="input" placeholder="0 if nil">
+            </div>
+            <div>
+                <label class="label">Turnover in state (₹) — for GSTR-9 cap</label>
+                <input id="turnover" type="number" min="0" value="0" class="input" placeholder="leave 0 if not GSTR-9">
+            </div>
+        </div>
+
+        <div class="result mt-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Late fee (gross)</div>
+                    <div class="mt-1 text-2xl font-extrabold text-slate-900" id="fee-total">₹0</div>
+                    <div class="mt-1 text-xs text-slate-600">CGST <span id="fee-cgst">₹0</span> · SGST <span id="fee-sgst">₹0</span></div>
+                </div>
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Interest @ 18% p.a.</div>
+                    <div class="mt-1 text-2xl font-extrabold text-slate-900" id="interest">₹0</div>
+                    <div class="mt-1 text-xs text-slate-600" id="interest-note">On tax liability for {{ '{:,}'.format(0) }} days</div>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t" style="border-color:rgba(99,102,241,0.18);">
+                <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Total payable</div>
+                <div class="mt-1 text-3xl font-extrabold text-slate-900" id="total">₹0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Late fees follow the GST notification regime (₹50/day general, ₹20/day nil for GSTR-3B and GSTR-1, capped at ₹5,000; GSTR-9 at ₹200/day capped at 0.5% of turnover; GSTR-4 at ₹50 or ₹20 capped at ₹2,000 / ₹500). Interest under Section 50(1) is 18% per annum on tax liability for the period of delay. Rates current to May 2026.
+    </div>
+</section>
+
+<script>
+const RETURNS = {{ returns | tojson }};
+const INT_RATE = {{ interest_rate }};
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+function compute() {
+    const r = RETURNS[parseInt(document.getElementById('ret').value)];
+    const isNil = document.getElementById('nil').value === 'true';
+    const days = Math.max(0, parseInt(document.getElementById('days').value || 0));
+    const tax = Math.max(0, parseFloat(document.getElementById('tax').value || 0));
+    const turnover = Math.max(0, parseFloat(document.getElementById('turnover').value || 0));
+
+    const perDay = isNil ? r.late_fee_nil : r.late_fee_normal;
+    let fee = perDay * days;
+    let cap = Infinity;
+    if (r.cap) cap = r.cap;
+    if (r.cap_pct_turnover && turnover > 0) cap = Math.min(cap, r.cap_pct_turnover * turnover);
+    if (r.cap_normal && !isNil) cap = Math.min(cap, r.cap_normal);
+    if (r.cap_nil && isNil) cap = Math.min(cap, r.cap_nil);
+    if (fee > cap) fee = cap;
+
+    const cgst = fee / 2;
+    const sgst = fee / 2;
+    const interest = tax * INT_RATE * (days / 365);
+    const total = fee + interest;
+
+    document.getElementById('fee-total').textContent = fmt(fee);
+    document.getElementById('fee-cgst').textContent = fmt(cgst);
+    document.getElementById('fee-sgst').textContent = fmt(sgst);
+    document.getElementById('interest').textContent = fmt(interest);
+    document.getElementById('interest-note').textContent = `On ${fmt(tax)} tax × 18% × ${days}/365 days`;
+    document.getElementById('total').textContent = fmt(total);
+}
+['ret','nil','days','tax','turnover'].forEach(id => document.getElementById(id).addEventListener('input', compute));
+compute();
+</script>
+{% endblock %}

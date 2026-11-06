@@ -1,0 +1,12 @@
+{
+  "name": "delta-filings-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Tauri shell for the Delta Filings desktop app",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

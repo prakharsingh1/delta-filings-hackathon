@@ -3,20 +3,20 @@
    ══════════════════════════════════════════ */
 
 :root {
-    --primary: #4f46e5;
-    --primary-light: #eef2ff;
-    --primary-hover: #4338ca;
+    --primary: #a68b1a;
+    --primary-light: #fffae0;
+    --primary-hover: #8e7415;
     --surface: #ffffff;
-    --surface-secondary: #f8fafc;
-    --border: #e2e8f0;
-    --border-light: #f1f5f9;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
+    --surface-secondary: #faf9f5;
+    --border: #e8e5dc;
+    --border-light: #f4f2eb;
+    --text-primary: #1b1a16;
+    --text-secondary: #5a5850;
+    --text-muted: #9b988c;
     --accent-green: #10b981;
     --accent-red: #ef4444;
     --accent-amber: #f59e0b;
-    --accent-purple: #8b5cf6;
+    --accent-purple: #bca246;
     --radius: 12px;
     --radius-sm: 8px;
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
@@ -43,7 +43,7 @@ body {
     scrollbar-width: thin;
 }
 .sidebar::-webkit-scrollbar { width: 4px; }
-.sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: #c3c0b4; border-radius: 4px; }
 
 .sidebar-brand {
     padding: 24px 20px 20px;
@@ -52,7 +52,7 @@ body {
 .sidebar-brand h1 {
     font-size: 1.125rem;
     font-weight: 700;
-    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    background: linear-gradient(135deg, var(--primary), #a68b2e);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -94,7 +94,7 @@ body {
     color: var(--text-primary);
 }
 .nav-item.active {
-    background: linear-gradient(90deg, rgba(79,70,229,0.13), rgba(99,102,241,0.05));
+    background: linear-gradient(90deg, rgba(166,139,26,0.13), rgba(217,184,42,0.05));
     color: var(--primary);
     font-weight: 600;
 }
@@ -125,7 +125,7 @@ body {
     color: var(--text-muted);
 }
 .nav-item.active .nav-badge {
-    background: rgba(79, 70, 229, 0.12);
+    background: rgba(166,139,26, 0.12);
     color: var(--primary);
 }
 
@@ -239,9 +239,9 @@ body {
     transform: translateY(-2px);
 }
 .feature-card:hover::before { opacity: 1; }
-.feature-card-blue::before { background: linear-gradient(90deg, #4f46e5, #7c3aed); }
-.feature-card-green::before { background: linear-gradient(90deg, #10b981, #06b6d4); }
-.feature-card-purple::before { background: linear-gradient(90deg, #8b5cf6, #ec4899); }
+.feature-card-blue::before { background: linear-gradient(90deg, #a68b1a, #a68b2e); }
+.feature-card-green::before { background: linear-gradient(90deg, #10b981, #cdbb51); }
+.feature-card-purple::before { background: linear-gradient(90deg, #bca246, #ec4899); }
 .feature-card-amber::before { background: linear-gradient(90deg, #f59e0b, #ef4444); }
 
 .feature-icon {
@@ -323,7 +323,7 @@ body {
     color: var(--text-secondary);
     border: 1px solid var(--border);
 }
-.btn-secondary:hover { background: var(--surface-secondary); border-color: #cbd5e1; }
+.btn-secondary:hover { background: var(--surface-secondary); border-color: #c3c0b4; }
 .btn-sm { padding: 5px 12px; font-size: 0.75rem; }
 
 /* ── Filing Cards ── */
@@ -335,41 +335,41 @@ body {
 
 /* ── Tags ── */
 .tag { font-size: 0.6875rem; padding: 2px 8px; border-radius: 9999px; font-weight: 500; display: inline-block; }
-.tag-board { background: #dbeafe; color: #1e40af; }
+.tag-board { background: #faeeb7; color: #7e6920; }
 .tag-compliance { background: #dcfce7; color: #166534; }
 .tag-financial { background: #fef9c3; color: #854d0e; }
 .tag-leadership { background: #f3e8ff; color: #6b21a8; }
 .tag-restructuring { background: #ffe4e6; color: #9f1239; }
-.tag-agm { background: #e0f2fe; color: #075985; }
+.tag-agm { background: #eaedcf; color: #4d5a18; }
 .tag-credit { background: #ffedd5; color: #9a3412; }
-.tag-general { background: #f3f4f6; color: #374151; }
+.tag-general { background: #f4f2eb; color: #3d3b34; }
 .tag-insider { background: #fce7f3; color: #9d174d; }
-.tag-investor { background: #ede9fe; color: #5b21b6; }
+.tag-investor { background: #d7f3ee; color: #0f6b60; }
 .tag-divestment { background: #fed7aa; color: #c2410c; }
 .tag-stock { background: #d1fae5; color: #065f46; }
-.tag-xbrl { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; font-weight: 600; letter-spacing: 0.03em; }
+.tag-xbrl { background: #faf0c3; color: #77651b; border: 1px solid #ede09c; font-weight: 600; letter-spacing: 0.03em; }
 
 /* Tag Filter Buttons */
 .tag-filter-btn {
-    background: white; border-color: #e5e7eb; color: #6b7280;
+    background: white; border-color: #e8e5dc; color: #6d6a60;
     display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
     transition: all var(--transition);
 }
-.tag-filter-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+.tag-filter-btn:hover { background: #faf9f5; border-color: #d6d2c6; }
 .tag-filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 .tag-filter-btn.active .text-gray-400 { color: rgba(255,255,255,0.7); }
 
 .tag-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-.tag-dot-board { background: #1e40af; }
+.tag-dot-board { background: #7e6920; }
 .tag-dot-compliance { background: #166534; }
 .tag-dot-financial { background: #854d0e; }
 .tag-dot-leadership { background: #6b21a8; }
 .tag-dot-restructuring { background: #9f1239; }
-.tag-dot-agm { background: #075985; }
+.tag-dot-agm { background: #4d5a18; }
 .tag-dot-credit { background: #9a3412; }
-.tag-dot-general { background: #374151; }
+.tag-dot-general { background: #3d3b34; }
 .tag-dot-insider { background: #9d174d; }
-.tag-dot-investor { background: #5b21b6; }
+.tag-dot-investor { background: #0f6b60; }
 .tag-dot-divestment { background: #c2410c; }
 .tag-dot-stock { background: #065f46; }
 
@@ -380,7 +380,7 @@ body {
 
 /* ── Spinner ── */
 .spinner {
-    border: 3px solid #e5e7eb; border-top: 3px solid var(--primary);
+    border: 3px solid #e8e5dc; border-top: 3px solid var(--primary);
     border-radius: 50%; width: 24px; height: 24px;
     animation: spin 0.8s linear infinite; display: inline-block;
 }
@@ -389,7 +389,7 @@ body {
 /* ── Modal ── */
 .modal-overlay {
     position: fixed; inset: 0; z-index: 50;
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(27,26,22,0.5);
     display: flex; align-items: center; justify-content: center;
     padding: 2rem;
     backdrop-filter: blur(4px);
@@ -427,19 +427,19 @@ body {
     transition: all 0.2s;
 }
 .model-card:hover {
-    border-color: #c7d2fe;
-    box-shadow: 0 2px 8px rgba(79,70,229,0.08);
+    border-color: #ede09c;
+    box-shadow: 0 2px 8px rgba(166,139,26,0.08);
 }
 .model-card.selected {
     background: var(--primary-light);
     border-color: var(--primary);
-    box-shadow: 0 0 0 1px var(--primary), 0 2px 12px rgba(79,70,229,0.12);
+    box-shadow: 0 0 0 1px var(--primary), 0 2px 12px rgba(166,139,26,0.12);
 }
 
 /* ── Document Text ── */
 .filing-text {
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 0.8125rem; line-height: 1.7; color: #374151;
+    font-size: 0.8125rem; line-height: 1.7; color: #3d3b34;
     white-space: pre-wrap; word-wrap: break-word;
 }
 
@@ -447,41 +447,41 @@ body {
 .diff-container { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 0.75rem; line-height: 1.6; }
 .diff-add { background: #dcfce7; color: #14532d; padding: 1px 6px; border-left: 3px solid #22c55e; }
 .diff-remove { background: #fee2e2; color: #7f1d1d; padding: 1px 6px; border-left: 3px solid #ef4444; text-decoration: line-through; text-decoration-color: rgba(127, 29, 29, 0.3); }
-.diff-same { color: #6b7280; padding: 1px 6px; border-left: 3px solid transparent; }
-.diff-info { color: #6366f1; font-weight: 600; padding: 6px 6px 2px; border-left: 3px solid #6366f1; margin-top: 0.5rem; font-size: 0.7rem; }
-.diff-pad { background: #f9fafb; padding: 1px 6px; border-left: 3px solid transparent; }
+.diff-same { color: #6d6a60; padding: 1px 6px; border-left: 3px solid transparent; }
+.diff-info { color: #b59c2d; font-weight: 600; padding: 6px 6px 2px; border-left: 3px solid #b59c2d; margin-top: 0.5rem; font-size: 0.7rem; }
+.diff-pad { background: #faf9f5; padding: 1px 6px; border-left: 3px solid transparent; }
 .diff-table { border-collapse: collapse; table-layout: fixed; }
-.diff-header { text-align: left; font-size: 0.7rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e5e7eb; background: #f9fafb; width: 50%; }
-.diff-cell { padding: 2px 8px; vertical-align: top; border-right: 1px solid #e5e7eb; word-wrap: break-word; overflow-wrap: break-word; }
+.diff-header { text-align: left; font-size: 0.7rem; font-weight: 600; color: #6d6a60; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e8e5dc; background: #faf9f5; width: 50%; }
+.diff-cell { padding: 2px 8px; vertical-align: top; border-right: 1px solid #e8e5dc; word-wrap: break-word; overflow-wrap: break-word; }
 .diff-cell:last-child { border-right: none; }
 
 /* ── Calendar ── */
 .cal-event { font-size: 9px; line-height: 1.3; transition: opacity 0.15s ease; }
 .cal-event:hover { opacity: 0.8; }
-.company-bg-0 { background: #dbeafe; color: #1e40af; }
+.company-bg-0 { background: #faeeb7; color: #7e6920; }
 .company-bg-1 { background: #dcfce7; color: #166534; }
 .company-bg-2 { background: #fef3c7; color: #92400e; }
 .company-bg-3 { background: #fce7f3; color: #9d174d; }
-.company-bg-4 { background: #ede9fe; color: #5b21b6; }
-.company-badge-0 { background: #dbeafe; color: #1e40af; }
+.company-bg-4 { background: #f6eed4; color: #8b7433; }
+.company-badge-0 { background: #faeeb7; color: #7e6920; }
 .company-badge-1 { background: #dcfce7; color: #166534; }
 .company-badge-2 { background: #fef3c7; color: #92400e; }
 .company-badge-3 { background: #fce7f3; color: #9d174d; }
-.company-badge-4 { background: #ede9fe; color: #5b21b6; }
-.company-dot-0 { background: #3b82f6; }
+.company-badge-4 { background: #f6eed4; color: #8b7433; }
+.company-dot-0 { background: #cdb243; }
 .company-dot-1 { background: #22c55e; }
 .company-dot-2 { background: #f59e0b; }
 .company-dot-3 { background: #ec4899; }
-.company-dot-4 { background: #8b5cf6; }
+.company-dot-4 { background: #bca246; }
 
 /* ── Price Colors ── */
 .price-up { color: #16a34a; }
 .price-down { color: #dc2626; }
-.price-neutral { color: #6b7280; }
+.price-neutral { color: #6d6a60; }
 
 /* ── Scrollbar ── */
 main::-webkit-scrollbar { width: 6px; }
-main::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+main::-webkit-scrollbar-thumb { background: #c3c0b4; border-radius: 3px; }
 main::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Animations ── */
@@ -505,7 +505,7 @@ main::-webkit-scrollbar-track { background: transparent; }
     text-align: center;
     padding: 60px 24px;
 }
-.empty-state svg { margin: 0 auto 16px; color: #cbd5e1; }
+.empty-state svg { margin: 0 auto 16px; color: #c3c0b4; }
 .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--text-secondary); }
 .empty-state p { font-size: 0.8125rem; color: var(--text-muted); margin-top: 4px; }
 
@@ -515,13 +515,13 @@ main::-webkit-scrollbar-track { background: transparent; }
    Persists in localStorage (see analytics.html init script).
    ══════════════════════════════════════════ */
 html.dark {
-    --primary: #818cf8;
-    --primary-light: #1e1b4b;
-    --primary-hover: #6366f1;
-    --surface: #141414;
-    --surface-secondary: #1c1c1c;
+    --primary: #d3bf63;
+    --primary-light: #3a351c;
+    --primary-hover: #b59c2d;
+    --surface: #111111;
+    --surface-secondary: #191919;
     --border: #262626;
-    --border-light: #1c1c1c;
+    --border-light: #191919;
     --text-primary: #f5f5f5;
     --text-secondary: #d4d4d4;
     --text-muted: #888888;
@@ -532,37 +532,37 @@ html.dark {
 }
 
 html.dark body {
-    background: #0a0a0a !important;
+    background: #000000 !important;
     color: var(--text-primary);
 }
 
 /* Tailwind utility overrides — templates use hardcoded bg-white, text-gray-*
    etc., so we redirect them in dark mode. */
-html.dark .bg-white { background-color: #141414 !important; }
+html.dark .bg-white { background-color: #111111 !important; }
 html.dark .bg-slate-50,
-html.dark .bg-gray-50 { background-color: #0a0a0a !important; }
+html.dark .bg-gray-50 { background-color: #000000 !important; }
 html.dark .bg-gray-100,
-html.dark .bg-slate-100 { background-color: #1c1c1c !important; }
-html.dark .bg-indigo-50 { background-color: rgba(99,102,241,0.12) !important; }
+html.dark .bg-slate-100 { background-color: #191919 !important; }
+html.dark .bg-indigo-50 { background-color: rgba(217,184,42,0.12) !important; }
 html.dark .bg-emerald-50 { background-color: rgba(16,185,129,0.12) !important; }
 html.dark .bg-rose-50 { background-color: rgba(244,63,94,0.12) !important; }
 html.dark .bg-amber-50 { background-color: rgba(245,158,11,0.12) !important; }
-html.dark .bg-purple-50 { background-color: rgba(168,85,247,0.12) !important; }
-html.dark .bg-indigo-50\/40 { background-color: rgba(99,102,241,0.08) !important; }
+html.dark .bg-purple-50 { background-color: rgba(180,150,31,0.12) !important; }
+html.dark .bg-indigo-50\/40 { background-color: rgba(217,184,42,0.08) !important; }
 
 /* Icon-tile tints (bg-*-100) — pastels look washed-out on near-black.
    Use slightly stronger color-tinted darks with a soft ring for definition. */
 html.dark .bg-indigo-100 {
-    background-color: rgba(99,102,241,0.18) !important;
-    box-shadow: inset 0 0 0 1px rgba(99,102,241,0.25);
+    background-color: rgba(217,184,42,0.18) !important;
+    box-shadow: inset 0 0 0 1px rgba(217,184,42,0.25);
 }
 html.dark .bg-emerald-100 {
     background-color: rgba(16,185,129,0.18) !important;
     box-shadow: inset 0 0 0 1px rgba(16,185,129,0.25);
 }
 html.dark .bg-purple-100 {
-    background-color: rgba(168,85,247,0.18) !important;
-    box-shadow: inset 0 0 0 1px rgba(168,85,247,0.25);
+    background-color: rgba(180,150,31,0.18) !important;
+    box-shadow: inset 0 0 0 1px rgba(180,150,31,0.25);
 }
 html.dark .bg-amber-100 {
     background-color: rgba(245,158,11,0.18) !important;
@@ -573,8 +573,8 @@ html.dark .bg-rose-100 {
     box-shadow: inset 0 0 0 1px rgba(244,63,94,0.25);
 }
 html.dark .bg-blue-100 {
-    background-color: rgba(59,130,246,0.18) !important;
-    box-shadow: inset 0 0 0 1px rgba(59,130,246,0.25);
+    background-color: rgba(205,178,67,0.18) !important;
+    box-shadow: inset 0 0 0 1px rgba(205,178,67,0.25);
 }
 
 html.dark .text-gray-900,
@@ -588,13 +588,13 @@ html.dark .text-slate-600 { color: #cfcfcf !important; }
 html.dark .text-gray-500,
 html.dark .text-slate-500 { color: #b0b0b0 !important; }
 /* The two tiers below are the "dim text" hot spots — used ~200x for secondary
-   labels. Anything darker than #9ca3af is unreadable on #0a0a0a. */
+   labels. Anything darker than #9b988c is unreadable on #000000. */
 html.dark .text-gray-400,
-html.dark .text-slate-400 { color: #9ca3af !important; }
+html.dark .text-slate-400 { color: #9b988c !important; }
 html.dark .text-gray-300 { color: #8a8a8a !important; }
-html.dark .text-indigo-900 { color: #a5b4fc !important; }
+html.dark .text-indigo-900 { color: #e8d783 !important; }
 html.dark .text-indigo-600,
-html.dark .text-indigo-700 { color: #818cf8 !important; }
+html.dark .text-indigo-700 { color: #d3bf63 !important; }
 
 html.dark .border-gray-100,
 html.dark .border-gray-200,
@@ -605,10 +605,10 @@ html.dark .border-indigo-100,
 html.dark .border-indigo-200 { border-color: #262626 !important; }
 
 html.dark .ring-gray-200 { --tw-ring-color: #262626 !important; }
-html.dark .ring-white { --tw-ring-color: #141414 !important; }
+html.dark .ring-white { --tw-ring-color: #111111 !important; }
 
-html.dark .hover\:bg-indigo-50\/40:hover { background-color: rgba(99,102,241,0.12) !important; }
-html.dark .hover\:border-indigo-300:hover { border-color: #6366f1 !important; }
+html.dark .hover\:bg-indigo-50\/40:hover { background-color: rgba(217,184,42,0.12) !important; }
+html.dark .hover\:border-indigo-300:hover { border-color: #b59c2d !important; }
 
 /* ── Hover states ──
    Templates use light-mode hover utilities ~50x (close buttons, table rows,
@@ -617,12 +617,12 @@ html.dark .hover\:bg-gray-50:hover,
 html.dark .hover\:bg-slate-50:hover,
 html.dark .hover\:bg-gray-100:hover,
 html.dark .hover\:bg-slate-100:hover { background-color: #1f1f1f !important; }
-html.dark .hover\:bg-indigo-50:hover { background-color: rgba(99,102,241,0.14) !important; }
+html.dark .hover\:bg-indigo-50:hover { background-color: rgba(217,184,42,0.14) !important; }
 html.dark .hover\:bg-rose-50:hover { background-color: rgba(244,63,94,0.14) !important; }
 html.dark .hover\:text-gray-600:hover,
 html.dark .hover\:text-gray-700:hover,
 html.dark .hover\:text-slate-800:hover { color: #f5f5f5 !important; }
-html.dark .hover\:text-indigo-700:hover { color: #a5b4fc !important; }
+html.dark .hover\:text-indigo-700:hover { color: #e8d783 !important; }
 
 /* Divider + placeholder utilities */
 html.dark .divide-gray-100 > * + *,
@@ -636,20 +636,20 @@ html.dark ::-webkit-scrollbar { width: 10px; height: 10px; }
 html.dark ::-webkit-scrollbar-track { background: transparent; }
 html.dark ::-webkit-scrollbar-thumb {
     background: #2e2e2e; border-radius: 8px;
-    border: 2px solid #0a0a0a;
+    border: 2px solid #000000;
 }
 html.dark ::-webkit-scrollbar-thumb:hover { background: #3d3d3d; }
-html.dark { scrollbar-color: #2e2e2e #0a0a0a; }
+html.dark { scrollbar-color: #2e2e2e #000000; }
 
 /* ── Polish: selection, focus, panel depth ──
    Dark mode should feel intentional, not inverted. Indigo selection,
    soft glow on focused fields, and a faint top edge-light on panels. */
-html.dark ::selection { background: rgba(99,102,241,0.40); color: #f5f5f5; }
+html.dark ::selection { background: rgba(217,184,42,0.40); color: #f5f5f5; }
 html.dark input:focus,
 html.dark select:focus,
 html.dark textarea:focus {
-    border-color: #6366f1 !important;
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.22) !important;
+    border-color: #b59c2d !important;
+    box-shadow: 0 0 0 3px rgba(217,184,42,0.22) !important;
 }
 html.dark .panel,
 html.dark .card {
@@ -665,37 +665,37 @@ html.dark .card:hover {
    subtle dark variants. */
 html.dark .bg-gradient-to-br.from-indigo-50.via-white.to-purple-50 {
     background-image: linear-gradient(to bottom right,
-        rgba(99,102,241,0.12),
-        #141414,
-        rgba(168,85,247,0.12)) !important;
+        rgba(217,184,42,0.12),
+        #111111,
+        rgba(180,150,31,0.12)) !important;
 }
 html.dark .bg-gradient-to-br.from-indigo-50.to-white {
     background-image: linear-gradient(to bottom right,
-        rgba(99,102,241,0.12),
-        #141414) !important;
+        rgba(217,184,42,0.12),
+        #111111) !important;
 }
 html.dark .bg-gradient-to-r.from-indigo-50\/50.to-purple-50\/50 {
     background-image: linear-gradient(to right,
-        rgba(99,102,241,0.08),
-        rgba(168,85,247,0.08)) !important;
+        rgba(217,184,42,0.08),
+        rgba(180,150,31,0.08)) !important;
 }
 
 /* ── Tag colors (Compliance, Board Change, etc.) ──
    Original tag classes use raw hex backgrounds, so they need
    their own dark-mode rules with tinted darks + bright text. */
-html.dark .tag-board       { background: rgba(59,130,246,0.18) !important; color: #93c5fd !important; }
+html.dark .tag-board       { background: rgba(205,178,67,0.18) !important; color: #e6d17a !important; }
 html.dark .tag-compliance  { background: rgba(34,197,94,0.18) !important; color: #86efac !important; }
 html.dark .tag-financial   { background: rgba(234,179,8,0.18) !important; color: #fde047 !important; }
 html.dark .tag-leadership  { background: rgba(168,85,247,0.18) !important; color: #d8b4fe !important; }
 html.dark .tag-restructuring { background: rgba(244,63,94,0.18) !important; color: #fda4af !important; }
-html.dark .tag-agm         { background: rgba(14,165,233,0.18) !important; color: #7dd3fc !important; }
+html.dark .tag-agm         { background: rgba(141,168,48,0.18) !important; color: #cbd97a !important; }
 html.dark .tag-credit      { background: rgba(249,115,22,0.18) !important; color: #fdba74 !important; }
 html.dark .tag-general     { background: rgba(115,115,115,0.22) !important; color: #d4d4d4 !important; }
 html.dark .tag-insider     { background: rgba(236,72,153,0.18) !important; color: #f9a8d4 !important; }
-html.dark .tag-investor    { background: rgba(139,92,246,0.18) !important; color: #c4b5fd !important; }
+html.dark .tag-investor    { background: rgba(20,184,166,0.18) !important; color: #7fd4c9 !important; }
 html.dark .tag-divestment  { background: rgba(249,115,22,0.18) !important; color: #fdba74 !important; }
 html.dark .tag-stock       { background: rgba(16,185,129,0.18) !important; color: #6ee7b7 !important; }
-html.dark .tag-xbrl        { background: rgba(99,102,241,0.18) !important; color: #c7d2fe !important; border-color: rgba(99,102,241,0.35) !important; }
+html.dark .tag-xbrl        { background: rgba(217,184,42,0.18) !important; color: #ede09c !important; border-color: rgba(217,184,42,0.35) !important; }
 
 /* Fallback for unrecognized tags (e.g. "AGM/EGM", "Credit/Rating"
    produce invalid class names containing "/" — give them a default look). */
@@ -705,11 +705,11 @@ html.dark .tag:not([class*="tag-board"]):not([class*="tag-compliance"]):not([cla
 }
 
 /* ── Company badges and calendar bg pills ── */
-html.dark .company-badge-0, html.dark .company-bg-0 { background: rgba(59,130,246,0.18) !important; color: #93c5fd !important; }
+html.dark .company-badge-0, html.dark .company-bg-0 { background: rgba(205,178,67,0.18) !important; color: #e6d17a !important; }
 html.dark .company-badge-1, html.dark .company-bg-1 { background: rgba(34,197,94,0.18) !important; color: #86efac !important; }
 html.dark .company-badge-2, html.dark .company-bg-2 { background: rgba(245,158,11,0.18) !important; color: #fcd34d !important; }
 html.dark .company-badge-3, html.dark .company-bg-3 { background: rgba(236,72,153,0.18) !important; color: #f9a8d4 !important; }
-html.dark .company-badge-4, html.dark .company-bg-4 { background: rgba(139,92,246,0.18) !important; color: #c4b5fd !important; }
+html.dark .company-badge-4, html.dark .company-bg-4 { background: rgba(188,162,70,0.18) !important; color: #e9d79d !important; }
 
 /* ── Row hover and divider colors ── */
 html.dark .hover\:bg-slate-50:hover,
@@ -730,7 +730,7 @@ html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
 /* ── Modal in dark mode ── */
 html.dark .modal-overlay { background: rgba(0,0,0,0.7); }
 html.dark .modal-content {
-    background: #141414;
+    background: #111111;
     box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 0 1px #262626;
 }
 
@@ -738,9 +738,9 @@ html.dark .modal-content {
 html.dark .diff-add { background: rgba(34,197,94,0.15); color: #86efac; border-left-color: #22c55e; }
 html.dark .diff-remove { background: rgba(239,68,68,0.15); color: #fca5a5; border-left-color: #ef4444; text-decoration-color: rgba(252,165,165,0.4); }
 html.dark .diff-same { color: #a3a3a3; }
-html.dark .diff-info { color: #a5b4fc; border-left-color: #818cf8; }
-html.dark .diff-pad { background: #1c1c1c; }
-html.dark .diff-header { background: #1c1c1c; color: #a3a3a3; border-bottom-color: #262626; }
+html.dark .diff-info { color: #e8d783; border-left-color: #d3bf63; }
+html.dark .diff-pad { background: #191919; }
+html.dark .diff-header { background: #191919; color: #a3a3a3; border-bottom-color: #262626; }
 html.dark .diff-cell { border-right-color: #262626; }
 
 /* ── Filing text body ── */
@@ -753,12 +753,12 @@ html.dark .price-down { color: #f87171; }
 html.dark .price-neutral { color: #a3a3a3; }
 
 /* ── Model selection cards ── */
-html.dark .model-card { background: #141414; border-color: #262626; }
-html.dark .model-card:hover { border-color: rgba(99,102,241,0.4); box-shadow: 0 2px 12px rgba(99,102,241,0.15); }
+html.dark .model-card { background: #111111; border-color: #262626; }
+html.dark .model-card:hover { border-color: rgba(217,184,42,0.4); box-shadow: 0 2px 12px rgba(217,184,42,0.15); }
 html.dark .model-card.selected {
-    background: rgba(99,102,241,0.12);
+    background: rgba(217,184,42,0.12);
     border-color: var(--primary);
-    box-shadow: 0 0 0 1px var(--primary), 0 4px 18px rgba(99,102,241,0.25);
+    box-shadow: 0 0 0 1px var(--primary), 0 4px 18px rgba(217,184,42,0.25);
 }
 
 /* ── Scrollbar ── */
@@ -768,8 +768,8 @@ html.dark main::-webkit-scrollbar-thumb:hover { background: #404040; }
 
 /* ── Watchlist active item ── */
 html.dark .watchlist-item.active {
-    background: linear-gradient(135deg, var(--primary), #6366f1);
-    box-shadow: 0 0 18px rgba(129,140,248,0.35);
+    background: linear-gradient(135deg, var(--primary), #b59c2d);
+    box-shadow: 0 0 18px rgba(211,191,99,0.35);
 }
 
 /* ── Card glow on hover ── */
@@ -779,17 +779,17 @@ html.dark .card:hover {
 }
 html.dark .card-interactive:hover,
 html.dark .feature-card:hover {
-    box-shadow: 0 10px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(129,140,248,0.18);
+    box-shadow: 0 10px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(211,191,99,0.18);
 }
 
 /* ── Primary button glow ── */
 html.dark .btn-primary {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+    background: linear-gradient(135deg, #b59c2d, #bca246);
+    box-shadow: 0 4px 14px rgba(217,184,42,0.35);
 }
 html.dark .btn-primary:hover {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
-    box-shadow: 0 6px 20px rgba(99,102,241,0.5);
+    background: linear-gradient(135deg, #a68b1a, #a68b2e);
+    box-shadow: 0 6px 20px rgba(217,184,42,0.5);
     transform: translateY(-1px);
 }
 
@@ -831,19 +831,19 @@ body, .sidebar, .page-header, .card, .feature-card, .stat-card,
 
 /* Stat-card subtle lift */
 .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
-.stat-card:hover { transform: translateY(-2px); border-color: rgba(129,140,248,0.3); }
-html.dark .stat-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(129,140,248,0.18); }
+.stat-card:hover { transform: translateY(-2px); border-color: rgba(211,191,99,0.3); }
+html.dark .stat-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(211,191,99,0.18); }
 
 /* Nav items: animated active indicator */
 .nav-item { transition: all 0.18s ease; }
 .nav-item.active::before { transition: background 0.2s ease; }
 html.dark .nav-item.active {
-    background: linear-gradient(90deg, rgba(99,102,241,0.18), rgba(99,102,241,0.05));
-    color: #c7d2fe;
+    background: linear-gradient(90deg, rgba(217,184,42,0.18), rgba(217,184,42,0.05));
+    color: #ede09c;
 }
 html.dark .nav-item.active::before {
-    background: linear-gradient(180deg, #818cf8, #6366f1);
-    box-shadow: 0 0 12px rgba(129,140,248,0.5);
+    background: linear-gradient(180deg, #d3bf63, #b59c2d);
+    box-shadow: 0 0 12px rgba(211,191,99,0.5);
 }
 
 /* Tag hover bump */
@@ -871,7 +871,7 @@ html.dark .page-header {
 }
 
 /* Sidebar gradient brand glow */
-html.dark .sidebar { background: #0f0f0f; border-right-color: #1f1f1f; }
+html.dark .sidebar { background: #0e0e0e; border-right-color: #1f1f1f; }
 html.dark .sidebar-brand { border-bottom-color: #1f1f1f; }
 html.dark .sidebar-footer { border-top-color: #1f1f1f; }
 
@@ -883,7 +883,7 @@ html.dark input[type="search"],
 html.dark input[type="number"],
 html.dark textarea,
 html.dark select {
-    background: #1c1c1c !important;
+    background: #191919 !important;
     border-color: #2a2a2a !important;
     color: #f5f5f5 !important;
 }
@@ -893,13 +893,13 @@ html.dark input:focus,
 html.dark textarea:focus,
 html.dark select:focus {
     border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(129,140,248,0.18) !important;
+    box-shadow: 0 0 0 3px rgba(211,191,99,0.18) !important;
     outline: none !important;
 }
 
 /* Focus ring for buttons / links */
 html.dark *:focus-visible {
-    outline: 2px solid rgba(129,140,248,0.6);
+    outline: 2px solid rgba(211,191,99,0.6);
     outline-offset: 2px;
 }
 
@@ -933,3 +933,14 @@ html.dark *:focus-visible {
 .theme-toggle .icon-moon { display: block; }
 html.dark .theme-toggle .icon-sun { display: block; }
 html.dark .theme-toggle .icon-moon { display: none; }
+
+/* ── Phone fixes for the older pages (Compliance, Signal, DIN search, company) ──
+   Tighter side padding, rows that wrap instead of pushing past the screen, and
+   no sideways scroll on the page itself. Wide tables keep their own scroll. */
+@media (max-width: 640px) {
+    .flex.h-screen main { overflow-x: hidden; }
+    main .px-8 { padding-left: 16px !important; padding-right: 16px !important; }
+    main .px-6.py-4, main .px-6.py-5 { padding-left: 16px; padding-right: 16px; }
+    main .flex.items-end.gap-4, main .flex.items-center.gap-3.flex-wrap { flex-wrap: wrap; }
+    main .flex.items-end.gap-4 > .flex-1 { flex-basis: 100%; }
+}

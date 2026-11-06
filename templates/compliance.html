@@ -7,18 +7,19 @@
     <title>Compliance - Delta Filings</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/app_ivory.css?v=2">
     <style>
         .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
         .status-submitted { background: #ecfdf5; color: #059669; }
         .status-delayed { background: #fffbeb; color: #d97706; }
         .status-missed { background: #fef2f2; color: #dc2626; }
-        .status-unverified { background: #f5f3ff; color: #7c3aed; }
-        .status-pending { background: #f1f5f9; color: #64748b; }
+        .status-unverified { background: #fff9dc; color: #9b801c; }
+        .status-pending { background: #f4f2eb; color: #6d6a60; }
 
         .health-critical .health-label { color: #dc2626; }
         .health-at_risk .health-label { color: #d97706; }
         .health-stable .health-label { color: #059669; }
-        .health-unknown .health-label { color: #94a3b8; }
+        .health-unknown .health-label { color: #9b988c; }
 
         .score-ring { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0; }
         .score-ring::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: white; }
@@ -26,17 +27,17 @@
 
         .countdown-urgent { animation: pulse-urgent 2s infinite; }
         @keyframes pulse-urgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-        .compliance-table th { position: sticky; top: 0; background: #f8fafc; z-index: 10; }
+        .compliance-table th { position: sticky; top: 0; background: #faf9f5; z-index: 10; }
 
-        .tab-btn { padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 10px; transition: all 0.15s; cursor: pointer; border: none; background: none; color: #64748b; white-space: nowrap; }
-        .tab-btn.active { background: #4f46e5; color: white; box-shadow: 0 6px 14px -6px rgba(79,70,229,0.5); }
-        .tab-btn:hover:not(.active) { background: #f1f5f9; color: #334155; }
+        .tab-btn { padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 10px; transition: all 0.15s; cursor: pointer; border: none; background: none; color: #6d6a60; white-space: nowrap; }
+        .tab-btn.active { background: #9b801c; color: white; box-shadow: 0 6px 14px -6px rgba(155,128,28,0.5); }
+        .tab-btn:hover:not(.active) { background: #f4f2eb; color: #3d3b34; }
 
-        .mandate-card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 22px; transition: all 0.15s; background: white; }
-        .mandate-card:hover { border-color: #c7d2fe; box-shadow: 0 4px 14px rgba(79,70,229,0.08); }
+        .mandate-card { border: 1px solid #e8e5dc; border-radius: 16px; padding: 22px; transition: all 0.15s; background: white; }
+        .mandate-card:hover { border-color: #eadb97; box-shadow: 0 4px 14px rgba(155,128,28,0.08); }
 
-        .sebi-link { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: #4f46e5; text-decoration: none; padding: 2px 8px; border-radius: 6px; background: #eef2ff; transition: all 0.15s; }
-        .sebi-link:hover { background: #c7d2fe; color: #3730a3; }
+        .sebi-link { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: #9b801c; text-decoration: none; padding: 2px 8px; border-radius: 6px; background: #fff9dc; transition: all 0.15s; }
+        .sebi-link:hover { background: #eadb97; color: #5f4e11; }
         .validation-ok { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
         .validation-fail { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: #dc2626; background: #fef2f2; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
 
@@ -47,36 +48,36 @@
         /* ── Hero band ── */
         .hero-card { background: white; border: 1px solid #e8ecf4; border-radius: 18px; padding: 24px; }
         .posture-num { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
-        .posture-sub { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-top: 6px; }
+        .posture-sub { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #9b988c; margin-top: 6px; }
         .fy-bar { height: 9px; border-radius: 999px; background: #eef1f7; overflow: hidden; }
-        .fy-bar > div { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4f46e5, #7c3aed); transition: width 0.8s cubic-bezier(.22,.61,.36,1); }
+        .fy-bar > div { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #9b801c, #9b801c); transition: width 0.8s cubic-bezier(.22,.61,.36,1); }
 
         /* ── Deadline timeline ── */
         .dl-timeline { position: relative; height: 110px; margin: 12px 8px 0; }
         .dl-axis { position: absolute; left: 0; right: 0; top: 56px; height: 2.5px; background: #e8ecf4; border-radius: 2px; }
-        .dl-today { position: absolute; top: 38px; width: 2.5px; height: 38px; background: #4f46e5; border-radius: 2px; }
+        .dl-today { position: absolute; top: 38px; width: 2.5px; height: 38px; background: #9b801c; border-radius: 2px; }
         .dl-today::after { content: 'TODAY'; position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
-            font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #4f46e5; }
-        .dl-tick { position: absolute; top: 66px; font-size: 11px; color: #94a3b8; font-weight: 600; transform: translateX(-50%); white-space: nowrap; }
+            font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #9b801c; }
+        .dl-tick { position: absolute; top: 66px; font-size: 11px; color: #9b988c; font-weight: 600; transform: translateX(-50%); white-space: nowrap; }
         .dl-marker { position: absolute; top: 46px; transform: translateX(-50%); cursor: pointer; z-index: 2; }
-        .dl-dot { width: 22px; height: 22px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(15,23,42,0.2);
+        .dl-dot { width: 22px; height: 22px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(27,26,22,0.2);
             display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: white;
             transition: transform .15s ease; }
         .dl-marker:hover .dl-dot { transform: scale(1.25); }
         .dl-tip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
-            background: #0f172a; color: #e2e8f0; font-size: 12px; padding: 9px 12px; border-radius: 9px;
+            background: #1b1a16; color: #e8e5dc; font-size: 12px; padding: 9px 12px; border-radius: 9px;
             white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s ease; z-index: 30; }
         .dl-tip b { color: white; }
         .dl-marker:hover .dl-tip { opacity: 1; }
 
         /* Mini stacked bar inside health cards */
-        .mini-stack { display: flex; height: 7px; border-radius: 999px; overflow: hidden; background: #f1f5f9; }
+        .mini-stack { display: flex; height: 7px; border-radius: 999px; overflow: hidden; background: #f4f2eb; }
         .mini-stack > div { height: 100%; }
 
         /* Health card */
         .health-card { border: 1px solid #e8ecf4; border-radius: 18px; padding: 20px; background: white;
             transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-        .health-card:hover { transform: translateY(-2px); box-shadow: 0 16px 32px -18px rgba(15,23,42,0.18); border-color: #c7d2fe; }
+        .health-card:hover { transform: translateY(-2px); box-shadow: 0 16px 32px -18px rgba(27,26,22,0.18); border-color: #eadb97; }
         .co-logo { width: 40px; height: 40px; border-radius: 10px; object-fit: contain; background: white;
             border: 1px solid #eef1f7; padding: 3px; flex-shrink: 0; }
         .co-letter { width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center;
@@ -85,35 +86,35 @@
             padding: 3px 9px; border-radius: 999px; }
 
         /* ── Compliance Library ── */
-        .lib-pill { --rc:#4f46e5; display:inline-flex; align-items:center; gap:6px;
+        .lib-pill { --rc:#9b801c; display:inline-flex; align-items:center; gap:6px;
             padding:6px 13px; border-radius:999px; font-size:12.5px; font-weight:600;
-            color:#475569; background:#fff; border:1.5px solid #eef1f7; cursor:pointer;
+            color:#5a5850; background:#fff; border:1.5px solid #eef1f7; cursor:pointer;
             transition: transform .12s ease, border-color .18s ease, background .18s ease, color .18s ease; }
-        .lib-pill:hover { transform:translateY(-1px); border-color: color-mix(in srgb, var(--rc) 40%, #e2e8f0); }
+        .lib-pill:hover { transform:translateY(-1px); border-color: color-mix(in srgb, var(--rc) 40%, #e8e5dc); }
         .lib-pill.active { background:var(--rc); border-color:var(--rc); color:#fff;
             box-shadow:0 6px 16px -6px color-mix(in srgb, var(--rc) 65%, transparent); }
-        .lib-pill-ct { font-size:10.5px; font-weight:700; background:#f1f5f9; color:#94a3b8;
+        .lib-pill-ct { font-size:10.5px; font-weight:700; background:#f4f2eb; color:#9b988c;
             padding:1px 7px; border-radius:999px; }
         .lib-pill.active .lib-pill-ct { background:rgba(255,255,255,0.25); color:#fff; }
 
-        .lib-group-head { --rc:#4f46e5; display:flex; align-items:center; gap:12px;
+        .lib-group-head { --rc:#9b801c; display:flex; align-items:center; gap:12px;
             padding-bottom:10px; border-bottom:2px solid color-mix(in srgb, var(--rc) 18%, #eef1f7); }
         .lib-group-dot { width:10px; height:10px; border-radius:50%; background:var(--rc); flex-shrink:0;
             box-shadow:0 0 0 4px color-mix(in srgb, var(--rc) 14%, transparent); }
-        .lib-group-title { font-size:14px; font-weight:800; color:#0f172a; letter-spacing:-.01em; }
-        .lib-group-sub { font-size:11.5px; color:#94a3b8; margin-top:1px; }
+        .lib-group-title { font-size:14px; font-weight:800; color:#1b1a16; letter-spacing:-.01em; }
+        .lib-group-sub { font-size:11.5px; color:#9b988c; margin-top:1px; }
         .lib-group-ct { margin-left:auto; font-size:11px; font-weight:700; color:var(--rc);
             background: color-mix(in srgb, var(--rc) 10%, transparent); padding:3px 10px; border-radius:999px; }
 
-        .lib-card { --rc:#4f46e5; display:flex; flex-direction:column; }
-        .lib-card:hover { border-color: color-mix(in srgb, var(--rc) 32%, #e2e8f0);
+        .lib-card { --rc:#9b801c; display:flex; flex-direction:column; }
+        .lib-card:hover { border-color: color-mix(in srgb, var(--rc) 32%, #e8e5dc);
             box-shadow:0 10px 26px -16px color-mix(in srgb, var(--rc) 60%, transparent); }
         .lib-form { font-size:10.5px; font-weight:800; letter-spacing:.01em;
             color:var(--rc); background: color-mix(in srgb, var(--rc) 9%, transparent);
             padding:3px 9px; border-radius:7px; }
-        .lib-meta { display:inline-flex; align-items:center; gap:4px; color:#64748b; font-weight:500; }
-        .lib-meta svg { color:#94a3b8; }
-        .lib-applies { color:#94a3b8; }
+        .lib-meta { display:inline-flex; align-items:center; gap:4px; color:#6d6a60; font-weight:500; }
+        .lib-meta svg { color:#9b988c; }
+        .lib-applies { color:#9b988c; }
         .lib-penalty { display:flex; align-items:flex-start; gap:5px; margin-top:9px;
             font-size:10.5px; line-height:1.45; color:#b45309; background:#fffbeb;
             border:1px solid #fde68a; border-radius:8px; padding:6px 8px; }
@@ -126,24 +127,24 @@
         /* ── XBRL utilities ── */
         .xbrl-card { background:#fff; border:1px solid #e8ecf4; border-radius:14px; padding:15px;
             transition: transform .14s ease, box-shadow .18s ease, border-color .18s ease; display:flex; flex-direction:column; }
-        .xbrl-card:hover { transform:translateY(-2px); border-color:#c7d2fe;
-            box-shadow:0 12px 28px -16px rgba(79,70,229,0.3); }
+        .xbrl-card:hover { transform:translateY(-2px); border-color:#eadb97;
+            box-shadow:0 12px 28px -16px rgba(155,128,28,0.3); }
         .xbrl-card.is-new { border-color: rgba(16,185,129,0.4); background: linear-gradient(180deg, rgba(16,185,129,0.04), #fff 60%); }
         .xbrl-new-badge { font-size:9px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
             color:#fff; background:#10b981; padding:2px 7px; border-radius:999px; }
-        .xbrl-cat { font-size:10px; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:6px; }
-        .xbrl-date { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:#475569; }
-        .xbrl-date svg { width:13px; height:13px; color:#94a3b8; }
+        .xbrl-cat { font-size:10px; font-weight:700; color:#6d6a60; background:#f4f2eb; padding:2px 8px; border-radius:6px; }
+        .xbrl-date { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:#5a5850; }
+        .xbrl-date svg { width:13px; height:13px; color:#9b988c; }
         .xbrl-dl { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
-            color:#4f46e5; background:rgba(99,102,241,0.08); padding:5px 11px; border-radius:9px; text-decoration:none;
+            color:#9b801c; background:rgba(166,139,26,0.08); padding:5px 11px; border-radius:9px; text-decoration:none;
             transition: background .15s ease; }
-        .xbrl-dl:hover { background:rgba(99,102,241,0.16); }
-        .xbrl-pill { --c:#4f46e5; display:inline-flex; align-items:center; gap:6px; padding:6px 13px; border-radius:999px;
-            font-size:12.5px; font-weight:600; color:#475569; background:#fff; border:1.5px solid #eef1f7; cursor:pointer;
+        .xbrl-dl:hover { background:rgba(166,139,26,0.16); }
+        .xbrl-pill { --c:#9b801c; display:inline-flex; align-items:center; gap:6px; padding:6px 13px; border-radius:999px;
+            font-size:12.5px; font-weight:600; color:#5a5850; background:#fff; border:1.5px solid #eef1f7; cursor:pointer;
             transition: transform .12s ease, background .18s ease, color .18s ease, border-color .18s ease; }
-        .xbrl-pill:hover { transform:translateY(-1px); border-color:#cbd5e1; }
-        .xbrl-pill.active { background:#4f46e5; border-color:#4f46e5; color:#fff; box-shadow:0 6px 16px -6px rgba(79,70,229,.5); }
-        .xbrl-pill-ct { font-size:10.5px; font-weight:700; background:#f1f5f9; color:#94a3b8; padding:1px 7px; border-radius:999px; }
+        .xbrl-pill:hover { transform:translateY(-1px); border-color:#c3c0b4; }
+        .xbrl-pill.active { background:#9b801c; border-color:#9b801c; color:#fff; box-shadow:0 6px 16px -6px rgba(155,128,28,.5); }
+        .xbrl-pill-ct { font-size:10.5px; font-weight:700; background:#f4f2eb; color:#9b988c; padding:1px 7px; border-radius:999px; }
         .xbrl-pill.active .xbrl-pill-ct { background:rgba(255,255,255,0.25); color:#fff; }
     </style>
 </head>
@@ -195,11 +196,11 @@
             <div class="px-8 pt-6 grid grid-cols-1 lg:grid-cols-4 gap-3">
                 <!-- On-time posture -->
                 <div class="hero-card flex items-center gap-4">
-                    <div class="score-ring" id="posture-ring" style="background: conic-gradient(#e2e8f0 0deg, #f1f5f9 0)">
-                        <span class="score-value" id="posture-pct" style="color:#94a3b8">—</span>
+                    <div class="score-ring" id="posture-ring" style="background: conic-gradient(#e8e5dc 0deg, #f4f2eb 0)">
+                        <span class="score-value" id="posture-pct" style="color:#9b988c">—</span>
                     </div>
                     <div>
-                        <div class="posture-num" id="posture-label" style="font-size:20px; color:#0f172a">On-time rate</div>
+                        <div class="posture-num" id="posture-label" style="font-size:20px; color:#1b1a16">On-time rate</div>
                         <div class="posture-sub" id="posture-detail">across resolved obligations</div>
                     </div>
                 </div>
@@ -224,7 +225,7 @@
                         <div class="flex items-center gap-3 text-[11px] font-semibold text-gray-400">
                             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#dc2626"></span> overdue</span>
                             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#d97706"></span> ≤ 7 days</span>
-                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#4f46e5"></span> later</span>
+                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#9b801c"></span> later</span>
                         </div>
                     </div>
                     <div class="dl-timeline" id="dl-timeline"></div>
@@ -377,7 +378,7 @@
                                        class="w-56 pl-9 pr-3 py-2 text-sm bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50">
                             </div>
                             <button onclick="loadXbrl(true)" id="xbrl-refresh" class="topbar-icon" title="Re-check NSE now"
-                                    style="width:38px;height:38px;border:1px solid #e8ecf4;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;color:#64748b;background:#fff;cursor:pointer">
+                                    style="width:38px;height:38px;border:1px solid #e8ecf4;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;color:#6d6a60;background:#fff;cursor:pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             </button>
                         </div>
@@ -406,7 +407,7 @@ const AVATAR_COLORS = {{ (avatar_colors or {}) | tojson }};
 function coLogoHTML(symbol) {
     const url = LOGO_MAP[symbol];
     if (url) return `<img src="${url}" alt="" class="co-logo">`;
-    const color = AVATAR_COLORS[symbol] || '#4f46e5';
+    const color = AVATAR_COLORS[symbol] || '#9b801c';
     return `<span class="co-letter" style="background:${color}">${symbol[0]}</span>`;
 }
 
@@ -482,7 +483,7 @@ function renderPosture(data) {
     const detail = document.getElementById('posture-detail');
 
     if (!resolved.length) {
-        pctEl.textContent = '—'; pctEl.style.color = '#94a3b8';
+        pctEl.textContent = '—'; pctEl.style.color = '#9b988c';
         detail.textContent = 'no resolved obligations yet';
         return;
     }
@@ -491,7 +492,7 @@ function renderPosture(data) {
     const color = pct >= 90 ? '#059669' : pct >= 70 ? '#d97706' : '#dc2626';
     pctEl.textContent = pct + '%';
     pctEl.style.color = color;
-    ring.style.background = `conic-gradient(${color} ${pct * 3.6}deg, #f1f5f9 0)`;
+    ring.style.background = `conic-gradient(${color} ${pct * 3.6}deg, #f4f2eb 0)`;
     detail.textContent = `${onTime} of ${resolved.length} resolved filings on time`;
 }
 
@@ -499,11 +500,11 @@ function renderPosture(data) {
 function renderStats(data) {
     const v = data.validation || {};
     document.getElementById('stats-row').innerHTML = `
-        ${statCard('Total', v.total || 0, '#4f46e5', '#eef2ff')}
+        ${statCard('Total', v.total || 0, '#9b801c', '#fff9dc')}
         ${statCard('Upcoming', v.upcoming_count || 0, '#d97706', '#fffbeb', '30d')}
         ${statCard('Overdue', v.overdue_count || 0, (v.overdue_count || 0) > 0 ? '#dc2626' : '#059669', (v.overdue_count || 0) > 0 ? '#fef2f2' : '#ecfdf5')}
         ${statCard('Done', v.completed_count || 0, '#059669', '#ecfdf5')}
-        ${statCard('Future', v.future_count || 0, '#6366f1', '#eef2ff', '>30d')}`;
+        ${statCard('Future', v.future_count || 0, '#b4961f', '#fff9dc', '>30d')}`;
 }
 function statCard(label, value, color, bg, subtitle) {
     const sub = subtitle ? `<span class="text-[10px] font-normal text-gray-400 lowercase ml-0.5">${subtitle}</span>` : '';
@@ -564,7 +565,7 @@ function renderTimeline(data) {
 
     for (const [dueDate, obs] of byDate) {
         const dr = obs[0].days_remaining;
-        const color = dr < 0 ? '#dc2626' : dr <= 7 ? '#d97706' : '#4f46e5';
+        const color = dr < 0 ? '#dc2626' : dr <= 7 ? '#d97706' : '#9b801c';
         const names = obs.slice(0, 4).map(o => `${o.symbol} · ${o.mandate_name.split('—')[0].trim()}`).join('<br>');
         const more = obs.length > 4 ? `<br>+${obs.length - 4} more` : '';
         const dateLabel = new Date(dueDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -589,7 +590,7 @@ function jumpToAll(dueDate) {
         if (row) {
             row.scrollIntoView({ behavior: 'smooth', block: 'center' });
             row.style.transition = 'background 0.4s';
-            row.style.background = '#eef2ff';
+            row.style.background = '#fff9dc';
             setTimeout(() => { row.style.background = ''; }, 1600);
         }
     }, 120);
@@ -608,8 +609,8 @@ function renderScoreCards(data) {
         const history = info.history || {};
         const tag = info.health_tag || 'unknown';
         const tagLabels = { critical: 'Critical', at_risk: 'At Risk', stable: 'Stable', unknown: 'No Data' };
-        const tagColors = { critical: '#dc2626', at_risk: '#d97706', stable: '#059669', unknown: '#94a3b8' };
-        const ringColor = score !== null ? tagColors[tag] : '#e2e8f0';
+        const tagColors = { critical: '#dc2626', at_risk: '#d97706', stable: '#059669', unknown: '#9b988c' };
+        const ringColor = score !== null ? tagColors[tag] : '#e8e5dc';
         const ringDeg = score !== null ? score * 3.6 : 0;
 
         const sub = history.submitted || 0, del = history.delayed || 0,
@@ -622,7 +623,7 @@ function renderScoreCards(data) {
             .sort((a, b) => a.days_remaining - b.days_remaining)[0];
         let nextChip = '';
         if (next) {
-            const c = next.days_remaining <= 7 ? ['#fef2f2', '#dc2626'] : next.days_remaining <= 30 ? ['#fffbeb', '#d97706'] : ['#f1f5f9', '#64748b'];
+            const c = next.days_remaining <= 7 ? ['#fef2f2', '#dc2626'] : next.days_remaining <= 30 ? ['#fffbeb', '#d97706'] : ['#f4f2eb', '#6d6a60'];
             nextChip = `<span class="next-due-chip" style="background:${c[0]}; color:${c[1]}">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3"/></svg>
                 next in ${next.days_remaining}d</span>`;
@@ -640,12 +641,12 @@ function renderScoreCards(data) {
                     <a href="/company/${symbol}" class="font-bold text-gray-900 text-sm hover:text-indigo-600 truncate block">${symbol}</a>
                     <span class="health-label text-[10px] font-bold uppercase">${tagLabels[tag]}</span>
                 </div>
-                <div class="score-ring" style="width:56px;height:56px;background: conic-gradient(${ringColor} ${ringDeg}deg, #f1f5f9 0)">
+                <div class="score-ring" style="width:56px;height:56px;background: conic-gradient(${ringColor} ${ringDeg}deg, #f4f2eb 0)">
                     <span class="score-value" style="font-size:16px;color:${ringColor}">${score !== null ? score : '—'}</span>
                 </div>
             </div>
             <div class="mini-stack mb-2">
-                ${stack(sub, '#10b981')}${stack(del, '#f59e0b')}${stack(mis, '#ef4444')}${stack(unv, '#8b5cf6')}${stack(pen, '#e2e8f0')}
+                ${stack(sub, '#10b981')}${stack(del, '#f59e0b')}${stack(mis, '#ef4444')}${stack(unv, '#b4961f')}${stack(pen, '#e8e5dc')}
             </div>
             <div class="flex items-center justify-between gap-1 flex-wrap">
                 <span class="text-[11px] text-gray-400">${sub} ok · ${del} late · ${mis} missed</span>
@@ -1023,7 +1024,7 @@ function renderAllTable(items) {
 
 // Regime presentation: order, color, icon.
 const _REGIMES = [
-    { key: 'SEBI',         label: 'SEBI — Listed Companies', color: '#4f46e5', bg: 'rgba(99,102,241,0.08)',
+    { key: 'SEBI',         label: 'SEBI — Listed Companies', color: '#9b801c', bg: 'rgba(166,139,26,0.08)',
       sub: 'LODR · PIT · SAST disclosures to the exchanges' },
     { key: 'MCA',          label: 'MCA / Companies Act — ROC', color: '#0d9488', bg: 'rgba(13,148,136,0.08)',
       sub: 'Annual returns, event forms & registers filed with the Registrar' },
@@ -1188,8 +1189,8 @@ function cprofPick(symbol) {
 
 const _STATUS_PILL = {
     submitted: ['#ecfdf5', '#059669', 'Filed'], delayed: ['#fffbeb', '#d97706', 'Filed late'],
-    missed: ['#fef2f2', '#dc2626', 'Missed'], pending: ['#eef2ff', '#4f46e5', 'Pending'],
-    unverified: ['#f5f3ff', '#7c3aed', 'Unverified'],
+    missed: ['#fef2f2', '#dc2626', 'Missed'], pending: ['#fff9dc', '#9b801c', 'Pending'],
+    unverified: ['#fff9dc', '#9b801c', 'Unverified'],
 };
 
 function renderCompanyProfile(p) {
@@ -1208,7 +1209,7 @@ function renderCompanyProfile(p) {
     const pending = allItems.filter(i => i.status === 'pending' || i.status === 'missed').length;
     const dueSoon = allItems.filter(i => i.days_remaining != null && i.days_remaining >= 0 && i.days_remaining <= 30).length;
     document.getElementById('cprof-stats').innerHTML = [
-        cprofStat(p.total, 'Total filings', '#4f46e5'),
+        cprofStat(p.total, 'Total filings', '#9b801c'),
         cprofStat(p.groups.find(g => g.key === 'sector')?.items.length || 0, 'Sector-specific', '#ea580c'),
         cprofStat(dueSoon, 'Due in 30 days', dueSoon ? '#d97706' : '#059669'),
         cprofStat(pending, 'Pending / overdue', pending ? '#dc2626' : '#059669'),

@@ -1,0 +1,26 @@
+{% extends "site_base.html" %}
+{% block title %}Solutions · Delta Filings{% endblock %}
+{% block meta_description %}Delta Filings for company secretaries, practising CS firms, listed-company compliance officers and risk officers.{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <p class="eyebrow">Solutions</p>
+    <h1 class="h1">Built for the people who answer for compliance.</h1>
+    <p class="lede">You choose your role when you sign up. It decides the home screen, what the top menu shows first and which news you see. Every module stays one click away.</p>
+  </div>
+</section>
+<section class="sec">
+  <div class="wrap">
+    <div class="grid g2">
+      {% for slug, s in solutions.items() %}
+      <a class="card" href="/solutions/{{ slug }}">
+        <span class="tag">{{ s.label }}</span>
+        <h3 style="margin-top:6px">{{ s.headline }}</h3>
+        <p>{{ s.lede }}</p>
+        <span class="card-link">See how it works &rarr;</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

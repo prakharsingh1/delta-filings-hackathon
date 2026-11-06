@@ -1,0 +1,510 @@
+{% extends 'app_base.html' %}
+{% block title %}Counterparty watch{% endblock %}
+
+{% macro sev_chip(sev) -%}
+<span class="chip chip-{{ sev }}">{{ sev_label.get(sev, sev|title) }}</span>
+{%- endmacro %}
+
+{% macro change_cell(ch) -%}
+{%- if ch is none -%}<span class="muted">—</span>
+{%- elif ch > 0 -%}<span class="rk-up" title="Score rose {{ ch }} points in 30 days">&uarr; +{{ ch }}</span>
+{%- elif ch < 0 -%}<span class="rk-down" title="Score fell {{ -ch }} points in 30 days">&darr; {{ ch }}</span>
+{%- else -%}<span class="muted">No change</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% block head %}
+<style>
+  :root { --rk-severe: #dc2626; --rk-high: #ea580c; --rk-moderate: #d97706; --rk-low: #cbd5e1; --rk-up: #b91c1c; --rk-down: #047857; }
+  html.dark { --rk-severe: #f87171; --rk-high: #fb923c; --rk-moderate: #fbbf24; --rk-low: #3f3f46; --rk-up: #fca5a5; --rk-down: #6ee7b7; }
+
+  .rk-strip { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--border-light); }
+  .rk-strip > span { display: block; height: 100%; min-width: 0; }
+  .rk-strip > span + span { box-shadow: inset 2px 0 0 var(--surface); }
+  .rk-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px 20px; margin-top: 14px; }
+  .rk-leg { display: flex; gap: 10px; align-items: flex-start; }
+  .rk-dot { width: 10px; height: 10px; border-radius: 3px; margin-top: 4px; flex-shrink: 0; }
+  .rk-leg-name { font-size: 12.5px; font-weight: 650; color: var(--text-primary); }
+  .rk-leg-val { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .bg-Severe { background: var(--rk-severe); } .bg-High { background: var(--rk-high); }
+  .bg-Moderate { background: var(--rk-moderate); } .bg-Low { background: var(--rk-low); }
+
+  .rk-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 18px; align-items: start; }
+  @media (max-width: 1120px) { .rk-layout { grid-template-columns: minmax(0, 1fr); } }
+  .rk-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border-light); }
+  .rk-filters .fld-input, .rk-filters .fld-select { width: auto; padding: 7px 10px; font-size: 13px; }
+  .rk-filters .fld-input { min-width: 0; flex: 1 1 180px; }
+  .rk-count { font-size: 12px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+
+  .rk-name { font-weight: 650; }
+  .rk-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .rk-score { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .rk-score b { font-size: 15px; font-variant-numeric: tabular-nums; min-width: 22px; text-align: right; }
+  .rk-up { color: var(--rk-up); font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .rk-down { color: var(--rk-down); font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .rk-latest { max-width: 260px; }
+  .rk-latest-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rk-nowrap { white-space: nowrap; }
+  .tbl th.sortable { cursor: pointer; user-select: none; }
+  .tbl th.sortable:hover { color: var(--text-primary); }
+  .tbl th .rk-arrow { opacity: .8; }
+
+  .rk-alerts { list-style: none; margin: 0; padding: 0; }
+  .rk-alerts li { padding: 12px 18px; border-bottom: 1px solid var(--border-light); }
+  .rk-alerts li:last-child { border-bottom: 0; }
+  .rk-alert-top { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .rk-alert-cp { font-size: 12.5px; font-weight: 650; color: var(--text-primary); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rk-alert-cp:hover { text-decoration: underline; }
+  .rk-alert-title { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .rk-alert-date { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+  .panel-foot { padding: 12px 18px; border-top: 1px solid var(--border-light); font-size: 13px; }
+
+  .rk-example { text-align: left; display: inline-block; max-width: 100%; overflow-x: auto; margin: 14px auto 6px; padding: 10px 14px; border-radius: 10px; background: var(--surface-secondary); border: 1px solid var(--border); font-size: 12.5px; color: var(--text-primary); white-space: pre; }
+  .rk-empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+
+  .rk-amount { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
+  .rk-preview { margin-top: 14px; }
+  .rk-preview .tbl { font-size: 12.5px; }
+  .rk-result { padding: 12px 14px; border-radius: 10px; background: var(--surface-secondary); border: 1px solid var(--border); font-size: 13.5px; }
+  .rk-live { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); }
+  .rk-spin { width: 14px; height: 14px; border-width: 2px; }
+  .req { color: #b91c1c; }
+  html.dark .req { color: #fca5a5; }
+  html.dark .rk-strip > span + span { box-shadow: inset 2px 0 0 #141414; }
+  html.dark .rk-alerts li, html.dark .panel-foot, html.dark .rk-filters { border-color: #1f1f1f; }
+  html.dark .rk-example, html.dark .rk-result { background: #101010; border-color: #262626; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap">
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Risk desk</div>
+      <h1 class="mod-title">Counterparty watch</h1>
+      <p class="mod-sub">Each name is checked against exchange filings, SEBI orders, IBBI insolvency announcements and share-price shocks, plus anything your team logs. Signals roll up into a 0 to 100 score.</p>
+    </div>
+    <div class="mod-actions">
+      {% if pf.count %}
+      <button type="button" class="btn btn-secondary" id="scan-btn">Scan now</button>
+      <a class="btn btn-secondary" href="/risk/export.csv">Export CSV</a>
+      {% endif %}
+      <button type="button" class="btn btn-secondary" data-open="import-dlg">Import</button>
+      <button type="button" class="btn btn-primary" data-open="add-dlg">Add counterparty</button>
+    </div>
+  </div>
+
+  {% if live_running %}
+  <p class="note" style="margin-bottom:18px"><span class="rk-live"><span class="spinner rk-spin"></span>Live checks against IBBI, SEBI and market prices are running. Reload in a minute to see anything new.</span></p>
+  {% endif %}
+
+  {% if not pf.count %}
+  <div class="panel">
+    <div class="empty">
+      <div class="empty-title">No counterparties yet</div>
+      <p>Add the companies your institution lends to, buys from or invests in, with the exposure to each.</p>
+      <p>Delta watches their exchange filings, SEBI orders and IBBI insolvency notices, and raises an alert when something changes.</p>
+      <div class="rk-empty-actions">
+        <button type="button" class="btn btn-primary" data-open="import-dlg">Import a list</button>
+        <button type="button" class="btn btn-secondary" data-open="add-dlg">Add one</button>
+      </div>
+      <div><pre class="rk-example mono">Hindustan Unilever, HINDUNILVR, borrower, 25 cr
+Acme Components Pvt Ltd, U29100MH2010PTC123456, vendor, 80 L</pre></div>
+      <p class="fld-hint">One per line: the name first, then NSE symbol, CIN or PAN, category and exposure in any order.</p>
+    </div>
+  </div>
+  {% else %}
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label">Counterparties</div>
+      <div class="kpi-value">{{ pf.count }}</div>
+      {% set listed = pf.rows | selectattr('symbol') | list | length %}
+      <div class="kpi-foot">{{ listed }} listed, {{ pf.count - listed }} unlisted</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total exposure</div>
+      <div class="kpi-value">{{ pf.total_exposure | risk_inr }}</div>
+      <div class="kpi-foot">As recorded against each name</div>
+    </div>
+    <div class="kpi {{ 'kpi-danger' if pf.exposure_at_risk else '' }}">
+      <div class="kpi-label">Exposure at risk</div>
+      <div class="kpi-value">{{ pf.exposure_at_risk | risk_inr }}</div>
+      <div class="kpi-foot">{{ '%.1f' % at_risk_pct }}% of total, in High or Severe names</div>
+    </div>
+    <div class="kpi {{ 'kpi-danger' if pf.alerts_by_severity.critical else '' }}">
+      <div class="kpi-label">Active alerts</div>
+      <div class="kpi-value">{{ pf.active_alerts }}</div>
+      <div class="kpi-foot">{{ pf.alerts_by_severity.critical }} critical, {{ pf.alerts_by_severity.high }} high{% if pf.active_notes %}, plus {{ pf.active_notes }} {{ 'note' if pf.active_notes == 1 else 'notes' }}{% endif %}</div>
+    </div>
+    <div class="kpi {{ 'kpi-danger' if pf.by_band.Severe else '' }}">
+      <div class="kpi-label">Severe names</div>
+      <div class="kpi-value">{{ pf.by_band.Severe }}</div>
+      <div class="kpi-foot">{{ pf.by_band.High }} more in High</div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:18px">
+    <div class="panel-head">
+      <div class="panel-title">Exposure by risk band</div>
+      <div class="panel-sub">{{ pf.total_exposure | risk_inr }} across {{ pf.count }} names</div>
+    </div>
+    <div class="panel-body">
+      <div class="rk-strip" role="img" aria-label="Exposure by band: {% for s in strip %}{{ s.band }} {{ '%.0f' % s.pct }}%{{ ', ' if not loop.last }}{% endfor %}">
+        {% for s in strip if s.exposure > 0 %}<span class="bg-{{ s.band }}" style="width: {{ '%.4f' % s.pct }}%" title="{{ s.band }}: {{ s.exposure | risk_inr }}"></span>{% endfor %}
+      </div>
+      <div class="rk-legend">
+        {% for s in strip %}
+        <div class="rk-leg">
+          <span class="rk-dot bg-{{ s.band }}"></span>
+          <div>
+            <div class="rk-leg-name">{{ s.band }} <span class="muted" style="font-weight:500">· {{ s.count }} {{ 'name' if s.count == 1 else 'names' }}</span></div>
+            <div class="rk-leg-val">{{ s.exposure | risk_inr }} <span class="muted">({{ '%.0f' % s.pct }}%)</span></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="rk-layout">
+    <div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Watch list</div>
+          <div class="panel-sub">Highest score first</div>
+        </div>
+        <div class="rk-filters">
+          <input type="search" class="fld-input" id="f-q" placeholder="Search name, symbol or owner" aria-label="Search counterparties">
+          <select class="fld-select" id="f-band" aria-label="Band">
+            <option value="">All bands</option>
+            {% for b in ['Severe', 'High', 'Moderate', 'Low'] %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+          </select>
+          <select class="fld-select" id="f-cat" aria-label="Category">
+            <option value="">All categories</option>
+            {% for k, v in categories.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+          </select>
+          <span class="rk-count" id="f-count"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="cp-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="name" aria-sort="none">Counterparty <span class="rk-arrow"></span></th>
+                <th class="sortable num" data-sort="exposure" aria-sort="none">Exposure <span class="rk-arrow"></span></th>
+                <th class="sortable" data-sort="score" aria-sort="descending">Score <span class="rk-arrow">&darr;</span></th>
+                <th class="sortable" data-sort="change" aria-sort="none">30 days <span class="rk-arrow"></span></th>
+                <th>Alerts</th>
+                <th>Latest signal</th>
+                <th>Scanned</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in pf.rows %}
+              <tr data-name="{{ r.name|lower }}" data-search="{{ (r.name ~ ' ' ~ r.symbol ~ ' ' ~ r.owner ~ ' ' ~ r.cin)|lower }}"
+                  data-band="{{ r.band }}" data-cat="{{ r.category }}" data-score="{{ r.score }}"
+                  data-exposure="{{ r.exposure_inr or 0 }}" data-change="{{ r.change_30d if r.change_30d is not none else '' }}">
+                <td>
+                  <a class="link rk-name" href="/risk/counterparty/{{ r.id }}">{{ r.name }}</a>
+                  <div class="rk-sub"><span>{{ categories.get(r.category, 'Other') }}</span>{% if r.symbol %}<span class="mono">{{ r.symbol }}</span>{% endif %}{% if r.owner %}<span>{{ r.owner }}</span>{% endif %}</div>
+                </td>
+                <td class="num rk-nowrap">{{ r.exposure_inr | risk_inr }}</td>
+                <td><span class="rk-score"><b>{{ r.score }}</b><span class="chip band-{{ r.band }}">{{ r.band }}</span></span></td>
+                <td>{{ change_cell(r.change_30d) }}</td>
+                <td class="rk-nowrap">
+                  {% if r.active_alerts %}
+                    <a class="link" href="/risk/alerts?cp={{ r.id }}">{{ r.active_alerts }} active</a>
+                    {% if r.critical_alerts %}<div style="margin-top:4px"><span class="chip chip-critical">{{ r.critical_alerts }} critical</span></div>{% endif %}
+                  {% else %}<span class="muted">None</span>{% endif %}
+                  {% if r.active_notes %}<div class="muted" style="font-size:12px;margin-top:3px">{{ r.active_notes }} {{ 'note' if r.active_notes == 1 else 'notes' }}</div>{% endif %}
+                </td>
+                <td class="rk-latest">
+                  {% if r.latest_signal %}
+                    <div class="rk-latest-title">{{ r.latest_signal.title }}</div>
+                    <div class="muted" style="font-size:12px;margin-top:2px">{{ r.latest_signal.event_date | risk_date }}</div>
+                  {% else %}<span class="muted">No active signals</span>{% endif %}
+                </td>
+                <td class="rk-nowrap muted" title="{{ (r.last_scanned_at or '')[:16]|replace('T', ' ') }}">{{ r.last_scanned_at | risk_rel }}</td>
+              </tr>
+              {% endfor %}
+              <tr id="no-match" hidden><td colspan="7"><div class="empty" style="padding:24px">No counterparties match these filters.</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Latest alerts</div>
+          <div class="panel-sub">{{ pf.active_alerts }} active</div>
+        </div>
+        {% if latest %}
+        <ul class="rk-alerts">
+          {% for s in latest %}
+          <li>
+            <div class="rk-alert-top">
+              <a class="rk-alert-cp" href="/risk/counterparty/{{ s.counterparty_id }}">{{ s.cp_name }}</a>
+              {{ sev_chip(s.severity) }}
+            </div>
+            <div class="rk-alert-title">{{ s.title }}</div>
+            <div class="rk-alert-date">{{ s.event_date | risk_date }} · {{ s.source }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty" style="padding:28px 18px">
+          <div class="empty-title">No active alerts</div>
+          Medium, high and critical signals from filings, SEBI and IBBI show up here.
+        </div>
+        {% endif %}
+        <div class="panel-foot"><a class="link" href="/risk/alerts">Open the alert queue</a></div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Add counterparty ── #}
+<dialog class="mod-dialog" id="add-dlg" aria-labelledby="add-title">
+  <form id="add-form" method="dialog" novalidate>
+    <div class="dlg-head"><span id="add-title">Add counterparty</span><button type="button" class="btn btn-sm btn-secondary" data-close>Close</button></div>
+    <div class="dlg-body">
+      <label class="fld"><span class="fld-label">Name <span class="req">*</span></span>
+        <input class="fld-input" name="name" required maxlength="200" autocomplete="off" placeholder="Registered name, e.g. Acme Components Private Limited"></label>
+      <div class="fld-grid">
+        <label class="fld"><span class="fld-label">NSE symbol</span>
+          <input class="fld-input mono" name="symbol" maxlength="20" autocomplete="off" placeholder="HINDUNILVR">
+          <span class="fld-hint">Listed companies only.</span></label>
+        <label class="fld"><span class="fld-label">Category</span>
+          <select class="fld-select" name="category">
+            {% for k, v in categories.items() %}<option value="{{ k }}" {{ 'selected' if k == 'borrower' }}>{{ v }}</option>{% endfor %}
+          </select></label>
+      </div>
+      <div class="fld-grid">
+        <label class="fld"><span class="fld-label">CIN or LLPIN</span>
+          <input class="fld-input mono" name="cin" maxlength="25" autocomplete="off" placeholder="U29100MH2010PTC123456"></label>
+        <label class="fld"><span class="fld-label">PAN</span>
+          <input class="fld-input mono" name="pan" maxlength="10" autocomplete="off" placeholder="AAACA1234B"></label>
+      </div>
+      <div class="fld"><span class="fld-label" id="exp-label">Exposure</span>
+        <div class="rk-amount">
+          <input class="fld-input" name="amount" inputmode="decimal" autocomplete="off" placeholder="25" aria-labelledby="exp-label">
+          <select class="fld-select" name="unit" aria-label="Unit">
+            <option value="10000000">crore</option>
+            <option value="100000">lakh</option>
+            <option value="1">rupees</option>
+          </select>
+        </div>
+        <span class="fld-hint" data-amount-hint>Funded and non-fund exposure together.</span>
+      </div>
+      <label class="fld"><span class="fld-label">Relationship owner</span>
+        <input class="fld-input" name="owner" maxlength="120" autocomplete="off" placeholder="Who watches this name"></label>
+      <label class="fld"><span class="fld-label">Notes</span>
+        <textarea class="fld-textarea" name="notes" maxlength="1000" placeholder="Facility, security, covenants"></textarea></label>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Add and scan</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Import ── #}
+<dialog class="mod-dialog" id="import-dlg" aria-labelledby="import-title" style="width:min(760px, calc(100vw - 32px))">
+  <div class="dlg-head"><span id="import-title">Import counterparties</span><button type="button" class="btn btn-sm btn-secondary" data-close>Close</button></div>
+  <div class="dlg-body">
+    <label class="fld"><span class="fld-label">Paste one counterparty per line</span>
+      <textarea class="fld-textarea mono" id="import-text" rows="7" style="min-height:150px" placeholder="Hindustan Unilever, HINDUNILVR, borrower, 25 cr
+Acme Components Pvt Ltd, U29100MH2010PTC123456, vendor, 80 L"></textarea>
+      <span class="fld-hint">Name first, then any of: NSE symbol, CIN, PAN, category (borrower, vendor, customer, investee, guarantor) and exposure (25 cr, 80 L or rupees). Rows copied from a spreadsheet work too.</span>
+    </label>
+    <div id="import-preview" class="rk-preview" hidden></div>
+    <div id="import-result" class="rk-result" hidden></div>
+  </div>
+  <div class="dlg-foot">
+    <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+    <button type="button" class="btn btn-secondary" id="import-preview-btn">Preview</button>
+    <button type="button" class="btn btn-primary" id="import-go" disabled>Add counterparties</button>
+  </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  function flash(msg) { try { sessionStorage.setItem('rk-flash', msg); } catch (e) {} }
+  try { var f = sessionStorage.getItem('rk-flash'); if (f) { sessionStorage.removeItem('rk-flash'); dfToast(f, 'ok'); } } catch (e) {}
+
+  document.querySelectorAll('[data-open]').forEach(function (b) {
+    b.addEventListener('click', function () { document.getElementById(b.dataset.open).showModal(); });
+  });
+  document.querySelectorAll('dialog [data-close]').forEach(function (b) {
+    b.addEventListener('click', function () { b.closest('dialog').close(); });
+  });
+
+  // ── Exposure helper ──
+  function amountHint(form) {
+    var F = form.elements, hint = form.querySelector('[data-amount-hint]');
+    var raw = (F['amount'].value || '').replace(/,/g, '').trim();
+    if (!raw) { hint.textContent = 'Funded and non-fund exposure together.'; return; }
+    var n = Number(raw);
+    hint.textContent = isFinite(n) && n >= 0 ? ('= ' + dfInr(n * Number(F['unit'].value))) : 'Enter a number.';
+  }
+  var addForm = document.getElementById('add-form');
+  var F = addForm.elements;
+  F['amount'].addEventListener('input', function () { amountHint(addForm); });
+  F['unit'].addEventListener('change', function () { amountHint(addForm); });
+
+  addForm.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var btn = addForm.querySelector('[type=submit]');
+    var name = F['name'].value.trim();
+    if (!name) { dfToast('Name is required.', 'err'); F['name'].focus(); return; }
+    var raw = (F['amount'].value || '').replace(/,/g, '').trim();
+    var amt = raw ? Number(raw) : 0;
+    if (!isFinite(amt) || amt < 0) { dfToast('Exposure must be a number.', 'err'); F['amount'].focus(); return; }
+    btn.disabled = true; btn.textContent = 'Adding';
+    try {
+      var res = await dfApi('/api/risk/counterparties', { method: 'POST', body: {
+        name: name, symbol: F['symbol'].value.trim(), cin: F['cin'].value.trim(), pan: F['pan'].value.trim(),
+        category: F['category'].value, exposure_inr: Math.round(amt * Number(F['unit'].value) * 100) / 100,
+        owner: F['owner'].value.trim(), notes: F['notes'].value.trim()
+      }});
+      flash(name + ' added. ' + (res.new ? res.new + ' signal' + (res.new === 1 ? '' : 's') + ' found.' : 'No signals yet.'));
+      window.location.href = res.url;
+    } catch (e) {
+      dfToast(e.message, 'err');
+      btn.disabled = false; btn.textContent = 'Add and scan';
+    }
+  });
+
+  // ── Import ──
+  var text = document.getElementById('import-text');
+  var prevBox = document.getElementById('import-preview');
+  var resBox = document.getElementById('import-result');
+  var goBtn = document.getElementById('import-go');
+  var prevBtn = document.getElementById('import-preview-btn');
+  // After an import the button reads Done and reloads; a fresh preview arms it again.
+  var importDone = false, reloadOnClose = false;
+  text.addEventListener('input', function () { goBtn.disabled = true; prevBox.hidden = true; resBox.hidden = true; });
+  prevBtn.addEventListener('click', async function () {
+    resBox.hidden = true;
+    prevBtn.disabled = true;
+    try {
+      var res = await dfApi('/api/risk/import/preview', { method: 'POST', body: { text: text.value } });
+      var fresh = res.count - res.duplicates;
+      var html = '<div class="panel-sub" style="margin-bottom:8px">' + res.count + ' found, ' + fresh + ' new' +
+        (res.duplicates ? ', ' + res.duplicates + ' already on your list' : '') + '.</div>' +
+        '<div class="tbl-wrap" style="border:1px solid var(--border);border-radius:10px"><table class="tbl"><thead><tr>' +
+        '<th>Name</th><th>Symbol</th><th>CIN</th><th>PAN</th><th>Category</th><th class="num">Exposure</th><th></th></tr></thead><tbody>';
+      res.rows.forEach(function (r) {
+        html += '<tr><td>' + dfEsc(r.name) + '</td><td class="mono">' + dfEsc(r.symbol || '') + '</td>' +
+          '<td class="mono">' + dfEsc(r.cin || '') + '</td><td class="mono">' + dfEsc(r.pan || '') + '</td>' +
+          '<td>' + dfEsc(r.category) + '</td><td class="num">' + (r.exposure_inr ? dfEsc(dfInr(r.exposure_inr)) : '<span class="muted">—</span>') + '</td>' +
+          '<td>' + (r.duplicate ? '<span class="chip chip-low">On list</span>' : '<span class="chip chip-ok">New</span>') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      prevBox.innerHTML = html;
+      prevBox.hidden = false;
+      importDone = false;
+      goBtn.disabled = fresh === 0;
+      goBtn.textContent = fresh ? 'Add ' + fresh + ' counterpart' + (fresh === 1 ? 'y' : 'ies') : 'Nothing new to add';
+    } catch (e) {
+      dfToast(e.message, 'err');
+    } finally { prevBtn.disabled = false; }
+  });
+  goBtn.addEventListener('click', async function () {
+    if (importDone) { window.location.reload(); return; }
+    goBtn.disabled = true; goBtn.textContent = 'Adding';
+    try {
+      var res = await dfApi('/api/risk/import', { method: 'POST', body: { text: text.value } });
+      var msg = 'Added ' + res.created + '.';
+      if (res.skipped) msg += ' Skipped ' + res.skipped + ' already on your list.';
+      if (res.new_signals) msg += ' ' + res.new_signals + ' signal' + (res.new_signals === 1 ? '' : 's') + ' found in filings on record.';
+      if (res.live) msg += ' Live checks are running in the background.';
+      resBox.innerHTML = dfEsc(msg) + (res.errors && res.errors.length ? '<div class="fld-hint" style="margin-top:6px">Not added: ' + res.errors.map(dfEsc).join('; ') + '</div>' : '');
+      resBox.hidden = false; prevBox.hidden = true;
+      flash(msg);
+      importDone = reloadOnClose = true;
+      goBtn.textContent = 'Done';
+      goBtn.disabled = false;
+    } catch (e) {
+      dfToast(e.message, 'err');
+      goBtn.disabled = false; goBtn.textContent = 'Add counterparties';
+    }
+  });
+  document.getElementById('import-dlg').addEventListener('close', function () {
+    if (reloadOnClose) window.location.reload();
+  });
+
+  // ── Scan now ──
+  var scanBtn = document.getElementById('scan-btn');
+  if (scanBtn) scanBtn.addEventListener('click', async function () {
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = '<span class="spinner rk-spin"></span> Scanning';
+    try {
+      var res = await dfApi('/api/risk/scan', { method: 'POST', body: {} });
+      var msg = res.new ? 'Scan complete. ' + res.new + ' new signal' + (res.new === 1 ? '' : 's') + '.' : 'Scan complete. No new signals.';
+      if (res.live) msg += ' Live checks continue in the background.';
+      if (res.new || res.live) { flash(msg); window.location.reload(); return; }
+      dfToast(msg, 'ok');
+    } catch (e) {
+      dfToast(e.message, 'err');
+    }
+    scanBtn.disabled = false; scanBtn.textContent = 'Scan now';
+  });
+
+  // ── Table filter and sort ──
+  var table = document.getElementById('cp-table');
+  if (!table) return;
+  var tbody = table.tBodies[0];
+  var noMatch = document.getElementById('no-match');
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-name]'));
+  var q = document.getElementById('f-q'), band = document.getElementById('f-band'), cat = document.getElementById('f-cat');
+  var count = document.getElementById('f-count');
+  var sortKey = 'score', sortDir = -1;
+  function apply() {
+    var term = q.value.trim().toLowerCase(), b = band.value, c = cat.value, shown = 0;
+    rows.forEach(function (r) {
+      var ok = (!term || r.dataset.search.indexOf(term) !== -1) && (!b || r.dataset.band === b) && (!c || r.dataset.cat === c);
+      r.hidden = !ok; if (ok) shown++;
+    });
+    noMatch.hidden = shown !== 0;
+    count.textContent = shown === rows.length ? rows.length + ' names' : shown + ' of ' + rows.length;
+  }
+  function val(r, k) {
+    if (k === 'name') return r.dataset.name;
+    var v = r.dataset[k];
+    return v === '' ? -Infinity : Number(v);
+  }
+  function sort() {
+    rows.sort(function (a, b) {
+      var x = val(a, sortKey), y = val(b, sortKey);
+      if (x < y) return -1 * sortDir;
+      if (x > y) return 1 * sortDir;
+      return Number(b.dataset.exposure) - Number(a.dataset.exposure);
+    });
+    rows.forEach(function (r) { tbody.insertBefore(r, noMatch); });
+    table.querySelectorAll('th.sortable').forEach(function (th) {
+      var on = th.dataset.sort === sortKey;
+      th.setAttribute('aria-sort', on ? (sortDir > 0 ? 'ascending' : 'descending') : 'none');
+      th.querySelector('.rk-arrow').innerHTML = on ? (sortDir > 0 ? '&uarr;' : '&darr;') : '';
+    });
+  }
+  table.querySelectorAll('th.sortable').forEach(function (th) {
+    th.tabIndex = 0;
+    function go() {
+      var k = th.dataset.sort;
+      if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'name' ? 1 : -1; }
+      sort();
+    }
+    th.addEventListener('click', go);
+    th.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+  [q, band, cat].forEach(function (el) { el.addEventListener('input', apply); el.addEventListener('change', apply); });
+  apply();
+})();
+</script>
+{% endblock %}

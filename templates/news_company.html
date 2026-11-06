@@ -1,0 +1,438 @@
+{% extends 'app_base.html' %}
+
+{% block title %}News · {{ company.name }}{% endblock %}
+
+{% block head %}
+<style>
+  .cn [hidden] { display: none !important; }
+  .cn { --cn-ink: var(--text-primary); --cn-mute: var(--text-muted); --cn-line: var(--border-light); --cn-r: 16px; }
+  .cn-k { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--cn-mute); }
+  .cn-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--cn-r); padding: 22px 24px; min-width: 0; }
+
+  /* header */
+  .cn-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-bottom: 18px; }
+  .cn-title { display: flex; align-items: center; gap: 12px; }
+  .cn-logo { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--border); background: #fff; display: grid; place-items: center; overflow: hidden; flex: none; }
+  .cn-logo img { width: 30px; height: 30px; object-fit: contain; }
+  .cn-logo b { font-size: 18px; font-weight: 700; color: var(--primary); }
+  .cn-pick select { font: inherit; font-size: 26px; font-weight: 700; letter-spacing: -.02em; color: var(--cn-ink); background: transparent; border: 0; border-bottom: 2px solid var(--border);
+    padding: 2px 30px 6px 0; cursor: pointer; appearance: none; -webkit-appearance: none; max-width: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236d6a60' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; }
+  .cn-pick select:focus-visible { outline: none; border-color: var(--primary); }
+  .cn-sub { margin: 8px 0 0; font-size: 13px; color: var(--text-secondary); }
+  .cn-sub b { color: var(--cn-ink); font-weight: 600; }
+  .cn-head-r { display: flex; align-items: center; gap: 8px; flex: none; }
+  .cn-updated { font-size: 12px; color: var(--cn-mute); margin-right: 6px; white-space: nowrap; }
+
+  /* hero: chart + brief */
+  .cn-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+  .cn-hero > .cn-card:first-child { display: flex; flex-direction: column; }
+  .cn-chart-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .cn-price { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; }
+  .cn-price b { font-size: 36px; font-weight: 700; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .cn-chg { font-size: 13px; font-weight: 700; padding: 3px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+  .cn-up { color: #166534; background: #dcfce7; } .cn-down { color: #991b1b; background: #fee2e2; } .cn-flat { color: var(--text-secondary); background: var(--surface-secondary); }
+  .cn-src { font-size: 12px; color: var(--cn-mute); margin-top: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .cn-verify { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; cursor: help; }
+  .cn-verify.is-ok { background: #dcfce7; color: #166534; } .cn-verify.is-warn { background: #fef3c7; color: #92400e; }
+  .cn-stats { display: grid; grid-template-columns: auto auto; gap: 4px 18px; font-size: 12.5px; text-align: right; }
+  .cn-stats span { color: var(--cn-mute); } .cn-stats b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cn-chart { position: relative; flex: 1 1 210px; min-height: 210px; max-height: 420px; margin: 18px 0 6px; }
+  .cn-chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .cn-chart .ax { font-size: 11px; fill: var(--cn-mute); font-family: inherit; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+  .cn-chart .mk { cursor: pointer; }
+  .cn-chart-tip { position: absolute; top: 8px; left: 0; transform: translateX(-50%); background: var(--cn-ink); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 8px; white-space: nowrap; pointer-events: none; }
+  html.dark .cn-chart-tip { background: #f5f5f5; color: #111; }
+  .cn-chart-empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; color: var(--text-secondary); text-align: center; padding: 0 20px; line-height: 1.5; }
+  .cn-moves { list-style: none; margin: 10px 0 0; padding: 0; border-top: 1px solid var(--cn-line); }
+  .cn-moves li { display: grid; grid-template-columns: 54px 72px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--cn-line); font-size: 13px; }
+  .cn-moves li:last-child { border-bottom: 0; }
+  .cn-moves .d { font-weight: 600; color: var(--cn-mute); font-variant-numeric: tabular-nums; }
+  .cn-moves .p { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .cn-moves .p.up { color: #15803d; } .cn-moves .p.down { color: #b91c1c; }
+  .cn-moves a { color: var(--cn-ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+  .cn-moves a:hover { text-decoration: underline; }
+  .cn-moves .s { color: var(--cn-mute); }
+
+  .cn-brief h2 { font-size: 20px; font-weight: 700; line-height: 1.35; letter-spacing: -.015em; margin: 10px 0 18px; }
+  .cn-brief-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; }
+  .cn-brief h4 { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--cn-mute); margin: 0 0 8px; }
+  .cn-brief ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .cn-brief li { font-size: 13.5px; line-height: 1.5; padding-left: 14px; position: relative; }
+  .cn-brief li::before { content: ''; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+  .cn-dir { display: inline-block; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; text-transform: uppercase; letter-spacing: .04em; }
+  .cn-dir-up { background: #dcfce7; color: #166534; } .cn-dir-down { background: #fee2e2; color: #991b1b; } .cn-dir-either { background: var(--surface-secondary); color: var(--text-secondary); }
+  .cn-ref { font-size: 11px; font-weight: 600; color: var(--cn-mute); text-decoration: none; margin-left: 5px; white-space: nowrap; }
+  .cn-ref:hover { color: var(--primary); text-decoration: underline; }
+  .cn-watch { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--cn-line); display: flex; gap: 8px; flex-wrap: wrap; }
+  .cn-watch span { font-size: 12px; padding: 5px 10px; border-radius: 999px; background: var(--surface-secondary); color: var(--text-secondary); }
+  .cn-watch span b { color: var(--cn-ink); font-weight: 700; margin-right: 4px; }
+  .cn-brief-fallback { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line; }
+  .cn-foot { font-size: 11.5px; color: var(--cn-mute); margin-top: 14px; }
+  .cn-ask { display: flex; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--cn-line); }
+  .cn-ask input { flex: 1; min-width: 0; font: inherit; font-size: 13.5px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--cn-ink); }
+  .cn-ask input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(166,139,26,.12); }
+  .cn-ask button { font: inherit; font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: 10px; border: 0; background: var(--primary); color: #fff; cursor: pointer; white-space: nowrap; }
+  .cn-ask button:hover { filter: brightness(1.05); }
+  .cn-ask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .cn-ask-chips button { font: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); cursor: pointer; }
+  .cn-ask-chips button:hover { color: var(--primary); border-color: var(--primary); }
+
+  /* row 2: filings + sector */
+  .cn-row2 { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; margin-bottom: 20px; align-items: start; }
+  .cn-filing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .cn-sig { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: grid; gap: 5px; min-width: 0; }
+  .cn-sig-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .cn-sig-form { font-weight: 700; font-size: 14px; }
+  .cn-sig-due { font-size: 11px; font-weight: 700; color: #92400e; background: #fef3c7; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .cn-sig-due.is-soft { color: var(--text-secondary); background: var(--surface-secondary); }
+  .cn-sig-name { font-size: 12px; color: var(--text-secondary); }
+  .cn-sig-story { font-size: 12.5px; color: var(--cn-ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cn-sig-story:hover { text-decoration: underline; }
+  .cn-sig-story i { font-style: normal; color: var(--cn-mute); }
+  .cn-sig-act { display: flex; gap: 12px; font-size: 12px; font-weight: 600; margin-top: 2px; }
+  .cn-sig-act a { color: var(--primary); text-decoration: none; } .cn-sig-act a:hover { text-decoration: underline; }
+  .cn-more-link { grid-column: 1 / -1; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--primary); background: none; border: 0; padding: 4px 0; cursor: pointer; text-align: left; }
+  .cn-sector p { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); margin: 10px 0 0; }
+  .cn-sector p.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
+  .cn-sector button { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--primary); background: none; border: 0; padding: 6px 0 0; cursor: pointer; }
+  .cn-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .cn-chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--surface-secondary); color: var(--text-secondary); border: 1px solid var(--border); }
+  .cn-chip-up { background: #f0fdf4; color: #166534; border-color: #bbf7d0; } .cn-chip-down { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+  .cn-empty-note { font-size: 13px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; }
+
+  /* feed */
+  .cn-feed-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .cn-seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-secondary); border-radius: 999px; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .cn-seg::-webkit-scrollbar { display: none; }
+  .cn-seg button { font: inherit; font-size: 13px; font-weight: 600; color: var(--text-secondary); background: transparent; border: 0; padding: 7px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .cn-seg button.is-active { background: var(--surface); color: var(--cn-ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .cn-seg button .n { margin-left: 5px; font-size: 11px; color: var(--cn-mute); font-variant-numeric: tabular-nums; }
+  .cn-feed-bar select { font: inherit; font-size: 13px; padding: 7px 30px 7px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--cn-ink); appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236d6a60' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+  .cn-sources { margin-left: auto; font-size: 12px; color: var(--cn-mute); cursor: help; display: inline-flex; align-items: center; gap: 6px; }
+  .cn-sources i { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; display: inline-block; }
+  .cn-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--cn-r); overflow: hidden; }
+  .cn-item { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 4px 16px; padding: 14px 20px; border-bottom: 1px solid var(--cn-line); align-items: baseline; }
+  .cn-item:last-child { border-bottom: 0; }
+  .cn-item:target { background: var(--primary-light); }
+  .cn-item .meta { font-size: 12px; color: var(--cn-mute); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; grid-column: 2; }
+  .cn-item .date { font-size: 12px; font-weight: 600; color: var(--cn-mute); font-variant-numeric: tabular-nums; grid-row: 1 / span 2; padding-top: 2px; }
+  .cn-lane { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; }
+  .cn-lane-official { background: #fef3c7; color: #92400e; } .cn-lane-press { background: #eef2ff; color: #3730a3; } .cn-lane-social { background: #fdf2f8; color: #9d174d; }
+  .cn-lane-regulatory { background: #f0fdf4; color: #166534; } .cn-lane-industry { background: #f0f9ff; color: #075985; } .cn-lane-x { background: #111; color: #fff; }
+  .cn-item .src { font-weight: 600; color: var(--text-secondary); }
+  .cn-item .title { font-size: 14.5px; font-weight: 600; line-height: 1.45; color: var(--cn-ink); text-decoration: none; overflow-wrap: anywhere; grid-column: 2; }
+  .cn-item .title:hover { color: var(--primary); text-decoration: underline; }
+  .cn-item .tags { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+  .cn-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-secondary); color: var(--text-secondary); }
+  .cn-tag-file { background: #fef3c7; color: #92400e; }
+  .cn-feed-more { padding: 12px; text-align: center; border-top: 1px solid var(--cn-line); }
+  .cn-feed-empty { padding: 40px 20px; text-align: center; color: var(--text-secondary); font-size: 14px; }
+  .cn-skel { display: grid; gap: 16px; }
+  .cn-skel div { height: 140px; border-radius: var(--cn-r); background: linear-gradient(90deg, var(--surface-secondary), var(--surface), var(--surface-secondary)); background-size: 200% 100%; animation: cn-sh 1.4s infinite; }
+  @keyframes cn-sh { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .cn-state { padding: 48px 20px; text-align: center; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+
+  @media (max-width: 1080px) { .cn-hero, .cn-row2 { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) {
+    .cn-card { padding: 16px; border-radius: 14px; }
+    .cn-chart { flex: none; max-height: none; }
+    .cn-head { flex-direction: column; align-items: stretch; }
+    .cn-head-r { justify-content: space-between; }
+    .cn-pick select { font-size: 20px; }
+    .cn-logo { width: 36px; height: 36px; } .cn-logo img { width: 24px; height: 24px; }
+    .cn-chart-top { flex-direction: column; } .cn-stats { text-align: left; }
+    .cn-chart { height: 170px; }
+    .cn-brief-cols, .cn-filing-grid { grid-template-columns: 1fr; }
+    .cn-moves li { grid-template-columns: 48px 64px minmax(0, 1fr); gap: 8px; font-size: 12.5px; }
+    .cn-item { grid-template-columns: minmax(0, 1fr); padding: 12px 14px; }
+    .cn-item .date { grid-row: auto; order: 10; }
+    .cn-item .meta, .cn-item .title, .cn-item .tags { grid-column: 1; }
+  }
+  html.dark .cn-up { background: rgba(22,163,74,.18); color: #86efac; } html.dark .cn-down { background: rgba(220,38,38,.18); color: #fca5a5; }
+  html.dark .cn-sig-due { background: rgba(217,119,6,.2); color: #fcd34d; } html.dark .cn-tag-file { background: rgba(217,119,6,.2); color: #fcd34d; }
+  html.dark .cn-lane-official { background: rgba(217,119,6,.2); color: #fcd34d; } html.dark .cn-lane-press { background: rgba(99,102,241,.2); color: #c7d2fe; }
+  html.dark .cn-lane-social { background: rgba(236,72,153,.18); color: #fbcfe8; } html.dark .cn-lane-regulatory { background: rgba(22,163,74,.18); color: #86efac; }
+  html.dark .cn-lane-industry { background: rgba(14,165,233,.18); color: #bae6fd; }
+  html.dark .cn-chip-up { background: rgba(22,163,74,.15); color: #86efac; border-color: rgba(22,163,74,.3); } html.dark .cn-chip-down { background: rgba(220,38,38,.15); color: #fca5a5; border-color: rgba(220,38,38,.3); }
+  html.dark .cn-moves .p.up { color: #86efac; } html.dark .cn-moves .p.down { color: #fca5a5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap cn cn-page" id="cn" data-symbol="{{ symbol }}" data-frozen="{{ '1' if frozen else '0' }}">
+  <header class="cn-head">
+    <div>
+      <div class="mod-eyebrow">News desk</div>
+      <div class="cn-title">
+        <span class="cn-logo" aria-hidden="true">{% if company.logo %}<img src="{{ company.logo }}" alt="">{% else %}<b>{{ company.name[:1] }}</b>{% endif %}</span>
+        <label class="cn-pick"><span class="sr-only">Company</span>
+          <select id="cn-symbol" aria-label="Choose a company">
+            {% for w in watchlist %}<option value="{{ w.symbol }}"{% if w.symbol == symbol %} selected{% endif %}>{{ w.name or w.symbol }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+      <p class="cn-sub">Last 30 days for <b>{{ symbol }}</b>: its filings, press from six editions, Reddit, SEBI and RBI, and the sector. Each story is matched to the filing it may start.</p>
+    </div>
+    <div class="cn-head-r">
+      <span class="cn-updated" id="cn-updated">Loading…</span>
+      <button type="button" class="btn btn-secondary btn-sm" id="cn-refresh">Refresh</button>
+      <a class="btn btn-secondary btn-sm" href="/news?view=regulatory">Regulatory feed</a>
+    </div>
+  </header>
+
+  <div class="cn-skel" id="cn-skeleton" aria-hidden="true"><div style="height:380px"></div><div style="height:220px"></div></div>
+  <div class="cn-state" id="cn-empty" hidden></div>
+
+  <div id="cn-desk" hidden>
+    <section class="cn-hero">
+      <article class="cn-card">
+        <div class="cn-chart-top">
+          <div>
+            <div class="cn-k">Price</div>
+            <div class="cn-price"><b id="cn-last">—</b><span class="cn-chg cn-flat" id="cn-chg">—</span></div>
+            <div class="cn-src" id="cn-price-src"></div>
+          </div>
+          <div class="cn-stats" id="cn-stats"></div>
+        </div>
+        <div class="cn-chart" id="cn-chart"><svg id="cn-spark" role="img" aria-label="Thirty-day closing prices"></svg><div class="cn-chart-tip" id="cn-chart-tip" hidden></div><div class="cn-chart-empty" id="cn-chart-empty" hidden></div></div>
+        <ol class="cn-moves" id="cn-moves"></ol>
+      </article>
+
+      <article class="cn-card cn-brief">
+        <div class="cn-k">The brief <span id="cn-brief-model" style="font-weight:500;letter-spacing:0;text-transform:none;margin-left:6px"></span></div>
+        <div id="cn-brief"></div>
+        <form class="cn-ask" id="cn-ask" autocomplete="off">
+          <input type="text" id="cn-ask-q" maxlength="400" placeholder="Ask anything about {{ company.name }}: a move, a story, a filing…" aria-label="Ask Delta Copilot about {{ company.name }}">
+          <button type="submit">Ask Copilot</button>
+        </form>
+        <div class="cn-ask-chips" id="cn-ask-chips"></div>
+      </article>
+    </section>
+
+    <section class="cn-row2">
+      <article class="cn-card cn-filings">
+        <div class="cn-k">Filings this news may trigger</div>
+        <div class="cn-filing-grid" id="cn-signals"></div>
+      </article>
+      <article class="cn-card cn-sector" id="cn-sector">
+        <div class="cn-k">Sector · <span id="cn-industry-name"></span></div>
+        <p class="clamp" id="cn-industry-summary"></p>
+        <button type="button" id="cn-sector-more" hidden>Read the full brief</button>
+        <div class="cn-chips" id="cn-industry-chips"></div>
+      </article>
+    </section>
+
+    <section class="cn-feed">
+      <div class="cn-feed-bar">
+        <div class="cn-seg" role="tablist" aria-label="Sources" id="cn-tabs"></div>
+        <select id="cn-country" aria-label="Edition" hidden></select>
+        <span class="cn-sources" id="cn-status"><i></i><span></span></span>
+      </div>
+      <div class="cn-list" id="cn-list"></div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  var root = document.getElementById('cn');
+  var symbol = root.dataset.symbol, frozen = root.dataset.frozen === '1';
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = window.dfEsc || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); };
+  var LANES = [['all', 'All'], ['official', 'Filings'], ['press', 'Press'], ['social', 'Social'], ['regulatory', 'Regulators'], ['industry', 'Sector']];
+  var LANE_LABEL = { official: 'Filing', press: 'Press', social: 'Reddit', x: 'X', regulatory: 'Regulator', industry: 'Sector' };
+  var COUNTRY = { IN: 'India', US: 'United States', GB: 'United Kingdom', SG: 'Singapore', AE: 'UAE' };
+  var state = { data: null, lane: 'all', country: 'all', shown: 20, allSignals: false };
+
+  $('cn-symbol').addEventListener('change', function () { location.href = '/news?symbol=' + encodeURIComponent(this.value); });
+  function fmt(n, d) { if (n == null || isNaN(n)) return '—'; return Number(n).toLocaleString('en-IN', { maximumFractionDigits: d == null ? 2 : d, minimumFractionDigits: d == null ? 2 : d }); }
+  function pct(n) { if (n == null || isNaN(n)) return '—'; return (n > 0 ? '+' : '') + Number(n).toFixed(2) + '%'; }
+  function cls(n) { return n > 0.05 ? 'cn-up' : n < -0.05 ? 'cn-down' : 'cn-flat'; }
+  function ago(iso) { if (!iso) return ''; var s = (Date.now() - new Date(iso.replace(' ', 'T'))) / 1000; if (s < 90) return 'just now'; var m = Math.round(s / 60); if (m < 60) return m + ' min ago'; var h = Math.round(m / 60); if (h < 36) return h + ' h ago'; return Math.round(h / 24) + ' d ago'; }
+  function shortDue(due) { var m = /by (\d+ \w+) \d{4}/.exec(due); if (m) return 'by ' + m[1]; return due.replace(' · check materiality', '').replace('same day as the event', 'same day').replace('days before the meeting', 'days before'); }
+  function findItem(id) { var L = state.data.lanes; for (var k in L) for (var i = 0; i < L[k].length; i++) if (L[k][i].id === id) return L[k][i]; return null; }
+  function refs(ids) { return (ids || []).slice(0, 2).map(function (id) { var it = findItem(id); return it ? '<a class="cn-ref" href="#it-' + esc(id) + '" title="' + esc(it.title) + '">' + esc(it.source) + '</a>' : ''; }).join(''); }
+
+  function load(refresh) {
+    var btn = $('cn-refresh'); btn.disabled = true; btn.textContent = refresh ? 'Refreshing…' : 'Refresh';
+    if (!state.data) { $('cn-skeleton').hidden = false; $('cn-desk').hidden = true; $('cn-empty').hidden = true; }
+    fetch('/api/news/company/' + encodeURIComponent(symbol) + (refresh ? '?refresh=1' : ''), { headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        $('cn-skeleton').hidden = true;
+        if (!res.ok || res.j.error) { showState(res.j.error || 'Could not load the desk.'); return; }
+        if (res.j.frozen && !res.j.lanes) { showState('Live sources are frozen in this preview and nothing is cached yet for ' + esc(symbol) + '.'); return; }
+        state.data = res.j; render();
+      })
+      .catch(function () { $('cn-skeleton').hidden = true; showState('Could not reach the server.'); })
+      .then(function () { btn.disabled = frozen; btn.textContent = 'Refresh'; });
+  }
+  function showState(msg) { $('cn-empty').innerHTML = esc(msg); $('cn-empty').hidden = false; $('cn-desk').hidden = true; $('cn-updated').textContent = ''; }
+
+  function render() {
+    var d = state.data;
+    $('cn-desk').hidden = false; $('cn-empty').hidden = true;
+    $('cn-updated').textContent = (d.cached ? 'Updated ' + ago(d.fetched_at) : 'Updated just now') + (d.frozen ? ' · frozen' : '');
+    renderPrice(d); renderMoves(d); renderBrief(d); renderSignals(d); renderSector(d); renderFeed(d); renderAskChips(d); renderChart(d);
+  }
+
+  /* ── price + chart ───────────────────────────────────────────────── */
+  function renderPrice(d) {
+    var q = d.quote || {}, s = d.series || [];
+    $('cn-last').textContent = q.lastPrice != null ? '₹' + fmt(q.lastPrice) : (s.length ? '₹' + fmt(s[s.length - 1].close) : '—');
+    var c = $('cn-chg'); c.textContent = q.pChange != null ? pct(q.pChange) + ' today' : (s.length > 1 ? pct(s[s.length - 1].pct) + ' last close' : 'no live quote'); c.className = 'cn-chg ' + cls(q.pChange != null ? q.pChange : (s.length > 1 ? s[s.length - 1].pct : 0));
+    var src = $('cn-price-src'); src.innerHTML = '';
+    if (q.lastUpdateTime) src.appendChild(document.createTextNode('As of ' + q.lastUpdateTime));
+    if (d.series_source && s.length) {
+      src.appendChild(document.createTextNode((q.lastUpdateTime ? ' · ' : '') + 'closes from ' + d.series_source));
+      if ((d.series_checks || []).length) { var b = document.createElement('span'); b.className = 'cn-verify ' + (d.series_verified ? 'is-ok' : 'is-warn'); b.textContent = d.series_verified ? '✓ cross-checked' : '! sources disagree';
+        b.title = d.series_checks.map(function (c) { return (c.ok ? '✓ ' : '✗ ') + c.check + (c.gap_pct != null ? ' (gap ' + c.gap_pct + '%)' : ''); }).join('\n'); src.appendChild(b); }
+    }
+    var thirty = q.perChange30d != null ? q.perChange30d : (s.length > 1 ? (s[s.length - 1].close / s[0].close - 1) * 100 : null);
+    var rows = [['30 days', thirty != null ? pct(thirty) : '—'], ['52-week', q.yearLow != null ? '₹' + fmt(q.yearLow, 0) + '–' + fmt(q.yearHigh, 0) : '—'], ['Volume', q.totalTradedVolume != null ? Number(q.totalTradedVolume).toLocaleString('en-IN') : '—']];
+    $('cn-stats').innerHTML = rows.map(function (r) { return '<span>' + r[0] + '</span><b>' + esc(r[1]) + '</b>'; }).join('');
+  }
+
+  function renderChart(d) {
+    var s = d.series || [], box = $('cn-chart'), svg = $('cn-spark'), empty = $('cn-chart-empty'), tip = $('cn-chart-tip');
+    if (s.length < 2) { svg.innerHTML = ''; empty.hidden = false; empty.textContent = s.length === 1 ? 'One day of closes stored so far; the chart appears once a second day is recorded.' : 'No price history available yet from any source.'; return; }
+    empty.hidden = true;
+    var W = box.clientWidth || 600, H = box.clientHeight || 210, padL = 8, padR = 8, padT = 14, padB = 22;
+    var lo = Math.min.apply(null, s.map(function (p) { return p.close; })), hi = Math.max.apply(null, s.map(function (p) { return p.close; }));
+    if (hi === lo) { hi = lo * 1.01; lo = lo * 0.99; }
+    var span = hi - lo; lo -= span * .08; hi += span * .08;
+    var x = function (i) { return padL + (i / (s.length - 1)) * (W - padL - padR); }, y = function (v) { return padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB); };
+    var pts = s.map(function (p, i) { return [x(i), y(p.close)]; });
+    // monotone cubic for a calm line
+    var dpath = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
+    for (var i = 0; i < pts.length - 1; i++) { var p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)]; var t = .22;
+      var c1 = [p1[0] + (p2[0] - p0[0]) * t, p1[1] + (p2[1] - p0[1]) * t], c2 = [p2[0] - (p3[0] - p1[0]) * t, p2[1] - (p3[1] - p1[1]) * t];
+      dpath += ' C' + c1[0].toFixed(1) + ' ' + c1[1].toFixed(1) + ',' + c2[0].toFixed(1) + ' ' + c2[1].toFixed(1) + ',' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1); }
+    var up = s[s.length - 1].close >= s[0].close, line = up ? '#15803d' : '#b91c1c';
+    var grid = [0, .5, 1].map(function (f) { var v = lo + (hi - lo) * f, yy = y(v); return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yy.toFixed(1) + '" y2="' + yy.toFixed(1) + '" stroke="currentColor" stroke-opacity=".08" stroke-dasharray="3 4"/><text class="ax" x="' + (W - padR) + '" y="' + (yy - 4).toFixed(1) + '" text-anchor="end">' + fmt(v, 0) + '</text>'; }).join('');
+    var xl = [0, Math.floor((s.length - 1) / 2), s.length - 1].map(function (i) { return '<text class="ax" x="' + x(i).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="' + (i === 0 ? 'start' : i === s.length - 1 ? 'end' : 'middle') + '">' + esc(s[i].label) + '</text>'; }).join('');
+    var marks = (d.moves || []).slice().sort(function (a, b) { return Math.abs(b.pct) - Math.abs(a.pct); }).slice(0, 5).map(function (m) { var i = s.findIndex(function (p) { return p.date === m.date; }); if (i < 0) return '';
+      return '<circle class="mk" data-i="' + i + '" cx="' + x(i).toFixed(1) + '" cy="' + y(m.close).toFixed(1) + '" r="4.5" fill="' + (m.pct > 0 ? '#15803d' : '#b91c1c') + '" stroke="#fff" stroke-width="2"/>'; }).join('');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.innerHTML = '<defs><linearGradient id="cn-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + line + '" stop-opacity=".18"/><stop offset="1" stop-color="' + line + '" stop-opacity="0"/></linearGradient></defs>' + grid +
+      '<path d="' + dpath + ' L' + pts[pts.length - 1][0].toFixed(1) + ' ' + (H - padB) + ' L' + pts[0][0].toFixed(1) + ' ' + (H - padB) + ' Z" fill="url(#cn-g)"/>' +
+      '<path d="' + dpath + '" fill="none" stroke="' + line + '" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<line id="cn-xh" x1="0" x2="0" y1="' + padT + '" y2="' + (H - padB) + '" stroke="currentColor" stroke-opacity=".25" hidden/>' +
+      '<circle id="cn-dot" r="4" fill="' + line + '" stroke="#fff" stroke-width="2" hidden/>' + xl + marks;
+    var xh = svg.querySelector('#cn-xh'), dot = svg.querySelector('#cn-dot');
+    function show(i) { var p = s[i]; xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.hidden = false; dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(p.close)); dot.hidden = false;
+      tip.hidden = false; tip.style.left = Math.min(Math.max(x(i), 70), W - 70) + 'px'; tip.innerHTML = '<b>' + esc(p.label) + '</b> · ₹' + fmt(p.close) + ' · <span style="color:' + (p.pct >= 0 ? '#86efac' : '#fca5a5') + '">' + pct(p.pct) + '</span>'; }
+    function hide() { xh.hidden = true; dot.hidden = true; tip.hidden = true; }
+    box.onmousemove = function (e) { var r = svg.getBoundingClientRect(); var fx = (e.clientX - r.left) / r.width * W; var i = Math.round((fx - padL) / (W - padL - padR) * (s.length - 1)); show(Math.max(0, Math.min(s.length - 1, i))); };
+    box.onmouseleave = hide;
+    Array.prototype.forEach.call(svg.querySelectorAll('.mk'), function (m) { m.addEventListener('click', function () { var day = s[+m.dataset.i].date; var li = document.querySelector('.cn-moves li[data-date="' + day + '"] a'); if (li) li.click(); }); });
+  }
+  window.addEventListener('resize', function () { if (state.data) renderChart(state.data); });
+  if (window.ResizeObserver) { var lastH = 0; new ResizeObserver(function (entries) { var h = Math.round(entries[0].contentRect.height); if (state.data && h && h !== lastH) { lastH = h; renderChart(state.data); } }).observe($('cn-chart')); }
+
+  function renderMoves(d) {
+    var m = (d.moves || []).filter(function (x) { return x.stories.length; }).slice().sort(function (a, b) { return Math.abs(b.pct) - Math.abs(a.pct); }).slice(0, 6);
+    $('cn-moves').innerHTML = m.map(function (x) { var st = x.stories[0]; return '<li data-date="' + esc(x.date) + '"><span class="d">' + esc(x.label) + '</span><span class="p ' + (x.pct > 0 ? 'up' : 'down') + '">' + pct(x.pct) + '</span><a href="#it-' + esc(st.id) + '" title="' + esc(st.title) + '"><span class="s">' + esc(st.source) + ' · </span>' + esc(st.title) + '</a></li>'; }).join('');
+  }
+
+  /* ── brief ────────────────────────────────────────────────────────── */
+  function renderBrief(d) {
+    var b = d.brief || {}, box = $('cn-brief');
+    if (b && !b.error) {
+      $('cn-brief-model').textContent = 'Gemini';
+      var why = (b.why_moved || []).slice(0, 3), could = (b.could_move || []).slice(0, 3), watch = (b.watch_next || []).slice(0, 3);
+      box.innerHTML = '<h2>' + esc(b.headline || '') + '</h2><div class="cn-brief-cols">' +
+        '<div><h4>Why it moved</h4><ul>' + why.map(function (p) { return '<li>' + esc(p.point) + refs(p.refs) + '</li>'; }).join('') + '</ul></div>' +
+        '<div><h4>What could move it</h4><ul>' + could.map(function (p) { var dir = (p.direction || 'either').toLowerCase(); return '<li><span class="cn-dir cn-dir-' + dir + '">' + esc(dir === 'either' ? 'watch' : dir) + '</span>' + esc(p.point) + refs(p.refs) + '</li>'; }).join('') + '</ul></div></div>' +
+        (watch.length ? '<div class="cn-watch">' + watch.map(function (p) { return '<span><b>' + esc(p.when) + '</b>' + esc(p.what) + '</span>'; }).join('') + '</div>' : '') +
+        '<div class="cn-foot">Grounded in the stories below; each point names its sources. A reading aid, not advice.</div>';
+    } else {
+      var intel = d.intel || {};
+      $('cn-brief-model').textContent = intel.ai_powered ? 'Price intelligence' : 'No AI key';
+      box.innerHTML = '<div class="cn-brief-fallback" style="margin-top:10px">' + esc(intel.summary || 'No summary available yet.') + '</div><div class="cn-foot">' + esc(b.error || '') + '</div>';
+    }
+  }
+
+  /* ── filings + sector ────────────────────────────────────────────── */
+  function renderSignals(d) {
+    var sig = d.signals || [], box = $('cn-signals');
+    if (!sig.length) { box.innerHTML = '<p class="cn-empty-note" style="grid-column:1/-1">Nothing in the last 30 days reads like an event that starts a filing.</p>'; return; }
+    var shown = state.allSignals ? sig : sig.slice(0, 4);
+    box.innerHTML = shown.map(function (s) { var st = s.stories[0];
+      return '<div class="cn-sig"><div class="cn-sig-top"><span class="cn-sig-form">' + esc(s.form) + '</span><span class="cn-sig-due' + (s.certain ? '' : ' is-soft') + '" title="' + esc(s.due) + '">' + esc(shortDue(s.due)) + (s.certain ? '' : ' · check') + '</span></div>' +
+        '<span class="cn-sig-name">' + esc(s.name) + ' · ' + esc(s.law) + '</span>' +
+        (st ? '<a class="cn-sig-story" href="#it-' + esc(st.id) + '"><i>' + esc(st.date_label) + ' · ' + esc(st.source) + ' · </i>' + esc(st.title) + '</a>' : '') +
+        '<div class="cn-sig-act"><a href="/draft">Draft it</a><a href="/workspace">Add to calendar</a></div></div>'; }).join('') +
+      (sig.length > 4 ? '<button type="button" class="cn-more-link" id="cn-sig-more">' + (state.allSignals ? 'Show fewer' : '+ ' + (sig.length - 4) + ' more') + '</button>' : '');
+    var more = $('cn-sig-more'); if (more) more.addEventListener('click', function () { state.allSignals = !state.allSignals; renderSignals(d); });
+  }
+  function renderSector(d) {
+    var ind = d.industry || {}, has = ind.name && (ind.summary || ind.drivers.length);
+    $('cn-sector').hidden = !has; if (!has) return;
+    $('cn-industry-name').textContent = ind.name;
+    var p = $('cn-industry-summary'); p.textContent = ind.summary || ''; p.classList.add('clamp');
+    var btn = $('cn-sector-more'); btn.hidden = !(ind.summary && ind.summary.length > 320); btn.textContent = 'Read the full brief';
+    btn.onclick = function () { var open = p.classList.toggle('clamp'); btn.textContent = open ? 'Read the full brief' : 'Show less'; };
+    $('cn-industry-chips').innerHTML = ind.drivers.slice(0, 3).map(function (t) { return '<span class="cn-chip cn-chip-up">' + esc(t) + '</span>'; }).join('') + ind.risks.slice(0, 3).map(function (t) { return '<span class="cn-chip cn-chip-down">' + esc(t) + '</span>'; }).join('');
+  }
+
+  /* ── feed ────────────────────────────────────────────────────────── */
+  function renderFeed(d) {
+    var counts = d.counts || {}, all = Object.keys(d.lanes).reduce(function (n, k) { return n + d.lanes[k].length; }, 0);
+    $('cn-tabs').innerHTML = LANES.map(function (l) { var n = l[0] === 'all' ? all : l[0] === 'social' ? (counts.social || 0) + (counts.x || 0) : (counts[l[0]] || 0);
+      return '<button type="button" role="tab" class="' + (state.lane === l[0] ? 'is-active' : '') + '" data-lane="' + l[0] + '">' + l[1] + '<span class="n">' + n + '</span></button>'; }).join('');
+    Array.prototype.forEach.call($('cn-tabs').querySelectorAll('[data-lane]'), function (b) { b.addEventListener('click', function () { state.lane = b.dataset.lane; state.country = 'all'; state.shown = 20; renderFeed(d); }); });
+    var st = d.status || {}, keys = Object.keys(st), live = keys.filter(function (k) { return st[k].ok; }).length;
+    var el = $('cn-status'); el.querySelector('span').textContent = live + ' of ' + keys.length + ' sources live';
+    el.title = keys.sort().map(function (k) { var v = st[k]; return (v.ok ? '✓ ' : '✗ ') + (k.split(':')[1] || k) + (v.ok ? ' · ' + v.count : ' · ' + (v.error || 'off')); }).join('\n');
+    el.querySelector('i').style.background = live === keys.length ? '#16a34a' : '#d97706';
+    var items = state.lane === 'all' ? [].concat(d.lanes.official, d.lanes.press, d.lanes.social, d.lanes.x, d.lanes.regulatory, d.lanes.industry) : state.lane === 'social' ? [].concat(d.lanes.social, d.lanes.x) : (d.lanes[state.lane] || []);
+    var sel = $('cn-country');
+    if (state.lane === 'press') {
+      var seen = {}; d.lanes.press.forEach(function (it) { it.countries.forEach(function (c) { seen[c] = (seen[c] || 0) + 1; }); if (it.lang === 'hi') seen.hi = (seen.hi || 0) + 1; });
+      sel.innerHTML = '<option value="all">All editions</option>' + Object.keys(COUNTRY).filter(function (c) { return seen[c]; }).map(function (c) { return '<option value="' + c + '">' + COUNTRY[c] + ' · ' + seen[c] + '</option>'; }).join('') + (seen.hi ? '<option value="hi">Hindi press · ' + seen.hi + '</option>' : '');
+      sel.value = state.country; sel.hidden = false; sel.onchange = function () { state.country = sel.value; state.shown = 20; renderFeed(d); };
+      if (state.country !== 'all') items = items.filter(function (it) { return state.country === 'hi' ? it.lang === 'hi' : it.countries.indexOf(state.country) >= 0; });
+    } else { sel.hidden = true; }
+    items = items.slice().sort(function (a, b) { return (b.published_at || '').localeCompare(a.published_at || ''); });
+    var box = $('cn-list');
+    if (!items.length) { box.innerHTML = '<div class="cn-feed-empty">Nothing in this lane for the last 30 days.</div>'; return; }
+    box.innerHTML = items.slice(0, state.shown).map(renderItem).join('') + (items.length > state.shown ? '<div class="cn-feed-more"><button type="button" class="btn btn-secondary btn-sm" id="cn-more">Show more · ' + (items.length - state.shown) + ' left</button></div>' : '');
+    var more = $('cn-more'); if (more) more.addEventListener('click', function () { state.shown += 20; renderFeed(d); });
+  }
+  function renderItem(it) {
+    var extra = it.lane === 'press' && it.countries.length > 1 ? it.countries.length + ' editions' : it.lane === 'press' && it.lang === 'hi' ? 'Hindi' : it.scope ? it.scope : it.kind_label ? it.kind_label : '';
+    var tags = (it.tags || []).slice(0, 1).map(function (t) { return '<span class="cn-tag">' + esc(t) + '</span>'; }).join('') +
+      (it.signals || []).slice(0, 2).map(function (s) { return '<span class="cn-tag cn-tag-file" title="' + esc(s.name + ' · ' + s.law + ' · ' + s.due) + '">' + esc(s.form) + '</span>'; }).join('');
+    return '<article class="cn-item" id="it-' + esc(it.id) + '"><span class="date">' + esc(it.date_label) + '</span>' +
+      '<div class="meta"><span class="cn-lane cn-lane-' + esc(it.lane) + '">' + esc(LANE_LABEL[it.lane] || it.lane) + '</span><span class="src">' + esc(it.source) + '</span>' + (extra ? '<span>· ' + esc(extra) + '</span>' : '') + '</div>' +
+      '<a class="title" href="' + esc(it.url || '#') + '" target="_blank" rel="noopener">' + esc(it.title) + '</a>' + (tags ? '<div class="tags">' + tags + '</div>' : '') + '</article>';
+  }
+
+  /* ── ask Delta Copilot, pre-grounded in this desk ───────────────── */
+  var company = $('cn-symbol').selectedOptions[0] ? $('cn-symbol').selectedOptions[0].textContent : symbol;
+  function askCopilot(q) {
+    q = (q || '').trim(); if (!q) return;
+    if (typeof window.dcOpen !== 'function' || typeof window.dcAsk !== 'function') { alert('Delta Copilot is not available on this page.'); return; }
+    window.dcOpen(); window.dcAsk(q);
+  }
+  $('cn-ask').addEventListener('submit', function (e) { e.preventDefault(); askCopilot($('cn-ask-q').value); $('cn-ask-q').value = ''; });
+  function renderAskChips(d) {
+    var moves = (d.moves || []).filter(function (m) { return m.stories.length; }).slice().sort(function (a, b) { return Math.abs(b.pct) - Math.abs(a.pct); });
+    var qs = ['Why did ' + company + ' move this month?', 'Which filings does this news trigger, and by when?', 'What could move the price next?'];
+    if (moves[0]) qs.unshift('Why did it move ' + (moves[0].pct > 0 ? 'up' : 'down') + ' on ' + moves[0].label + '?');
+    if ((d.lanes.social || []).length) qs.push('What is Reddit saying?');
+    $('cn-ask-chips').innerHTML = qs.slice(0, 4).map(function (q) { return '<button type="button">' + esc(q) + '</button>'; }).join('');
+    Array.prototype.forEach.call($('cn-ask-chips').querySelectorAll('button'), function (b) { b.addEventListener('click', function () { askCopilot(b.textContent); }); });
+  }
+  $('cn-refresh').addEventListener('click', function () { if (!frozen) load(true); });
+  if (frozen) { $('cn-refresh').disabled = true; }
+  load(false);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'analytics.html' %}
+  <script>
+    // Public pages are light-mode only. Undo the dark class the shared analytics snippet may add.
+    (function () {
+      var d = document.documentElement;
+      d.classList.remove('dark');
+      d.classList.add('js');
+      try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('rm'); } catch (e) {}
+    })();
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Delta Filings · The compliance desk for Indian companies</title>
+  <meta name="description" content="Deadlines for ROC, SEBI, tax, GST, labour and FEMA filings with the late fee worked out, plus regulatory news, board meetings, registers, the insider-trading database, drafting and counterparty risk. Built for company secretaries, compliance officers and risk officers in India.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --base: #f7f7f9;
+      --paper: #ffffff;
+      --paper-3: #f0f0f3;
+      --mist-1: #eef2ff;
+      --mist-2: #e0e7ff;
+      --mist-3: #f5f0e8;
+      --mist-4: #c9d3f0;
+      --ink: #0d0e14;
+      --ink-2: #353744;
+      --muted: #5f6270;
+      --claim: #747985;
+      --line: #e3e3e8;
+      --line-2: #ededf1;
+      --indigo: #4f46e5;
+      --indigo-2: #4338ca;
+      --indigo-bg: #eef2ff;
+      --indigo-line: #c7d2fe;
+      --navy: #2d2a7c;
+      --band: #0b0c14;
+      --band-text: #f2f3f7;
+      --band-muted: #8a8fa3;
+      --bloom: rgba(79, 70, 229, .22);
+      --red: #b91c1c;    --red-bg: #fef2f2;    --red-line: #fecaca;
+      --amber: #b45309;  --amber-bg: #fffbeb;  --amber-line: #fde68a;
+      --orange: #c2410c; --orange-bg: #fff7ed; --orange-line: #fed7aa;
+      --green: #047857;  --green-bg: #ecfdf5;  --green-line: #a7f3d0;
+      --slate: #475569;  --slate-bg: #f1f5f9;  --slate-line: #e2e8f0;
+      --sans: "Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --ease: cubic-bezier(.2, .8, .2, 1);
+      --pad: 32px;
+      --head: 64px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-padding-top: 84px; }
+    body {
+      margin: 0; background: var(--base); color: var(--ink);
+      font-family: var(--sans); font-size: 17px; line-height: 1.6;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+    @supports (overflow-x: clip) { body { overflow-x: clip; } }
+    h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
+    ul, ol { padding: 0; list-style: none; }
+    svg { display: block; }
+    a { color: inherit; }
+    button { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; border-radius: 6px; }
+    .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 0 var(--pad); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .skip { position: absolute; left: 16px; top: -60px; z-index: 60; background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: top .2s var(--ease); }
+    .skip:focus { top: 12px; }
+    .claim { color: var(--claim); }
+
+    /* ---------- Type ---------- */
+    .eyebrow {
+      display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 500; line-height: 1.5;
+      letter-spacing: .14em; text-transform: uppercase; color: var(--indigo-2);
+    }
+    .h1 {
+      font-weight: 300; font-size: clamp(44px, 5vw, 72px); line-height: .98; letter-spacing: -.045em;
+      margin-top: 22px; text-wrap: balance;
+    }
+    .h1 .ln { display: block; text-wrap: balance; }
+    .h2 {
+      font-weight: 300; font-size: clamp(36px, 4.6vw, 60px); line-height: 1.02; letter-spacing: -.04em;
+      margin-top: 16px; max-width: 18ch; text-wrap: balance;
+    }
+    .lede { font-size: 18px; line-height: 1.6; color: var(--ink-2); max-width: 54ch; }
+    .sec { padding: 136px 0; }
+    .sec-head { margin-bottom: 56px; }
+    .sec-head .lede { margin-top: 20px; }
+
+    /* ---------- Buttons ---------- */
+    .btn {
+      position: relative; overflow: hidden; isolation: isolate;
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      height: 48px; padding: 0 22px; border-radius: 999px; border: 1px solid transparent;
+      font: 500 15.5px/1 var(--sans); letter-spacing: -.005em; text-decoration: none; white-space: nowrap; cursor: pointer;
+      transition: background-color .25s ease, border-color .25s ease, color .25s ease, transform .25s var(--ease), box-shadow .25s ease;
+    }
+    .btn svg { width: 16px; height: 16px; flex: none; transition: transform .3s var(--ease); }
+    .btn:hover svg { transform: translateX(3px); }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--indigo); color: #fff; box-shadow: 0 10px 24px -12px rgba(79, 70, 229, .7), inset 0 1px 0 rgba(255, 255, 255, .18); }
+    .btn-primary::after {
+      content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+      background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, .38) 50%, transparent 75%);
+      transform: translateX(-130%);
+    }
+    .btn-primary:hover { background: var(--indigo-2); box-shadow: 0 14px 30px -12px rgba(79, 70, 229, .8), inset 0 1px 0 rgba(255, 255, 255, .18); }
+    .btn-primary:hover::after { transform: translateX(130%); transition: transform .6s ease; }
+    .btn-ghost { background: rgba(255, 255, 255, .7); color: var(--ink); border-color: var(--line); }
+    .btn-ghost:hover { background: #fff; border-color: #c4c4cd; }
+    .btn-sm { height: 38px; padding: 0 16px; font-size: 14.5px; }
+
+    /* ---------- Header ---------- */
+    .site-head { position: sticky; top: 0; z-index: 40; transition: background-color .3s ease, box-shadow .3s ease; }
+    .site-head.is-scrolled { background: rgba(247, 247, 249, .8); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 1px 0 rgba(13, 14, 20, .07); }
+    .site-head.is-scrolled.no-blur { background: var(--base); -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .head-row { display: flex; align-items: center; height: var(--head); gap: 16px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; flex: none; }
+    .brand svg { width: 21px; height: 25px; color: var(--navy); transition: transform .4s var(--ease); }
+    .brand:hover svg { transform: rotate(-6deg) scale(1.06); }
+    .brand-name { font-weight: 600; font-size: 17px; letter-spacing: -.015em; }
+    .head-nav { position: relative; display: flex; gap: 2px; margin-left: 32px; }
+    .head-nav a { position: relative; z-index: 1; padding: 8px 12px; border-radius: 999px; font-size: 14.5px; font-weight: 500; color: var(--ink-2); text-decoration: none; transition: color .2s ease; }
+    .head-nav a:hover { color: var(--indigo-2); }
+    .nav-hl { position: absolute; left: 0; top: 0; height: 100%; width: 0; border-radius: 999px; background: var(--indigo-bg); box-shadow: inset 0 0 0 1px var(--indigo-line); opacity: 0; transition: transform .35s var(--ease), width .35s var(--ease), opacity .2s ease; pointer-events: none; }
+    .head-cta { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .head-signin { font-size: 14.5px; font-weight: 500; color: var(--ink-2); text-decoration: none; padding: 9px 14px; border-radius: 999px; transition: background-color .2s ease, color .2s ease; }
+    .head-signin:hover { background: rgba(13, 14, 20, .05); color: var(--ink); }
+    .lbl-short { display: none; }
+    .menu { display: none; position: relative; }
+    .menu > summary {
+      list-style: none; cursor: pointer; height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, .8);
+      display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--ink-2); transition: border-color .2s ease, background-color .2s ease;
+    }
+    .menu > summary:hover { border-color: #c4c4cd; background: #fff; }
+    .menu > summary::-webkit-details-marker { display: none; }
+    .bars { width: 14px; height: 10px; position: relative; }
+    .bars::before, .bars::after { content: ""; position: absolute; left: 0; right: 0; border-top: 1.5px solid currentColor; transition: transform .25s var(--ease), top .25s var(--ease); }
+    .bars::before { top: 1px; }
+    .bars::after { top: 7px; }
+    .menu[open] .bars::before { top: 4px; transform: rotate(45deg); }
+    .menu[open] .bars::after { top: 4px; transform: rotate(-45deg); }
+    .menu-panel {
+      position: absolute; right: 0; top: calc(100% + 10px); width: min(280px, calc(100vw - 32px));
+      background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 8px; display: grid;
+      box-shadow: 0 30px 60px -30px rgba(13, 14, 20, .35);
+      animation: menuIn .25s var(--ease);
+    }
+    @keyframes menuIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+    .menu-panel a { padding: 11px 12px; border-radius: 10px; text-decoration: none; font-size: 15.5px; font-weight: 500; transition: background-color .15s ease, color .15s ease; }
+    .menu-panel a:hover { background: var(--indigo-bg); color: var(--indigo-2); }
+    .menu-panel hr { border: 0; border-top: 1px solid var(--line-2); margin: 6px 4px; }
+    .menu-panel .menu-cta { background: var(--indigo); color: #fff; text-align: center; margin-top: 2px; }
+    .menu-panel .menu-cta:hover { background: var(--indigo-2); color: #fff; }
+
+    /* ---------- Hero ---------- */
+    .hero { position: relative; margin-top: calc(-1 * var(--head)); padding: calc(var(--head) + 56px) 0 56px; isolation: isolate; }
+    .field {
+      position: absolute; inset: 0 0 -80px; z-index: -1; overflow: hidden; pointer-events: none;
+      -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
+      mask-image: linear-gradient(to bottom, #000 70%, transparent);
+    }
+    .blob { position: absolute; border-radius: 50%; filter: blur(60px); will-change: transform; animation: drift 24s ease-in-out infinite alternate; }
+    .b1 { width: 54vw; height: 54vw; left: -12vw; top: -22vw; background: var(--mist-1); }
+    .b2 { width: 46vw; height: 46vw; right: -8vw; top: -6vw; background: var(--mist-2); animation-duration: 28s; animation-delay: -6s; }
+    .b3 { width: 40vw; height: 34vw; left: 18vw; top: 22vw; background: var(--mist-3); animation-duration: 26s; animation-delay: -12s; }
+    .b4 { width: 34vw; height: 34vw; right: 6vw; top: 14vw; background: var(--mist-4); opacity: .4; animation-duration: 30s; animation-delay: -3s; transition: opacity .8s ease; }
+    .hero.lean .b4 { opacity: .6; }
+    @keyframes drift {
+      0%   { transform: translate3d(0, 0, 0) scale(1); }
+      50%  { transform: translate3d(4vw, 3vw, 0) scale(1.08); }
+      100% { transform: translate3d(-3vw, 5vw, 0) scale(.96); }
+    }
+    .field.paused .blob { animation-play-state: paused; }
+    .grain {
+      position: absolute; inset: 0; opacity: .06; mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+    .beta-pill {
+      display: inline-flex; align-items: center; gap: 10px; padding: 5px 6px 5px 12px; border-radius: 999px;
+      background: rgba(255, 255, 255, .65); border: 1px solid rgba(255, 255, 255, .9); box-shadow: 0 1px 2px rgba(13, 14, 20, .06), inset 0 0 0 1px rgba(13, 14, 20, .04);
+      font-size: 13.5px; font-weight: 500; color: var(--ink-2); text-decoration: none; transition: box-shadow .25s ease, transform .25s var(--ease);
+    }
+    .beta-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(4, 120, 87, .15); }
+    .beta-pill .go { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--indigo-2); background: var(--indigo-bg); padding: 4px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
+    .beta-pill .go svg { width: 11px; height: 11px; transition: transform .3s var(--ease); }
+    .beta-pill:hover { box-shadow: 0 6px 18px -8px rgba(79, 70, 229, .4), inset 0 0 0 1px var(--indigo-line); transform: translateY(-1px); }
+    .beta-pill:hover .go svg { transform: translateX(2px); }
+    .hero-copy .eyebrow { margin-top: 28px; color: var(--muted); }
+    .hero-copy .lede { margin-top: 26px; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+    .fine { font-size: 14px; color: var(--muted); margin-top: 16px; }
+
+    /* h1 lines (JS splits words, groups them by line) */
+    .h1.split .w { display: inline-block; opacity: 0; translate: 0 14px; }
+    .h1.split.go .w { opacity: 1; translate: 0 0; transition: opacity .7s ease, translate .9s var(--ease); transition-delay: calc(var(--li, 0) * 80ms + 60ms); }
+
+    /* Stack of screens */
+    .hero-stage { position: relative; }
+    .halo { position: absolute; left: 6%; right: -4%; top: 4%; bottom: 0; background: radial-gradient(closest-side, rgba(79, 70, 229, .18), transparent); filter: blur(60px); z-index: -1; pointer-events: none; }
+    .stack { position: relative; height: 660px; --untilt: 0; }
+    .card {
+      --d: 0; --lift: 0px;
+      position: absolute; left: 0; top: 176px; width: min(560px, 88%);
+      transform: perspective(1600px) translate3d(calc(var(--d) * 44px), calc(var(--d) * -84px), calc(var(--d) * -48px + var(--lift))) rotateY(calc(-12deg + var(--untilt) * 6deg - var(--d) * 3deg)) rotateX(6deg);
+      transform-origin: 30% 100%;
+      transition: transform .35s var(--ease);
+    }
+    .card.c2 { --d: 1; z-index: 2; }
+    .card.c3 { --d: 2; z-index: 1; }
+    .card.c1 { z-index: 3; }
+    .card::after { content: ""; position: absolute; inset: 0; border-radius: 16px; background: var(--base); opacity: calc(var(--d) * .14); pointer-events: none; transition: opacity .3s ease; }
+    .stack:hover .card:not(:hover)::after { opacity: .3; }
+    .stack .card:hover { --lift: 40px; z-index: 5; }
+    .stack .card:hover::after { opacity: 0; }
+    .js:not(.rm) .stack .card { animation: deal 1.1s var(--ease) both; }
+    .js:not(.rm) .stack .c3 { animation-delay: .25s; }
+    .js:not(.rm) .stack .c2 { animation-delay: .37s; }
+    .js:not(.rm) .stack .c1 { animation-delay: .49s; }
+    @keyframes deal { from { opacity: 0; translate: 0 40px; rotate: x 20deg; } }
+    .stage-cap { margin-top: 10px; display: flex; gap: 10px; align-items: baseline; font-size: 13px; color: var(--muted); max-width: 560px; }
+    .tagbox { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; border: 1px solid var(--line); background: #fff; padding: 2px 7px; border-radius: 6px; color: var(--ink-2); flex: none; }
+
+    /* ---------- Window chrome (shared by every mock) ---------- */
+    .win { position: relative; background: #fff; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; font-size: 12.5px; line-height: 1.4; color: var(--ink); box-shadow: 0 40px 80px -40px rgba(13, 14, 20, .35), 0 2px 6px -2px rgba(13, 14, 20, .06); }
+    .win-bar { height: 28px; display: flex; align-items: center; gap: 5px; padding: 0 10px; border-bottom: 1px solid var(--line-2); background: #fbfbfc; }
+    .win-bar > i { width: 8px; height: 8px; border-radius: 50%; background: #dcdde3; flex: none; }
+    .url { margin: 0 auto; transform: translateX(-14px); font: 500 10.5px/1 var(--mono); color: var(--muted); background: var(--paper-3); padding: 4px 12px; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .win-body { padding: 16px 18px 14px; }
+    .ph { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+    .pt { font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; }
+    .ps { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+    .fm { font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 5px; background: var(--paper-3); color: var(--ink); white-space: nowrap; flex: none; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; line-height: 1.55; }
+    .st-over { background: var(--red-bg); color: var(--red); border-color: var(--red-line); }
+    .st-soon { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-line); }
+    .st-up { background: var(--slate-bg); color: var(--slate); border-color: var(--slate-line); }
+    .st-ok { background: var(--green-bg); color: var(--green); border-color: var(--green-line); }
+    .st-info { background: var(--indigo-bg); color: var(--indigo-2); border-color: var(--indigo-line); }
+    .b-sev { background: var(--red-bg); color: var(--red); border-color: var(--red-line); }
+    .b-high { background: var(--orange-bg); color: var(--orange); border-color: var(--orange-line); }
+    .b-mod { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-line); }
+    .b-low { background: var(--slate-bg); color: var(--slate); border-color: var(--slate-line); }
+    .tag-ind { font-family: var(--mono); font-size: 9px; letter-spacing: .08em; padding: 1px 6px; border-radius: 999px; background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); text-transform: uppercase; font-weight: 500; }
+    .kpi { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; min-width: 0; }
+    .kpi-l { font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
+    .kpi-v { font-size: 21px; font-weight: 500; letter-spacing: -.02em; margin-top: 3px; font-variant-numeric: tabular-nums; line-height: 1.15; }
+    .kpi-v.red { color: var(--red); }
+    .kpi-f { font-size: 11px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kpis { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.9fr); gap: 8px; margin-bottom: 12px; }
+    .meter { display: flex; height: 7px; border-radius: 999px; overflow: hidden; background: var(--paper-3); margin-top: 7px; }
+    .meter span { display: block; height: 100%; transform-origin: left; }
+    .meter span + span { box-shadow: inset 2px 0 0 #fff; }
+    .m1 { background: #991b1b; } .m2 { background: #dc2626; } .m3 { background: #f87171; } .m4 { background: #fca5a5; }
+    .js:not(.rm) .meter span { transform: scaleX(0); transition: transform .9s var(--ease); }
+    .js:not(.rm) .meter.is-in span { transform: none; }
+    .meter.is-in span:nth-child(1) { transition-delay: 1.2s; }
+    .meter.is-in span:nth-child(2) { transition-delay: 1.3s; }
+    .meter.is-in span:nth-child(3) { transition-delay: 1.4s; }
+    .meter.is-in span:nth-child(4) { transition-delay: 1.5s; }
+    .meter-key { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 6px; font-size: 10.5px; color: var(--muted); }
+    .meter-key span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .meter-key i { width: 6px; height: 6px; border-radius: 2px; display: inline-block; }
+    .meter-key b { font-family: var(--mono); font-weight: 500; color: var(--ink-2); }
+    .rows { border-top: 1px solid var(--line); }
+    .rows li { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto 74px; gap: 10px; align-items: center; padding: 7px 2px; border-bottom: 1px solid var(--line-2); }
+    .rows li:last-child { border-bottom: 0; }
+    .rows .fm { justify-self: start; }
+    .r-main { min-width: 0; }
+    .r-main b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .r-main small { display: block; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .r-fee { text-align: right; font-family: var(--mono); font-weight: 500; font-size: 12px; white-space: nowrap; }
+    .r-fee small { display: block; font-size: 9.5px; font-weight: 400; color: var(--muted); }
+    .r-fee .none { color: var(--muted); }
+    /* risk */
+    .strip { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--paper-3); margin: 8px 0 10px; }
+    .strip span { display: block; height: 100%; }
+    .strip span + span { box-shadow: inset 2px 0 0 #fff; }
+    .bg-sev { background: #dc2626; } .bg-high { background: #ea580c; } .bg-mod { background: #d97706; } .bg-low { background: #cbd5e1; }
+    .rk li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 7px 2px; border-top: 1px solid var(--line-2); }
+    .rk b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rk small { grid-column: 1 / -1; font-size: 11px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rk small .mono { color: var(--muted); font-size: 10px; margin-left: 6px; }
+    .score { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .score b { font-family: var(--mono); font-weight: 500; font-size: 13px; }
+    .score .up { font-family: var(--mono); font-size: 10.5px; color: var(--red); }
+    .big-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+    .big-row .kpi-v { font-size: 22px; }
+    .big-row .note { font-size: 11px; color: var(--muted); text-align: right; }
+    /* event chain */
+    .ev { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font-weight: 500; background: var(--base); }
+    .ev small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+    .chain { margin: 8px 0 0 14px; border-left: 1px dashed #c4c4cd; padding-left: 12px; }
+    .chain li { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 0; }
+    .chain li span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+    .chain li span:last-child { font-family: var(--mono); font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+
+    /* ---------- Stat row ---------- */
+    .stats { padding: 40px 0 0; }
+    .stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .stat { position: relative; padding: 36px 32px 34px; display: flex; flex-direction: column; min-width: 0; }
+    .stat + .stat { border-left: 1px solid var(--line); }
+    .stat::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: var(--indigo); transform: scaleX(0); transform-origin: left; transition: transform .6s var(--ease); }
+    .stat:hover::before { transform: scaleX(1); }
+    .stat dt { order: 2; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); margin-top: 10px; }
+    .stat .n { order: 1; font-weight: 200; font-size: clamp(64px, 7.2vw, 104px); line-height: .9; letter-spacing: -.05em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 12px; }
+    .stat .n .u { font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .stat .note { order: 3; font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--muted); margin-top: 14px; max-width: 42ch; transition: color .3s ease; }
+    .stat:hover .note { color: var(--ink-2); }
+
+    /* ---------- Four menus ---------- */
+    .menus { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .mc {
+      position: relative; background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 32px 32px 0; overflow: hidden;
+      display: flex; flex-direction: column; min-width: 0;
+      transition: border-color .3s ease, box-shadow .4s ease, transform .4s var(--ease);
+    }
+    .mc:hover { border-color: var(--indigo-line); box-shadow: 0 30px 60px -36px rgba(45, 42, 124, .35); transform: translateY(-3px); }
+    .mc-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .mc-top h3 { font-size: 26px; font-weight: 400; letter-spacing: -.03em; }
+    .mc-top .idx { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; color: var(--indigo-2); }
+    .mc p { font-size: 16px; color: var(--ink-2); margin-top: 10px; max-width: 46ch; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+    .tags li { font-family: var(--mono); font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap; transition: border-color .3s ease, color .3s ease; }
+    .tags li b { font-weight: 500; color: var(--ink); margin-right: 6px; }
+    .mc:hover .tags li { border-color: var(--indigo-line); }
+    .tray { margin: 28px -32px 0; padding: 28px 32px 0; background: linear-gradient(180deg, var(--base), #eff0f6); border-top: 1px solid var(--line-2); flex: 1; display: flex; align-items: stretch; perspective: 1200px; min-height: 240px; }
+    .mini {
+      width: 100%; background: #fff; border: 1px solid var(--line); border-bottom: 0; border-radius: 14px 14px 0 0; padding: 14px 14px 12px; font-size: 12.5px; line-height: 1.45;
+      box-shadow: 0 -10px 40px -24px rgba(13, 14, 20, .25);
+      transform: rotateY(-10deg) rotateX(4deg) translateY(10px); transform-origin: 50% 100%;
+      transition: transform .5s var(--ease), box-shadow .5s ease;
+    }
+    .mc:hover .mini { transform: rotateY(0) rotateX(0) translateY(-4px); box-shadow: 0 -20px 50px -24px rgba(45, 42, 124, .3); }
+    .mini-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .mini-h span:last-child { letter-spacing: .04em; text-transform: none; }
+    .feed li { border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; }
+    .feed li + li { margin-top: 6px; }
+    .feed-meta { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 10.5px; color: var(--muted); }
+    .src { font-family: var(--mono); font-size: 10px; font-weight: 500; color: var(--ink); background: var(--paper-3); padding: 0 5px; border-radius: 4px; }
+    .topic { font-size: 10px; font-weight: 600; color: var(--indigo-2); background: var(--indigo-bg); border: 1px solid var(--indigo-line); padding: 0 6px; border-radius: 999px; }
+    .feed p { margin-top: 3px; font-weight: 500; color: var(--ink); }
+    .reasons li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line-2); }
+    .reasons .pts { font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--red); }
+    .reasons .when { font-family: var(--mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+    .rs-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .rs-head > b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .letter { border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; font-size: 12px; color: var(--ink-2); }
+    .letter p + p { margin-top: 6px; }
+    .letter b { color: var(--ink); font-weight: 600; }
+    .foot-row-mini { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .foot-row-mini .mono { font-size: 10.5px; color: var(--muted); }
+
+    /* ---------- Story (pinned) ---------- */
+    .story { padding-bottom: 96px; }
+    .caveat { margin-top: 18px; display: inline-flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ink-2); border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 14px 7px 8px; }
+    .caveat .mono { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber-line); padding: 2px 8px; border-radius: 999px; }
+    .story-count { display: none; }
+    .steps { background: linear-gradient(var(--line), var(--line)) 4px 10px / 1px calc(100% - 40px) no-repeat; }
+    .step { padding: 0 0 40px 34px; }
+    .step-h { position: relative; font-size: 21px; font-weight: 400; letter-spacing: -.02em; line-height: 1.25; }
+    .step-h::before { content: ""; position: absolute; left: -34px; top: 7px; width: 9px; height: 9px; border-radius: 3px; border: 1.5px solid var(--ink); background: var(--base); }
+    .step-btn { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; border-radius: 8px; }
+    .step-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; }
+    .step-meta .when { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .step-meta .mod { font-family: var(--mono); font-size: 10.5px; color: var(--indigo-2); border: 1px solid var(--indigo-line); background: var(--indigo-bg); border-radius: 999px; padding: 0 8px; }
+    .step-title { display: block; }
+    .step-body p { font-size: 16px; color: var(--ink-2); margin-top: 8px; max-width: 48ch; }
+    .shot { margin-top: 20px; }
+    .shot .win { height: 100%; }
+    .shot-n { display: none; }
+
+    /* pinned mode, set by JS on wide screens without reduced motion */
+    .story-track.is-pinned { height: calc(var(--n, 7) * 70vh + 100vh - var(--head)); }
+    .is-pinned .story-pin {
+      position: sticky; top: var(--head); height: calc(100vh - var(--head)); min-height: 560px;
+      display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 72px; align-items: center;
+      --shot-h: min(440px, calc(100vh - var(--head) - 150px));
+    }
+    .is-pinned .story-count { display: flex; align-items: baseline; gap: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; color: var(--muted); margin-bottom: 22px; }
+    .is-pinned .story-count b { font-weight: 500; color: var(--navy); font-size: 13px; }
+    .is-pinned .steps {
+      background:
+        linear-gradient(var(--navy), var(--navy)) 3.5px 10px / 2px calc((100% - 30px) * var(--fill, 0)) no-repeat,
+        linear-gradient(var(--line), var(--line)) 4px 10px / 1px calc(100% - 30px) no-repeat;
+      transition: background-size .5s var(--ease);
+    }
+    .is-pinned .step { padding-bottom: 16px; }
+    .is-pinned .step-h { font-size: 19px; color: var(--muted); transition: color .3s ease; }
+    .is-pinned .step-btn:hover .step-title { color: var(--ink); }
+    .is-pinned .step-meta { margin-bottom: 2px; }
+    .is-pinned .step-meta .mod { color: var(--muted); border-color: var(--line); background: transparent; transition: color .3s ease, border-color .3s ease, background-color .3s ease; }
+    .is-pinned .step-h::before { transition: background-color .3s ease, border-color .3s ease; border-color: var(--claim); }
+    .is-pinned .step.is-active .step-h::before { background: var(--navy); border-color: var(--navy); }
+    .is-pinned .step.is-done .step-h::before { border-color: var(--navy); background: var(--navy); }
+    .is-pinned .step.is-active .step-h { color: var(--ink); }
+    .is-pinned .step.is-active .mod { color: var(--indigo-2); border-color: var(--indigo-line); background: var(--indigo-bg); }
+    .is-pinned .step-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s var(--ease); }
+    .is-pinned .step-body > div { overflow: hidden; }
+    .is-pinned .step-body p { opacity: 0; transition: opacity .3s ease; margin-top: 6px; font-size: 15.5px; }
+    .is-pinned .step.is-active .step-body { grid-template-rows: 1fr; }
+    .is-pinned .step.is-active .step-body p { opacity: 1; transition-delay: .12s; }
+    .is-pinned .shot {
+      position: absolute; margin: 0; z-index: 1;
+      left: calc((100% - 2 * var(--pad) - 72px) * 5 / 12 + 72px + var(--pad));
+      right: calc(var(--pad) + 110px);
+      top: calc(50% - var(--shot-h) / 2 + 40px); height: var(--shot-h);
+      transform-origin: 20% 100%;
+      transform: perspective(1600px) translate3d(-30px, 90px, 60px) rotateY(-8deg) rotateX(4deg);
+      opacity: 0; pointer-events: none;
+      transition: transform .55s var(--ease), opacity .45s ease;
+    }
+    .is-pinned .shot::after { content: ""; position: absolute; inset: 0; border-radius: 16px; background: var(--base); opacity: 0; transition: opacity .45s ease; pointer-events: none; }
+    .is-pinned .shot.is-front { opacity: 1; z-index: 10; pointer-events: auto; transform: perspective(1600px) translate3d(0, 0, 0) rotateY(-8deg) rotateX(4deg); }
+    .is-pinned .shot.is-b1 { opacity: 1; z-index: 9; transform: perspective(1600px) translate3d(52px, -46px, -60px) rotateY(-11deg) rotateX(4deg); }
+    .is-pinned .shot.is-b1::after { opacity: .3; }
+    .is-pinned .shot.is-b2 { opacity: 1; z-index: 8; transform: perspective(1600px) translate3d(104px, -92px, -120px) rotateY(-14deg) rotateX(4deg); }
+    .is-pinned .shot.is-b2::after { opacity: .55; }
+    .is-pinned .shot.is-gone { opacity: 0; z-index: 7; transform: perspective(1600px) translate3d(150px, -136px, -180px) rotateY(-16deg) rotateX(4deg); }
+
+    /* leader line from the active step to its screen (pinned mode only) */
+    .story-link { display: none; }
+    .is-pinned .story-link { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 11; overflow: visible; }
+    .is-pinned .step-title { display: inline-block; }
+    .sl-p { fill: none; stroke: var(--indigo); stroke-width: 1.2; stroke-dasharray: 2 4; stroke-linecap: round; opacity: .6; }
+    .sl-a { fill: var(--base); stroke: var(--navy); stroke-width: 1.5; }
+    .sl-b { fill: var(--navy); stroke: rgba(79, 70, 229, .2); stroke-width: 6; paint-order: stroke; }
+    .sl-dot { fill: var(--indigo); opacity: 0; }
+
+    /* shot internals */
+    .tabs-mini { display: flex; gap: 4px; margin-bottom: 12px; }
+    .tabs-mini span { font-size: 11.5px; font-weight: 500; color: var(--muted); padding: 3px 10px; border-radius: 999px; border: 1px solid transparent; }
+    .tabs-mini .on { color: var(--indigo-2); background: var(--indigo-bg); border-color: var(--indigo-line); }
+    .feed-big li { border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px; }
+    .feed-big li + li { margin-top: 8px; }
+    .feed-big p { font-size: 13.5px; font-weight: 500; margin-top: 4px; }
+    .feed-big .hit { border-color: var(--indigo-line); box-shadow: 0 0 0 3px var(--indigo-bg); position: relative; }
+    .why { font-family: var(--mono); font-size: 10.5px; color: var(--indigo-2); margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+    .why::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--indigo); }
+    .tw { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 8px; margin-bottom: 14px; }
+    .tw .kpi { padding: 12px 14px; }
+    .tw-state { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 20px; font-weight: 500; letter-spacing: -.02em; }
+    .lock { width: 26px; height: 26px; border-radius: 8px; background: var(--red-bg); color: var(--red); display: grid; place-items: center; border: 1px solid var(--red-line); }
+    .lock svg { width: 14px; height: 14px; }
+    .sub-h { font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; display: flex; justify-content: space-between; gap: 8px; }
+    .lst { border: 1px solid var(--line); border-radius: 10px; }
+    .lst li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 11px; border-top: 1px solid var(--line-2); }
+    .lst li:first-child { border-top: 0; }
+    .lst .nm2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); min-width: 0; }
+    .lst .nm2 small { color: var(--muted); font-size: 11px; margin-left: 6px; }
+    .lst .d { font-family: var(--mono); font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+    .month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 12px; }
+    .month .dow { font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; color: var(--muted); text-align: center; padding-bottom: 2px; }
+    .day { position: relative; height: 46px; border: 1px solid var(--line-2); border-radius: 8px; padding: 4px 6px; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+    .day.wk { background: #fbfbfc; }
+    .day .ev-chip { position: absolute; left: 4px; right: 4px; bottom: 4px; font-family: var(--mono); font-size: 9px; font-weight: 500; border-radius: 5px; padding: 1px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ev-bm { background: var(--navy); color: #fff; }
+    .ev-29 { background: var(--indigo); color: #fff; }
+    .ev-33 { background: var(--slate-bg); color: var(--slate); box-shadow: inset 0 0 0 1px var(--slate-line); }
+    .ev-n { background: var(--indigo-bg); color: var(--indigo-2); }
+    .day.today { border-color: var(--indigo-line); }
+    .kit-file { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-top: 12px; background: var(--base); }
+    .docx { width: 34px; height: 42px; border-radius: 6px; background: #fff; border: 1px solid var(--line); position: relative; flex: none; display: grid; place-items: end center; padding-bottom: 5px; font-family: var(--mono); font-size: 8px; font-weight: 500; color: var(--indigo-2); }
+    .docx::before { content: ""; position: absolute; right: -1px; top: -1px; width: 10px; height: 10px; background: linear-gradient(225deg, var(--base) 50%, var(--line) 50%); border-bottom-left-radius: 3px; }
+    .kit-file b { display: block; font-family: var(--mono); font-size: 11.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kit-file small { font-size: 11px; color: var(--muted); }
+    .kit-parts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+    .kit-parts li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; font-weight: 500; }
+    .tick { width: 15px; height: 15px; border-radius: 50%; background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); display: grid; place-items: center; flex: none; }
+    .tick svg { width: 9px; height: 9px; }
+    .agenda li { display: flex; align-items: center; gap: 9px; padding: 6px 0; border-top: 1px solid var(--line-2); color: var(--ink-2); }
+    .agenda li:first-child { border-top: 0; }
+    .box { width: 13px; height: 13px; border-radius: 4px; background: var(--indigo); flex: none; display: grid; place-items: center; color: #fff; }
+    .box svg { width: 8px; height: 8px; }
+    .hchain { display: grid; gap: 6px; }
+    .blk { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; position: relative; }
+    .blk + .blk::before { content: ""; position: absolute; left: 36px; top: -7px; height: 6px; border-left: 1.5px solid var(--indigo-line); }
+    .blk .no { font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--ink); }
+    .blk .t { font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .blk .h { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .blk.new { border-color: var(--indigo-line); background: linear-gradient(90deg, var(--indigo-bg), #fff 70%); }
+    .verified { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; color: var(--green); margin-top: 10px; }
+    .note-line { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
+    .draft-letter { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; font-size: 12.5px; color: var(--ink-2); line-height: 1.55; }
+    .draft-letter p + p { margin-top: 8px; }
+    .draft-letter b { color: var(--ink); font-weight: 600; }
+    .caret { display: none; }
+    .typing .caret { display: inline-block; width: 1.5px; height: 1.05em; background: var(--indigo); vertical-align: -2px; margin-left: 1px; animation: blink 1s steps(2) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .timer { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; color: var(--amber); white-space: nowrap; flex: none; }
+    .held { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--green-line); background: var(--green-bg); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; color: var(--green); font-weight: 500; }
+    .held .mono { font-size: 11px; }
+
+    /* "live" moments inside shots: only play when the shot is in front or in view */
+    @keyframes dropIn { from { opacity: 0; transform: translateY(-18px) scale(.9); } 60% { opacity: 1; transform: translateY(2px) scale(1.02); } }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } }
+    @keyframes rowIn { from { opacity: 0; transform: translateX(-10px); } }
+    @keyframes popIn { from { opacity: 0; transform: scale(.6); } }
+    @keyframes typeOn { from { clip-path: inset(0 100% 0 0); } }
+    @keyframes flipClosed { 0%, 30% { background: var(--green-bg); color: var(--green); border-color: var(--green-line); } }
+    .js:not(.rm) .is-live .a-drop { animation: dropIn .7s var(--ease) .35s both; }
+    .js:not(.rm) .is-live .a-slide { animation: slideIn .6s var(--ease) .2s both; }
+    .js:not(.rm) .is-live .a-row { animation: rowIn .5s var(--ease) both; animation-delay: calc(var(--i, 0) * 140ms + .25s); }
+    .js:not(.rm) .is-live .a-pop { animation: popIn .45s var(--ease) both; animation-delay: calc(var(--i, 0) * 140ms + .5s); }
+    .js:not(.rm) .is-live .a-type { animation: typeOn .9s steps(22) .5s both; }
+    .js:not(.rm) .is-live .a-closed { animation: flipClosed 1.2s ease both; }
+
+    /* ---------- Roles ---------- */
+    .seg-ctl { position: relative; display: inline-flex; flex-wrap: wrap; max-width: 100%; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: #fff; margin-bottom: 40px; box-shadow: 0 1px 2px rgba(13, 14, 20, .04); }
+    .seg-thumb { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 999px; background: var(--ink); transition: transform .4s var(--ease), width .4s var(--ease), height .4s var(--ease); pointer-events: none; }
+    html:not(.js) .seg-thumb, .rm .seg-thumb { display: none; }
+    .tab { position: relative; z-index: 1; appearance: none; border: 0; background: transparent; font: 500 15px/1.2 var(--sans); color: var(--ink-2); padding: 11px 20px; border-radius: 999px; cursor: pointer; min-height: 44px; transition: color .25s ease; }
+    .tab:hover { color: var(--indigo-2); }
+    .tab[aria-selected="true"] { color: #fff; }
+    .rm .tab[aria-selected="true"], html:not(.js) .tab[aria-selected="true"] { background: var(--ink); }
+    .tab:focus-visible { outline-offset: 2px; }
+    .role-panel { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 64px; align-items: center; }
+    html:not(.js) .role-panel + .role-panel { margin-top: 64px; }
+    html:not(.js) .seg-ctl { display: none; }
+    .role-panel[hidden] { display: none; }
+    .role-panel .scr-wrap { perspective: 1600px; }
+    .js:not(.rm) .role-panel.enter .role-text { animation: fadeUp .4s var(--ease) both; }
+    .js:not(.rm) .role-panel.enter .scr { animation: roleIn .5s var(--ease) both; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } }
+    @keyframes roleIn { from { opacity: 0; transform: rotateY(-6deg) translateX(12px); } }
+    .role-text h3 { font-size: 30px; font-weight: 300; letter-spacing: -.03em; line-height: 1.15; }
+    .role-text p { font-size: 16.5px; color: var(--ink-2); margin-top: 14px; line-height: 1.6; }
+    .role-facts { margin-top: 26px; border-top: 1px solid var(--line); }
+    .role-facts div { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+    .role-facts dt { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+    .navs { display: flex; flex-wrap: wrap; gap: 6px; }
+    .navs span { font-size: 13px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; background: #fff; white-space: nowrap; }
+    .navs span:first-child { border-color: var(--indigo-line); background: var(--indigo-bg); color: var(--indigo-2); font-weight: 500; }
+    .scr { background: #fff; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; font-size: 13px; line-height: 1.4; box-shadow: 0 40px 80px -44px rgba(13, 14, 20, .35); transform-origin: 0 50%; }
+    .scr-bar { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 16px; border-bottom: 1px solid var(--line); background: #fbfbfc; min-width: 0; }
+    .scr-bar .path { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; margin-left: auto; background: var(--paper-3); padding: 3px 10px; border-radius: 999px; }
+    .scr-bar .ttl { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .scr-bar .ttl small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+    .scr-body { padding: 16px; }
+    .mini-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .regs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
+    .regs div { border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; min-width: 0; }
+    .regs span { display: block; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .regs b { font-family: var(--mono); font-weight: 500; font-size: 13px; }
+    .regs b small { font-size: 10.5px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+    .clients { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .clients .cl-h, .clients .cl-r { display: grid; grid-template-columns: minmax(0, 1fr) 62px 62px 76px 52px; gap: 8px; align-items: center; padding: 8px 11px; border-top: 1px solid var(--line-2); }
+    .clients .cl-h { border-top: 0; font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: #fbfbfc; }
+    .clients .cl-h span:not(:first-child), .clients .cl-r span:not(:first-child) { text-align: right; }
+    .clients .cl-r span { font-family: var(--mono); font-size: 12px; }
+    .clients .cl-r span:first-child { font-family: var(--sans); font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .clients .red { color: var(--red); font-weight: 500; }
+    .clients .mut { color: var(--muted); }
+    .req { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .req-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .req-top b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .req ul { margin-top: 8px; display: grid; gap: 5px; }
+    .req li { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+    .req li span:last-child { font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+    .req .got { color: var(--green); }
+    .req .wait { color: var(--amber); }
+    .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .tile { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; min-width: 0; }
+    .tile .v { font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .tile .f { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hash { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .alerts li { grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; }
+    .alerts .a-cp { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .alerts .a-t { grid-column: 1 / -1; color: var(--ink-2); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .alerts .a-m { grid-column: 1 / -1; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+    .net { margin-top: 14px; border: 1px dashed #c4c4cd; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: var(--ink-2); }
+    .net b { color: var(--ink); font-weight: 600; }
+
+    /* ---------- Coverage ---------- */
+    .cov { background: var(--paper); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .cov-grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 80px; align-items: start; }
+    .cov-meta { font-size: 14px; color: var(--muted); margin-top: 16px; max-width: 60ch; }
+    .regimes { margin-top: 40px; border-top: 1px solid var(--line); }
+    .regime { padding: 18px 0 16px; border-bottom: 1px solid var(--line); cursor: default; }
+    .regime-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .regime-top h3 { font-size: 18px; font-weight: 400; letter-spacing: -.01em; }
+    .regime-top h3 small { font-family: var(--mono); font-weight: 400; color: var(--muted); font-size: 11px; letter-spacing: .08em; margin-left: 8px; }
+    .regime-top .n { font-family: var(--mono); font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .bar { position: relative; height: 3px; margin-top: 10px; display: flex; align-items: center; }
+    .bar::before { content: ""; position: absolute; left: 0; right: 0; top: 1px; height: 1px; background: var(--line-2); }
+    .bar span { position: relative; display: block; height: 1px; background: var(--indigo); border-radius: 3px; transform-origin: left; transition: height .3s var(--ease), transform 1s var(--ease); }
+    .js:not(.rm) .regimes:not(.is-in) .bar span { transform: scaleX(0); }
+    .regime:nth-child(2) .bar span { transition-delay: 0s, .06s; } .regime:nth-child(3) .bar span { transition-delay: 0s, .12s; }
+    .regime:nth-child(4) .bar span { transition-delay: 0s, .18s; } .regime:nth-child(5) .bar span { transition-delay: 0s, .24s; }
+    .regime:nth-child(6) .bar span { transition-delay: 0s, .3s; } .regime:nth-child(7) .bar span { transition-delay: 0s, .36s; }
+    .regime p { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.7; transition: color .3s ease; }
+    .regime:hover .bar span { height: 3px; }
+    .regime:hover p { color: var(--ink); }
+    .extra { margin-top: 28px; display: grid; gap: 12px; font-size: 15px; color: var(--ink-2); }
+    .extra li { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 12px; }
+    .extra li b { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+    .cov-side { position: sticky; top: 96px; }
+    .side-h { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+    .diag { margin-top: 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--base); padding: 18px 14px 10px; position: relative; }
+    .diag::before, .diag::after { content: "+"; position: absolute; font-family: var(--mono); font-size: 12px; color: var(--claim); line-height: 1; }
+    .diag::before { left: 8px; top: 6px; }
+    .diag::after { right: 8px; bottom: 6px; }
+    .diag svg { width: 100%; height: auto; overflow: visible; }
+    .diag .p { fill: none; stroke: var(--indigo-line); stroke-width: 1.2; transition: opacity .3s ease, stroke .3s ease, stroke-width .3s ease; }
+    .diag .node rect { fill: #fff; stroke: var(--line); transition: stroke .25s ease, fill .25s ease; }
+    .diag .node text { font-family: var(--mono); font-size: 11.5px; font-weight: 500; fill: var(--ink); letter-spacing: .04em; }
+    .diag .tgt rect { fill: #fff; stroke: var(--indigo-line); }
+    .diag .tgt text { font-family: var(--sans); font-size: 13px; font-weight: 500; fill: var(--ink); letter-spacing: 0; }
+    .diag .tgt text.sm { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); letter-spacing: .1em; }
+    .diag .dot { fill: var(--indigo); }
+    .diag.is-lit .p { opacity: .2; }
+    .diag.is-lit .p.on { opacity: 1; stroke: var(--indigo); stroke-width: 1.6; }
+    .diag.is-lit .dot { opacity: .15; }
+    .diag.is-lit .dot.on { opacity: 1; }
+    .diag .node.on rect { stroke: var(--indigo); fill: var(--indigo-bg); }
+    .diag .src-node { cursor: pointer; }
+    .rm .diag .dot { display: none; }
+    .srcs { margin-top: 14px; border-top: 1px solid var(--line); }
+    .srcs div { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px; padding: 13px 10px 13px 8px; border-bottom: 1px solid var(--line); border-radius: 10px; cursor: default; transition: background-color .2s ease; outline-offset: -2px; }
+    .srcs div:hover, .srcs div.on, .srcs div:focus-visible { background: var(--indigo-bg); }
+    .srcs dt { font-family: var(--mono); font-size: 12px; font-weight: 500; padding-top: 2px; }
+    .srcs dd { font-size: 14.5px; color: var(--ink-2); }
+    .limits { margin-top: 72px; display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 48px; padding-top: 40px; border-top: 1px solid var(--line); }
+    .limits h3 { font-size: 28px; font-weight: 300; letter-spacing: -.03em; line-height: 1.15; }
+    .limits ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; }
+    .limits li { position: relative; padding: 14px 0 14px 22px; font-size: 15px; color: var(--ink-2); border-bottom: 1px solid var(--line-2); }
+    .limits li::before { content: ""; position: absolute; left: 0; top: 25px; width: 10px; border-top: 1.5px solid var(--claim); }
+    .limits li.india::before { border-color: var(--indigo); }
+
+    /* ---------- Dark CTA band ---------- */
+    .band-wrap { padding: 16px; }
+    .band {
+      --bx: 50%; --by: 0%;
+      position: relative; overflow: hidden; isolation: isolate; border-radius: 28px; background: var(--band); color: var(--band-text);
+      padding: 120px 0 112px;
+    }
+    .band::before {
+      content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+      background: radial-gradient(60% 50% at var(--bx) var(--by), var(--bloom), transparent 70%);
+    }
+    .band::after {
+      content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .5;
+      background-image: linear-gradient(rgba(255, 255, 255, .04) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .04) 1px, transparent 1px);
+      background-size: 64px 64px; -webkit-mask-image: radial-gradient(70% 60% at 50% 0%, #000, transparent); mask-image: radial-gradient(70% 60% at 50% 0%, #000, transparent);
+    }
+    .band-grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 64px; align-items: center; }
+    .band .eyebrow { color: #a5b4fc; }
+    .band .h2 { color: var(--band-text); }
+    .band .h2 .claim { color: var(--band-muted); }
+    .band .lede { color: #c5c8d6; margin-top: 20px; }
+    .band :focus-visible { outline-color: #a5b4fc; }
+    .btn-line { background: transparent; color: var(--band-text); border-color: rgba(255, 255, 255, .2); }
+    .btn-line:hover { border-color: rgba(255, 255, 255, .5); background: rgba(255, 255, 255, .06); }
+    .band .fine { color: var(--band-muted); }
+    .band .fine a { color: #c7d2fe; text-underline-offset: 3px; }
+    .band .fine a:hover { color: #fff; }
+    .pf-stage { position: relative; perspective: 1200px; padding: 104px 0 0 64px; }
+    .register {
+      position: absolute; left: 0; top: 0; width: 76%; height: 300px; border-radius: 20px; background: var(--navy);
+      transform: rotate(-5deg); transform-origin: 0 0; box-shadow: 0 40px 80px -30px rgba(0, 0, 0, .6); padding: 20px 22px; overflow: hidden; color: rgba(255, 255, 255, .55);
+    }
+    .register .rg-h { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255, 255, 255, .7); }
+    .register .rg-t { font-size: 17px; font-weight: 300; color: #fff; margin-top: 4px; letter-spacing: -.01em; }
+    .register ul { margin-top: 14px; }
+    .register li { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; padding: 7px 0; border-top: 1px solid rgba(255, 255, 255, .1); }
+    .glass {
+      --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 0%;
+      position: relative; border-radius: 20px; overflow: hidden;
+      background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 40px 80px -30px rgba(0, 0, 0, .7);
+      -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+      transform: rotateX(var(--rx)) rotateY(var(--ry)); transition: transform .4s var(--ease);
+      font-size: 14px;
+    }
+    .glass.is-moving { transition: transform .08s linear; }
+    .glass::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(420px circle at var(--mx) var(--my), rgba(255, 255, 255, .16), transparent 45%); }
+    .pf-h { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid rgba(255, 255, 255, .12); font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #c5c8d6; }
+    .pf-body { padding: 6px 18px; }
+    .pf-body > div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+    .pf-body > div:last-child { border-bottom: 0; }
+    .pf-body dt { color: var(--band-muted); font-size: 12.5px; padding-top: 2px; }
+    .pf-body dd { color: var(--band-text); }
+    .flags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .flags span { font-size: 12px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 999px; padding: 2px 10px; background: rgba(255, 255, 255, .05); color: #e4e6ee; }
+    .result { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid rgba(255, 255, 255, .12); }
+    .result div { padding: 16px 18px; }
+    .result div + div { border-left: 1px solid rgba(255, 255, 255, .12); }
+    .result b { display: block; font-weight: 200; font-size: 52px; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: #fff; }
+    .result span { display: block; font-size: 12.5px; color: var(--band-muted); margin-top: 6px; }
+    .pf-f { padding: 11px 18px; border-top: 1px solid rgba(255, 255, 255, .12); font-family: var(--mono); font-size: 11px; color: var(--band-muted); }
+
+    /* ---------- Footer ---------- */
+    .site-foot { padding: 56px 0 56px; }
+    .foot-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 24px; }
+    .foot-links { display: flex; flex-wrap: wrap; gap: 6px 4px; font-size: 14.5px; }
+    .foot-links a { text-decoration: none; color: var(--ink-2); padding: 6px 10px; border-radius: 999px; transition: background-color .2s ease, color .2s ease; }
+    .foot-links a:hover { color: var(--indigo-2); background: var(--indigo-bg); }
+    .foot-fine { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--muted); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; }
+
+    /* ---------- Reveal ---------- */
+    .js:not(.rm) [data-reveal] { opacity: 0; translate: 0 18px; transition: opacity .8s ease, translate .9s var(--ease); }
+    .js:not(.rm) [data-reveal].is-in { opacity: 1; translate: 0 0; }
+    .js:not(.rm) [data-reveal][data-d="1"] { transition-delay: .08s; }
+    .js:not(.rm) [data-reveal][data-d="2"] { transition-delay: .16s; }
+    .js:not(.rm) [data-reveal][data-d="3"] { transition-delay: .24s; }
+    .js:not(.rm) .eyebrow.type-on { clip-path: inset(0 100% 0 0); }
+    .js:not(.rm) .eyebrow.type-on.is-in { clip-path: inset(0 0 0 0); transition: clip-path .45s steps(16); }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1180px) {
+      .card { width: min(540px, 84%); }
+      .menus { grid-template-columns: minmax(0, 1fr); }
+      .mc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 0 32px; padding: 32px; }
+      .mc .tray { margin: -32px -32px -32px 0; padding: 32px 32px 0; border-top: 0; border-left: 1px solid var(--line-2); grid-row: 1 / span 4; grid-column: 2; }
+    }
+    @media (max-width: 999px) {
+      .hero { padding-top: calc(var(--head) + 48px); }
+      .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 56px; }
+      .stack { height: auto; padding-top: 22px; }
+      .card { position: relative; top: auto; bottom: auto; width: 100%; transform: none; transition: none; }
+      .card.c2 { position: absolute; left: 4%; right: 4%; width: auto; top: 0; transform: none; }
+      .card.c2 .win-body { display: none; }
+      .card.c3 { display: none; }
+      .card::after { display: none; }
+      .stack .card:hover { --lift: 0px; }
+      .js:not(.rm) .stack .card { animation-name: dealFlat; }
+      @keyframes dealFlat { from { opacity: 0; translate: 0 30px; } }
+      .stat-row { grid-template-columns: minmax(0, 1fr); }
+      .stat + .stat { border-left: 0; border-top: 1px solid var(--line); }
+      .cov-grid, .band-grid, .role-panel { grid-template-columns: minmax(0, 1fr); gap: 48px; }
+      .limits { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+      .cov-side { position: static; }
+      .story-left .shot { max-width: 680px; }
+    }
+    @media (max-width: 960px) {
+      .head-nav, .head-signin { display: none; }
+      .menu { display: block; }
+    }
+    @media (max-width: 760px) {
+      .mc { display: flex; padding: 24px 22px 0; }
+      .mc .tray { margin: 24px -22px 0; padding: 22px 18px 0; border-left: 0; border-top: 1px solid var(--line-2); }
+      .kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .kpis .kpi:last-child { grid-column: 1 / -1; }
+      .rows li { grid-template-columns: 58px minmax(0, 1fr) auto; }
+      .rows .chip { display: none; }
+      .limits ul { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 640px) {
+      :root { --pad: 16px; }
+      body { font-size: 16px; }
+      .sec { padding: 88px 0; }
+      .sec-head { margin-bottom: 36px; }
+      .lede { font-size: 17px; }
+      .h1 { font-size: clamp(40px, 11.4vw, 56px); letter-spacing: -.04em; }
+      .hero { padding-top: calc(var(--head) + 32px); padding-bottom: 40px; }
+      .hero-copy .eyebrow { margin-top: 22px; }
+      .cta-row .btn { flex: 1 1 auto; }
+      .lbl-long { display: none; }
+      .lbl-short { display: inline; }
+      .brand-name { font-size: 16px; }
+      .blob { animation: none; }
+      .field { background: radial-gradient(80% 50% at 10% 0%, var(--mist-1), transparent 70%), radial-gradient(70% 40% at 100% 20%, var(--mist-2), transparent 70%), radial-gradient(60% 40% at 50% 60%, var(--mist-3), transparent 70%); }
+      .field .blob { display: none; }
+      .win-body { padding: 12px 12px 10px; }
+      .url { transform: none; }
+      .stat { padding: 28px 4px 26px; }
+      .stat .n { font-size: 72px; }
+      .mc-top h3 { font-size: 24px; }
+      .tray { perspective: none; }
+      .mini { transform: none; }
+      .caveat { border-radius: 14px; align-items: flex-start; }
+      .step { padding-left: 26px; }
+      .step-h::before { left: -26px; }
+      .blk .h { white-space: normal; }
+      .blk .h .a-type { display: inline !important; }
+      .tiles .v.mono { font-size: 11px !important; }
+      .tw .kpi-f, .tiles .f { white-space: normal; }
+      .seg-ctl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; border-radius: 22px; margin-bottom: 32px; }
+      .tab { padding: 10px 8px; font-size: 14px; }
+      .role-text h3 { font-size: 26px; }
+      .role-facts div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+      .scr-body { padding: 12px; }
+      .mini-kpis, .tiles { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .mini-kpis .kpi:last-child, .tiles .tile:last-child { grid-column: 1 / -1; }
+      .lst li { grid-template-columns: auto minmax(0, 1fr) auto; }
+      .lst li .d { display: none; }
+      .alerts li { grid-template-columns: minmax(0, 1fr) auto; }
+      .regs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .clients .cl-h, .clients .cl-r { grid-template-columns: minmax(0, 1fr) 58px 70px; }
+      .clients .c-hide { display: none; }
+      .scr-bar .path { display: none; }
+      .extra li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+      .srcs div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+      .month .day { height: 40px; padding: 3px 4px; }
+      .day .ev-chip { font-size: 8px; left: 2px; right: 2px; padding: 1px 2px; }
+      .kit-parts { grid-template-columns: minmax(0, 1fr); }
+      .band-wrap { padding: 8px; }
+      .band { border-radius: 22px; padding: 80px 0 72px; }
+      .pf-stage { padding: 84px 0 0 22px; }
+      .register { width: 88%; height: 240px; }
+      .result b { font-size: 42px; }
+      .foot-links { margin: 0 -10px; }
+    }
+    @media (max-width: 359px) {
+      .head-row { gap: 8px; }
+      .head-cta { gap: 6px; }
+      .brand { gap: 8px; }
+      .btn-sm { padding: 0 13px; }
+      .menu > summary { padding: 0 11px; gap: 6px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .blob { animation: none !important; }
+      .card, .mini, .glass, .shot, .btn, .mc, .stat::before, .nav-hl, .seg-thumb { transition: none !important; }
+      .btn-primary::after { display: none; }
+      .typing .caret { animation: none; }
+      .menu-panel { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-head" data-head>
+    <div class="wrap head-row">
+      <a href="/" class="brand" aria-label="Delta Filings, home">
+        <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <polygon points="8,42 34,30 34,108 8,120"/>
+          <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+        </svg>
+        <span class="brand-name">Delta Filings</span>
+      </a>
+      <nav class="head-nav" aria-label="Primary" data-nav>
+        <span class="nav-hl" aria-hidden="true"></span>
+        <a href="/product">Product</a>
+        <a href="/solutions">Solutions</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/security">Security</a>
+        <a href="/tools">Free tools</a>
+        <a href="/blog">Blog</a>
+      </nav>
+      <div class="head-cta">
+        <a href="/signin" class="head-signin">Sign in</a>
+        <a href="/signup" class="btn btn-primary btn-sm"><span class="lbl-long">Create workspace</span><span class="lbl-short">Sign up</span></a>
+        <details class="menu" data-menu>
+          <summary aria-label="Menu"><span class="bars" aria-hidden="true"></span>Menu</summary>
+          <nav class="menu-panel" aria-label="Site">
+            <a href="/product">Product</a>
+            <a href="/solutions">Solutions</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/security">Security</a>
+            <a href="/tools">Free tools</a>
+            <a href="/blog">Blog</a>
+            <a href="/about">About</a>
+            <hr>
+            <a href="/signin">Sign in</a>
+            <a href="/signup" class="menu-cta">Create workspace</a>
+          </nav>
+        </details>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ───────────── Hero ───────────── -->
+    <section class="hero" aria-labelledby="hero-title" data-hero>
+      <div class="field" aria-hidden="true" data-field>
+        <i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i><i class="blob b4"></i>
+        <i class="grain"></i>
+      </div>
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <a class="beta-pill" href="/pricing"><span class="dot" aria-hidden="true"></span>Free during beta <span class="go">Pricing<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h9m-3.5-4L12 8l-3.5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+          <p class="eyebrow">For company secretaries, compliance officers and risk officers in India</p>
+          <h1 id="hero-title" class="h1" data-lines>The compliance desk for Indian companies. <span class="claim"><span class="ln">Deadlines dated.</span> <span class="ln">Late fees worked out.</span></span></h1>
+          <p class="lede">The ROC, SEBI, tax, GST, labour and FEMA deadlines your company owes, with the late fee worked out on anything overdue. Regulatory news, board meetings, registers, the insider-trading database, drafting and counterparty risk sit on the same desk.</p>
+          <div class="cta-row">
+            <a href="/signup" class="btn btn-primary" data-lean>Create workspace<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h9m-3.5-4L12 8l-3.5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+            <a href="/signin" class="btn btn-ghost">Sign in</a>
+          </div>
+          <p class="fine">You choose your role when you sign up. Your home screen follows it.</p>
+        </div>
+
+        <figure class="hero-stage">
+          <div class="halo" aria-hidden="true"></div>
+          <div class="stack" data-stack role="img" aria-label="Three sample Delta Filings screens stacked like a fanned file. In front, a compliance calendar for four entities: four filings overdue and 8,250 rupees of indicative late fees, the largest a DPT-3 return of deposits 91 days late. Behind it, an event log: shares allotted at Sabari Cables Ltd on 2 September 2026, with Regulation 30 dated 3 September, PAS-3 17 September and FC-GPR 2 October. At the back, a risk desk of five counterparties worth 101.7 crore rupees, with Satpura Steel Castings at 68, Severe.">
+            <!-- back: risk desk -->
+            <div class="card c3" aria-hidden="true">
+              <div class="win">
+                <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/risk</span></div>
+                <div class="win-body">
+                  <div class="ph"><div><div class="pt">Risk desk</div><div class="ps">5 counterparties · ₹101.7 Cr exposure</div></div><span class="chip st-info">Add counterparty</span></div>
+                  <div class="big-row"><div><div class="kpi-l">At risk</div><div class="kpi-v">₹50.7 Cr</div></div><div class="note">49.9% of exposure in<br>High or Severe names</div></div>
+                  <div class="strip"><span class="bg-sev" style="width:41.8%"></span><span class="bg-high" style="width:8.1%"></span><span class="bg-mod" style="width:14.7%"></span><span class="bg-low" style="width:35.4%"></span></div>
+                  <ul class="rk">
+                    <li><b>Satpura Steel Castings Ltd</b><span class="score"><b>68</b><span class="chip b-sev">Severe</span><span class="up">↑28</span></span><small>IBBI: insolvency (CIRP) announced<span class="mono">IBBI · 3d</span></small></li>
+                    <li><b>Mandovi Polymers Ltd</b><span class="score"><b>41</b><span class="chip b-high">High</span><span class="up">↑20</span></span><small>Statutory auditor resigned<span class="mono">Exchange filing · 12d</span></small></li>
+                    <li><b>Konkan Coastal Finance Ltd</b><span class="score"><b>22</b><span class="chip b-mod">Moderate</span><span class="up">↑8</span></span><small>SEBI order in a matter concerning this company<span class="mono">SEBI · 19d</span></small></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <!-- middle: comply event -->
+            <div class="card c2" aria-hidden="true">
+              <div class="win">
+                <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/workspace</span></div>
+                <div class="win-body">
+                  <div class="ph"><div><div class="pt">Event logged</div><div class="ps">2 Sep 2026 · follow-ups dated from it</div></div></div>
+                  <div class="ev">Shares allotted<small>Sabari Cables Ltd · listed · has FDI</small></div>
+                  <ul class="chain">
+                    <li><span class="fm">Reg 30</span><span>Disclose to exchanges</span><span>3 Sep</span></li>
+                    <li><span class="fm">PAS-3</span><span>Return of allotment</span><span>17 Sep</span></li>
+                    <li><span class="fm">FC-GPR</span><span>Report FDI allotment</span><span>2 Oct</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <!-- front: compliance calendar -->
+            <div class="card c1" aria-hidden="true">
+              <div class="win">
+                <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/workspace</span></div>
+                <div class="win-body">
+                  <div class="ph"><div><div class="pt">Compliance calendar</div><div class="ps">Open filings across 4 entities, overdue first. As of 29 Sep 2026.</div></div></div>
+                  <div class="kpis">
+                    <div class="kpi"><div class="kpi-l">Overdue</div><div class="kpi-v red" data-count>4</div><div class="kpi-f">Across 3 entities</div></div>
+                    <div class="kpi"><div class="kpi-l">Due in 15 days</div><div class="kpi-v" data-count>3</div><div class="kpi-f">Next: AGM, 30 Sep</div></div>
+                    <div class="kpi">
+                      <div class="kpi-l">Late-fee exposure <span class="tag-ind">Indicative</span></div>
+                      <div class="kpi-v">₹<span data-count>8,250</span></div>
+                      <div class="meter" data-io><span class="m1" style="width:48.5%"></span><span class="m2" style="width:36.4%"></span><span class="m3" style="width:9.7%"></span><span class="m4" style="width:5.4%"></span></div>
+                      <div class="meter-key"><span><i class="m1"></i>DPT-3 <b>₹4,000</b></span><span><i class="m2"></i>Form 11 <b>₹3,000</b></span><span><i class="m3"></i>DIR-12 <b>₹800</b></span><span><i class="m4"></i>GSTR-3B <b>₹450</b></span></div>
+                    </div>
+                  </div>
+                  <ul class="rows">
+                    <li><span class="fm">Form 11</span><span class="r-main"><b>Annual return · FY2025-26</b><small>Tungabhadra Logistics LLP · due 30 May</small></span><span class="chip st-over">122 days late</span><span class="r-fee">₹3,000<small>20× of ₹150</small></span></li>
+                    <li><span class="fm">DPT-3</span><span class="r-main"><b>Return of deposits</b><small>Kaveri Agro Foods Pvt Ltd · due 30 Jun</small></span><span class="chip st-over">91 days late</span><span class="r-fee">₹4,000<small>10× of ₹400</small></span></li>
+                    <li><span class="fm">DIR-12</span><span class="r-main"><b>Change in directors / KMP</b><small>Kaveri Agro Foods Pvt Ltd · due 13 Sep</small></span><span class="chip st-over">16 days late</span><span class="r-fee">₹800<small>2× of ₹400</small></span></li>
+                    <li><span class="fm">GSTR-3B</span><span class="r-main"><b>Summary return · Aug 2026</b><small>Periyar Spice Exports Pvt Ltd · due 20 Sep</small></span><span class="chip st-over">9 days late</span><span class="r-fee">₹450<small>₹50/day × 9</small></span></li>
+                    <li><span class="fm">AGM</span><span class="r-main"><b>Annual general meeting</b><small>Kaveri Agro Foods Pvt Ltd · due 30 Sep</small></span><span class="chip st-soon">Tomorrow</span><span class="r-fee"><span class="none">—</span></span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          <figcaption class="stage-cap"><span class="tagbox">Sample</span><span>Company names are fictional. Late fees are worked out with the same formulas the app uses, and are indicative.</span></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ───────────── Stat row ───────────── -->
+    <section class="stats" aria-label="The rulebook at a glance">
+      <div class="wrap">
+        <dl class="stat-row">
+          <div class="stat" data-reveal>
+            <dt>Rules in the rulebook</dt>
+            <dd class="n"><span data-count>{{ rule_count }}</span><span class="u">rules</span></dd>
+            <dd class="note">Every rule names its form, the law behind it, when it falls due and what a delay can cost.</dd>
+          </div>
+          <div class="stat" data-reveal data-d="1">
+            <dt>Regimes covered</dt>
+            <dd class="n"><span data-count>{{ regime_counts|length }}</span><span class="u">regimes</span></dd>
+            <dd class="note">Companies Act · SEBI · Income tax and TDS · GST · FEMA and RBI · Labour · LLP Act</dd>
+          </div>
+          <div class="stat" data-reveal data-d="2">
+            <dt>Active companies in India</dt>
+            <dd class="n"><span>1.85</span><span class="u">million</span></dd>
+            <dd class="note">India had about 1.85 million active companies at the end of March 2025, by MCA's count. Each one owes some version of this calendar.</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ───────────── Four menus ───────────── -->
+    <section id="product" class="sec" aria-labelledby="map-title">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow type-on" data-reveal>01 / Product</p>
+          <h2 id="map-title" class="h2" data-reveal>Four menus. <span class="claim">One workspace.</span></h2>
+          <p class="lede" data-reveal data-d="1">Monitor, Comply, Risk and Create are the four menus inside Delta Filings. This is what sits under each one, with a piece of the screen you will work in. Company names in the samples are fictional.</p>
+        </div>
+
+        <div class="menus">
+          <article class="mc" aria-labelledby="m1" data-reveal>
+            <div class="mc-top"><h3 id="m1">Monitor</h3><span class="idx">01 / 04</span></div>
+            <p>SEBI and RBI updates tagged by topic. Exchange filings for the companies you watch, with a diff against the last one.</p>
+            <ul class="tags">
+              <li><b>Regulatory news</b>SEBI · RBI</li><li><b>Disclosures</b>NSE</li><li><b>Signal</b>action queue</li>
+              <li><b>Compare</b>filing diff</li><li><b>Stock prices</b>alerts</li><li><b>DIN search</b>boards</li>
+            </ul>
+            <div class="tray">
+              <div class="mini" role="img" aria-label="Sample news feed: a SEBI master circular tagged LODR, an RBI notification tagged KYC and AML, and a SEBI order tagged Enforcement.">
+                <div class="mini-h"><span>For you</span><span>3 new</span></div>
+                <ul class="feed">
+                  <li><div class="feed-meta"><span class="src">SEBI</span><span>Master circular</span><span class="topic">LODR</span></div><p>Compliance with the LODR Regulations by listed entities</p></li>
+                  <li><div class="feed-meta"><span class="src">RBI</span><span>Notification</span><span class="topic">KYC / AML</span></div><p>Amendment to the Master Direction on KYC</p></li>
+                  <li><div class="feed-meta"><span class="src">SEBI</span><span>Order</span><span class="topic">Enforcement</span></div><p>In the matter of Konkan Coastal Finance Ltd</p></li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="mc" aria-labelledby="m2" data-reveal data-d="1">
+            <div class="mc-top"><h3 id="m2">Comply</h3><span class="idx">02 / 04</span></div>
+            <p>Your company's profile becomes a dated calendar. Log an event and its follow-up filings are dated from it.</p>
+            <ul class="tags">
+              <li><b>Workspace</b>per entity</li><li><b>Rulebook</b>{{ rule_count }} rules</li><li><b>Meetings, registers</b>.docx kit</li>
+              <li><b>Listed compliance</b>LODR</li><li><b>Insider trading</b>SDD</li><li><b>Document requests</b>client link</li>
+            </ul>
+            <div class="tray">
+              <div class="mini" role="img" aria-label="Sample event: shares allotted on 2 September 2026 at a listed company with foreign investment. Delta dates three follow-ups: Regulation 30 disclosure by 3 September, PAS-3 by 17 September and FC-GPR by 2 October.">
+                <div class="mini-h"><span>Event logged</span><span>2 Sep 2026</span></div>
+                <div class="ev">Shares allotted<small>Sabari Cables Ltd · listed · has FDI</small></div>
+                <ul class="chain">
+                  <li><span class="fm">Reg 30</span><span>Disclose to exchanges</span><span>3 Sep</span></li>
+                  <li><span class="fm">PAS-3</span><span>Return of allotment</span><span>17 Sep</span></li>
+                  <li><span class="fm">FC-GPR</span><span>Report FDI allotment</span><span>2 Oct</span></li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="mc" aria-labelledby="m3" data-reveal>
+            <div class="mc-top"><h3 id="m3">Risk</h3><span class="idx">03 / 04</span></div>
+            <p>Borrowers, vendors and investees scored 0 to 100 from exchange filings, SEBI orders, IBBI announcements and price moves.</p>
+            <ul class="tags">
+              <li><b>Risk desk</b>four bands</li><li><b>Alerts</b>assign, resolve</li><li><b>Director network</b>shared DINs</li><li><b>Committee report</b>print, CSV</li>
+            </ul>
+            <div class="tray">
+              <div class="mini" role="img" aria-label="Sample score breakdown for Satpura Steel Castings Ltd: 68, Severe. Plus 40 for an IBBI insolvency announcement three days ago, plus 14 for a statutory auditor resignation six weeks ago, plus 14 for a default disclosure seven weeks ago.">
+                <div class="mini-h"><span>Why the score</span><span>last 365 days</span></div>
+                <div class="rs-head"><b>Satpura Steel Castings Ltd</b><span class="score"><b>68</b><span class="chip b-sev">Severe</span></span></div>
+                <ul class="reasons">
+                  <li><span class="pts">+40</span><span>IBBI: insolvency (CIRP) announced</span><span class="when">3d</span></li>
+                  <li><span class="pts">+14</span><span>Statutory auditor resigned</span><span class="when">6w</span></li>
+                  <li><span class="pts">+14</span><span>Default disclosure filed; check the amounts</span><span class="when">7w</span></li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="mc" aria-labelledby="m4" data-reveal data-d="1">
+            <div class="mc-top"><h3 id="m4">Create</h3><span class="idx">04 / 04</span></div>
+            <p>A language model drafts exchange letters from your company's past letters of the same type. You review, export and file.</p>
+            <ul class="tags">
+              <li><b>Draft</b>Reg 29, 30, 33, 44</li><li><b>House style</b>past letters</li><li><b>Edit</b>polish, formal</li><li><b>Export</b>.docx · PDF</li>
+            </ul>
+            <div class="tray">
+              <div class="mini" role="img" aria-label="Sample draft of a Regulation 30 outcome of board meeting letter to the National Stock Exchange, marked review before submitting, exportable as docx or PDF.">
+                <div class="mini-h"><span>Outcome of board meeting</span><span>Reg 30</span></div>
+                <div class="letter">
+                  <p>To, Listing Department,<br>National Stock Exchange of India Ltd</p>
+                  <p><b>Sub:</b> Outcome of the Board Meeting held on 12 September 2026</p>
+                  <p>Pursuant to Regulation 30 of the SEBI (LODR) Regulations, 2015, we inform you that the Board at its meeting held today approved …</p>
+                </div>
+                <div class="foot-row-mini"><span class="chip st-soon">Review before submitting</span><span class="mono">.docx · PDF</span></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── Story: circular to filing (the one pinned section) ───────────── -->
+    <section id="story" class="story" aria-labelledby="flow-title">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow type-on" data-reveal>02 / In practice</p>
+          <h2 id="flow-title" class="h2" data-reveal>From the circular <span class="claim">to the filing.</span></h2>
+          <p class="lede" data-reveal data-d="1">One listed company, one quarter. Every step below happens inside Delta Filings. The screens are samples with the same fictional companies.</p>
+          <p class="caveat" data-reveal data-d="2"><span class="mono">Note</span>Filing on the exchange and the MCA portal is still yours to do.</p>
+        </div>
+      </div>
+
+      <div class="story-track" data-story style="--n:7">
+        <div class="wrap story-pin">
+          <div class="story-left">
+            <p class="story-count" aria-hidden="true"><b data-story-n>01</b><span>/ 07</span><span>· Sabari Cables Ltd · Q2 FY2026-27</span></p>
+            <ol class="steps">
+
+              <li class="step" data-step>
+                <h3 class="step-h"><button class="step-btn" type="button"><span class="step-meta"><span class="when">Any day</span><span class="mod">Regulatory news</span></span><span class="step-title">A SEBI circular lands</span></button></h3>
+                <div class="step-body"><div><p>It is tagged LODR and shows under For you, because you look after a listed company.</p></div></div>
+                <div class="shot" role="img" aria-label="Sample regulatory news screen. Under For you, a new SEBI master circular on compliance with the LODR Regulations by listed entities, tagged LODR.">
+                  <div class="win">
+                    <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/news</span></div>
+                    <div class="win-body">
+                      <div class="ph"><div><div class="pt">Regulatory news</div><div class="ps">SEBI and RBI, tagged by topic</div></div><span class="chip st-info">3 new</span></div>
+                      <div class="tabs-mini"><span class="on">For you</span><span>All</span><span>SEBI</span><span>RBI</span></div>
+                      <ul class="feed-big">
+                        <li class="hit a-slide"><div class="feed-meta"><span class="src">SEBI</span><span>Master circular</span><span class="topic">LODR</span><span class="chip st-info">New</span></div><p>Compliance with the LODR Regulations by listed entities</p><div class="why">Shown because you look after a listed company</div></li>
+                        <li><div class="feed-meta"><span class="src">RBI</span><span>Notification</span><span class="topic">KYC / AML</span></div><p>Amendment to the Master Direction on KYC</p></li>
+                        <li><div class="feed-meta"><span class="src">SEBI</span><span>Order</span><span class="topic">Enforcement</span></div><p>In the matter of Konkan Coastal Finance Ltd</p></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </li>
+
+              <li class="step" data-step>
+                <h3 class="step-h"><button class="step-btn" type="button"><span class="step-meta"><span class="when">Quarter end</span><span class="mod">Insider trading</span></span><span class="step-title">The trading window closes</span></button></h3>
+                <div class="step-body"><div><p>Pre-clearance requests from designated persons are refused until it reopens.</p></div></div>
+                <div class="shot" role="img" aria-label="Sample insider trading screen for Sabari Cables Ltd. The trading window is closed from 1 October. Two pre-clearance requests from designated persons are refused because the window is closed.">
+                  <div class="win">
+                    <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/insider-trading</span></div>
+                    <div class="win-body">
+                      <div class="ph"><div><div class="pt">Insider trading</div><div class="ps">Sabari Cables Ltd · listed company</div></div></div>
+                      <div class="tw">
+                        <div class="kpi"><div class="kpi-l">Trading window</div><div class="tw-state"><span class="lock" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" stroke-width="1.5"/></svg></span><span class="chip st-over a-closed">Closed</span></div><div class="kpi-f">since 1 Oct · quarter end</div></div>
+                        <div class="kpi"><div class="kpi-l">Pre-clearance</div><div class="tw-state">2 refused</div><div class="kpi-f">while the window is closed</div></div>
+                      </div>
+                      <div class="sub-h"><span>Pre-clearance requests</span><span>designated persons</span></div>
+                      <ul class="lst">
+                        <li class="a-row" style="--i:0"><span class="fm">PC-031</span><span class="nm2">Sell 2,000 shares<small>Finance</small></span><span class="d">3 Oct</span><span class="chip st-over">Refused</span></li>
+                        <li class="a-row" style="--i:1"><span class="fm">PC-032</span><span class="nm2">Buy 500 shares<small>Legal</small></span><span class="d">6 Oct</span><span class="chip st-over">Refused</span></li>
+                        <li class="a-row" style="--i:2"><span class="fm">PC-030</span><span class="nm2">Sell 1,200 shares<small>Sales</small></span><span class="d">24 Sep</span><span class="chip st-ok">Approved</span></li>
+                      </ul>
+                      <p class="note-line">Refused until the trading window reopens.</p>
+                    </div>
+                  </div>
+                </div>
+              </li>
+
+              <li class="step" data-step>
+                <h3 class="step-h"><button class="step-btn" type="button"><span class="step-meta"><span class="when">Meeting scheduled</span><span class="mod">Calendar</span></span><span class="step-title">Reg 29 goes on the calendar</span></button></h3>
+                <div class="step-body"><div><p>The prior intimation to the exchange is dated two days before the board meeting.</p></div></div>
+                <div class="shot" role="img" aria-label="Sample calendar for November 2026. The board meeting is on 12 November. The Regulation 29 prior intimation to the exchange is dated 10 November, two days before it. Regulation 33 financial results are due 14 November.">
+                  <div class="win">
+                    <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/workspace</span></div>
+                    <div class="win-body">
+                      <div class="ph"><div><div class="pt">November 2026</div><div class="ps">Sabari Cables Ltd · board meeting scheduled</div></div></div>
+                      <div class="month">
+                        <span class="dow">MON</span><span class="dow">TUE</span><span class="dow">WED</span><span class="dow">THU</span><span class="dow">FRI</span><span class="dow">SAT</span><span class="dow">SUN</span>
+                        <div class="day">2</div><div class="day">3</div><div class="day">4</div><div class="day">5<span class="ev-chip ev-n">Notice</span></div><div class="day">6</div><div class="day wk">7</div><div class="day wk">8</div>
+                        <div class="day">9</div><div class="day today">10<span class="ev-chip ev-29 a-drop">Reg 29</span></div><div class="day">11</div><div class="day">12<span class="ev-chip ev-bm">Board</span></div><div class="day">13</div><div class="day wk">14<span class="ev-chip ev-33">Reg 33</span></div><div class="day wk">15</div>
+                        <div class="day">16</div><div class="day">17</div><div class="day">18</div><div class="day">19</div><div class="day">20</div><div class="day wk">21</div><div class="day wk">22</div>
+                      </div>
+                      <ul class="lst">
+                        <li class="a-row" style="--i:1"><span class="fm">Reg 29</span><span class="nm2">Prior intimation of board meeting<small>2 days before</small></span><span class="d">10 Nov</span><span class="chip st-info">Dated</span></li>
+                        <li><span class="fm">Board</span><span class="nm2">Board meeting · Q2 results</span><span class="d">12 Nov</span><span class="chip st-up">Scheduled</span></li>
+                        <li><span class="fm">Reg 33</span><span class="nm2">Financial results</span><span class="d">14 Nov</span><span class="chip st-up">Upcoming</span></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </li>
+
+              <li class="step" data-step>
+                <h3 class="step-h"><button class="step-btn" type="button"><span class="step-meta"><span class="when">7 days before</span><span class="mod">Meeting kit</span></span><span class="step-title">Notice and agenda go out</span></button></h3>
+                <div class="step-body"><div><p>Pick items from the agenda library. The kit writes the notice, agenda, draft resolutions and a minutes outline as one .docx.</p></div></div>
+                <div class="shot" role="img" aria-label="Sample meeting kit for the 12 November 2026 board meeting: three items picked from the agenda library, and one docx file containing the notice, agenda, draft resolutions and a minutes outline.">
+                  <div class="win">
+                    <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/meetings</span></div>
+                    <div class="win-body">
+                      <div class="ph"><div><div class="pt">Board meeting · 12 Nov 2026</div><div class="ps">Sabari Cables Ltd · notice goes out 5 Nov</div></div><span class="chip st-soon">7 days before</span></div>
+                      <div class="sub-h"><span>From the agenda library</span><span>3 picked</span></div>
+                      <ul class="agenda">
+                        <li class="a-row" style="--i:0"><span class="box"><svg viewBox="0 0 10 10" fill="none"><path d="m2 5 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Financial results for the quarter ended 30 Sep 2026</li>
+                        <li class="a-row" style="--i:1"><span class="box"><svg viewBox="0 0 10 10" fill="none"><path d="m2 5 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Appointment of an additional director</li>
+                        <li class="a-row" style="--i:2"><span class="box"><svg viewBox="0 0 10 10" fill="none"><path d="m2 5 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Minutes of the previous meeting</li>
+                      </ul>
+                      <div class="kit-file"><span class="docx">DOCX</span><span style="min-width:0"><b>board-meeting-kit-12-nov-2026.docx</b><small>One file, four parts</small></span></div>
+                      <ul class="kit-parts">
+                        <li class="a-pop" style="--i:0"><span class="tick"><svg viewBox="0 0 10 10" fill="none"><path d="m2 5 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Notice</li>
+                        <li class="a-pop" style="--i:1"><span class="tick"><svg viewBox="0 0 10 10" fill="none"><path d="m2 5 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Agenda</li>
+                        <li class="a-pop" style="--i:2"><span class="tick"><svg viewBox="0 0 10 10" fill="none"><path d="m2 5 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Draft resolutions</li>
+                        <li class="a-pop" style="--i:3"><span class="tick"><svg viewBox="0 0 10 10" fill="none"><path d="m2 5 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Minutes outline</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </li>
+
+              <li class="step" data-step>
+                <h3 class="step-h"><button class="step-btn" type="button"><span class="step-meta"><span class="when">Results shared</span><span class="mod">SDD</span></span><span class="step-title">Every recipient of UPSI is logged</span></button></h3>
+                <div class="step-body"><div><p>Entries are time-stamped in IST and hash-chained. There is no edit button. A mistake gets a correction entry that points at the original.</p></div></div>
+                <div class="shot" role="img" aria-label="Sample structured digital database for Sabari Cables Ltd. A new entry, number 217, records unpublished price sensitive information shared with the statutory auditor on 11 November 2026 at 10:42 IST. It carries the hash of entry 216, and the chain is verified.">
+                  <div class="win">
+                    <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/sdd</span></div>
+                    <div class="win-body">
+                      <div class="ph"><div><div class="pt">Structured digital database</div><div class="ps">Sabari Cables Ltd · append-only</div></div><span class="chip st-up">No edit button</span></div>
+                      <div class="tiles">
+                        <div class="tile"><div class="kpi-l">Entries</div><div class="v">217</div><div class="f">time-stamped in IST</div></div>
+                        <div class="tile"><div class="kpi-l">Head</div><div class="v mono" style="font-size:12px;font-weight:500">5d82…b07c</div><div class="f">SHA-256</div></div>
+                        <div class="tile"><div class="kpi-l">Edits</div><div class="v">None</div><div class="f">corrections only</div></div>
+                      </div>
+                      <div class="hchain">
+                        <div class="blk"><span class="no">#215</span><span style="min-width:0"><span class="t" style="display:block">UPSI shared with the registrar and share transfer agent</span><span class="h">10 Nov, 16:05 IST · prev 9f3c…a41e · hash 61ae…08d3</span></span></div>
+                        <div class="blk"><span class="no">#216</span><span style="min-width:0"><span class="t" style="display:block">UPSI shared with the board, draft results</span><span class="h">11 Nov, 09:30 IST · prev 61ae…08d3 · hash c4b9…7f20</span></span></div>
+                        <div class="blk new a-slide"><span class="no">#217</span><span style="min-width:0"><span class="t" style="display:block">UPSI shared with the statutory auditor</span><span class="h"><span class="a-type" style="display:inline-block">11 Nov, 10:42 IST · prev c4b9…7f20 · hash 5d82…b07c</span></span></span></div>
+                      </div>
+                      <div class="verified a-pop" style="--i:3"><span class="tick"><svg viewBox="0 0 10 10" fill="none"><path d="m2 5 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Chain verified · SHA-256</div>
+                      <p class="note-line">A mistake gets a correction entry that points at the original.</p>
+                    </div>
+                  </div>
+                </div>
+              </li>
+
+              <li class="step" data-step>
+                <h3 class="step-h"><button class="step-btn" type="button"><span class="step-meta"><span class="when">Meeting day</span><span class="mod">Draft</span></span><span class="step-title">The outcome letter is drafted</span></button></h3>
+                <div class="step-body"><div><p>Reg 30 gives you 30 minutes. The draft follows your company's past outcome letters. You review it, export it and file it on NSE.</p></div></div>
+                <div class="shot" role="img" aria-label="Sample draft of the Regulation 30 outcome of board meeting letter to the National Stock Exchange for the meeting held on 12 November 2026, marked review before submitting.">
+                  <div class="win">
+                    <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/draft</span></div>
+                    <div class="win-body">
+                      <div class="ph"><div><div class="pt">Outcome of board meeting</div><div class="ps">Reg 30 · in the style of your past outcome letters</div></div><span class="timer">Reg 30 · 30 min</span></div>
+                      <div class="draft-letter">
+                        <p>To, Listing Department,<br>National Stock Exchange of India Ltd</p>
+                        <p><b>Sub:</b> Outcome of the Board Meeting held on 12 November 2026</p>
+                        <p data-type-text>Pursuant to Regulation 30 of the SEBI (LODR) Regulations, 2015, we inform you that the Board at its meeting held today approved the unaudited financial results for the quarter ended 30 September 2026 …</p>
+                        <p>This is for your information and records.</p>
+                        <p>For Sabari Cables Ltd<br>Company Secretary</p>
+                      </div>
+                      <div class="foot-row-mini"><span class="chip st-soon">Review before submitting</span><span class="mono">Export .docx · PDF</span></div>
+                    </div>
+                  </div>
+                </div>
+              </li>
+
+              <li class="step" data-step>
+                <h3 class="step-h"><button class="step-btn" type="button"><span class="step-meta"><span class="when">Marked held</span><span class="mod">Calendar</span></span><span class="step-title">The follow-ups are dated</span></button></h3>
+                <div class="step-body"><div><p>Minutes signing and MGT-14, where the resolution needs it, fall due within 30 days. If a director was appointed, DIR-12 joins them.</p></div></div>
+                <div class="shot" role="img" aria-label="Sample follow-ups after the 12 November 2026 board meeting is marked held: minutes signing, MGT-14 where the resolution needs it, and DIR-12 because a director was appointed, each due within 30 days, by 12 December.">
+                  <div class="win">
+                    <div class="win-bar"><i></i><i></i><i></i><span class="url">deltafiling.tech/workspace</span></div>
+                    <div class="win-body">
+                      <div class="held"><span>Board meeting marked held</span><span class="mono">12 Nov 2026</span></div>
+                      <div class="sub-h"><span>Follow-ups, dated from the meeting</span><span>within 30 days</span></div>
+                      <ul class="lst">
+                        <li class="a-row" style="--i:0"><span class="fm">Minutes</span><span class="nm2">Minutes signing</span><span class="d">12 Dec</span><span class="chip st-up">Upcoming</span></li>
+                        <li class="a-row" style="--i:1"><span class="fm">MGT-14</span><span class="nm2">Filing of resolutions<small>where the resolution needs it</small></span><span class="d">12 Dec</span><span class="chip st-up">Upcoming</span></li>
+                        <li class="a-row" style="--i:2"><span class="fm">DIR-12</span><span class="nm2">Change in directors<small>director appointed</small></span><span class="d">12 Dec</span><span class="chip st-info">Joined</span></li>
+                      </ul>
+                      <p class="note-line">Filing on the MCA portal is still yours to do.</p>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            </ol>
+          </div>
+          <svg class="story-link" aria-hidden="true" focusable="false"><path class="sl-p" d=""/><circle class="sl-a" r="3.5" cx="-20" cy="-20"/><circle class="sl-dot" r="3" cx="-20" cy="-20"/><circle class="sl-b" r="4" cx="-20" cy="-20"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── Roles ───────────── -->
+    <section id="roles" class="sec" aria-labelledby="roles-title">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow type-on" data-reveal>03 / Roles</p>
+          <h2 id="roles-title" class="h2" data-reveal>Your role decides <span class="claim">the home screen.</span></h2>
+          <p class="lede" data-reveal data-d="1">You pick a role when you sign up. It changes where you land and what the top menu shows first. Every other module is one click away under All tools. The screens are samples with the same fictional companies.</p>
+        </div>
+
+        <div class="seg-ctl" role="tablist" aria-label="Roles" data-tabs>
+          <span class="seg-thumb" aria-hidden="true"></span>
+          <button class="tab" role="tab" id="tab-cs" aria-controls="panel-cs" aria-selected="true">Company secretary</button>
+          <button class="tab" role="tab" id="tab-pcs" aria-controls="panel-pcs" aria-selected="false" tabindex="-1">Practising CS</button>
+          <button class="tab" role="tab" id="tab-co" aria-controls="panel-co" aria-selected="false" tabindex="-1">Compliance officer</button>
+          <button class="tab" role="tab" id="tab-cro" aria-controls="panel-cro" aria-selected="false" tabindex="-1">Risk officer</button>
+        </div>
+
+        <div class="role-panel" role="tabpanel" id="panel-cs" aria-labelledby="tab-cs" tabindex="0">
+          <div class="role-text">
+            <h3>Company secretary</h3>
+            <p>Your company's filings, meetings, registers and deadlines. Answer a few questions about the company and the calendar lists the filings that apply. Log a director's appointment and DIR-12 is dated from it. DIR-3 KYC is tracked per DIN on its three-year cycle.</p>
+            <dl class="role-facts">
+              <div><dt>Lands on</dt><dd>Workspace</dd></div>
+              <div><dt>Top menu</dt><dd class="navs"><span>Workspace</span><span>Regulatory news</span><span>Draft</span><span>Rulebook</span><span>Document requests</span></dd></div>
+            </dl>
+          </div>
+          <div class="scr-wrap">
+            <div class="scr" role="img" aria-label="Sample company secretary home screen for Kaveri Agro Foods Pvt Ltd: two filings overdue, one due in 15 days, 4,800 rupees of indicative late fees, the next five deadlines and entry counts for six statutory registers.">
+              <div class="scr-bar"><span class="ttl">Kaveri Agro Foods Pvt Ltd<small>Private limited company</small></span><span class="path">/workspace</span></div>
+              <div class="scr-body">
+                <div class="mini-kpis">
+                  <div class="kpi"><div class="kpi-l">Overdue</div><div class="kpi-v red">2</div></div>
+                  <div class="kpi"><div class="kpi-l">Due in 15 days</div><div class="kpi-v">1</div></div>
+                  <div class="kpi"><div class="kpi-l">Late fees <span class="tag-ind">Indicative</span></div><div class="kpi-v">₹4,800</div></div>
+                </div>
+                <div class="sub-h"><span>Next up</span><span>FY2025-26</span></div>
+                <ul class="lst">
+                  <li><span class="fm">AGM</span><span class="nm2">Annual general meeting</span><span class="d">30 Sep</span><span class="chip st-soon">Tomorrow</span></li>
+                  <li><span class="fm">ADT-1</span><span class="nm2">Auditor appointment</span><span class="d">15 Oct</span><span class="chip st-up">16 days</span></li>
+                  <li><span class="fm">AOC-4</span><span class="nm2">Financial statements</span><span class="d">30 Oct</span><span class="chip st-up">31 days</span></li>
+                  <li><span class="fm">ITR-6</span><span class="nm2">Income tax return</span><span class="d">31 Oct</span><span class="chip st-up">32 days</span></li>
+                  <li><span class="fm">DIR-3 KYC</span><span class="nm2">4 DINs, three-year cycle</span><span class="d">30 Jun 2028</span><span class="chip st-up">Upcoming</span></li>
+                </ul>
+                <div class="regs">
+                  <div><span>Members</span><b>42<small>MGT-1</small></b></div>
+                  <div><span>Directors and KMP</span><b>5</b></div>
+                  <div><span>Charges</span><b>2<small>CHG-7</small></b></div>
+                  <div><span>Related party contracts</span><b>3<small>MBP-4</small></b></div>
+                  <div><span>Loans and investments</span><b>1<small>MBP-2</small></b></div>
+                  <div><span>Share transfers</span><b>6</b></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="role-panel" role="tabpanel" id="panel-pcs" aria-labelledby="tab-pcs" tabindex="0">
+          <div class="role-text">
+            <h3>Practising CS or firm</h3>
+            <p>Every client's compliance calendar in one place, most overdue first, with the late fee on each. Send a client one private link for the documents you need. They upload against each line without an account, and you see what has arrived.</p>
+            <dl class="role-facts">
+              <div><dt>Lands on</dt><dd>Workspace, all clients</dd></div>
+              <div><dt>Top menu</dt><dd class="navs"><span>Workspace</span><span>Document requests</span><span>Regulatory news</span><span>Draft</span><span>Rulebook</span></dd></div>
+            </dl>
+          </div>
+          <div class="scr-wrap">
+            <div class="scr" role="img" aria-label="Sample practising CS home screen: four client entities sorted by overdue filings and late-fee exposure, and an open document request with two of three documents received.">
+              <div class="scr-bar"><span class="ttl">All clients<small>4 entities, most overdue first</small></span><span class="path">/workspace</span></div>
+              <div class="scr-body">
+                <div class="clients">
+                  <div class="cl-h"><span>Entity</span><span>Overdue</span><span class="c-hide">Due 15d</span><span>Exposure</span><span class="c-hide">On time</span></div>
+                  <div class="cl-r"><span>Tungabhadra Logistics LLP</span><span class="red">1</span><span class="c-hide mut">0</span><span>₹3,000</span><span class="c-hide">67%</span></div>
+                  <div class="cl-r"><span>Kaveri Agro Foods Pvt Ltd</span><span class="red">2</span><span class="c-hide">1</span><span>₹4,800</span><span class="c-hide">82%</span></div>
+                  <div class="cl-r"><span>Periyar Spice Exports Pvt Ltd</span><span class="red">1</span><span class="c-hide mut">0</span><span>₹450</span><span class="c-hide">91%</span></div>
+                  <div class="cl-r"><span>Sabari Cables Ltd</span><span class="mut">0</span><span class="c-hide">2</span><span class="mut">—</span><span class="c-hide">100%</span></div>
+                </div>
+                <div class="req">
+                  <div class="req-top"><b>Kaveri Agro Foods · new director</b><span class="chip st-soon">2 of 3 in</span></div>
+                  <ul>
+                    <li><span>DIR-2 consent to act as director</span><span class="got">Received</span></li>
+                    <li><span>Identity and address proof</span><span class="got">Received</span></li>
+                    <li><span>Certified copy of board resolution</span><span class="wait">Waiting</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="role-panel" role="tabpanel" id="panel-co" aria-labelledby="tab-co" tabindex="0">
+          <div class="role-text">
+            <h3>Compliance officer, listed company</h3>
+            <p>Exchange disclosures, insider-trading controls and the LODR calendar. The structured digital database is append-only and hash-chained, so you can show an auditor that nothing was edited after the fact. Pre-clearance is refused while the trading window is closed.</p>
+            <dl class="role-facts">
+              <div><dt>Lands on</dt><dd>Dashboard</dd></div>
+              <div><dt>Top menu</dt><dd class="navs"><span>Dashboard</span><span>Signal</span><span>Draft</span><span>Disclosures</span><span>Listed compliance</span><span>Insider trading (SDD)</span><span>Regulatory news</span></dd></div>
+            </dl>
+          </div>
+          <div class="scr-wrap">
+            <div class="scr" role="img" aria-label="Sample compliance officer home screen for Sabari Cables Ltd: trading window open until 1 October, 214 SDD entries with the hash chain verified, two pre-clearance requests pending, and the SEBI deadlines for the September quarter.">
+              <div class="scr-bar"><span class="ttl">Sabari Cables Ltd<small>Listed company</small></span><span class="path">/dashboard</span></div>
+              <div class="scr-body">
+                <div class="tiles">
+                  <div class="tile"><div class="kpi-l">Trading window</div><div class="v"><span class="chip st-ok">Open</span></div><div class="f">closes 1 Oct</div></div>
+                  <div class="tile"><div class="kpi-l">SDD</div><div class="v">214 entries</div><div class="f">chain verified</div></div>
+                  <div class="tile"><div class="kpi-l">Pre-clearance</div><div class="v">2 pending</div><div class="f">valid 7 trading days</div></div>
+                </div>
+                <div class="sub-h"><span>SEBI, Q2 FY2026-27</span><span>quarter ends 30 Sep</span></div>
+                <ul class="lst">
+                  <li><span class="fm">Reg 31</span><span class="nm2">Shareholding pattern</span><span class="d">21 Oct</span><span class="chip st-up">22 days</span></li>
+                  <li><span class="fm">Reg 13(3)</span><span class="nm2">Investor grievance report</span><span class="d">21 Oct</span><span class="chip st-up">22 days</span></li>
+                  <li><span class="fm">Reg 27</span><span class="nm2">Integrated filing (governance)</span><span class="d">30 Oct</span><span class="chip st-up">31 days</span></li>
+                  <li><span class="fm">Reg 76</span><span class="nm2">Share capital audit</span><span class="d">30 Oct</span><span class="chip st-up">31 days</span></li>
+                  <li><span class="fm">Reg 33</span><span class="nm2">Financial results</span><span class="d">14 Nov</span><span class="chip st-up">46 days</span></li>
+                </ul>
+                <div class="hash">head 9f3c…a41e · prev 07bd…c2f9 · SHA-256</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="role-panel" role="tabpanel" id="panel-cro" aria-labelledby="tab-cro" tabindex="0">
+          <div class="role-text">
+            <h3>Risk officer</h3>
+            <p>Watch borrowers, vendors and investees for early warning signs. Each counterparty gets a score from exchange filings, SEBI orders, IBBI announcements and price moves, with the reasons listed. IBBI covers unlisted names too. Critical and high signals can also go to Telegram.</p>
+            <dl class="role-facts">
+              <div><dt>Lands on</dt><dd>Risk desk</dd></div>
+              <div><dt>Top menu</dt><dd class="navs"><span>Risk desk</span><span>Alerts</span><span>Director network</span><span>Regulatory news</span><span>Signal</span><span>Disclosures</span></dd></div>
+            </dl>
+          </div>
+          <div class="scr-wrap">
+            <div class="scr" role="img" aria-label="Sample risk officer home screen: 101.7 crore rupees of exposure, 50.7 crore in High or Severe names, five active alerts, and a director who sits on the boards of two counterparties.">
+              <div class="scr-bar"><span class="ttl">Risk desk<small>5 counterparties</small></span><span class="path">/risk</span></div>
+              <div class="scr-body">
+                <div class="mini-kpis">
+                  <div class="kpi"><div class="kpi-l">Exposure</div><div class="kpi-v">₹101.7 Cr</div></div>
+                  <div class="kpi"><div class="kpi-l">At risk</div><div class="kpi-v red">₹50.7 Cr</div></div>
+                  <div class="kpi"><div class="kpi-l">Active alerts</div><div class="kpi-v">5</div></div>
+                </div>
+                <div class="sub-h"><span>Alert queue</span><span>newest first</span></div>
+                <ul class="lst alerts">
+                  <li><span class="a-cp">Satpura Steel Castings Ltd</span><span class="chip b-sev">Critical</span><span class="a-t">IBBI: insolvency (CIRP) announced</span><span class="a-m">IBBI · 3 days ago · open</span></li>
+                  <li><span class="a-cp">Mandovi Polymers Ltd</span><span class="chip b-high">High</span><span class="a-t">Statutory auditor resigned</span><span class="a-m">Exchange filing · 12 days ago · acknowledged, assigned</span></li>
+                  <li><span class="a-cp">Konkan Coastal Finance Ltd</span><span class="chip b-mod">Medium</span><span class="a-t">SEBI order in a matter concerning this company</span><span class="a-m">SEBI · 19 days ago · open</span></li>
+                </ul>
+                <div class="net"><b>Director network:</b> one DIN sits on the boards of Mandovi Polymers Ltd and Konkan Coastal Finance Ltd.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── Coverage ───────────── -->
+    <section id="coverage" class="sec cov" aria-labelledby="cov-title">
+      <div class="wrap">
+        <div class="cov-grid">
+          <div>
+            <p class="eyebrow type-on" data-reveal>04 / Coverage</p>
+            <h2 id="cov-title" class="h2" data-reveal>{{ rule_count }} rules <span class="claim">across seven regimes.</span></h2>
+            <p class="lede" style="margin-top:20px" data-reveal data-d="1">Every rule names its form, the law behind it, when it falls due and what a delay can cost.</p>
+            <p class="cov-meta" data-reveal data-d="1">Rulebook last reviewed {{ reviewed_label }}. Late fees are indicative, and each one shows its basis so you can check it at source.</p>
+
+            <div class="regimes" data-io>
+              <div class="regime">
+                <div class="regime-top"><h3>Companies Act</h3><span class="n">{{ regime_counts['Companies Act'] }}</span></div>
+                <div class="bar"><span style="width:{{ (100 * regime_counts['Companies Act'] / regime_max)|round(1) }}%"></span></div>
+                <p>AOC-4 · AOC-4 CFS · MGT-7 · MGT-15 · DIR-12 · DIR-3 KYC · MGT-14 · PAS-3 · PAS-6 · CHG-1 · DPT-3 · MSME-1 · ADT-1 · ADT-3 · BEN-2 · MBP-1</p>
+              </div>
+              <div class="regime">
+                <div class="regime-top"><h3>SEBI <small>LODR, PIT, SAST</small></h3><span class="n">{{ regime_counts['SEBI'] }}</span></div>
+                <div class="bar"><span style="width:{{ (100 * regime_counts['SEBI'] / regime_max)|round(1) }}%"></span></div>
+                <p>Reg 33 · Reg 32 · Reg 31 · Reg 30 · Reg 29 · Reg 27 · Reg 24A · Reg 23(9) · Reg 44 · Reg 47 · BRSR · SAST Reg 31(4) · SDD certificate · trading window</p>
+              </div>
+              <div class="regime">
+                <div class="regime-top"><h3>Income tax and TDS</h3><span class="n">{{ regime_counts['Income Tax'] }}</span></div>
+                <div class="bar"><span style="width:{{ (100 * regime_counts['Income Tax'] / regime_max)|round(1) }}%"></span></div>
+                <p>Advance tax · TDS and TCS deposits · Forms 138, 140, 143, 144 · Forms 130 and 131 · SFT · tax audit · Form 3CEB · ITR-6 · ITR-5</p>
+              </div>
+              <div class="regime">
+                <div class="regime-top"><h3>GST</h3><span class="n">{{ regime_counts['GST'] }}</span></div>
+                <div class="bar"><span style="width:{{ (100 * regime_counts['GST'] / regime_max)|round(1) }}%"></span></div>
+                <p>GSTR-1 · GSTR-3B (22nd or 24th by state) · QRMP · PMT-06 · GSTR-9 · GSTR-9C · ITC-04 · LUT</p>
+              </div>
+              <div class="regime">
+                <div class="regime-top"><h3>FEMA and RBI</h3><span class="n">{{ regime_counts['FEMA / RBI'] }}</span></div>
+                <div class="bar"><span style="width:{{ (100 * regime_counts['FEMA / RBI'] / regime_max)|round(1) }}%"></span></div>
+                <p>FC-GPR · FC-TRS · FLA return · ECB-2 · ODI APR · Form OPI · Form DI · allotment against inflow</p>
+              </div>
+              <div class="regime">
+                <div class="regime-top"><h3>Labour</h3><span class="n">{{ regime_counts['Labour'] }}</span></div>
+                <div class="bar"><span style="width:{{ (100 * regime_counts['Labour'] / regime_max)|round(1) }}%"></span></div>
+                <p>PF and ECR · ESI · professional tax (Maharashtra, Karnataka) · labour welfare fund · POSH annual report</p>
+              </div>
+              <div class="regime">
+                <div class="regime-top"><h3>LLP Act</h3><span class="n">{{ regime_counts['LLP Act'] }}</span></div>
+                <div class="bar"><span style="width:{{ (100 * regime_counts['LLP Act'] / regime_max)|round(1) }}%"></span></div>
+                <p>Form 11 · Form 8 · Forms 3 and 4</p>
+              </div>
+            </div>
+
+            <ul class="extra">
+              <li><b>Entity types</b><span>Private, public unlisted, listed, OPC, Section 8 and LLP.</span></li>
+              <li><b>Per director</b><span>DIR-3 KYC on its three-year cycle for each DIN, and DSC renewal before it expires.</span></li>
+              <li><b>Events</b><span>A director appointed, shares allotted, a charge created, an office moved: log it and the follow-up filings are dated from it.</span></li>
+            </ul>
+          </div>
+
+          <div class="cov-side" data-reveal data-d="1">
+            <h3 class="side-h">Where the data comes from</h3>
+            <div class="diag" data-diag>
+              <svg viewBox="0 0 400 268" role="img" aria-label="Diagram: SEBI and RBI feed regulatory news; SEBI, IBBI and NSE feed the risk score; your own entries feed your calendar and the risk score.">
+                <g fill="none">
+                  <path class="p" data-src="sebi" id="p-sebi-news" d="M78 26 C 170 26, 190 46, 262 46"/>
+                  <path class="p" data-src="sebi" id="p-sebi-risk" d="M78 26 C 170 26, 180 214, 262 214"/>
+                  <path class="p" data-src="rbi" id="p-rbi-news" d="M78 80 C 170 80, 190 50, 262 50"/>
+                  <path class="p" data-src="ibbi" id="p-ibbi-risk" d="M78 134 C 170 134, 190 210, 262 210"/>
+                  <path class="p" data-src="nse" id="p-nse-risk" d="M78 188 C 170 188, 190 218, 262 218"/>
+                  <path class="p" data-src="you" id="p-you-cal" d="M78 242 C 170 242, 180 130, 262 130"/>
+                  <path class="p" data-src="you" id="p-you-risk" d="M78 242 C 170 242, 200 222, 262 222"/>
+                </g>
+                <g>
+                  <circle class="dot" data-src="sebi" r="3"><animateMotion dur="6s" repeatCount="indefinite"><mpath href="#p-sebi-news"/></animateMotion></circle>
+                  <circle class="dot" data-src="sebi" r="3"><animateMotion dur="6s" begin="-2s" repeatCount="indefinite"><mpath href="#p-sebi-risk"/></animateMotion></circle>
+                  <circle class="dot" data-src="rbi" r="3"><animateMotion dur="6s" begin="-4s" repeatCount="indefinite"><mpath href="#p-rbi-news"/></animateMotion></circle>
+                  <circle class="dot" data-src="ibbi" r="3"><animateMotion dur="6s" begin="-1s" repeatCount="indefinite"><mpath href="#p-ibbi-risk"/></animateMotion></circle>
+                  <circle class="dot" data-src="nse" r="3"><animateMotion dur="6s" begin="-3s" repeatCount="indefinite"><mpath href="#p-nse-risk"/></animateMotion></circle>
+                  <circle class="dot" data-src="you" r="3"><animateMotion dur="6s" begin="-5s" repeatCount="indefinite"><mpath href="#p-you-cal"/></animateMotion></circle>
+                  <circle class="dot" data-src="you" r="3"><animateMotion dur="6s" begin="-2.5s" repeatCount="indefinite"><mpath href="#p-you-risk"/></animateMotion></circle>
+                </g>
+                <g class="node src-node" data-src="sebi"><rect x="4" y="12" width="74" height="28" rx="14"/><text x="41" y="30" text-anchor="middle">SEBI</text></g>
+                <g class="node src-node" data-src="rbi"><rect x="4" y="66" width="74" height="28" rx="14"/><text x="41" y="84" text-anchor="middle">RBI</text></g>
+                <g class="node src-node" data-src="ibbi"><rect x="4" y="120" width="74" height="28" rx="14"/><text x="41" y="138" text-anchor="middle">IBBI</text></g>
+                <g class="node src-node" data-src="nse"><rect x="4" y="174" width="74" height="28" rx="14"/><text x="41" y="192" text-anchor="middle">NSE</text></g>
+                <g class="node src-node" data-src="you"><rect x="4" y="228" width="74" height="28" rx="14"/><text x="41" y="246" text-anchor="middle">YOU</text></g>
+                <g class="node tgt"><rect x="262" y="26" width="134" height="46" rx="12"/><text x="276" y="44" class="sm">MONITOR</text><text x="276" y="62">Regulatory news</text></g>
+                <g class="node tgt"><rect x="262" y="108" width="134" height="46" rx="12"/><text x="276" y="126" class="sm">COMPLY</text><text x="276" y="144">Your calendar</text></g>
+                <g class="node tgt"><rect x="262" y="192" width="134" height="46" rx="12"/><text x="276" y="210" class="sm">RISK</text><text x="276" y="228">Risk score</text></g>
+              </svg>
+            </div>
+            <dl class="srcs" data-srcs>
+              <div data-src="sebi" tabindex="0"><dt>SEBI</dt><dd>Circulars, orders, recovery proceedings and press releases, from SEBI's own feed. Orders naming a counterparty become risk signals.</dd></div>
+              <div data-src="rbi" tabindex="0"><dt>RBI</dt><dd>Notifications and press releases, tagged by department and topic.</dd></div>
+              <div data-src="ibbi" tabindex="0"><dt>IBBI</dt><dd>Public announcements of insolvency and liquidation. This works for unlisted companies too.</dd></div>
+              <div data-src="nse" tabindex="0"><dt>NSE</dt><dd>Corporate announcements, results and share prices for listed companies you watch or lend to.</dd></div>
+              <div data-src="you" tabindex="0"><dt>You</dt><dd>Entity profiles, events, meetings, registers, SDD entries and anything your risk team logs by hand.</dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <div class="limits" data-reveal>
+          <h3>What it does <span class="claim">not do.</span></h3>
+          <ul>
+            <li>It does not file on the MCA, GST or income-tax portals. It tells you what is due and what the delay costs, and drafts the letters and meeting papers.</li>
+            <li>MCA does not publish a feed we can read, so MCA notifications are not in the news yet.</li>
+            <li>Unlisted MCA data such as charges and struck-off status needs a licensed source, and is not included.</li>
+            <li class="india">India first. Every rule carries a jurisdiction code, so another country can be added as data rather than as a rewrite.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── Dark CTA band ───────────── -->
+    <div class="band-wrap">
+      <section class="band" aria-labelledby="cta-title" data-band>
+        <div class="wrap band-grid">
+          <div>
+            <p class="eyebrow type-on" data-reveal>Get started</p>
+            <h2 id="cta-title" class="h2" data-reveal>Start with <span class="claim">one company.</span></h2>
+            <p class="lede" data-reveal data-d="1">Choose your role, answer a few questions about the company, and the calendar fills in. Add clients, counterparties and board meetings when you are ready.</p>
+            <div class="cta-row" data-reveal data-d="2">
+              <a href="/signup" class="btn btn-primary">Create workspace<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h9m-3.5-4L12 8l-3.5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+              <a href="/signin" class="btn btn-line">Sign in</a>
+            </div>
+            <p class="fine" data-reveal data-d="2">Free during beta. <a href="/pricing">See pricing</a>.</p>
+          </div>
+          <div class="pf-stage" data-tilt data-reveal data-d="1">
+            <div class="register" aria-hidden="true">
+              <div class="rg-h">Statutory register</div>
+              <div class="rg-t">Register of members · MGT-1</div>
+              <ul><li><span>Folio 0001</span><span>Equity</span></li><li><span>Folio 0002</span><span>Equity</span></li><li><span>Folio 0003</span><span>Equity</span></li><li><span>Folio 0004</span><span>Preference</span></li></ul>
+            </div>
+            <div class="glass" role="img" aria-label="Example company profile: a private limited company that is GST registered, deducts TDS, has employees, is registered under EPF and owes MSME suppliers. The rulebook finds {{ sample_b_recurring }} recurring obligations and {{ sample_b_events }} more that follow events.">
+              <div class="pf-h"><span>Company profile</span><span>Sample</span></div>
+              <dl class="pf-body">
+                <div><dt>Type</dt><dd>Private limited company</dd></div>
+                <div><dt>Answers</dt><dd class="flags"><span>GST registered</span><span>Deducts TDS</span><span>Has employees</span><span>Registered under EPF</span><span>MSME dues over 45 days</span></dd></div>
+              </dl>
+              <div class="result">
+                <div><b data-count>{{ sample_b_recurring }}</b><span>recurring obligations</span></div>
+                <div><b data-count>{{ sample_b_events }}</b><span>more that follow events</span></div>
+              </div>
+              <div class="pf-f">Worked out by the rulebook for this profile.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="foot-row">
+        <a href="/" class="brand" aria-label="Delta Filings, home">
+          <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <polygon points="8,42 34,30 34,108 8,120"/>
+            <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+          </svg>
+          <span class="brand-name">Delta Filings</span>
+        </a>
+        <nav class="foot-links" aria-label="Footer">
+          <a href="/product">Product</a>
+          <a href="/solutions">Solutions</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/security">Security</a>
+          <a href="/faq">FAQ</a>
+          <a href="/tools">Free tools</a>
+          <a href="/blog">Blog</a>
+          <a href="/about">About</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/signin">Sign in</a>
+        </nav>
+      </div>
+      <div class="foot-fine">
+        <span>Late-fee figures are indicative. Verify at source before you rely on them.</span>
+        <span>&copy; Delta Filings</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var doc = document.documentElement;
+      var RM = doc.classList.contains('rm');
+      var $ = function (s, r) { return (r || document).querySelector(s); };
+      var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+      var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+      var fineHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+      /* ---------- Header: background after 24px, no blur while the dark band shows ---------- */
+      var head = $('[data-head]');
+      var onScrollHead = function () { head.classList.toggle('is-scrolled', window.scrollY > 24); };
+      onScrollHead();
+      window.addEventListener('scroll', onScrollHead, { passive: true });
+      var band = $('[data-band]');
+      if (band && 'IntersectionObserver' in window) {
+        new IntersectionObserver(function (es) { head.classList.toggle('no-blur', es[0].isIntersecting); }).observe(band);
+      }
+
+      /* ---------- Nav: one highlight that slides to the hovered link ---------- */
+      var nav = $('[data-nav]'), hl = $('.nav-hl');
+      if (nav && hl) {
+        $$('a', nav).forEach(function (a) {
+          var go = function () {
+            hl.style.width = a.offsetWidth + 'px';
+            hl.style.transform = 'translateX(' + a.offsetLeft + 'px)';
+            hl.style.opacity = '1';
+          };
+          a.addEventListener('mouseenter', go);
+          a.addEventListener('focus', go);
+        });
+        nav.addEventListener('mouseleave', function () { hl.style.opacity = '0'; });
+        nav.addEventListener('focusout', function (e) { if (!nav.contains(e.relatedTarget)) hl.style.opacity = '0'; });
+      }
+
+      /* ---------- Mobile menu: close on link, Escape, outside click ---------- */
+      var menu = $('[data-menu]');
+      if (menu) {
+        $$('a', menu).forEach(function (a) { a.addEventListener('click', function () { menu.removeAttribute('open'); }); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menu.open) { menu.removeAttribute('open'); $('summary', menu).focus(); } });
+        document.addEventListener('click', function (e) { if (menu.open && !menu.contains(e.target)) menu.removeAttribute('open'); });
+      }
+
+      /* ---------- h1: rise line by line, 80ms apart ---------- */
+      var h1 = $('[data-lines]');
+      if (h1 && !RM) {
+        var wrapWords = function (node) {
+          Array.prototype.slice.call(node.childNodes).forEach(function (n) {
+            if (n.nodeType === 3) {
+              var frag = document.createDocumentFragment();
+              n.textContent.split(/(\s+)/).forEach(function (part) {
+                if (!part) return;
+                if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+                var s = document.createElement('span'); s.className = 'w'; s.textContent = part; frag.appendChild(s);
+              });
+              node.replaceChild(frag, n);
+            } else if (n.nodeType === 1) { wrapWords(n); }
+          });
+        };
+        wrapWords(h1);
+        h1.classList.add('split');
+        var started = false;
+        var start = function () {
+          if (started) return; started = true;
+          var words = $$('.w', h1), line = -1, lastTop = null;
+          words.forEach(function (w) {
+            var t = w.offsetTop;
+            if (lastTop === null || Math.abs(t - lastTop) > 4) { line++; lastTop = t; }
+            w.style.setProperty('--li', line);
+          });
+          requestAnimationFrame(function () { h1.classList.add('go'); });
+        };
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(start);
+        setTimeout(start, 900);
+      }
+
+      /* ---------- Count-up (once, 900ms easeOutExpo) ---------- */
+      var fmt = function (n, grouped) { return grouped ? n.toLocaleString('en-IN') : String(n); };
+      var countUp = function (el) {
+        if (el.dataset.done) return; el.dataset.done = '1';
+        var raw = el.textContent.trim(), grouped = raw.indexOf(',') > -1;
+        var to = parseInt(raw.replace(/,/g, ''), 10);
+        if (isNaN(to) || RM) return;
+        var t0 = null, dur = 900;
+        var step = function (t) {
+          if (!t0) t0 = t;
+          var p = clamp((t - t0) / dur, 0, 1), e = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
+          el.textContent = fmt(Math.round(to * e), grouped);
+          if (p < 1) requestAnimationFrame(step); else el.textContent = raw;
+        };
+        el.textContent = fmt(0, grouped);
+        requestAnimationFrame(step);
+      };
+
+      /* ---------- Reveal on scroll ---------- */
+      var revealEls = $$('[data-reveal], [data-io], [data-count]');
+      if ('IntersectionObserver' in window && !RM) {
+        var io = new IntersectionObserver(function (es) {
+          es.forEach(function (e) {
+            if (!e.isIntersecting) return;
+            var el = e.target;
+            if (el.hasAttribute('data-count')) {
+              var heroCount = el.closest('[data-stack]');
+              setTimeout(function () { countUp(el); }, heroCount ? 1100 : 0);
+            }
+            el.classList.add('is-in');
+            io.unobserve(el);
+          });
+        }, { rootMargin: '0px 0px -8% 0px', threshold: 0 });
+        revealEls.forEach(function (el) { io.observe(el); });
+      } else {
+        revealEls.forEach(function (el) { el.classList.add('is-in'); });
+      }
+
+      /* ---------- Hero field: pause off-screen, lean to indigo on CTA hover ---------- */
+      var field = $('[data-field]'), hero = $('[data-hero]');
+      if (field && 'IntersectionObserver' in window) {
+        new IntersectionObserver(function (es) { field.classList.toggle('paused', !es[0].isIntersecting); }).observe(hero);
+      }
+      var lean = $('[data-lean]');
+      if (lean && hero) {
+        lean.addEventListener('mouseenter', function () { hero.classList.add('lean'); });
+        lean.addEventListener('mouseleave', function () { hero.classList.remove('lean'); });
+      }
+
+      /* ---------- Hero stack: un-tilt slightly with scroll ---------- */
+      var stack = $('[data-stack]');
+      var wide = window.matchMedia('(min-width: 1000px)');
+      var stackTick = false;
+      var stackUpdate = function () {
+        stackTick = false;
+        if (!stack || RM || !wide.matches) return;
+        var r = hero.getBoundingClientRect();
+        var p = clamp(-r.top / (r.height * 0.7), 0, 1);
+        stack.style.setProperty('--untilt', p.toFixed(3));
+      };
+      window.addEventListener('scroll', function () { if (!stackTick) { stackTick = true; requestAnimationFrame(stackUpdate); } }, { passive: true });
+
+      /* ---------- Story: one pinned section, scroll picks the front screen ---------- */
+      var track = $('[data-story]');
+      if (track) {
+        var steps = $$('[data-step]', track);
+        var shots = steps.map(function (s) { return $('.shot', s); });
+        var N = steps.length, active = -1, pinned = false;
+        var counter = $('[data-story-n]', track);
+        var typeEl = $('[data-type-text]', track), typeFull = typeEl ? typeEl.textContent : '', typeRaf = 0;
+        var typeLetter = function (on) {
+          if (!typeEl || RM) return;
+          cancelAnimationFrame(typeRaf);
+          var box = typeEl.closest('.draft-letter');
+          if (!on) { typeEl.textContent = typeFull; box.classList.remove('typing'); return; }
+          box.classList.add('typing');
+          var t0 = null, dur = 2200;
+          var caret = document.createElement('span'); caret.className = 'caret';
+          var tick = function (t) {
+            if (!t0) t0 = t;
+            var p = clamp((t - t0 - 300) / dur, 0, 1);
+            typeEl.textContent = typeFull.slice(0, Math.round(typeFull.length * p));
+            typeEl.appendChild(caret);
+            if (p < 1) typeRaf = requestAnimationFrame(tick);
+          };
+          typeRaf = requestAnimationFrame(tick);
+        };
+        var link = $('.story-link', track), pinEl = $('.story-pin', track), colEl = $('.story-left', track), linkRaf = 0, linkT0 = 0;
+        var lp = link && $('.sl-p', link), la = link && $('.sl-a', link), lb = link && $('.sl-b', link), ld = link && $('.sl-dot', link);
+        var put = function (c, x, y) { c.setAttribute('cx', x.toFixed(1)); c.setAttribute('cy', y.toFixed(1)); };
+        var drawLink = function (t) {
+          if (!link || !pinned || active < 0) return;
+          var pr = pinEl.getBoundingClientRect();
+          var tr = $('.step-title', steps[active]).getBoundingClientRect();
+          var sr = shots[active].getBoundingClientRect();
+          var x1 = tr.right - pr.left + 16, y1 = tr.top + tr.height / 2 - pr.top;
+          var x2 = sr.left - pr.left + 2, y2 = clamp(y1, sr.top - pr.top + 56, sr.bottom - pr.top - 40);
+          // run level, then bend in the gutter between the columns so the line never crosses the step text
+          var bx = Math.max(x1, colEl.getBoundingClientRect().right - pr.left - 24), mx = (bx + x2) / 2;
+          var f = function (n) { return n.toFixed(1); };
+          lp.setAttribute('d', 'M' + f(x1) + ' ' + f(y1) + ' L' + f(bx) + ' ' + f(y1) + ' C' + f(mx) + ' ' + f(y1) + ' ' + f(mx) + ' ' + f(y2) + ' ' + f(x2) + ' ' + f(y2));
+          put(la, x1, y1); put(lb, x2, y2);
+          var p = clamp((t - linkT0 - 260) / 760, 0, 1), e = 1 - Math.pow(1 - p, 3);
+          var len = lp.getTotalLength(), pt = lp.getPointAtLength(len * e);
+          put(ld, pt.x, pt.y);
+          ld.style.opacity = (p > 0 && p < 1) ? '1' : '0';
+        };
+        var linkLoop = function (t) { drawLink(t); if (t - linkT0 < 1150) linkRaf = requestAnimationFrame(linkLoop); else linkRaf = 0; };
+        var kickLink = function () { if (!link) return; linkT0 = performance.now(); if (!linkRaf) linkRaf = requestAnimationFrame(linkLoop); };
+        var setActive = function (i) {
+          if (i === active) return;
+          active = i;
+          steps.forEach(function (s, k) {
+            s.classList.toggle('is-active', k === i);
+            s.classList.toggle('is-done', k < i);
+            var b = $('.step-btn', s);
+            if (k === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+            var sh = shots[k], d = i - k;
+            sh.classList.remove('is-front', 'is-b1', 'is-b2', 'is-gone', 'is-live');
+            if (d === 0) sh.classList.add('is-front');
+            else if (d === 1) sh.classList.add('is-b1');
+            else if (d === 2) sh.classList.add('is-b2');
+            else if (d > 2) sh.classList.add('is-gone');
+          });
+          // restart the live moment on the new front screen
+          void shots[i].offsetWidth;
+          shots[i].classList.add('is-live');
+          typeLetter(shots[i].contains(typeEl));
+          if (counter) counter.textContent = (i < 9 ? '0' : '') + (i + 1);
+          track.style.setProperty('--fill', ((i + 1) / N).toFixed(3));
+          if (pinned) kickLink();
+        };
+        var storyTick = false;
+        var storyUpdate = function () {
+          storyTick = false;
+          if (!pinned) return;
+          var pin = $('.story-pin', track);
+          var total = track.offsetHeight - pin.offsetHeight;
+          var p = clamp((64 - track.getBoundingClientRect().top) / total, 0, 0.9999);
+          setActive(Math.floor(p * N));
+        };
+        var liveIO = null;
+        var setup = function () {
+          var on = wide.matches && !RM;
+          if (on === pinned && liveIO !== null) return;
+          pinned = on;
+          track.classList.toggle('is-pinned', on);
+          if (liveIO) { liveIO.disconnect(); }
+          if (on) {
+            active = -1; storyUpdate();
+          } else {
+            steps.forEach(function (s) { s.classList.remove('is-active', 'is-done'); });
+            shots.forEach(function (sh) { sh.classList.remove('is-front', 'is-b1', 'is-b2', 'is-gone', 'is-live'); });
+            if (typeEl) { cancelAnimationFrame(typeRaf); typeEl.textContent = typeFull; }
+          }
+          liveIO = ('IntersectionObserver' in window && !on && !RM) ? new IntersectionObserver(function (es) {
+            es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-live'); if (e.target.contains(typeEl)) typeLetter(true); liveIO.unobserve(e.target); } });
+          }, { threshold: .35 }) : { disconnect: function () {} };
+          if (!on && liveIO.observe) shots.forEach(function (sh) { liveIO.observe(sh); });
+        };
+        setup();
+        if (wide.addEventListener) wide.addEventListener('change', setup);
+        window.addEventListener('scroll', function () { if (!storyTick) { storyTick = true; requestAnimationFrame(storyUpdate); } }, { passive: true });
+        window.addEventListener('resize', function () { if (pinned) { requestAnimationFrame(function (t) { storyUpdate(); drawLink(t + 1e6); }); } });
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (pinned) kickLink(); });
+        steps.forEach(function (s, k) {
+          $('.step-btn', s).addEventListener('click', function () {
+            if (!pinned) { s.scrollIntoView({ behavior: RM ? 'auto' : 'smooth', block: 'start' }); return; }
+            var pin = $('.story-pin', track);
+            var total = track.offsetHeight - pin.offsetHeight;
+            var top = track.getBoundingClientRect().top + window.scrollY - 64 + ((k + 0.5) / N) * total;
+            window.scrollTo({ top: top, behavior: RM ? 'auto' : 'smooth' });
+          });
+        });
+      }
+
+      /* ---------- Role tabs (WAI-ARIA), with a sliding thumb ---------- */
+      var list = $('[data-tabs]');
+      if (list) {
+        var tabs = $$('[role="tab"]', list), thumb = $('.seg-thumb', list);
+        var moveThumb = function (tab) {
+          if (!thumb) return;
+          thumb.style.width = tab.offsetWidth + 'px';
+          thumb.style.height = tab.offsetHeight + 'px';
+          thumb.style.transform = 'translate(' + tab.offsetLeft + 'px,' + tab.offsetTop + 'px)';
+        };
+        var current = null;
+        var select = function (tab, focus) {
+          tabs.forEach(function (t) {
+            var on = t === tab;
+            t.setAttribute('aria-selected', on ? 'true' : 'false');
+            t.tabIndex = on ? 0 : -1;
+            var panel = document.getElementById(t.getAttribute('aria-controls'));
+            if (panel) {
+              panel.hidden = !on;
+              panel.classList.remove('enter');
+              if (on && current !== null) { void panel.offsetWidth; panel.classList.add('enter'); }
+            }
+          });
+          current = tab;
+          moveThumb(tab);
+          if (focus) tab.focus();
+        };
+        tabs.forEach(function (t, i) {
+          t.addEventListener('click', function () { if (t !== current) select(t, false); });
+          t.addEventListener('keydown', function (e) {
+            var next = null;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = tabs[(i + 1) % tabs.length];
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = tabs[(i - 1 + tabs.length) % tabs.length];
+            else if (e.key === 'Home') next = tabs[0];
+            else if (e.key === 'End') next = tabs[tabs.length - 1];
+            if (next) { e.preventDefault(); select(next, true); }
+          });
+        });
+        select(tabs[0], false);
+        window.addEventListener('resize', function () { if (current) moveThumb(current); });
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (current) moveThumb(current); });
+      }
+
+      /* ---------- Coverage diagram: hover a source to light its paths ---------- */
+      var diag = $('[data-diag]'), srcs = $('[data-srcs]');
+      if (diag && srcs) {
+        var light = function (key) {
+          diag.classList.toggle('is-lit', !!key);
+          $$('[data-src]', diag).forEach(function (el) { el.classList.toggle('on', !!key && el.getAttribute('data-src') === key); });
+          $$('[data-src]', srcs).forEach(function (el) { el.classList.toggle('on', !!key && el.getAttribute('data-src') === key); });
+        };
+        // Focus handlers only on the list rows: Chrome makes SVG nodes with focus listeners tabbable.
+        $$('.src-node', diag).concat($$('[data-src]', srcs)).forEach(function (el) {
+          var k = el.getAttribute('data-src');
+          el.addEventListener('mouseenter', function () { light(k); });
+          el.addEventListener('mouseleave', function () { light(null); });
+        });
+        $$('[data-src]', srcs).forEach(function (el) {
+          var k = el.getAttribute('data-src');
+          el.addEventListener('focus', function () { light(k); });
+          el.addEventListener('blur', function () { light(null); });
+        });
+        if (RM && diag.querySelector('svg').pauseAnimations) diag.querySelector('svg').pauseAnimations();
+      }
+
+      /* ---------- CTA band: bloom drifts toward the cursor; profile card tilts ---------- */
+      if (band && !RM && fineHover) {
+        var bx = 50, by = 0, tx = 50, ty = 0, bandRaf = 0;
+        var loop = function () {
+          bx += (tx - bx) * 0.06; by += (ty - by) * 0.06;
+          band.style.setProperty('--bx', bx.toFixed(2) + '%');
+          band.style.setProperty('--by', by.toFixed(2) + '%');
+          if (Math.abs(tx - bx) > 0.1 || Math.abs(ty - by) > 0.1) bandRaf = requestAnimationFrame(loop); else bandRaf = 0;
+        };
+        band.addEventListener('pointermove', function (e) {
+          var r = band.getBoundingClientRect();
+          tx = 50 + ((e.clientX - r.left) / r.width - 0.5) * 50;
+          ty = clamp(((e.clientY - r.top) / r.height) * 40, 0, 40);
+          if (!bandRaf) bandRaf = requestAnimationFrame(loop);
+        });
+        band.addEventListener('pointerleave', function () { tx = 50; ty = 0; if (!bandRaf) bandRaf = requestAnimationFrame(loop); });
+
+        var tilt = $('[data-tilt]'), glass = tilt && $('.glass', tilt);
+        if (glass) {
+          tilt.addEventListener('pointermove', function (e) {
+            var r = glass.getBoundingClientRect();
+            var px = clamp((e.clientX - r.left) / r.width, 0, 1), py = clamp((e.clientY - r.top) / r.height, 0, 1);
+            glass.classList.add('is-moving');
+            glass.style.setProperty('--ry', ((px - 0.5) * 12).toFixed(2) + 'deg');
+            glass.style.setProperty('--rx', ((0.5 - py) * 12).toFixed(2) + 'deg');
+            glass.style.setProperty('--mx', (px * 100).toFixed(1) + '%');
+            glass.style.setProperty('--my', (py * 100).toFixed(1) + '%');
+          });
+          tilt.addEventListener('pointerleave', function () {
+            glass.classList.remove('is-moving');
+            glass.style.setProperty('--rx', '0deg'); glass.style.setProperty('--ry', '0deg');
+            glass.style.setProperty('--mx', '50%'); glass.style.setProperty('--my', '0%');
+          });
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

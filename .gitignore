@@ -16,6 +16,9 @@ env/
 # Databases (local SQLite)
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
+.local/
 
 # Node
 node_modules/
@@ -40,3 +43,6 @@ pdf_cache/
 
 # Local credential backup — must never be committed
 .env.bak
+
+# Client documents uploaded through document requests
+uploads/

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ industry }} — Industry Briefing | Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .scope-pill {
+            font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .scope-sector     { background: #eef2ff; color: #4338ca; }
+        .scope-ma         { background: #fef3c7; color: #92400e; }
+        .scope-regulatory { background: #ecfdf5; color: #065f46; }
+        .scope-global     { background: #f3e8ff; color: #6b21a8; }
+        .industry-card { transition: box-shadow 0.15s ease; }
+        .industry-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
+    </style>
+</head>
+<body class="bg-slate-50 text-gray-900">
+
+<div class="flex h-screen overflow-hidden">
+    {% set active_page = 'prices' %}
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 overflow-y-auto">
+
+        <!-- Header -->
+        <div class="page-header">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 text-xs text-gray-400 mb-1">
+                        <a href="/prices" class="hover:text-indigo-600">Stock Prices</a>
+                        <span>›</span>
+                        <span class="text-gray-500">Industry Briefing</span>
+                    </div>
+                    <h2 class="page-title">{{ industry }}</h2>
+                    <p class="page-subtitle">{{ profile.tagline }}</p>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <!-- Industry switcher -->
+                    <select id="industry-switcher"
+                        class="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-indigo-300">
+                        {% for ind in all_industries %}
+                            <option value="{{ ind }}" {% if ind == industry %}selected{% endif %}>{{ ind }}</option>
+                        {% endfor %}
+                    </select>
+                    <button onclick="loadIntel(true)"
+                        class="btn btn-primary text-xs">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-8 py-6 space-y-6 max-w-[1400px]">
+
+            <!-- AI Weekly Briefing -->
+            <section class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 border border-indigo-100 rounded-2xl p-6 shadow-sm">
+                <div class="flex items-start justify-between mb-3 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">✦</span>
+                        <h3 class="text-sm font-bold text-indigo-900 uppercase tracking-wider">AI Week-in-Review</h3>
+                        <span id="briefing-badge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700"></span>
+                    </div>
+                    <span id="briefing-status" class="text-[11px] text-gray-400">Generating briefing…</span>
+                </div>
+                <div id="briefing-text" class="text-base text-gray-800 leading-relaxed">
+                    <div class="flex items-center gap-3 text-gray-400">
+                        <div class="spinner spinner-sm"></div>
+                        <span class="text-sm">Pulling sector news and synthesizing the week…</span>
+                    </div>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-4">
+                    AI-generated briefing based on the past 7-14 days of public news. Verify before acting on any specific claim.
+                </p>
+            </section>
+
+            <!-- Industry Overview + Structure -->
+            <section class="grid lg:grid-cols-3 gap-5">
+                <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6 industry-card">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Overview</h3>
+                    <p class="text-[15px] leading-relaxed text-gray-800">{{ profile.overview }}</p>
+                    <div class="mt-5 pt-4 border-t border-gray-100">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Market Structure</p>
+                        <p class="text-sm text-gray-700">{{ profile.structure }}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-gray-200 p-6 industry-card">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Regulators</h3>
+                    <ul class="space-y-2">
+                        {% for r in profile.regulators %}
+                        <li class="flex items-center gap-2 text-sm text-gray-800">
+                            <svg class="w-4 h-4 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                            <span>{{ r }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Market Leaders -->
+            <section class="bg-white rounded-2xl border border-gray-200 p-6 industry-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Market Leaders & Ownership</h3>
+                    <span class="text-[10px] text-gray-400">Top {{ profile.leaders|length }} by market cap</span>
+                </div>
+                <div class="grid md:grid-cols-2 xl:grid-cols-5 gap-4">
+                    {% for l in profile.leaders %}
+                    <a href="/company/{{ l.symbol }}"
+                       class="block rounded-xl border border-gray-200 p-4 hover:border-indigo-300 hover:shadow-sm transition-all">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-sm font-bold text-gray-900">{{ l.symbol }}</span>
+                            <svg class="w-3.5 h-3.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                        <p class="text-xs font-semibold text-gray-700 mb-2.5 line-clamp-1">{{ l.name }}</p>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-1">Promoter</p>
+                        <p class="text-xs text-gray-700 mb-2.5">{{ l.promoter }}</p>
+                        <p class="text-[11px] text-gray-500 leading-snug">{{ l.note }}</p>
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Drivers & Risks -->
+            <section class="grid md:grid-cols-2 gap-5">
+                <div class="bg-white rounded-2xl border border-gray-200 p-6 industry-card">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                        </svg>
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Key Drivers</h3>
+                    </div>
+                    <ul class="space-y-2">
+                        {% for d in profile.drivers %}
+                        <li class="flex items-start gap-2 text-sm text-gray-800">
+                            <span class="text-emerald-500 mt-1">▲</span>
+                            <span>{{ d }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="bg-white rounded-2xl border border-gray-200 p-6 industry-card">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                        </svg>
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Key Risks</h3>
+                    </div>
+                    <ul class="space-y-2">
+                        {% for r in profile.risks %}
+                        <li class="flex items-start gap-2 text-sm text-gray-800">
+                            <span class="text-rose-500 mt-1">▼</span>
+                            <span>{{ r }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </section>
+
+            <!-- M&A Deals -->
+            <section class="bg-white rounded-2xl border border-gray-200 p-6 industry-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M17 9V7a2 2 0 00-2-2H9a2 2 0 00-2 2v2M5 9h14l1 12H4L5 9zm5 4h4"/>
+                        </svg>
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider">M&A & Deal Activity</h3>
+                    </div>
+                    <span class="text-[10px] text-gray-400">India · last 14 days</span>
+                </div>
+                <div id="ma-list" class="space-y-3">
+                    <div class="flex items-center gap-3 text-gray-400 py-4">
+                        <div class="spinner spinner-sm"></div>
+                        <span class="text-sm">Pulling deal news…</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sector + Regulatory + Global news columns -->
+            <section class="grid lg:grid-cols-3 gap-5">
+                <div class="bg-white rounded-2xl border border-gray-200 p-6 industry-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Sector Headlines</h3>
+                        <span class="scope-pill scope-sector">7d</span>
+                    </div>
+                    <ul id="sector-news" class="space-y-3">
+                        <li class="text-xs text-gray-400">Loading…</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-gray-200 p-6 industry-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Regulatory & Policy</h3>
+                        <span class="scope-pill scope-regulatory">14d</span>
+                    </div>
+                    <ul id="reg-news" class="space-y-3">
+                        <li class="text-xs text-gray-400">Loading…</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-gray-200 p-6 industry-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Global Signals</h3>
+                        <span class="scope-pill scope-global">14d</span>
+                    </div>
+                    <ul id="global-news" class="space-y-3">
+                        <li class="text-xs text-gray-400">Loading…</li>
+                    </ul>
+                </div>
+            </section>
+
+            <p id="last-fetched" class="text-[11px] text-gray-400 text-center pt-2">&nbsp;</p>
+        </div>
+    </main>
+</div>
+
+<script>
+const INDUSTRY = {{ industry|tojson }};
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
+}
+
+function relTime(input) {
+    if (!input) return '';
+    const dt = new Date(input);
+    if (isNaN(dt)) return '';
+    const min = Math.max(0, (Date.now() - dt) / 60000);
+    if (min < 60)        return Math.round(min) + 'm ago';
+    if (min < 24 * 60)   return Math.round(min / 60) + 'h ago';
+    return Math.round(min / 60 / 24) + 'd ago';
+}
+
+function newsItem(n) {
+    return `
+        <li class="border-l-2 border-gray-100 pl-3 hover:border-indigo-400 transition-colors">
+            <a href="${escapeHtml(n.url)}" target="_blank" rel="noopener"
+               class="text-sm font-medium text-gray-800 hover:text-indigo-700 line-clamp-2 block leading-snug">
+                ${escapeHtml(n.title)}
+            </a>
+            <p class="text-[11px] text-gray-400 mt-1">
+                ${escapeHtml(n.source || 'news')}${n.published ? ' · ' + relTime(n.published) : ''}
+            </p>
+        </li>`;
+}
+
+function maItem(n) {
+    return `
+        <div class="rounded-xl border border-amber-100 bg-amber-50/40 p-4 hover:border-amber-300 transition-colors">
+            <div class="flex items-start justify-between gap-3 mb-1">
+                <a href="${escapeHtml(n.url)}" target="_blank" rel="noopener"
+                   class="text-sm font-semibold text-gray-900 hover:text-amber-700 leading-snug flex-1">
+                    ${escapeHtml(n.title)}
+                </a>
+                <span class="scope-pill scope-ma flex-shrink-0">DEAL</span>
+            </div>
+            <p class="text-[11px] text-gray-500">
+                ${escapeHtml(n.source || 'news')}${n.published ? ' · ' + relTime(n.published) : ''}
+            </p>
+        </div>`;
+}
+
+function renderList(elId, items, renderer, emptyMsg) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!items || !items.length) {
+        el.innerHTML = `<li class="text-xs text-gray-400">${escapeHtml(emptyMsg)}</li>`;
+        return;
+    }
+    el.innerHTML = items.map(renderer).join('');
+}
+
+function renderMA(items) {
+    const el = document.getElementById('ma-list');
+    if (!el) return;
+    if (!items || !items.length) {
+        el.innerHTML = `<p class="text-xs text-gray-400 py-2">No notable M&amp;A or deal activity surfaced for ${escapeHtml(INDUSTRY)} in the last 14 days.</p>`;
+        return;
+    }
+    el.innerHTML = items.map(maItem).join('');
+}
+
+function loadIntel(force) {
+    const url = '/api/industry-intel/' + encodeURIComponent(INDUSTRY) + (force ? '?_=' + Date.now() : '');
+    document.getElementById('briefing-status').textContent = 'Generating briefing…';
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('briefing-text').innerHTML =
+                    `<p class="text-sm text-rose-600">${escapeHtml(data.message || 'Failed to load briefing.')}</p>`;
+                return;
+            }
+
+            // AI summary
+            document.getElementById('briefing-text').innerHTML =
+                `<p class="text-base text-gray-800 leading-relaxed">${escapeHtml(data.summary)}</p>`;
+
+            const badge = document.getElementById('briefing-badge');
+            badge.classList.remove('hidden');
+            badge.textContent = data.ai_powered ? 'AI · Gemini' : 'Heuristic';
+
+            const fetched = data.fetched_at ? relTime(data.fetched_at * 1000) : '';
+            document.getElementById('briefing-status').textContent = fetched ? 'Updated ' + fetched : '';
+
+            // News buckets
+            const news = data.news || {};
+            renderList('sector-news', news.sector,     newsItem, 'No sector headlines this week.');
+            renderList('reg-news',    news.regulatory, newsItem, 'No regulatory updates surfaced.');
+            renderList('global-news', news.global,     newsItem, 'No global signals surfaced.');
+            renderMA(news.ma);
+
+            const last = document.getElementById('last-fetched');
+            if (last && data.fetched_at) {
+                last.textContent = 'Briefing cached for 30 minutes · last refreshed ' + relTime(data.fetched_at * 1000);
+            }
+        })
+        .catch(e => {
+            document.getElementById('briefing-text').innerHTML =
+                `<p class="text-sm text-rose-600">Failed to load industry briefing. ${escapeHtml(e.message || '')}</p>`;
+            document.getElementById('briefing-status').textContent = '';
+        });
+}
+
+document.getElementById('industry-switcher').addEventListener('change', e => {
+    window.location.href = '/industry/' + encodeURIComponent(e.target.value);
+});
+
+loadIntel(false);
+</script>
+
+</body>
+</html>

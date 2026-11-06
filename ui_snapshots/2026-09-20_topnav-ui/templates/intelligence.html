@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal — Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* ── Signal ──
+           One question: what requires my action today. Everything about HOW
+           the answer was produced — agents, models, timings, confidence —
+           lives behind the AI Audit view on the individual event. */
+        .num { font-variant-numeric: tabular-nums; font-feature-settings:"tnum"; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+        .cc-head { display:flex; align-items:flex-start; justify-content:space-between;
+            gap:20px; flex-wrap:wrap; margin-bottom:22px; }
+        .cc-brand { font-size:26px; font-weight:800; letter-spacing:-.03em; color:#0f172a; }
+        .cc-role { font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+            color:#6366f1; margin-top:3px; }
+
+        .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:26px; }
+        .stat { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px 20px; }
+        .stat-v { font-size:32px; font-weight:800; color:#0f172a; letter-spacing:-.04em; line-height:1; }
+        .stat-l { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+            color:#94a3b8; margin-top:8px; }
+        .stat-s { font-size:11.5px; color:#64748b; margin-top:5px; }
+        .stat.accent { border-color:#c7d2fe; background:linear-gradient(180deg,#f5f7ff,#fff); }
+        .stat.accent .stat-v { color:#4338ca; }
+
+        /* Action card */
+        .acard { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:0;
+            margin-bottom:16px; overflow:hidden; transition:border-color .15s, box-shadow .15s; }
+        .acard:hover { border-color:#c7d2fe; box-shadow:0 6px 20px -10px rgba(79,70,229,.28); }
+        .acard-top { display:flex; align-items:flex-start; gap:14px; padding:18px 22px 0; }
+        .acard-body { padding:0 22px 18px; }
+        .acard-foot { display:flex; align-items:center; justify-content:space-between; gap:14px;
+            padding:14px 22px; background:#f8fafc; border-top:1px solid #f1f5f9; flex-wrap:wrap; }
+
+        .prio { width:4px; align-self:stretch; border-radius:3px; flex-shrink:0; min-height:44px; }
+        .prio-high { background:#dc2626; } .prio-medium { background:#f59e0b; }
+        .prio-low { background:#cbd5e1; } .prio-unassessed { background:#a78bfa; }
+
+        .co { font-size:16px; font-weight:800; color:#0f172a; letter-spacing:-.02em; }
+        .co-sub { font-size:12px; color:#64748b; margin-top:1px; }
+
+        .qa { margin-top:15px; }
+        .qa-q { font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+            color:#94a3b8; margin-bottom:5px; }
+        .qa-a { font-size:14px; color:#1e293b; line-height:1.6; }
+        .qa-a.muted { font-size:13.5px; color:#475569; }
+
+        .todo { display:flex; gap:9px; align-items:flex-start; padding:7px 0; font-size:13.5px; color:#1e293b; }
+        .todo-n { width:17px; height:17px; border-radius:5px; background:#eef2ff; color:#4338ca;
+            font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center;
+            flex-shrink:0; margin-top:2px; }
+        .todo-when { font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px;
+            text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; margin-left:2px; }
+        .when-immediate { background:#fef2f2; color:#b91c1c; }
+        .when-this_week { background:#fffbeb; color:#b45309; }
+        .when-this_month { background:#f1f5f9; color:#64748b; }
+
+        .docs { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+        .doc-pill { font-size:11px; font-weight:600; padding:4px 10px; border-radius:7px;
+            background:#f1f5f9; color:#475569; display:inline-flex; align-items:center; gap:5px; }
+
+        .tag { display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700;
+            padding:3px 9px; border-radius:6px; text-transform:uppercase; letter-spacing:.02em; white-space:nowrap; }
+        .tag-high{background:#fef2f2;color:#b91c1c;} .tag-medium{background:#fffbeb;color:#b45309;}
+        .tag-low{background:#f1f5f9;color:#64748b;} .tag-unassessed{background:#f5f3ff;color:#7c3aed;}
+        .tag-reg{background:#eef2ff;color:#4338ca;font-family:ui-monospace,Menlo,monospace;text-transform:none;}
+        .tag-done{background:#ecfdf5;color:#047857;}
+
+        .btn-go { font-size:13.5px; font-weight:700; padding:10px 20px; border-radius:9px;
+            background:#4f46e5; color:#fff; border:none; cursor:pointer; text-decoration:none;
+            display:inline-flex; align-items:center; gap:7px; transition:background .13s; }
+        .btn-go:hover { background:#4338ca; }
+        .btn-ghost { font-size:12.5px; font-weight:600; padding:8px 15px; border-radius:8px;
+            background:#fff; border:1px solid #e2e8f0; color:#475569; text-decoration:none;
+            display:inline-flex; align-items:center; gap:6px; }
+        .btn-ghost:hover { border-color:#cbd5e1; }
+
+        .tabs { display:flex; gap:4px; border-bottom:1px solid #e2e8f0; margin-bottom:20px; }
+        .tab { padding:10px 16px; font-size:13.5px; font-weight:600; color:#64748b;
+            border-bottom:2px solid transparent; text-decoration:none; margin-bottom:-1px; }
+        .tab:hover { color:#334155; }
+        .tab.on { color:#4338ca; border-bottom-color:#4f46e5; }
+        .tab-n { font-size:11px; font-weight:700; padding:1px 7px; border-radius:9px;
+            background:#f1f5f9; color:#64748b; margin-left:6px; }
+        .tab.on .tab-n { background:#eef2ff; color:#4338ca; }
+
+        .dl-row { display:flex; align-items:center; gap:12px; padding:11px 0;
+            border-bottom:1px solid #f1f5f9; font-size:13px; }
+        .dl-row:last-child { border-bottom:none; }
+        .dl-days { font-size:11px; font-weight:800; padding:3px 9px; border-radius:6px;
+            background:#f1f5f9; color:#475569; white-space:nowrap; }
+        .dl-days.soon { background:#fffbeb; color:#b45309; }
+
+        .empty { text-align:center; padding:56px 24px; }
+        .empty-i { width:46px; height:46px; border-radius:14px; background:#ecfdf5;
+            display:inline-flex; align-items:center; justify-content:center; margin-bottom:14px; }
+
+        .banner { border-radius:10px; padding:12px 16px; font-size:12.5px; display:flex;
+            gap:10px; align-items:flex-start; margin-bottom:20px; }
+        .banner-warn { background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
+
+        /* Dark theme — the app sets a near-white body colour, so every surface
+           declared above needs a counterpart or it renders white-on-white. */
+        html.dark .cc-brand { color:#fafafa; }
+        html.dark .cc-role { color:#a5b4fc; }
+        html.dark .stat { background:#0f0f10; border-color:#232326; }
+        html.dark .stat-v { color:#fafafa; }
+        html.dark .stat-l { color:#71717a; }
+        html.dark .stat-s { color:#a1a1aa; }
+        html.dark .stat.accent { background:#12101f; border-color:#312e81; }
+        html.dark .stat.accent .stat-v { color:#a5b4fc; }
+        html.dark .acard { background:#0f0f10; border-color:#232326; }
+        html.dark .acard:hover { border-color:#4338ca; }
+        html.dark .acard-foot { background:#141416; border-top-color:#1c1c1f; }
+        html.dark .co { color:#fafafa; }
+        html.dark .co-sub, html.dark .qa-a.muted { color:#a1a1aa; }
+        html.dark .qa-q { color:#71717a; }
+        html.dark .qa-a, html.dark .todo { color:#e4e4e7; }
+        html.dark .todo-n { background:#1e1b4b; color:#a5b4fc; }
+        html.dark .doc-pill { background:#1c1c1f; color:#a1a1aa; }
+        html.dark .tag-high{background:#2c1115;color:#fca5a5;}
+        html.dark .tag-medium{background:#2a1d05;color:#fcd34d;}
+        html.dark .tag-low{background:#1c1c1f;color:#a1a1aa;}
+        html.dark .tag-unassessed{background:#2a1065;color:#c4b5fd;}
+        html.dark .tag-reg{background:#1e1b4b;color:#a5b4fc;}
+        html.dark .tag-done{background:#052e20;color:#6ee7b7;}
+        html.dark .when-immediate{background:#2c1115;color:#fca5a5;}
+        html.dark .when-this_week{background:#2a1d05;color:#fcd34d;}
+        html.dark .when-this_month{background:#1c1c1f;color:#a1a1aa;}
+        html.dark .btn-ghost { background:#141416; border-color:#27272a; color:#a1a1aa; }
+        html.dark .tabs { border-bottom-color:#232326; }
+        html.dark .tab { color:#a1a1aa; }
+        html.dark .tab.on { color:#a5b4fc; }
+        html.dark .tab-n { background:#1c1c1f; color:#a1a1aa; }
+        html.dark .tab.on .tab-n { background:#1e1b4b; color:#a5b4fc; }
+        html.dark .dl-row { border-bottom-color:#1c1c1f; color:#d4d4d8; }
+        html.dark .dl-days { background:#1c1c1f; color:#a1a1aa; }
+        html.dark .dl-days.soon { background:#2a1d05; color:#fcd34d; }
+        html.dark .bg-white { background:#0f0f10 !important; }
+        html.dark .border-slate-200 { border-color:#232326 !important; }
+        html.dark .banner-warn { background:#2a1d05; border-color:#78350f; color:#fcd34d; }
+        html.dark .empty-i { background:#052e20; }
+        html.dark .text-slate-900 { color:#fafafa !important; }
+        html.dark .text-slate-600, html.dark .text-slate-500 { color:#a1a1aa !important; }
+        html.dark .text-slate-400 { color:#71717a !important; }
+
+        @media (max-width: 900px) { .stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+        /* ── Agent chip ── */
+        .agent-chip { display:inline-flex; align-items:center; gap:7px; font-size:11.5px;
+            font-weight:600; padding:5px 11px; border-radius:999px; cursor:pointer;
+            background:var(--surface-secondary,#f8fafc); border:1px solid var(--border,#e2e8f0);
+            color:var(--text-secondary,#475569); transition:border-color .13s; }
+        .agent-chip:hover { border-color:var(--primary,#4f46e5); color:var(--text-primary,#0f172a); }
+        .agent-dot { width:6px; height:6px; border-radius:50%; }
+        .agent-dot.on { background:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,.16); }
+        .agent-dot.off { background:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,.16); }
+
+        /* ── Portfolio briefing ── */
+        .brief-panel { border:1px solid var(--border,#e2e8f0); border-radius:16px;
+            background:linear-gradient(180deg, #fbfbff 0%, #fff 60%); padding:22px 24px; margin-bottom:26px; }
+        .brief-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+        .brief-eyebrow { display:inline-flex; align-items:center; gap:6px; font-size:10px;
+            font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--primary,#4f46e5); }
+        .brief-headline { font-size:17px; font-weight:700; line-height:1.45; letter-spacing:-.02em;
+            color:var(--text-primary,#0f172a); margin-top:8px; max-width:800px; }
+        .theme-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+            gap:14px; margin:20px 0 4px; }
+        .theme { border-left:2px solid var(--border,#e2e8f0); padding-left:13px; }
+        .theme-title { font-size:12.5px; font-weight:700; color:var(--text-primary,#0f172a); }
+    .prio-row { padding:9px 0; }
+    .prio-why { font-size:12px; line-height:1.5; }
+    .watch-row { font-size:12px; line-height:1.5; padding:7px 0; }
+    .mini-h { font-size:9.5px; letter-spacing:.09em; }
+    .brief-headline { font-size:16px; line-height:1.4; }
+    .theme-grid { gap:14px; }
+    /* Briefing themes lead with the number that carries the point; the prose
+       is a single clause underneath, not a paragraph competing with it. */
+    .theme-stat { font-size:26px; font-weight:800; color:#4338ca; letter-spacing:-.03em;
+        line-height:1; font-variant-numeric:tabular-nums; }
+    .theme-stat-l { font-size:10px; font-weight:700; text-transform:uppercase;
+        letter-spacing:.06em; color:#94a3b8; margin-top:5px; line-height:1.35; }
+    .theme-detail { font-size:12px; line-height:1.5; color:#475569; margin-top:7px; }
+    .co-more { opacity:.6; }
+    html.dark .theme-stat { color:#a5b4fc; }
+    html.dark .theme-stat-l { color:#71717a; }
+    html.dark .theme-detail { color:#a1a1aa; }
+        .theme-cos { display:flex; gap:4px; flex-wrap:wrap; margin-top:7px; }
+        .co-chip { font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px;
+            background:var(--surface-secondary,#f1f5f9); color:var(--text-muted,#94a3b8);
+            font-family:ui-monospace,Menlo,monospace; }
+        .brief-split { display:grid; grid-template-columns:1.3fr 1fr; gap:26px;
+            margin-top:20px; padding-top:18px; border-top:1px solid var(--border-light,#f1f5f9); }
+        .mini-h { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+            color:var(--text-muted,#94a3b8); margin-bottom:9px; }
+        .prio-row { display:flex; gap:10px; padding:7px 0; text-decoration:none;
+            align-items:flex-start; border-radius:6px; }
+        .prio-row:hover .prio-why { color:var(--text-primary,#0f172a); }
+        .prio-n { width:17px; height:17px; border-radius:5px; background:var(--primary,#4f46e5);
+            color:#fff; font-size:9.5px; font-weight:800; display:flex; align-items:center;
+            justify-content:center; flex-shrink:0; margin-top:2px; }
+        .prio-co { font-size:11.5px; font-weight:800; color:var(--text-primary,#0f172a);
+            display:block; letter-spacing:-.01em; }
+        .prio-why { font-size:12px; color:var(--text-secondary,#475569); line-height:1.5; }
+        .watch-row { display:flex; gap:9px; padding:6px 0; font-size:12px;
+            color:var(--text-secondary,#475569); line-height:1.55; }
+        .watch-dot { width:5px; height:5px; border-radius:50%; background:#c7d2fe;
+            flex-shrink:0; margin-top:6px; }
+
+        /* ── Section heading ── */
+        .section-h { display:flex; align-items:baseline; gap:10px; margin:0 0 12px; }
+        .section-h > span:first-child { font-size:13px; font-weight:800; letter-spacing:-.01em;
+            color:var(--text-primary,#0f172a); }
+        .section-sub { font-size:11.5px; color:var(--text-muted,#94a3b8); }
+
+        /* ── Company cards ── */
+        .co-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+            gap:12px; margin-bottom:26px; }
+        .co-card { display:block; text-decoration:none; padding:15px 16px; border-radius:13px;
+            background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0);
+            transition:border-color .14s, transform .14s; }
+        .co-card:hover { border-color:var(--primary,#4f46e5); transform:translateY(-1px); }
+        .co-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .co-sym { font-size:12.5px; font-weight:800; letter-spacing:-.01em;
+            color:var(--text-primary,#0f172a); }
+        .co-flag { font-size:9.5px; font-weight:800; padding:2px 6px; border-radius:4px;
+            background:#fef2f2; color:#b91c1c; text-transform:uppercase; }
+        .co-board { display:flex; align-items:baseline; gap:5px; margin-top:9px; }
+        .co-board-n { font-size:24px; font-weight:800; letter-spacing:-.04em; line-height:1;
+            color:var(--text-primary,#0f172a); font-variant-numeric:tabular-nums; }
+        .co-board-l { font-size:10.5px; color:var(--text-muted,#94a3b8); }
+        .co-trend { font-size:10px; font-weight:800; padding:1px 5px; border-radius:4px; margin-left:2px; }
+        .co-trend.up { background:#ecfdf5; color:#047857; }
+        .co-trend.down { background:#fff7ed; color:#c2410c; }
+        .spark { display:flex; align-items:flex-end; gap:3px; height:28px; margin:11px 0 9px; }
+        .spark-bar { flex:1; background:#c7d2fe; border-radius:2px 2px 0 0; min-height:4px; }
+        .co-card:hover .spark-bar { background:var(--primary,#4f46e5); }
+        .co-meta { display:flex; justify-content:space-between; font-size:10.5px;
+            color:var(--text-secondary,#475569); }
+        .co-foot { font-size:10px; color:var(--text-muted,#94a3b8); margin-top:8px;
+            padding-top:8px; border-top:1px solid var(--border-light,#f1f5f9);
+            display:flex; justify-content:space-between; gap:6px; }
+        .co-verify { color:#b45309; font-weight:600; }
+
+        /* ── Insight grid ── */
+        .insight-grid { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:14px; margin-bottom:26px; }
+        .insight { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0);
+            border-radius:14px; padding:17px 18px; }
+        .bar-row { display:flex; align-items:center; gap:10px; padding:5px 0; }
+        .bar-label { font-size:11.5px; color:var(--text-secondary,#475569); width:132px;
+            flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .bar-track { flex:1; height:6px; background:var(--surface-secondary,#f1f5f9);
+            border-radius:3px; overflow:hidden; }
+        .bar-fill { display:block; height:100%; background:var(--primary,#4f46e5); border-radius:3px; }
+        .bar-n { font-size:11.5px; font-weight:700; color:var(--text-primary,#0f172a); width:22px; text-align:right; }
+        .runway-row { display:flex; align-items:center; justify-content:space-between;
+            padding:6px 0; border-bottom:1px dashed var(--border-light,#f1f5f9); }
+        .runway-row:last-of-type { border-bottom:none; }
+        .runway-l { font-size:11.5px; color:var(--text-secondary,#475569); }
+        .runway-n { font-size:14px; font-weight:800; color:var(--text-primary,#0f172a); }
+        .runway-n.hot { color:#b91c1c; }
+        .mini-link { display:inline-block; font-size:11px; font-weight:600;
+            color:var(--primary,#4f46e5); text-decoration:none; margin-top:9px; }
+        .doc-note { font-size:10.5px; color:var(--text-muted,#94a3b8); margin-top:9px;
+            padding-top:9px; border-top:1px solid var(--border-light,#f1f5f9); line-height:1.5; }
+
+        /* ── Agent panel ── */
+        .ag-overlay { position:fixed; inset:0; z-index:800; background:rgba(2,6,23,.55);
+            backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; padding:24px; }
+        .ag-overlay.on { display:flex; }
+        .ag-card { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0);
+            border-radius:18px; width:min(560px,100%); max-height:86vh; overflow-y:auto; padding:26px 28px; }
+        .ag-agent { display:flex; gap:13px; padding:14px 0; border-bottom:1px solid var(--border-light,#f1f5f9); }
+        .ag-agent:last-of-type { border-bottom:none; }
+        .ag-badge { width:26px; height:26px; border-radius:8px; background:var(--primary-light,#eef2ff);
+            color:var(--primary,#4f46e5); font-size:11px; font-weight:800; display:flex;
+            align-items:center; justify-content:center; flex-shrink:0; }
+        .ag-name { font-size:13px; font-weight:700; color:var(--text-primary,#0f172a); }
+        .ag-role { font-size:11.5px; color:var(--text-secondary,#475569); margin-top:2px; line-height:1.5; }
+        .ag-model { font-size:10px; font-family:ui-monospace,Menlo,monospace;
+            color:var(--text-muted,#94a3b8); margin-top:4px; }
+
+        /* ── Dark ── */
+        html.dark .agent-chip { background:#141416; border-color:#27272a; color:#a1a1aa; }
+        html.dark .agent-chip:hover { border-color:#6366f1; color:#fafafa; }
+        html.dark .brief-panel { background:linear-gradient(180deg,#111014 0%,#0f0f10 60%); border-color:#232326; }
+        html.dark .brief-eyebrow { color:#a5b4fc; }
+        html.dark .brief-headline { color:#fafafa; }
+        html.dark .theme { border-left-color:#27272a; }
+        html.dark .theme-title { color:#fafafa; }
+        html.dark .theme-detail, html.dark .prio-why, html.dark .watch-row,
+        html.dark .runway-l, html.dark .bar-label, html.dark .co-meta, html.dark .ag-role { color:#a1a1aa; }
+        html.dark .co-chip { background:#1c1c1f; color:#71717a; }
+        html.dark .brief-split { border-top-color:#1c1c1f; }
+        html.dark .prio-co, html.dark .co-sym, html.dark .co-board-n,
+        html.dark .bar-n, html.dark .runway-n, html.dark .ag-name,
+        html.dark .section-h > span:first-child { color:#fafafa; }
+        html.dark .co-card { background:#0f0f10; border-color:#232326; }
+        html.dark .co-card:hover { border-color:#6366f1; }
+        html.dark .co-flag { background:#2c1115; color:#fca5a5; }
+        html.dark .co-trend.up { background:#052e20; color:#6ee7b7; }
+        html.dark .co-trend.down { background:#2a1505; color:#fdba74; }
+        html.dark .spark-bar { background:#312e81; }
+        html.dark .co-foot { border-top-color:#1c1c1f; color:#71717a; }
+        html.dark .insight { background:#0f0f10; border-color:#232326; }
+        html.dark .bar-track { background:#1c1c1f; }
+        html.dark .runway-row { border-bottom-color:#1c1c1f; }
+        html.dark .doc-note { border-top-color:#1c1c1f; color:#71717a; }
+        html.dark .ag-card { background:#0f0f10; border-color:#232326; }
+        html.dark .ag-agent { border-bottom-color:#1c1c1f; }
+        html.dark .ag-badge { background:#1e1b4b; color:#a5b4fc; }
+        html.dark .section-sub, html.dark .mini-h { color:#71717a; }
+
+        @media (max-width:1000px) {
+            .insight-grid { grid-template-columns:1fr; }
+            .brief-split { grid-template-columns:1fr; gap:18px; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-gray-900">
+<div class="flex h-screen overflow-hidden">
+    {% include 'sidebar.html' %}
+    <main class="flex-1 overflow-y-auto">
+    <div class="max-w-[1180px] mx-auto px-6 py-8">
+
+        <!-- ── Header ── -->
+        <div class="cc-head">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                    <h1 class="cc-brand">Signal</h1>
+                    <button class="agent-chip" onclick="openAgentPanel()"
+                            title="Configure the agent team">
+                        <span class="agent-dot {{ 'on' if agent_status.healthy else 'off' }}"></span>
+                        {{ agent_status.agents|length }} agents active
+                        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex gap-2 items-center flex-wrap">
+                <a href="/compliance" class="btn-ghost">Compliance calendar</a>
+                <a href="/draft" class="btn-ghost">Draft library</a>
+            </div>
+        </div>
+
+        {% if not gemini_ready.ok %}
+        <div class="banner banner-warn">
+            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z"/></svg>
+            <div><strong>New items cannot be assessed right now.</strong> {{ gemini_ready.error }}
+            Existing items in your queue are unaffected.</div>
+        </div>
+        {% endif %}
+
+        <!-- ── Stats ── -->
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-v num">{{ stats.companies_monitored }}</div>
+                <div class="stat-l">Companies monitored</div>
+            </div>
+            <div class="stat">
+                <div class="stat-v num">{{ stats.filings_reviewed }}</div>
+                <div class="stat-l">Filings reviewed</div>
+            </div>
+            <div class="stat accent">
+                <div class="stat-v num">{{ stats.pending_actions }}</div>
+                <div class="stat-l">Pending actions</div>
+                {% if stats.documents_ready %}
+                <div class="stat-s">{{ stats.documents_ready }} documents drafted</div>
+                {% endif %}
+            </div>
+            <div class="stat">
+                <div class="stat-v num">{{ stats.upcoming_deadlines }}</div>
+                <div class="stat-l">Upcoming deadlines</div>
+                {% if deadlines.rows %}
+                <div class="stat-s">next: {{ deadlines.rows[0].due_date }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+
+        <!-- ══ PORTFOLIO BRIEFING ══
+             The agent reasoning across every company at once, rather than one
+             event at a time. Cached against the open-work fingerprint. -->
+        {% if briefing.headline %}
+        <div class="brief-panel">
+            <div class="brief-top">
+                <div class="min-w-0">
+                    <div class="brief-eyebrow">
+                        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Portfolio briefing
+                    </div>
+                    <p class="brief-headline">{{ briefing.headline }}</p>
+                </div>
+                <button class="btn-ghost text-xs py-1.5" onclick="refreshBriefing(this)">Refresh</button>
+            </div>
+
+            {% if briefing.themes %}
+            <div class="theme-grid">
+            {% for t in briefing.themes %}
+                <div class="theme">
+                    {% if t.stat %}
+                    <div class="theme-stat">{{ t.stat }}</div>
+                    <div class="theme-stat-l">{{ t.stat_label or t.title }}</div>
+                    {% else %}
+                    <div class="theme-title">{{ t.title }}</div>
+                    {% endif %}
+                    {% if t.detail %}<div class="theme-detail">{{ t.detail }}</div>{% endif %}
+                    {% if t.companies %}
+                    <div class="theme-cos">
+                        {% for c in t.companies[:4] %}<span class="co-chip">{{ c }}</span>{% endfor %}
+                        {% if t.companies|length > 4 %}<span class="co-chip co-more">+{{ t.companies|length - 4 }}</span>{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="brief-split">
+                {% if briefing.priority %}
+                <div>
+                    <div class="mini-h">Start here</div>
+                    {% for p in briefing.priority %}
+                    <a href="/event/{{ p.event_id }}" class="prio-row">
+                        <span class="prio-n">{{ loop.index }}</span>
+                        <span class="min-w-0">
+                            <span class="prio-co">{{ p.company }}</span>
+                            <span class="prio-why">{{ p.why_first }}</span>
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if briefing.watch_items %}
+                <div>
+                    <div class="mini-h">Keep an eye on</div>
+                    {% for w in briefing.watch_items %}
+                    <div class="watch-row">
+                        <span class="watch-dot"></span><span>{{ w }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ══ COMPANY POSTURE ══
+             Board composition trend comes from each company's own quarterly
+             governance filings — seven quarters per company. -->
+        <div class="section-h">
+            <span>Companies</span>
+            <span class="section-sub">Board composition over the last {{ company_cards[0].board_trend|length if company_cards else 0 }} quarters</span>
+        </div>
+        <div class="co-grid">
+        {% for c in company_cards %}
+            <a href="/company/{{ c.symbol }}/timeline" class="co-card">
+                <div class="co-card-top">
+                    <span class="co-sym">{{ c.symbol }}</span>
+                    {% if c.high_risk %}<span class="co-flag">{{ c.high_risk }} high</span>{% endif %}
+                </div>
+                <div class="co-board">
+                    <span class="co-board-n">{{ c.board_now or '—' }}</span>
+                    <span class="co-board-l">directors</span>
+                    {% if c.board_delta %}
+                    <span class="co-trend {{ 'up' if c.board_delta > 0 else 'down' }}">
+                        {{ '+' if c.board_delta > 0 }}{{ c.board_delta }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if c.board_trend|length > 1 %}
+                {% set mx = c.board_trend|max %}{% set mn = c.board_trend|min %}
+                <div class="spark">
+                {% for v in c.board_trend %}
+                    <span class="spark-bar" title="{{ v }} directors"
+                          style="height:{{ 22 if mx == mn else (6 + ((v - mn) / (mx - mn) * 22))|round|int }}px"></span>
+                {% endfor %}
+                </div>
+                {% endif %}
+                <div class="co-meta">
+                    <span>{{ c.independent_pct }}% independent</span>
+                    <span>{{ c.events_open }} open</span>
+                </div>
+                <div class="co-foot">
+                    {% if c.days_to_due is not none %}Next filing in {{ c.days_to_due }}d{% else %}No upcoming deadline{% endif %}
+                    {% if c.to_verify %}<span class="co-verify">{{ c.to_verify }} to verify</span>{% endif %}
+                </div>
+            </a>
+        {% endfor %}
+        </div>
+
+        <!-- ══ WHERE THE WORK IS ══ -->
+        <div class="insight-grid">
+            <div class="insight">
+                <div class="mini-h">Open work by area</div>
+                {% for r in risk_breakdown.by_category[:5] %}
+                <div class="bar-row">
+                    <span class="bar-label">{{ r.label }}</span>
+                    <span class="bar-track"><span class="bar-fill" style="width:{{ r.pct }}%"></span></span>
+                    <span class="bar-n num">{{ r.n }}</span>
+                </div>
+                {% else %}
+                <p class="text-xs text-slate-400">Nothing open.</p>
+                {% endfor %}
+            </div>
+
+            <div class="insight">
+                <div class="mini-h">Deadline runway</div>
+                {% for b in runway.buckets %}
+                <div class="runway-row">
+                    <span class="runway-l">Next {{ b.label }}</span>
+                    <span class="runway-n num {{ 'hot' if b.label == '7 days' and b.n else '' }}">{{ b.n }}</span>
+                </div>
+                {% endfor %}
+                <a href="/intelligence?view=deadlines" class="mini-link">See all deadlines →</a>
+            </div>
+
+            <div class="insight">
+                <div class="mini-h">Documents prepared</div>
+                {% for d in doc_stats.by_type %}
+                <div class="runway-row">
+                    <span class="runway-l">{{ d.label.replace('_',' ')|title }}</span>
+                    <span class="runway-n num">{{ d.n }}</span>
+                </div>
+                {% endfor %}
+                <div class="doc-note">{{ doc_stats.awaiting }} events have documents waiting on your review</div>
+            </div>
+        </div>
+
+        <!-- ── Tabs ── -->
+        <div class="tabs">
+            <a href="/intelligence" class="tab {{ 'on' if view == 'action' }}">
+                Action queue <span class="tab-n num">{{ queue|length }}</span>
+            </a>
+            <a href="/intelligence?view=monitoring" class="tab {{ 'on' if view == 'monitoring' }}">
+                Monitoring <span class="tab-n num">{{ monitoring|length }}</span>
+            </a>
+            <a href="/intelligence?view=deadlines" class="tab {{ 'on' if view == 'deadlines' }}">
+                Deadlines <span class="tab-n num">{{ deadlines.total }}</span>
+            </a>
+            <a href="/intelligence?view=completed" class="tab {{ 'on' if view == 'completed' }}">
+                Completed <span class="tab-n num">{{ completed|length }}</span>
+            </a>
+        </div>
+
+        <!-- ══ ACTION QUEUE ══ -->
+        {% if view == 'action' %}
+            {% for e in queue %}
+            <div class="acard">
+                <div class="acard-top">
+                    <span class="prio prio-{{ e.risk_level }}"></span>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2.5 flex-wrap">
+                            <span class="co">{{ e.company_name }}</span>
+                            <span class="tag tag-{{ e.risk_level }}">{{ e.risk_level }} priority</span>
+                            {% for m in e.mandate_ids[:2] %}<span class="tag tag-reg">{{ m }}</span>{% endfor %}
+                            {% if e.is_demo_scenario %}<span class="tag tag-low">Demo Scenario</span>{% endif %}
+                        </div>
+                        <div class="co-sub">{{ e.symbol }} · {{ e.detected_at[:10] }}</div>
+                    </div>
+                </div>
+
+                <div class="acard-body">
+                    <div class="qa">
+                        <div class="qa-q">What happened</div>
+                        <div class="qa-a"><strong>{{ e.event_label }}.</strong>
+                            {% if e.delta and e.delta.summary_line %}{{ e.delta.summary_line }}.
+                            {% else %}{{ e.headline }}{% endif %}</div>
+                    </div>
+
+                    {% if e.analysis and e.analysis.why_it_matters %}
+                    <div class="qa">
+                        <div class="qa-q">Why it matters</div>
+                        <div class="qa-a muted">{{ e.analysis.why_it_matters }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if e.analysis and e.analysis.recommended_actions %}
+                    <div class="qa">
+                        <div class="qa-q">What you should do</div>
+                        {% for a in e.analysis.recommended_actions[:3] %}
+                        <div class="todo">
+                            <span class="todo-n num">{{ loop.index }}</span>
+                            <span>{{ a.title }}<span class="todo-when when-{{ a.urgency }}">{{ a.urgency.replace('_',' ') }}</span></span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="acard-foot">
+                    <div class="docs">
+                        {% if e.artifact_count %}
+                        <span class="text-xs font-semibold text-slate-500 mr-1">Ready to send:</span>
+                        {% for a in (e.analysis.recommended_actions or [])[:0] %}{% endfor %}
+                        <span class="doc-pill">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            {{ e.artifact_count }} draft {{ 'document' if e.artifact_count == 1 else 'documents' }}
+                        </span>
+                        {% else %}
+                        <span class="text-xs text-slate-400">No documents prepared</span>
+                        {% endif %}
+                    </div>
+                    <a href="/event/{{ e.id }}" class="btn-go">
+                        Review &amp; Complete
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <div class="bg-white rounded-2xl border border-slate-200 empty">
+                <span class="empty-i">
+                    <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </span>
+                <div class="text-base font-bold text-slate-900">Your queue is clear</div>
+                <p class="text-sm text-slate-500 mt-1.5">No compliance items need action today.
+                    Monitoring continues across {{ stats.companies_monitored }} companies.</p>
+            </div>
+            {% endfor %}
+
+        <!-- ══ MONITORING ══ -->
+        {% elif view == 'monitoring' %}
+            <p class="text-sm text-slate-500 mb-4">Recorded and monitored. No action required unless
+                circumstances change.</p>
+            <div class="bg-white rounded-2xl border border-slate-200 px-5 py-1">
+            {% for e in monitoring %}
+                <a href="/event/{{ e.id }}" class="dl-row hover:opacity-70">
+                    <span class="tag tag-{{ e.risk_level }}" style="width:96px;justify-content:center;">
+                        {{ 'not assessed' if e.risk_level == 'unassessed' else e.risk_level }}</span>
+                    <span class="font-bold text-slate-900" style="width:118px;">{{ e.symbol }}</span>
+                    <span class="flex-1 min-w-0 truncate">{{ e.event_label }}</span>
+                    <span class="mono text-xs text-slate-400 num">{{ e.detected_at[:10] }}</span>
+                </a>
+            {% else %}
+                <p class="text-sm text-slate-400 py-8 text-center">Nothing under monitoring.</p>
+            {% endfor %}
+            </div>
+
+        <!-- ══ DEADLINES ══ -->
+        {% elif view == 'deadlines' %}
+            <p class="text-sm text-slate-500 mb-4">Statutory obligations falling due in the next 60 days,
+                across your monitored companies.</p>
+            <div class="bg-white rounded-2xl border border-slate-200 px-5 py-1">
+            {% for d in deadlines.rows %}
+                <div class="dl-row">
+                    <span class="dl-days num {{ 'soon' if d.urgent }}">{{ d.days_left }}d</span>
+                    <span class="font-bold text-slate-900" style="width:118px;">{{ d.symbol }}</span>
+                    <span class="flex-1 min-w-0">
+                        <span class="text-slate-800">{{ d.name }}</span>
+                        <span class="text-xs text-slate-400 block">{{ d.period }}{% if d.regulation %} · {{ d.regulation }}{% endif %}</span>
+                    </span>
+                    <span class="mono text-xs text-slate-500 num">{{ d.due_date }}</span>
+                </div>
+            {% else %}
+                <p class="text-sm text-slate-400 py-8 text-center">No deadlines in the next 60 days.</p>
+            {% endfor %}
+            </div>
+            {% if deadlines.unmatched_historic %}
+            <p class="text-xs text-slate-400 mt-4 leading-relaxed max-w-3xl">
+                {{ deadlines.unmatched_historic }} historic obligations could not be automatically matched
+                to a filing. That means Delta did not find the filing, not that it was missed —
+                they are excluded from the counts above. Review them on the
+                <a href="/compliance" class="underline">compliance calendar</a>.
+            </p>
+            {% endif %}
+
+        <!-- ══ COMPLETED ══ -->
+        {% else %}
+            <div class="bg-white rounded-2xl border border-slate-200 px-5 py-1">
+            {% for e in completed %}
+                <a href="/event/{{ e.id }}" class="dl-row hover:opacity-70">
+                    <span class="tag tag-done" style="width:110px;justify-content:center;">{{ status_labels.get(e.status, e.status) }}</span>
+                    <span class="font-bold text-slate-900" style="width:118px;">{{ e.symbol }}</span>
+                    <span class="flex-1 min-w-0 truncate">{{ e.event_label }}</span>
+                    <span class="mono text-xs text-slate-400 num">{{ e.detected_at[:10] }}</span>
+                </a>
+            {% else %}
+                <p class="text-sm text-slate-400 py-8 text-center">Nothing completed yet.</p>
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <p class="text-xs text-slate-400 mt-7 leading-relaxed max-w-4xl">
+            Delta Filings prepares compliance work for review. Every document and recommendation
+            requires sign-off by a qualified Company Secretary before it is acted on or filed.
+            Governance changes are derived from companies' own SEBI filings; regulatory references
+            come from Delta's mandate library.
+        </p>
+    </div>
+    </main>
+</div>
+
+<!-- ── Agent configuration ── -->
+<div class="ag-overlay" id="agOverlay" onclick="if(event.target===this) closeAgentPanel()">
+    <div class="ag-card">
+        <div class="flex items-start justify-between gap-4 mb-1">
+            <div>
+                <div class="text-base font-extrabold tracking-tight text-slate-900">Agent team</div>
+                <p class="text-xs text-slate-500 mt-1 leading-relaxed max-w-md">
+                    Three specialists work your filings in sequence. Each one hands off to
+                    the next, and every step is recorded on the event it produced.
+                </p>
+            </div>
+            <button class="btn-ghost text-xs py-1.5" onclick="closeAgentPanel()">Close</button>
+        </div>
+
+        <div class="mt-4 mb-2 flex items-center gap-2 text-xs">
+            <span class="agent-dot {{ 'on' if agent_status.healthy else 'off' }}"></span>
+            <span class="font-semibold {{ 'text-emerald-600' if agent_status.healthy else 'text-amber-600' }}">
+                {{ 'Running' if agent_status.healthy else 'Paused' }}
+            </span>
+            <span class="text-slate-400">·</span>
+            <span class="text-slate-500 num">{{ agent_status.actions }} actions recorded</span>
+            {% if agent_status.last_run %}
+            <span class="text-slate-400">·</span>
+            <span class="text-slate-500">last ran {{ agent_status.last_run[:10] }} {{ agent_status.last_run[11:16] }}</span>
+            {% endif %}
+        </div>
+        {% if not agent_status.healthy and agent_status.error %}
+        <div class="banner banner-warn mt-2">{{ agent_status.error }}</div>
+        {% endif %}
+
+        <div class="mt-3">
+        {% for a in agent_status.agents %}
+            <div class="ag-agent">
+                <span class="ag-badge">{{ loop.index }}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="ag-name">{{ a.name }} Agent</div>
+                    <div class="ag-role">{{ a.role }}</div>
+                    <div class="ag-model">{{ a.model }}</div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+
+        <div class="mt-4 pt-4" style="border-top:1px solid var(--border-light,#f1f5f9);">
+            <div class="mini-h">Guardrails</div>
+            <div class="text-xs text-slate-500 leading-relaxed space-y-1.5">
+                <div>· Regulations are retrieved from Delta's mandate library — the model selects from that list and cannot introduce a citation.</div>
+                <div>· Evidence quotes are checked against the source document and discarded if they can't be found in it.</div>
+                <div>· Nothing is filed automatically. Every document waits for your approval.</div>
+            </div>
+            <a href="/compliance" class="mini-link">Adjust monitored companies and model in Settings →</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function openAgentPanel() { document.getElementById('agOverlay').classList.add('on'); }
+function closeAgentPanel() { document.getElementById('agOverlay').classList.remove('on'); }
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAgentPanel();
+});
+
+async function refreshBriefing(btn) {
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Rethinking…';
+    try {
+        const r = await fetch('/api/briefing/refresh', { method: 'POST' });
+        if (!r.ok) throw new Error('failed');
+        location.reload();
+    } catch (e) {
+        btn.disabled = false; btn.textContent = original;
+    }
+}
+</script>
+
+</body>
+</html>

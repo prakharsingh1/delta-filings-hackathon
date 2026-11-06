@@ -1,0 +1,125 @@
+{% extends 'app_base.html' %}
+{% block title %}Rulebook{% endblock %}
+
+{% block head %}
+<style>
+  [hidden] { display: none !important; }
+  .rb-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+  .rb-note { margin-bottom: 18px; }
+  .rb-filters { display: grid; grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(150px, 1fr)); gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border-light); }
+  @media (max-width: 760px) { .rb-filters { grid-template-columns: 1fr 1fr; } .rb-filters .rb-q { grid-column: 1 / -1; } }
+  @media (max-width: 420px) { .rb-filters { grid-template-columns: 1fr; } }
+  .rb-count { padding: 10px 18px; font-size: 12.5px; color: var(--text-muted); border-bottom: 1px solid var(--border-light); }
+  .rb-tbl { min-width: 1000px; }
+  .rb-tbl td { font-size: 13px; }
+  .grp-row td { background: var(--surface-secondary); font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-secondary); padding: 8px 14px; }
+  .tbl tbody tr.grp-row:hover td { background: var(--surface-secondary); }
+  .grp-n { font-weight: 600; color: var(--text-muted); margin-left: 6px; letter-spacing: 0; }
+  .f-name { font-weight: 600; }
+  .small { font-size: 12px; }
+  .desc { max-width: 42ch; margin-top: 2px; }
+  html.dark .grp-row td { background: #101010; color: #a3a3a3; }
+  html.dark .tbl tbody tr.grp-row:hover td { background: #101010; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap">
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Workspace</div>
+      <h1 class="mod-title">Rulebook</h1>
+      <p class="mod-sub">Every recurring and event-based obligation the workspace tracks, and the profile answers that switch each one on.</p>
+      <div class="rb-meta">
+        <span><strong>{{ rule_count }}</strong> obligations</span>
+        <span>Last reviewed {{ reviewed }}</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="note rb-note">Penalty figures are indicative and depend on facts such as turnover, capital and the tax involved. Check the source before you rely on one.</p>
+
+  <section class="panel">
+    <div class="rb-filters">
+      <input type="search" class="fld-input rb-q" id="rb-q" placeholder="Search by form, name or section" aria-label="Search the rulebook" autocomplete="off">
+      <select class="fld-select" id="rb-regime" aria-label="Regime">
+        <option value="">All regimes</option>
+        {% for g in regimes %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
+      </select>
+      <select class="fld-select" id="rb-type" aria-label="Entity type">
+        <option value="">All entity types</option>
+        {% for key, label in entity_types.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+      </select>
+      <select class="fld-select" id="rb-freq" aria-label="Frequency">
+        <option value="">Any frequency</option>
+        {% for key, label in frequencies %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="rb-count" id="rb-count" aria-live="polite">Showing all {{ rule_count }}</div>
+    <div class="tbl-wrap">
+      <table class="tbl rb-tbl">
+        <thead>
+          <tr><th>Obligation</th><th>Form and law</th><th>When</th><th>Penalty</th><th>Applies to</th><th></th></tr>
+        </thead>
+        {% for g in groups %}
+        <tbody class="rb-group">
+          <tr class="grp-row"><td colspan="6">{{ g.regime }}<span class="grp-n">{{ g.rules|length }}</span></td></tr>
+          {% for r in g.rules %}
+          <tr class="rb-row" data-regime="{{ r.regime }}" data-types="{{ r.types|join(' ') }}" data-freq="{{ r.frequency }}"
+              data-q="{{ [r.name, r.form, r.law, r.description, r.regime, r.schedule]|join(' ')|lower }}">
+            <td><div class="f-name">{{ r.name }}</div><div class="muted small desc">{{ r.description }}</div></td>
+            <td><div class="mono">{{ r.form }}</div><div class="muted small">{{ r.law }}</div></td>
+            <td>{{ r.schedule }}</td>
+            <td class="small">{{ r.penalty_text }}</td>
+            <td><div class="small">{{ r.applies_to }}</div>{% if r.conditions %}<div class="muted small">{{ r.conditions }}</div>{% endif %}</td>
+            <td>{% if r.source %}<a class="link small" href="{{ r.source }}" target="_blank" rel="noopener">Source</a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="empty" id="rb-empty" hidden>
+      <div class="empty-title">Nothing matches</div>
+      Clear a filter, or search by form number, such as AOC-4 or GSTR-3B.
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  var q = document.getElementById('rb-q');
+  var regime = document.getElementById('rb-regime');
+  var type = document.getElementById('rb-type');
+  var freq = document.getElementById('rb-freq');
+  var groups = Array.prototype.slice.call(document.querySelectorAll('.rb-group'));
+  var total = document.querySelectorAll('.rb-row').length;
+
+  function apply() {
+    var terms = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    var shown = 0;
+    groups.forEach(function (g) {
+      var n = 0;
+      g.querySelectorAll('.rb-row').forEach(function (row) {
+        var ok = (!regime.value || row.dataset.regime === regime.value) &&
+          (!type.value || row.dataset.types.split(' ').indexOf(type.value) >= 0) &&
+          (!freq.value || row.dataset.freq === freq.value) &&
+          terms.every(function (t) { return row.dataset.q.indexOf(t) >= 0; });
+        row.hidden = !ok;
+        if (ok) n++;
+      });
+      g.hidden = n === 0;
+      g.querySelector('.grp-n').textContent = n;
+      shown += n;
+    });
+    document.getElementById('rb-count').textContent = shown === total ? 'Showing all ' + total : 'Showing ' + shown + ' of ' + total;
+    document.getElementById('rb-empty').hidden = shown > 0;
+  }
+  [q, regime, type, freq].forEach(function (el) { el.addEventListener('input', apply); el.addEventListener('change', apply); });
+  apply();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,522 @@
+{% extends 'app_base.html' %}
+{% block title %}{{ meeting.title }} · {{ entity.name }}{% endblock %}
+
+{% block head %}
+<style>
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; }
+  .crumbs a { color: var(--text-secondary); font-weight: 600; text-decoration: none; }
+  .crumbs a:hover { color: var(--primary); }
+  .crumbs [aria-current] { color: var(--text-primary); font-weight: 600; overflow-wrap: anywhere; }
+
+  .mtg-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .mtg-title-row .mod-title { overflow-wrap: anywhere; }
+
+  .chk-list { display: flex; flex-direction: column; gap: 8px; }
+  .chk { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; border: 1px solid; font-size: 13px; line-height: 1.5; }
+  .chk svg { flex: none; margin-top: 2px; }
+  .chk-ok { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+  .chk-warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+  .chk-info { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; }
+
+  #agenda-panel .panel-head { flex-wrap: wrap; }
+  .ag-save { display: flex; align-items: center; gap: 10px; }
+  .dirty { font-size: 12px; font-weight: 600; color: #b45309; }
+  .ag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .ag-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--surface); }
+  .ag-row { display: flex; align-items: center; gap: 10px; }
+  .ag-num { flex: none; width: 26px; height: 26px; border-radius: 999px; background: var(--primary-light); color: var(--primary); font-weight: 700; font-size: 12.5px; display: flex; align-items: center; justify-content: center; }
+  .ag-title { flex: 1; min-width: 0; font-weight: 600; }
+  .ag-ctrl { display: flex; gap: 2px; flex: none; }
+  .icon-btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--text-muted); cursor: pointer; }
+  .icon-btn:hover:not(:disabled) { background: var(--surface-secondary); color: var(--text-primary); border-color: var(--border); }
+  .icon-btn:disabled { opacity: .35; cursor: default; }
+  .ag-indent { margin-left: 36px; }
+  .ag-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+  .ag-preview { margin-top: 8px; font-size: 13.5px; line-height: 1.65; color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .ag-blanks { margin-top: 6px; font-size: 12px; font-weight: 600; color: #b45309; }
+  .ag-editor { margin-top: 10px; }
+  .ag-editor .fld-textarea { min-height: 120px; line-height: 1.55; }
+  .ag-editor-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .link-btn { background: none; border: 0; padding: 0; font-size: 12.5px; font-weight: 600; color: var(--primary); cursor: pointer; }
+  .link-btn:hover { text-decoration: underline; }
+  .link-btn.quiet { color: var(--text-muted); }
+  mark.ph { background: #fef3c7; color: #92400e; border-radius: 4px; padding: 0 3px; font-weight: 600; }
+  .ag-add { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); }
+  .ag-add .fld { margin: 0; flex: 1 1 260px; }
+  #ag-banner { margin-bottom: 14px; }
+
+  .fu-state { white-space: nowrap; }
+  .dlg-x { background: none; border: 0; padding: 4px; border-radius: 6px; color: var(--text-muted); cursor: pointer; display: inline-flex; }
+  .dlg-x:hover { color: var(--text-primary); background: var(--surface-secondary); }
+  .dlg-err { font-size: 12.5px; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; margin-top: 10px; }
+  .fu-list { list-style: none; margin: 10px 0 0; padding: 0; border: 1px solid var(--border); border-radius: 10px; }
+  .fu-list li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; border-bottom: 1px solid var(--border-light); font-size: 13px; }
+  .fu-list li:last-child { border-bottom: 0; }
+  .fu-list .due { color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .btn-danger { background: #dc2626; color: #fff; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-quiet-danger { color: #b91c1c; }
+
+  @media (max-width: 640px) {
+    .ag-indent { margin-left: 0; }
+    .ag-item { padding: 12px; }
+    .ag-row { gap: 6px; }
+    .icon-btn { width: 30px; height: 30px; }
+  }
+
+  html.dark .chk-ok { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); color: #6ee7b7; }
+  html.dark .chk-warn { background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); color: #fcd34d; }
+  html.dark .chk-info { background: rgba(99,102,241,.12); border-color: rgba(99,102,241,.35); color: #c7d2fe; }
+  html.dark .dirty, html.dark .ag-blanks { color: #fcd34d; }
+  html.dark .ag-item { background: #111; border-color: #262626; }
+  html.dark .icon-btn:hover:not(:disabled) { background: #1c1c1c; border-color: #2a2a2a; }
+  html.dark mark.ph { background: rgba(245,158,11,.2); color: #fcd34d; }
+  html.dark .dlg-err { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); color: #fca5a5; }
+  html.dark .dlg-x:hover { background: #1c1c1c; }
+  html.dark .fu-list { border-color: #262626; }
+  html.dark .fu-list li { border-color: #1f1f1f; }
+  html.dark .btn-danger { background: #dc2626; color: #fff; }
+  html.dark .btn-danger:hover { background: #b91c1c; }
+  html.dark .btn-quiet-danger { color: #fca5a5; }
+</style>
+{% endblock %}
+
+{% set planned = meeting.status == 'planned' %}
+{% set state_labels = {'overdue': 'Overdue', 'due_soon': 'Due soon', 'upcoming': 'Upcoming', 'filed': 'Filed', 'na': 'N/A'} %}
+
+{% block content %}
+<div class="mod-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/workspace">Workspace</a><span aria-hidden="true">/</span>
+    <a href="/workspace/entity/{{ entity.id }}">{{ entity.name }}</a><span aria-hidden="true">/</span>
+    <a href="/workspace/entity/{{ entity.id }}/meetings">Meetings</a><span aria-hidden="true">/</span>
+    <span aria-current="page">{{ meeting.title }}</span>
+  </nav>
+
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">{{ meeting.kind_label }}</div>
+      <div class="mtg-title-row">
+        <h1 class="mod-title">{{ meeting.title }}</h1>
+        {% if meeting.status == 'held' %}<span class="chip chip-ok">Held</span>
+        {% elif meeting.scheduled_for[:10] < today %}<span class="chip chip-medium">Not marked held</span>
+        {% else %}<span class="chip chip-info">Planned</span>{% endif %}
+      </div>
+      <p class="mod-sub">
+        {{ fmt_when(meeting.scheduled_for) }} · {{ meeting.mode_label }}{% if meeting.venue %} · {{ meeting.venue }}{% endif %}{% if meeting.chair %} · Chair: {{ meeting.chair }}{% endif %}
+      </p>
+    </div>
+    <div class="mod-actions">
+      <a class="btn btn-secondary" id="pack-btn" href="/workspace/meetings/{{ meeting.id }}/pack.docx">Download meeting pack (.docx)</a>
+      {% if planned %}
+      <button type="button" class="btn btn-primary" data-open="held-dlg">Mark as held</button>
+      <button type="button" class="btn btn-secondary btn-quiet-danger" data-open="del-dlg">Delete</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><div class="panel-title">Checks</div></div>
+    <div class="panel-body chk-list" id="checks">
+      {% for c in meeting.checks %}
+      <div class="chk chk-{{ c.level }}">
+        {% if c.level == 'ok' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+        {% elif c.level == 'warn' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>
+        {% else %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 11v6M12 7.5v.5"/><circle cx="12" cy="12" r="9"/></svg>{% endif %}
+        <span>{{ c.text }}</span>
+      </div>
+      {% else %}
+      <p class="muted" style="font-size:13px;margin:0">Nothing to flag.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if not planned %}
+  <section class="panel">
+    <div class="panel-head">
+      <div><div class="panel-title">Follow-up filings</div><div class="panel-sub">Added to the calendar when the meeting was marked held</div></div>
+      <a class="btn btn-secondary btn-sm" href="/workspace/entity/{{ entity.id }}">Entity calendar</a>
+    </div>
+    {% if meeting.followup_items %}
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Filing</th><th>Form</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for f in meeting.followup_items %}
+          <tr>
+            <td>{{ f.name }}{% if f.about %}<div class="muted" style="font-size:12px">{{ f.about }}</div>{% endif %}</td>
+            <td class="mono">{{ f.form or '' }}</td>
+            <td style="white-space:nowrap">{{ fmt_day(f.due_date) }}</td>
+            <td class="fu-state"><span class="chip st-{{ f.state }}">{{ state_labels.get(f.state, f.state) }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">
+      <div class="empty-title">No follow-up filings</div>
+      <p>None of the rules on file apply to this meeting for a {{ entity.type_label|lower }}.</p>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="panel" id="agenda-panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">Agenda and resolutions</div>
+        <div class="panel-sub" id="ag-sub"></div>
+      </div>
+      <div class="ag-save">
+        <span class="dirty" id="dirty-flag" hidden>Unsaved changes</span>
+        <button type="button" class="btn btn-primary btn-sm" id="save-btn" disabled>Save</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      {% if not planned %}
+      <p class="note" style="margin:0 0 14px">This meeting is marked held. Edits here change the minutes in the pack; the follow-up filings on the calendar stay as they are.</p>
+      {% endif %}
+      <div id="ag-banner" hidden></div>
+      <ol class="ag-list" id="ag-list"></ol>
+      <div class="ag-add">
+        <label class="fld" for="add-sel"><span class="fld-label">Add an item from the library</span>
+          <select class="fld-select" id="add-sel">
+            {% for a in library %}<option value="{{ a.key }}">{{ a.title }}{% if a.mgt14 %} (MGT-14){% endif %}</option>{% endfor %}
+          </select>
+        </label>
+        <button type="button" class="btn btn-secondary" id="add-btn">Add item</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+{% if planned %}
+<dialog class="mod-dialog" id="held-dlg" aria-labelledby="held-title">
+  <form id="held-form" novalidate>
+    <div class="dlg-head">
+      <span id="held-title">Mark as held</span>
+      <button type="button" class="dlg-x" data-close aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body" id="held-body">
+      <label class="fld" for="held-on"><span class="fld-label">Held on</span>
+        <input type="date" class="fld-input" id="held-on" name="held_on" value="{{ held_default }}" max="{{ today }}" required>
+      </label>
+      <p class="fld-hint">This logs the meeting on {{ entity.name }} and adds its follow-up filings to the calendar: minutes, MGT-14, DIR-12, PAS-3 and Reg 30, where they apply. Due dates run from this date.</p>
+      <p class="dlg-err" id="held-err" role="alert" hidden></p>
+    </div>
+    <div class="dlg-body" id="held-done" hidden>
+      <p style="font-size:13.5px;margin:0" id="held-done-lead"></p>
+      <ul class="fu-list" id="held-list"></ul>
+    </div>
+    <div class="dlg-foot" id="held-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary" id="held-save">Mark as held</button>
+    </div>
+    <div class="dlg-foot" id="held-done-foot" hidden>
+      <a class="btn btn-secondary" href="/workspace/entity/{{ entity.id }}">Open the entity calendar</a>
+      <button type="button" class="btn btn-primary" id="held-finish">Done</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mod-dialog" id="del-dlg" aria-labelledby="del-title">
+  <div class="dlg-head"><span id="del-title">Delete this meeting?</span></div>
+  <div class="dlg-body">
+    <p style="font-size:13.5px;margin:0">The draft agenda and resolutions are removed.{% if meeting.sched_event_id %} The Reg 29 reminder this meeting added to the calendar is removed too, unless it is already marked filed.{% endif %} Use this for a meeting that will not take place.</p>
+    <p class="dlg-err" id="del-err" role="alert" hidden></p>
+  </div>
+  <div class="dlg-foot">
+    <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+    <button type="button" class="btn btn-danger" id="del-confirm">Delete meeting</button>
+  </div>
+</dialog>
+{% endif %}
+
+<script type="application/json" id="mtg-data">{{ {
+  'id': meeting.id, 'entity_id': entity.id, 'status': meeting.status,
+  'items': meeting['items'], 'mgt14_keys': meeting.mgt14_keys, 'library': library,
+  'labels': placeholder_labels, 'state_labels': state_labels
+}|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById('mtg-data').textContent);
+  var LIB = {};
+  D.library.forEach(function (a) { LIB[a.key] = a; });
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var $ = function (id) { return document.getElementById(id); };
+  var PH = /\{([a-z_]+)\}/g;
+  var ICON = {
+    ok: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>',
+    warn: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>',
+    info: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 11v6M12 7.5v.5"/><circle cx="12" cy="12" r="9"/></svg>',
+    up: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
+    down: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+    remove: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/></svg>'
+  };
+
+  var uidSeq = 0;
+  var items = D.items.map(function (it) { return { uid: ++uidSeq, key: it.key, title: it.title, resolution: it.resolution }; });
+  var open = {};          // uid -> wording editor open
+  var dirty = false;
+
+  function fmtDay(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || '');
+    return m ? (+m[3]) + ' ' + MONTHS[+m[2] - 1] + ' ' + m[1] : (s || '');
+  }
+  function label(k) { return D.labels[k] || k.replace(/_/g, ' '); }
+  function blanksOf(text) {
+    var out = [], m;
+    PH.lastIndex = 0;
+    while ((m = PH.exec(text || ''))) if (out.indexOf(m[1]) < 0) out.push(m[1]);
+    return out;
+  }
+  function preview(text) {
+    // Escape first; the placeholder pattern only matches [a-z_], so the
+    // inserted markup never carries user text.
+    return dfEsc(text).replace(PH, '<mark class="ph">{$1}</mark>');
+  }
+  function needsMgt14(key) { return !!(LIB[key] && LIB[key].mgt14); }
+
+  function setDirty(v) {
+    dirty = v;
+    $('dirty-flag').hidden = !v;
+    $('save-btn').disabled = !v;
+  }
+
+  function summary() {
+    var n = items.length, g = items.filter(function (i) { return needsMgt14(i.key); }).length;
+    $('ag-sub').textContent = n + (n === 1 ? ' item' : ' items') + (g ? ' · ' + g + ' need' + (g === 1 ? 's' : '') + ' MGT-14' : '');
+    var all = [];
+    items.forEach(function (i) { blanksOf(i.resolution).forEach(function (k) { if (all.indexOf(k) < 0) all.push(k); }); });
+    var b = $('ag-banner');
+    if (all.length) {
+      b.className = 'chk chk-warn';
+      b.innerHTML = ICON.warn + '<span>Fill before circulating: ' + dfEsc(all.map(label).join(', ')) + '. Blanks stay highlighted in the pack until you replace them.</span>';
+      b.hidden = false;
+    } else {
+      b.hidden = true;
+    }
+  }
+
+  function derived(li, it) {
+    li.querySelector('.ag-preview').innerHTML = preview(it.resolution);
+    var bl = blanksOf(it.resolution), box = li.querySelector('.ag-blanks');
+    box.textContent = bl.length ? 'Fill before circulating: ' + bl.map(label).join(', ') : '';
+    box.hidden = !bl.length;
+    var lib = LIB[it.key];
+    var reset = li.querySelector('[data-act="reset"]');
+    if (reset) reset.hidden = !lib || lib.resolution === it.resolution;
+  }
+
+  function renderList() {
+    var list = $('ag-list');
+    if (!items.length) {
+      list.innerHTML = '<li class="empty" style="padding:28px 12px"><div class="empty-title">No agenda items yet</div>' +
+        'The pack drafts a notice line and a resolution for each item. Add the first one from the library below.</li>';
+      summary();
+      return;
+    }
+    list.innerHTML = items.map(function (it, i) {
+      var lib = LIB[it.key];
+      var meta = [];
+      if (needsMgt14(it.key)) meta.push('<span class="chip chip-info" title="File MGT-14 within 30 days of the meeting">MGT-14</span>');
+      if (lib && lib.title !== it.title) meta.push('<span>Library item: ' + dfEsc(lib.title) + '</span>');
+      var isOpen = !!open[it.uid];
+      return '<li class="ag-item" data-uid="' + it.uid + '">' +
+        '<div class="ag-row"><span class="ag-num" aria-hidden="true">' + (i + 1) + '</span>' +
+        '<input type="text" class="fld-input ag-title" maxlength="200" value="' + dfEsc(it.title) + '" aria-label="Item ' + (i + 1) + ' title">' +
+        '<div class="ag-ctrl">' +
+          '<button type="button" class="icon-btn" data-act="up" aria-label="Move item ' + (i + 1) + ' up" title="Move up"' + (i === 0 ? ' disabled' : '') + '>' + ICON.up + '</button>' +
+          '<button type="button" class="icon-btn" data-act="down" aria-label="Move item ' + (i + 1) + ' down" title="Move down"' + (i === items.length - 1 ? ' disabled' : '') + '>' + ICON.down + '</button>' +
+          '<button type="button" class="icon-btn" data-act="remove" aria-label="Remove item ' + (i + 1) + '" title="Remove">' + ICON.remove + '</button>' +
+        '</div></div>' +
+        (meta.length ? '<div class="ag-meta ag-indent">' + meta.join('') + '</div>' : '') +
+        '<div class="ag-preview ag-indent"></div>' +
+        '<div class="ag-blanks ag-indent" hidden></div>' +
+        '<div class="ag-indent" style="margin-top:8px">' +
+          '<button type="button" class="link-btn" data-act="edit" aria-expanded="' + isOpen + '">' + (isOpen ? 'Close wording' : 'Edit wording') + '</button>' +
+        '</div>' +
+        '<div class="ag-editor ag-indent"' + (isOpen ? '' : ' hidden') + '>' +
+          '<textarea class="fld-textarea ag-res" maxlength="3000" aria-label="Item ' + (i + 1) + ' resolution">' + dfEsc(it.resolution) + '</textarea>' +
+          '<div class="ag-editor-foot"><span class="fld-hint" style="margin:0">Replace each {blank}, or leave it for the pack to highlight.</span>' +
+          '<button type="button" class="link-btn quiet" data-act="reset" hidden>Restore library wording</button></div>' +
+        '</div>' +
+      '</li>';
+    }).join('');
+    Array.prototype.forEach.call(list.children, function (li, i) { derived(li, items[i]); });
+    summary();
+  }
+
+  function findItem(el) {
+    var li = el.closest('.ag-item');
+    if (!li) return null;
+    var uid = +li.dataset.uid;
+    for (var i = 0; i < items.length; i++) if (items[i].uid === uid) return { li: li, it: items[i], i: i };
+    return null;
+  }
+
+  var list = $('ag-list');
+  list.addEventListener('input', function (e) {
+    var f = findItem(e.target);
+    if (!f) return;
+    if (e.target.classList.contains('ag-title')) f.it.title = e.target.value;
+    else if (e.target.classList.contains('ag-res')) { f.it.resolution = e.target.value; derived(f.li, f.it); summary(); }
+    setDirty(true);
+  });
+  list.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    var f = findItem(btn);
+    if (!f) return;
+    var act = btn.dataset.act, focusSel = null;
+    if (act === 'up' && f.i > 0) {
+      items.splice(f.i - 1, 0, items.splice(f.i, 1)[0]); setDirty(true); focusSel = [f.it.uid, 'up'];
+    } else if (act === 'down' && f.i < items.length - 1) {
+      items.splice(f.i + 1, 0, items.splice(f.i, 1)[0]); setDirty(true); focusSel = [f.it.uid, 'down'];
+    } else if (act === 'remove') {
+      items.splice(f.i, 1); delete open[f.it.uid]; setDirty(true);
+      dfToast('Item removed. Save to keep the change.');
+    } else if (act === 'edit') {
+      open[f.it.uid] = !open[f.it.uid];
+      if (open[f.it.uid]) focusSel = [f.it.uid, 'res'];
+    } else if (act === 'reset' && LIB[f.it.key]) {
+      f.it.resolution = LIB[f.it.key].resolution; setDirty(true); focusSel = [f.it.uid, 'res'];
+    } else {
+      return;
+    }
+    renderList();
+    if (focusSel) {
+      var li = list.querySelector('.ag-item[data-uid="' + focusSel[0] + '"]');
+      var target = li && (focusSel[1] === 'res' ? li.querySelector('.ag-res') : li.querySelector('[data-act="' + focusSel[1] + '"]'));
+      if (target && target.disabled) target = li.querySelector('.ag-title');
+      if (target) target.focus();
+    }
+  });
+
+  $('add-btn').addEventListener('click', function () {
+    var key = $('add-sel').value, lib = LIB[key];
+    if (!lib) return;
+    var it = { uid: ++uidSeq, key: key, title: lib.title, resolution: lib.resolution };
+    items.push(it);
+    if (blanksOf(lib.resolution).length) open[it.uid] = true;
+    setDirty(true);
+    renderList();
+    var li = list.querySelector('.ag-item[data-uid="' + it.uid + '"]');
+    if (li) { li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); li.querySelector('.ag-title').focus(); }
+  });
+
+  function renderChecks(checks) {
+    $('checks').innerHTML = checks.length ? checks.map(function (c) {
+      return '<div class="chk chk-' + dfEsc(c.level) + '">' + (ICON[c.level] || ICON.info) + '<span>' + dfEsc(c.text) + '</span></div>';
+    }).join('') : '<p class="muted" style="font-size:13px;margin:0">Nothing to flag.</p>';
+  }
+
+  async function save() {
+    var btn = $('save-btn');
+    btn.disabled = true;
+    try {
+      var res = await dfApi('/api/secretarial/meetings/' + D.id + '/items', {
+        method: 'PUT',
+        body: { items: items.map(function (i) { return { key: i.key, title: i.title, resolution: i.resolution }; }) }
+      });
+      // The server fills an emptied title or resolution back from the library
+      // and drops anything not valid for this meeting type.
+      if (res.items.length === items.length) {
+        res.items.forEach(function (s, i) { items[i].title = s.title; items[i].resolution = s.resolution; });
+      } else {
+        items = res.items.map(function (s) { return { uid: ++uidSeq, key: s.key, title: s.title, resolution: s.resolution }; });
+        open = {};
+      }
+      D.mgt14_keys = res.mgt14_keys;
+      renderChecks(res.checks);
+      setDirty(false);
+      renderList();
+      return true;
+    } catch (err) {
+      dfToast(err.message, 'err');
+      btn.disabled = false;
+      return false;
+    }
+  }
+  $('save-btn').addEventListener('click', async function () { if (await save()) dfToast('Agenda saved', 'ok'); });
+
+  // The pack is built from the saved agenda, so save pending edits first.
+  $('pack-btn').addEventListener('click', async function (e) {
+    if (!dirty) return;
+    e.preventDefault();
+    if (await save()) location.href = this.href;
+  });
+
+  window.addEventListener('beforeunload', function (e) {
+    if (dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // ── Dialogs ──
+  document.addEventListener('click', function (e) {
+    var o = e.target.closest('[data-open]');
+    if (o) { var d = $(o.dataset.open); if (d) d.showModal(); return; }
+    var c = e.target.closest('[data-close]');
+    if (c) { var dl = c.closest('dialog'); if (dl) dl.close(); }
+  });
+
+  var heldForm = $('held-form');
+  if (heldForm) {
+    heldForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var err = $('held-err'), btn = $('held-save'), day = $('held-on').value;
+      if (!day) { err.textContent = 'Enter the date the meeting was held.'; err.hidden = false; return; }
+      btn.disabled = true;
+      err.hidden = true;
+      if (dirty && !(await save())) { btn.disabled = false; return; }
+      try {
+        var res = await dfApi('/api/secretarial/meetings/' + D.id + '/held', { method: 'POST', body: { held_on: day } });
+        var fu = res.followups || [];
+        $('held-done-lead').textContent = 'Marked as held on ' + fmtDay(res.held_on) + '. ' +
+          (fu.length ? 'These filings are now on the calendar:' : 'No follow-up filings apply to this meeting.');
+        $('held-list').innerHTML = fu.map(function (f) {
+          return '<li><span>' + dfEsc(f.name) + (f.form ? ' <span class="muted mono">' + dfEsc(f.form) + '</span>' : '') +
+            (f.about ? '<br><span class="muted" style="font-size:12px">' + dfEsc(f.about) + '</span>' : '') +
+            '</span><span class="due">Due ' + dfEsc(fmtDay(f.due_date)) + '</span></li>';
+        }).join('');
+        $('held-list').hidden = !fu.length;
+        $('held-body').hidden = true;
+        $('held-foot').hidden = true;
+        $('held-done').hidden = false;
+        $('held-done-foot').hidden = false;
+        $('held-title').textContent = 'Meeting marked as held';
+        heldForm.closest('dialog').addEventListener('close', function () { location.reload(); });
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.hidden = false;
+        btn.disabled = false;
+      }
+    });
+    $('held-finish').addEventListener('click', function () { $('held-dlg').close(); });
+  }
+
+  var delBtn = $('del-confirm');
+  if (delBtn) {
+    delBtn.addEventListener('click', async function () {
+      delBtn.disabled = true;
+      try {
+        var res = await dfApi('/api/secretarial/meetings/' + D.id, { method: 'DELETE', body: {} });
+        setDirty(false);
+        location.href = res.redirect;
+      } catch (ex) {
+        $('del-err').textContent = ex.message;
+        $('del-err').hidden = false;
+        delBtn.disabled = false;
+      }
+    });
+  }
+
+  renderList();
+})();
+</script>
+{% endblock %}

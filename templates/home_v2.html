@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'analytics.html' %}
+  <script>
+    // Public pages are light-mode only. Undo the dark class the shared analytics snippet may add.
+    // The js class lets the stylesheet set pre-reveal states; if the page script never
+    // reports in, the class is removed again so nothing stays hidden.
+    (function () {
+      var root = document.documentElement;
+      root.classList.remove('dark');
+      root.classList.add('js');
+      setTimeout(function () { if (!window.__ledgerReady) root.classList.remove('js'); }, 2500);
+    })();
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Delta Filings · The compliance desk for Indian companies</title>
+  <meta name="description" content="Deadlines for ROC, SEBI, tax, GST, labour and FEMA filings with the late fee worked out, plus regulatory news, board meetings, registers, the insider-trading database, drafting and counterparty risk. Built for company secretaries, compliance officers and risk officers in India.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #F6F4EF;
+      --paper-2: #EFECE4;
+      --paper-3: #F3F1EB;
+      --sheet: #FFFFFF;
+      --ink: #0D0E14;
+      --ink-2: #353744;
+      --muted: #6B6A72;
+      --rule: #D9D5CB;
+      --rule-2: #E9E5DC;
+      --rule-faint: rgba(13, 14, 20, .06);
+      --indigo: #4338CA;
+      --indigo-bg: #ECEBFA;
+      --indigo-line: #C9C5F0;
+      --navy: #2D2A7C;
+      --red: #B91C1C;   --red-bg: #FBEDEA;   --red-line: #F1C9C2;
+      --amber: #A54B07; --amber-bg: #FBF1DE; --amber-line: #EED6AC;
+      --green: #047857; --green-bg: #E6F2EC; --green-line: #B7DCC9;
+      --orange: #C2410C; --orange-bg: #FCEEE4; --orange-line: #F2CDB4;
+      --slate: #55565F; --slate-bg: #F1F0EC; --slate-line: #E1DED6;
+      --band-sev: #B91C1C; --band-high: #C2410C; --band-mod: #B45309; --band-low: #CFCBC1;
+      --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+      --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --ease: cubic-bezier(.2, .8, .2, 1);
+      --gut: 32px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-padding-top: 84px; }
+    body {
+      margin: 0; background: var(--paper); color: var(--ink);
+      font-family: var(--sans); font-size: 17px; line-height: 1.65;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+    @supports (overflow-x: clip) { body { overflow-x: clip; } }
+    h1, h2, h3, p, ul, ol, dl, dd, figure, blockquote { margin: 0; }
+    ul, ol { padding: 0; list-style: none; }
+    svg { display: block; }
+    a { color: inherit; }
+    button { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; border-radius: 2px; }
+    .mono { font-family: var(--mono); }
+    .num { font-variant-numeric: tabular-nums lining-nums; }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 0 var(--gut); position: relative; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .skip { position: absolute; left: 16px; top: -60px; z-index: 60; background: var(--ink); color: #fff; padding: 10px 14px; border-radius: 2px; text-decoration: none; font-weight: 500; font-size: 15px; }
+    .skip:focus { top: 12px; }
+    .mut { color: var(--muted); }
+
+    /* ---------- Links and buttons ---------- */
+    .ul {
+      text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px;
+      text-decoration-color: currentColor;
+      transition: text-decoration-thickness .2s ease, text-underline-offset .2s ease, color .2s ease;
+    }
+    .ul:hover { text-decoration-thickness: 2px; text-underline-offset: 2px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      height: 48px; padding: 0 22px; border-radius: 2px; border: 1px solid transparent;
+      font: 500 15.5px/1 var(--sans); text-decoration: none; white-space: nowrap; cursor: pointer;
+      transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+    }
+    .btn svg { width: 16px; height: 16px; transition: transform .25s var(--ease); }
+    .btn-primary { background: var(--navy); color: #fff; }
+    .btn-primary:hover { background: var(--indigo); }
+    .btn-primary:hover svg { transform: translateX(3px); }
+    .btn-sm { height: 38px; padding: 0 14px; font-size: 14.5px; gap: 8px; }
+    .btn-sm svg { width: 14px; height: 14px; }
+    .textlink { font-size: 15.5px; font-weight: 500; color: var(--ink); }
+
+    /* ---------- Index tags, folios, crosshairs, construction grid ---------- */
+    .tag {
+      display: inline-block; background: var(--ink); color: #fff; font: 500 11px/1 var(--mono);
+      letter-spacing: .16em; text-transform: uppercase; padding: 6px 9px 6px 10px; border-radius: 1px; white-space: nowrap;
+    }
+    .folio { font: 500 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .xh { position: absolute; width: 13px; height: 13px; pointer-events: none; z-index: 2; }
+    .xh::before, .xh::after { content: ""; position: absolute; background: var(--ink); }
+    .xh::before { left: 6px; top: 0; width: 1px; height: 13px; }
+    .xh::after { top: 6px; left: 0; height: 1px; width: 13px; }
+    .xh.tl { left: -7px; top: -7px; } .xh.tr { right: -7px; top: -7px; }
+    .xh.bl { left: -7px; bottom: -7px; } .xh.br { right: -7px; bottom: -7px; }
+    .cgrid {
+      position: absolute; inset: 0 var(--gut); pointer-events: none; overflow: hidden;
+    }
+    .cgrid::before {
+      content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: calc(100% + 24px);
+      background-image: linear-gradient(to right, var(--rule-faint) 1px, transparent 1px);
+      background-size: calc(100% / 12) 100%;
+    }
+    .cgrid::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 1px; background: var(--rule-faint); }
+
+    /* ---------- Header ---------- */
+    .site-head { position: sticky; top: 0; z-index: 40; background: rgba(246, 244, 239, .94); border-bottom: 1px solid var(--rule); }
+    @supports (backdrop-filter: blur(8px)) { .site-head { background: rgba(246, 244, 239, .82); backdrop-filter: saturate(1.2) blur(10px); -webkit-backdrop-filter: saturate(1.2) blur(10px); } }
+    .head-row { display: flex; align-items: center; height: 64px; gap: 16px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; flex: none; }
+    .brand svg { width: 20px; height: 24px; color: var(--navy); }
+    .brand-name { font-weight: 600; font-size: 16.5px; letter-spacing: -.01em; }
+    .head-nav { display: flex; gap: 2px; margin-left: 32px; position: relative; height: 64px; align-items: center; }
+    .head-nav a { padding: 8px 11px; font-size: 14.5px; font-weight: 500; color: var(--ink-2); text-decoration: none; transition: color .2s ease; }
+    .head-nav a:hover { color: var(--ink); }
+    .nav-ind { position: absolute; left: 0; bottom: 14px; height: 1px; width: 0; background: var(--ink); opacity: 0; transition: transform .35s var(--ease), width .35s var(--ease), opacity .2s ease; pointer-events: none; }
+    html:not(.js) .head-nav a:hover { text-decoration: underline; text-underline-offset: 6px; }
+    .head-cta { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+    .head-signin { font-size: 14.5px; font-weight: 500; text-decoration: none; color: var(--ink-2); }
+    .head-signin:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+    .lbl-short { display: none; }
+    .menu { display: none; position: relative; }
+    .menu > summary {
+      list-style: none; cursor: pointer; height: 38px; padding: 0 12px; border: 1px solid var(--rule); border-radius: 2px; background: var(--sheet);
+      display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--ink-2); transition: border-color .2s ease;
+    }
+    .menu > summary:hover { border-color: var(--ink); }
+    .menu > summary::-webkit-details-marker { display: none; }
+    .menu > summary .bars { width: 14px; height: 10px; border-top: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; position: relative; }
+    .menu > summary .bars::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px solid currentColor; transform: translateY(-50%); }
+    .menu-panel {
+      position: absolute; right: 0; top: calc(100% + 12px); width: min(270px, calc(100vw - 32px));
+      background: var(--sheet); border: 1px solid var(--rule); border-radius: 2px; padding: 6px; display: grid;
+      box-shadow: 0 1px 0 var(--rule), 0 18px 36px -18px rgba(13, 14, 20, .25);
+    }
+    .menu-panel a { padding: 11px 12px; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 1px; transition: background-color .15s ease; }
+    .menu-panel a:hover { background: var(--indigo-bg); }
+    .menu-panel hr { border: 0; border-top: 1px solid var(--rule-2); margin: 6px 4px; }
+
+    /* ---------- Reveal (pre-states exist only while the js class is set) ---------- */
+    .js [data-rv] { transition: opacity .8s var(--ease), transform .8s var(--ease); transition-delay: calc(var(--d, 0) * 1ms); }
+    .js [data-rv]:not(.is-in) { opacity: 0; transform: translateY(14px); }
+    .js .tag[data-type] { transition: clip-path .42s steps(18, end); }
+    .js .tag[data-type]:not(.is-in) { clip-path: inset(0 100% 0 0); }
+
+    /* ---------- Section scaffolding ---------- */
+    .sec { padding: 120px 0; position: relative; }
+    .band { background: var(--paper-2); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+    .shead { margin-bottom: 56px; }
+    .shead-rule { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-top: 1px solid var(--ink); }
+    .shead-rule .folio { padding-top: 10px; }
+    .h2 {
+      font-family: var(--serif); font-weight: 400; font-size: clamp(34px, 4.2vw, 56px); line-height: 1.04;
+      letter-spacing: -.02em; margin-top: 30px; max-width: 20ch; text-wrap: balance; font-optical-sizing: auto;
+    }
+    .h2 em, .h1 em { font-style: italic; font-weight: 400; }
+    .lede { font-size: 17px; line-height: 1.65; color: var(--ink-2); margin-top: 20px; max-width: 62ch; }
+    .cap { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+    .shead-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px 48px; align-items: end; }
+    .shead-grid .lede { margin-top: 0; }
+
+    /* ---------- Hero ---------- */
+    .hero { position: relative; padding: 56px 0 0; }
+    .hero .cgrid { bottom: 0; }
+    .hero-frame { position: relative; padding: 40px 0 56px; }
+    .hero-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .kicker { font: 500 11.5px/1.4 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+    .hero-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; margin-top: 36px; align-items: end; }
+    .h1 {
+      grid-column: 1 / span 8; font-family: var(--serif); font-weight: 400; font-optical-sizing: auto;
+      font-size: clamp(46px, 6.6vw, 92px); line-height: 1.0; letter-spacing: -.025em;
+    }
+    .h1 .ln { display: block; }
+    .h1 .ln + .ln { margin-top: .08em; }
+    .js .h1 .ln { transition: opacity .9s var(--ease), transform .9s var(--ease); }
+    .js .h1:not(.is-in) .ln { opacity: 0; transform: translateY(10px); }
+    .js .h1 .ln:nth-child(2) { transition-delay: 90ms; }
+    .hero-aside { grid-column: 9 / span 4; padding-bottom: 8px; align-self: stretch; display: flex; flex-direction: column; justify-content: flex-end; }
+    .toc { display: none; margin-bottom: auto; }
+    /* The contents list rises beside the kicker row so it fills the margin, not the fold. */
+    @media (min-width: 1360px) { .toc { display: block; margin-top: -54px; } }
+    .toc-h { font: 500 10.5px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); padding-bottom: 10px; border-bottom: 1px solid var(--ink); }
+    .toc a { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--rule); text-decoration: none; font-size: 14px; color: var(--ink-2); }
+    .toc-n { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; color: var(--muted); width: 3.6em; flex: none; transition: color .2s ease; }
+    .toc-t { white-space: nowrap; transition: transform .3s var(--ease), color .2s ease; }
+    .toc .leader { transform: translateY(-3px); min-width: 12px; transition: border-color .2s ease; }
+    .toc-p { font: 400 11px/1 var(--mono); color: var(--muted); white-space: nowrap; transition: color .2s ease; }
+    .toc a:hover .toc-t, .toc a:focus-visible .toc-t { transform: translateX(4px); color: var(--ink); }
+    .toc a:hover .toc-n, .toc a:focus-visible .toc-n { color: var(--indigo); }
+    .toc a:hover .leader { border-bottom-color: var(--ink); border-bottom-style: solid; }
+    .toc a:hover .toc-p { color: var(--ink); }
+    .toc + .hero-lede { margin-top: 32px; }
+    .hero-lede { font-size: 17px; line-height: 1.6; color: var(--ink-2); }
+    .cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 28px; }
+    .fine { font-size: 13.5px; color: var(--muted); margin-top: 18px; line-height: 1.5; }
+    .fine a { color: var(--ink-2); }
+
+    /* ---------- Ledger sheet (hero visual) ---------- */
+    .sheet { position: relative; background: var(--sheet); border: 1px solid var(--rule); border-radius: 2px; box-shadow: 0 1px 0 rgba(13, 14, 20, .03), 0 30px 60px -40px rgba(13, 14, 20, .22); }
+    .ledger-fig { position: relative; }
+    .ledger { font-size: 13.5px; line-height: 1.4; }
+    .l-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding: 22px 28px 18px; border-bottom: 1px solid var(--rule); }
+    .l-title { font-family: var(--serif); font-size: 26px; line-height: 1.1; letter-spacing: -.01em; }
+    .l-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .l-meta { text-align: right; display: grid; gap: 10px; justify-items: end; }
+    .sqs { display: flex; align-items: center; gap: 10px; }
+    .sq-row { display: flex; gap: 4px; }
+    .sq { position: relative; width: 14px; height: 14px; border-radius: 1px; border: 1px solid transparent; transition: background-color .3s ease, border-color .3s ease; transition-delay: calc(var(--i, 0) * 20ms + 300ms); }
+    .sq.s-over { background: var(--red); border-color: var(--red); }
+    .sq.s-due { background: #D97706; border-color: #D97706; }
+    .sq.s-ok { background: var(--green); border-color: var(--green); }
+    .js .sqs:not(.is-in) .sq { background: transparent; border-color: var(--rule); }
+    .sq-frac { font: 500 11.5px/1 var(--mono); color: var(--ink-2); white-space: nowrap; }
+    .sq-tip {
+      position: absolute; top: calc(100% + 10px); right: -8px; z-index: 6; width: 220px; padding: 10px 12px; text-align: left;
+      background: var(--ink); color: #fff; font: 400 11.5px/1.5 var(--mono); border-radius: 2px; pointer-events: none;
+      visibility: hidden; opacity: 0; transform: translateY(-4px); transition: opacity .18s ease, transform .18s ease, visibility 0s .18s;
+    }
+    .sq-tip b { display: block; font-weight: 500; color: #fff; }
+    .sq-tip span { color: #B9BAC4; display: block; }
+    .sq:hover .sq-tip { visibility: visible; opacity: 1; transform: none; transition-delay: 0s; }
+    .sq:hover { outline: 1px solid var(--ink); outline-offset: 2px; }
+
+    .l-body { display: grid; grid-template-columns: minmax(0, 1fr) 248px; position: relative; }
+    .l-table { min-width: 0; }
+    .l-margin { position: relative; border-left: 3px double var(--rule); min-height: 100%; }
+    .l-margin-h { padding: 12px 20px 10px 22px; border-bottom: 1px solid var(--rule); }
+    .lrow, .l-colh { display: grid; grid-template-columns: 34px 82px minmax(0, 1fr) 62px 122px 138px; column-gap: 14px; align-items: center; padding: 0 20px 0 22px; position: relative; }
+    .l-colh { height: 41px; border-bottom: 1px solid var(--rule); }
+    .l-colh span, .l-margin-h span { font: 500 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .l-colh span:last-child { text-align: right; }
+    .lrow { min-height: 62px; padding-top: 10px; padding-bottom: 10px; transition: background-color .2s ease; cursor: default; }
+    .lrow::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--rule-2); transform-origin: left center; transition: transform .5s var(--ease); transition-delay: calc(var(--i, 0) * 30ms); }
+    .lrow:hover, .lrow.is-pt { background: var(--indigo-bg); }
+    .lrow > * { transition: opacity .5s ease; transition-delay: calc(var(--i, 0) * 30ms + 260ms); min-width: 0; }
+    .js .ledger:not(.is-in) .lrow::after { transform: scaleX(0); }
+    .js .ledger:not(.is-in) .lrow > * { opacity: 0; }
+    .l-no { font: 400 11px/1 var(--mono); color: var(--muted); }
+    .fm { display: inline-block; font: 500 11.5px/1.5 var(--mono); padding: 1px 6px; border: 1px solid var(--rule); border-radius: 1px; background: var(--paper-3); color: var(--ink); white-space: nowrap; }
+    .l-nm { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .l-ent { font-size: 12.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .l-ent .due-inline { display: none; }
+    .l-due { font: 400 12.5px/1 var(--mono); color: var(--ink-2); white-space: nowrap; }
+    .st { display: inline-flex; align-items: center; gap: 7px; font: 500 12px/1.2 var(--mono); white-space: nowrap; }
+    .st i { width: 8px; height: 8px; border-radius: 1px; flex: none; }
+    .st.over { color: var(--red); } .st.over i { background: var(--red); }
+    .st.due { color: var(--amber); } .st.due i { background: #D97706; }
+    .l-fee { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .l-fee b { font-weight: 500; font-size: 13.5px; }
+    .l-fee small { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+    .l-fee .none { color: var(--muted); }
+    .l-foot { display: flex; align-items: baseline; gap: 10px; padding: 16px 20px 18px 22px; border-top: 3px double var(--ink); }
+    .js .ledger .l-foot { transition: border-color .4s ease .62s; }
+    .js .ledger:not(.is-in) .l-foot { border-top-color: transparent; }
+    .l-foot .lab { font-size: 13.5px; font-weight: 500; white-space: nowrap; }
+    .l-foot .lab .tag-ind { margin-left: 6px; }
+    .leader { flex: 1; border-bottom: 1px dotted #A9A59B; transform: translateY(-4px); min-width: 20px; }
+    .l-foot .tot { font: 500 18px/1 var(--mono); font-variant-numeric: tabular-nums; }
+    .tag-ind { font: 500 9.5px/1 var(--mono); letter-spacing: .1em; padding: 3px 6px; border-radius: 1px; background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); vertical-align: 2px; }
+
+    .mnote { position: absolute; left: 22px; right: 18px; top: 0; transform: translateY(var(--ny, 120px)); transition: transform .3s ease; }
+    .mnote-in { transition: opacity .2s ease; }
+    .mnote.is-swap .mnote-in { opacity: 0; }
+    .mnote .mn-f { font: 500 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--indigo); }
+    .mnote .mn-b { font: 400 12px/1.5 var(--mono); color: var(--ink-2); margin-top: 6px; }
+    .mnote .mn-l { font: 400 11px/1.45 var(--mono); color: var(--muted); margin-top: 6px; }
+    .mline { position: absolute; left: 0; top: 0; height: 1px; background: var(--indigo); transform: translate(var(--lx, 0), var(--ly, 120px)); transition: transform .3s ease, width .3s ease; pointer-events: none; z-index: 3; }
+    .mline::before, .mline::after { content: ""; position: absolute; top: -3px; width: 1px; height: 7px; background: var(--indigo); }
+    .mline::before { left: 0; } .mline::after { right: 0; }
+    .js .ledger:not(.is-in) .mline, .js .ledger:not(.is-in) .mnote { opacity: 0; }
+    .mline, .mnote { transition-property: transform, width, opacity; }
+    .ledger.is-in .mline, .ledger.is-in .mnote { transition: transform .3s ease, width .3s ease, opacity .5s ease .7s; }
+    .mnote-inline { display: none; }
+
+    .hero-after { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; margin-top: 0; position: relative; z-index: 2; }
+    .hero-cap { display: flex; gap: 12px; align-items: baseline; padding-top: 20px; max-width: 58ch; }
+    .hero-cap .tag { flex: none; background: var(--paper-2); color: var(--ink); border: 1px solid var(--rule); padding: 4px 7px; }
+    .rsheet { width: 400px; flex: none; margin-top: -18px; margin-right: -14px; font-size: 13px; line-height: 1.4; box-shadow: 0 1px 0 rgba(13, 14, 20, .03), 0 24px 44px -24px rgba(13, 14, 20, .28); }
+    .rs-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 14px 18px 12px; border-bottom: 1px solid var(--rule); }
+    .rs-h b { font-family: var(--serif); font-weight: 400; font-size: 19px; }
+    .rs-b { padding: 14px 18px 16px; }
+    .rs-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .rs-name { font-weight: 600; }
+    .rs-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .rs-score { display: flex; align-items: baseline; gap: 8px; }
+    .rs-score b { font-family: var(--serif); font-weight: 300; font-size: 44px; line-height: .9; letter-spacing: -.02em; font-variant-numeric: lining-nums; }
+    .rs-sig { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--rule-2); font-size: 12.5px; color: var(--ink-2); }
+    .rs-sig .s { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .strip { display: flex; height: 8px; overflow: hidden; background: var(--paper-3); margin-top: 12px; }
+    .strip span { display: block; height: 100%; }
+    .strip span + span { box-shadow: inset 2px 0 0 #fff; }
+    .bg-sev { background: var(--band-sev); } .bg-high { background: var(--band-high); } .bg-mod { background: var(--band-mod); } .bg-low { background: var(--band-low); }
+    .rs-key { display: flex; justify-content: space-between; margin-top: 6px; font: 400 10.5px/1.3 var(--mono); color: var(--muted); }
+
+    .chip { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 1px; font: 500 11px/1.5 var(--sans); white-space: nowrap; border: 1px solid transparent; }
+    .st-over, .b-sev { background: var(--red-bg); color: var(--red); border-color: var(--red-line); }
+    .st-soon, .b-mod { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-line); }
+    .b-high { background: var(--orange-bg); color: var(--orange); border-color: var(--orange-line); }
+    .st-up, .b-low { background: var(--slate-bg); color: var(--slate); border-color: var(--slate-line); }
+    .st-ok { background: var(--green-bg); color: var(--green); border-color: var(--green-line); }
+
+    /* ---------- Stat grid ---------- */
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin-top: 96px; }
+    .stat { position: relative; padding: 28px 28px 30px; min-width: 0; transition: background-color .25s ease; }
+    .stat + .stat { border-left: 1px solid var(--rule); }
+    .stat::before { content: ""; position: absolute; left: -1px; right: 0; top: -1px; height: 2px; background: var(--ink); transform: scaleX(0); transform-origin: left; transition: transform .45s var(--ease); }
+    .stat:hover::before { transform: scaleX(1); }
+    .stat:hover { background: rgba(255, 255, 255, .55); }
+    .stat .tagline { font: 500 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .stat .big { font-family: var(--serif); font-weight: 300; font-size: clamp(64px, 7.8vw, 112px); line-height: .92; letter-spacing: -.035em; margin-top: 22px; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+    .stat .big.word { letter-spacing: -.03em; }
+    .stat .lab { font-size: 16px; font-weight: 500; margin-top: 12px; }
+    .stat .fn { font: 400 11.5px/1.55 var(--mono); color: var(--muted); margin-top: 10px; max-width: 32ch; }
+    .stat .fn a { color: var(--ink-2); }
+
+    /* ---------- Four menus: register columns ---------- */
+    .reg { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--sheet); border: 1px solid var(--rule); border-radius: 2px; }
+    .rcol { position: relative; display: flex; flex-direction: column; padding: 0 22px 22px; min-width: 0; }
+    .rcol + .rcol { border-left: 1px solid var(--rule); }
+    .rcol::before { content: ""; position: absolute; top: -1px; bottom: -1px; left: -1px; width: 1px; background: var(--ink); transform: scaleY(0); transform-origin: top; transition: transform .45s var(--ease); z-index: 1; }
+    .rcol:first-child::before { left: -1px; }
+    .rcol:hover::before { transform: scaleY(1); }
+    .rcol-h { display: flex; align-items: baseline; gap: 12px; padding: 22px 0 16px; border-bottom: 1px solid var(--ink); margin: 0 -22px; padding-left: 22px; padding-right: 22px; }
+    .rcol-h .no { font: 500 11px/1 var(--mono); letter-spacing: .12em; color: var(--muted); }
+    .rcol-h h3 { font-family: var(--serif); font-weight: 400; font-size: 30px; line-height: 1; letter-spacing: -.015em; }
+    .rcol-line { font-size: 15px; line-height: 1.6; color: var(--ink-2); margin-top: 16px; }
+    @media (min-width: 1081px) { .rcol-line { min-height: 6.4em; } }
+    .entries { margin-top: 18px; border-top: 1px solid var(--rule-2); }
+    .entries li { display: flex; align-items: baseline; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--rule-2); font-size: 14px; font-weight: 500; }
+    .entries li .nm { white-space: nowrap; }
+    .entries li .leader { transform: translateY(-3px); min-width: 12px; }
+    .entries li .r { font: 400 11.5px/1.3 var(--mono); color: var(--muted); text-align: right; white-space: nowrap; }
+    .mini { margin-top: auto; padding-top: 22px; }
+    .msheet { background: var(--sheet); border: 1px solid var(--rule); border-radius: 2px; padding: 12px; font-size: 12.5px; line-height: 1.45; transition: transform .3s var(--ease), box-shadow .3s var(--ease); }
+    .rcol:hover .msheet { transform: translateY(-2px); box-shadow: 0 1px 0 #D9D5CB, 0 12px 24px -16px rgba(13, 14, 20, .18); }
+    .ms-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font: 500 10.5px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--rule-2); }
+    .ms-head .r { letter-spacing: 0; text-transform: none; }
+    .feed li + li { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--rule); }
+    .feed-meta { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 11px; color: var(--muted); }
+    .src { font: 500 10.5px/1.5 var(--mono); color: var(--ink); background: var(--paper-3); padding: 0 5px; border: 1px solid var(--rule-2); }
+    .topic { font: 500 10.5px/1.5 var(--sans); color: var(--indigo); background: var(--indigo-bg); padding: 0 6px; }
+    .feed p { margin-top: 3px; font-weight: 500; color: var(--ink); }
+    .ev { font-weight: 500; }
+    .ev small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+    .evchain { margin: 8px 0 0 5px; border-left: 1px dashed #B9B4A8; padding-left: 10px; }
+    .evchain li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 0; }
+    .evchain li span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+    .evchain li span:last-child { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .evchain .fm, .reasons .fm { font-size: 10.5px; }
+    .rs2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .rs2 b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rs2 .sc { display: inline-flex; gap: 6px; align-items: center; }
+    .rs2 .sc em { font: normal 500 13px/1 var(--mono); }
+    .reasons li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--rule-2); }
+    .reasons li:first-child { border-top: 0; }
+    .reasons .pts { font: 500 11.5px/1 var(--mono); color: var(--red); }
+    .reasons .when { font: 400 10.5px/1 var(--mono); color: var(--muted); white-space: nowrap; }
+    .letter { font-size: 12px; color: var(--ink-2); }
+    .letter p + p { margin-top: 6px; }
+    .letter b { color: var(--ink); font-weight: 600; }
+    .letter .typed::after { content: ""; display: inline-block; width: 1px; height: 1em; background: var(--ink); margin-left: 1px; vertical-align: -2px; opacity: 0; }
+    .letter .typed.is-typing::after { opacity: 1; animation: caret .8s steps(1) infinite; }
+    @keyframes caret { 50% { opacity: 0; } }
+    .ms-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .ms-foot .mono { font-size: 11px; color: var(--muted); }
+
+    /* ---------- Docket ---------- */
+    .docket { position: relative; counter-reset: dk; border-top: 1px solid var(--rule); }
+    .dk-item { border-bottom: 1px solid var(--rule); padding: 18px 0 20px; }
+    .dk-t { display: flex; align-items: baseline; gap: 18px; font-family: var(--serif); font-weight: 400; font-size: 26px; line-height: 1.15; letter-spacing: -.01em; }
+    .dk-no { font: 500 11px/1 var(--mono); letter-spacing: .12em; color: var(--muted); flex: none; width: 26px; }
+    .dk-btn { appearance: none; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: left; display: flex; align-items: baseline; gap: 18px; font: inherit; color: inherit; width: 100%; }
+    .dk-label { transition: color .2s ease; }
+    .dk-note { padding: 10px 0 0 44px; }
+    .dk-tags { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+    .dk-when { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .dk-mod { font: 500 11px/1.5 var(--mono); color: var(--ink-2); border: 1px solid var(--rule); background: var(--sheet); padding: 1px 7px; }
+    .dk-note p { font-size: 16.5px; color: var(--ink-2); margin-top: 10px; max-width: 54ch; line-height: 1.6; }
+    .dk-line { display: none; }
+    @media (min-width: 960px) {
+      .docket.is-enh { display: block; }
+      .docket.is-enh .dk-item { padding: 0; }
+      .docket.is-enh .dk-t { width: 52%; }
+      .docket.is-enh .dk-btn { padding: 20px 0; }
+      .docket.is-enh .dk-label { color: var(--muted); }
+      .docket.is-enh .dk-btn:hover .dk-label { color: var(--ink-2); }
+      .docket.is-enh .dk-item.is-on .dk-label { color: var(--ink); }
+      .docket.is-enh .dk-item.is-on .dk-no { color: var(--indigo); }
+      .docket.is-enh .dk-note {
+        position: absolute; left: 60%; right: 0; top: 0; padding: 26px 28px 28px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 2px;
+        display: none;
+      }
+      /* Only the active note is rendered, so no two notes can ever overlap mid-fade. */
+      .docket.is-enh .dk-item.is-on .dk-note { display: block; }
+      .docket.is-enh .dk-item.is-fresh .dk-note { animation: noteIn .38s var(--ease) both; }
+      @keyframes noteIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+      .docket.no-tr .dk-line, .docket.no-tr .dk-label, .docket.no-tr .dk-no { transition: none; }
+      .docket.is-enh .dk-note p { font-size: 18px; }
+      .docket.is-enh .dk-line { display: block; position: absolute; left: 0; top: 0; height: 1px; background: var(--indigo); transition: top .3s ease, left .3s ease, width .3s ease; pointer-events: none; }
+      .docket.is-enh .dk-line::before, .docket.is-enh .dk-line::after { content: ""; position: absolute; top: -3px; width: 1px; height: 7px; background: var(--indigo); }
+      .docket.is-enh .dk-line::before { left: 0; } .docket.is-enh .dk-line::after { right: 0; }
+    }
+
+    /* ---------- SDD band (signature) ---------- */
+    .sdd { position: relative; }
+    .sdd .cgrid { top: 0; bottom: 0; }
+    .chain-sheet { position: relative; padding: 76px 28px 28px; }
+    .chain { position: relative; display: flex; align-items: stretch; z-index: 1; }
+    .blk {
+      position: relative; flex: 1 1 0; min-width: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 2px; padding: 12px 12px 12px;
+      font: 400 11px/1.45 var(--mono); transition: border-color .25s ease, box-shadow .25s ease, background-color .25s ease, opacity .4s ease;
+    }
+    .blk:hover, .blk:focus-visible { border-color: var(--ink); box-shadow: 0 12px 24px -18px rgba(13, 14, 20, .35); }
+    .blk-n { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .blk-n b { font-weight: 500; font-size: 11px; background: var(--ink); color: #fff; padding: 2px 6px; letter-spacing: .06em; }
+    .blk-when { color: var(--muted); margin-top: 8px; }
+    .blk-p { font: 500 13px/1.4 var(--sans); color: var(--ink); margin-top: 6px; min-height: 3.6em; }
+    .blk-p del { background: var(--red-bg); color: var(--red); text-decoration: line-through; text-decoration-thickness: 1px; padding: 0 2px; }
+    .blk-p ins { text-decoration: none; background: var(--red-bg); color: var(--red); padding: 0 2px; }
+    .blk-h { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--rule); color: var(--ink-2); display: grid; gap: 2px; }
+    .blk-h span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .blk-h em { font-style: normal; color: var(--muted); display: inline-block; width: 4.5ch; }
+    .blk.is-hl { border-color: var(--ink); }
+    .blk.is-edit { border-color: var(--red); background: #FFFBFA; }
+    .blk.is-edit .h-this { color: var(--red); }
+    .blk.is-bad .h-prev { color: var(--red); }
+    .blk.is-bad { border-color: var(--red-line); }
+    .blk.is-corr { border-color: var(--indigo); }
+    .blk.is-slot { background: transparent; border-style: dashed; color: var(--muted); }
+    .blk.is-slot .blk-n b { background: transparent; color: var(--muted); border: 1px dashed var(--rule); }
+    .blk.is-slot .blk-p { color: var(--muted); font-weight: 400; }
+    .blk-tip {
+      position: absolute; left: -1px; right: -1px; top: calc(100% + 8px); z-index: 5; background: var(--ink); color: #E8E8EE; padding: 9px 10px;
+      font: 400 10.5px/1.5 var(--mono); word-break: break-all; border-radius: 2px; pointer-events: none;
+      visibility: hidden; opacity: 0; transform: translateY(-3px); transition: opacity .18s ease, transform .18s ease, visibility 0s .18s;
+    }
+    .blk-tip b { display: block; font-weight: 500; color: #fff; letter-spacing: .08em; margin-bottom: 3px; word-break: normal; }
+    .blk:hover .blk-tip, .blk:focus-visible .blk-tip { visibility: visible; opacity: 1; transform: none; transition-delay: 0s; }
+    .lk { position: relative; flex: 0 0 30px; align-self: center; height: 12px; }
+    .lk i { position: absolute; left: 3px; right: 3px; top: 5px; height: 1px; background: var(--ink); transform-origin: left; transition: transform .45s var(--ease), background-color .25s ease; transition-delay: calc(var(--i, 0) * 140ms + 200ms); }
+    .lk i::after { content: ""; position: absolute; right: -1px; top: -3px; border-left: 5px solid currentColor; border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent; color: var(--ink); transition: color .25s ease; }
+    .js .chain:not(.is-in) .lk i { transform: scaleX(0); }
+    .lk.is-hl i { background: var(--indigo); height: 2px; top: 4.5px; }
+    .lk.is-hl i::after { color: var(--indigo); }
+    .lk.is-bad i { background: var(--red); background-image: none; }
+    .lk.is-bad i::after { color: var(--red); }
+    .lk.is-bad::after { content: "×"; position: absolute; left: 50%; top: -13px; transform: translateX(-50%); font: 500 12px/1 var(--mono); color: var(--red); }
+    .lk.is-ghost i { background: transparent; border-top: 1px dashed var(--rule); }
+    .lk.is-ghost i::after { color: var(--rule); }
+    .arc { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 2; }
+    .arc path { fill: none; stroke: var(--indigo); stroke-width: 1.25; }
+    .arc text { font: 500 10.5px var(--mono); fill: var(--indigo); letter-spacing: .06em; }
+    .arc .arc-g { opacity: 0; transition: opacity .3s ease; }
+    .arc.is-on .arc-g { opacity: 1; }
+    .chain-ctl { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--rule); }
+    .ctl-btns { display: flex; flex-wrap: wrap; gap: 10px 24px; }
+    html:not(.js) .ctl-btns { display: none; }
+    .qbtn { appearance: none; background: none; border: 0; padding: 4px 0; cursor: pointer; font: 500 15px/1.3 var(--sans); color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; transition: text-decoration-thickness .2s ease, text-underline-offset .2s ease, color .2s ease; }
+    .qbtn:hover { text-decoration-thickness: 2px; text-underline-offset: 2px; }
+    .qbtn[aria-pressed="true"] { color: var(--indigo); }
+    .qbtn.alt { color: var(--muted); }
+    .ctl-status { display: flex; align-items: center; gap: 16px; }
+    .ctl-msg { font: 400 12.5px/1.4 var(--mono); color: var(--ink-2); max-width: 52ch; text-align: right; }
+    .ctl-msg.bad { color: var(--red); }
+    .stamp {
+      display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid var(--indigo); color: var(--indigo); padding: 7px 12px 7px 10px; border-radius: 3px;
+      font: 500 11px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; background: var(--sheet);
+    }
+    .stamp svg { width: 14px; height: 14px; }
+    .stamp.bad { border-color: var(--red); color: var(--red); }
+    .stamp .i-bad, .stamp.bad .i-ok { display: none; }
+    .stamp.bad .i-bad { display: inline; }
+    .stamp.land { animation: land .32s cubic-bezier(.3, 1.4, .5, 1) both; }
+    @keyframes land { from { transform: scale(1.15); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .js .sdd-sheet:not(.is-ready) .stamp { opacity: 0; }
+    .sdd-foot { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px 48px; margin-top: 28px; align-items: start; }
+    .sdd-quote { font-family: var(--serif); font-style: italic; font-size: 24px; line-height: 1.35; color: var(--ink); max-width: 36ch; }
+
+    /* ---------- Roles: index tabs on one sheet ---------- */
+    .tabs { display: flex; gap: 4px; position: relative; z-index: 2; padding-left: 18px; }
+    .tab {
+      appearance: none; border: 1px solid var(--rule); border-bottom: 0; background: var(--paper-2); cursor: pointer;
+      padding: 12px 18px 11px; border-radius: 4px 4px 0 0; font: 500 14.5px/1.2 var(--sans); color: var(--ink-2);
+      display: inline-flex; align-items: baseline; gap: 10px; transform: translateY(4px); transition: transform .25s var(--ease), background-color .2s ease, color .2s ease;
+      margin-bottom: -1px;
+    }
+    .tab .no { font: 500 10.5px/1 var(--mono); letter-spacing: .1em; color: var(--muted); }
+    .tab:hover { transform: translateY(1px); color: var(--ink); background: #F8F6F1; }
+    .tab[aria-selected="true"] { background: var(--sheet); color: var(--ink); transform: none; padding-bottom: 15px; }
+    .tab[aria-selected="true"] .no { color: var(--indigo); }
+    .tab:focus-visible { outline-offset: -4px; }
+    .roles-sheet { position: relative; padding: 40px; }
+    html:not(.js) .tabs { display: none; }
+    .role-panel { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: start; }
+    html:not(.js) .role-panel + .role-panel { margin-top: 56px; padding-top: 40px; border-top: 1px solid var(--rule); }
+    .role-panel[hidden] { display: none; }
+    .role-panel.is-enter { animation: sheetUp .5s var(--ease) both; }
+    @keyframes sheetUp { from { transform: translateY(8px); opacity: .4; } to { transform: none; opacity: 1; } }
+    .role-text h3 { font-family: var(--serif); font-weight: 400; font-size: 34px; line-height: 1.08; letter-spacing: -.015em; }
+    .role-text p { font-size: 16.5px; color: var(--ink-2); margin-top: 14px; line-height: 1.65; }
+    .role-facts { margin-top: 26px; border-top: 1px solid var(--rule); }
+    .role-facts div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 14.5px; }
+    .role-facts dt { font: 500 10.5px/1.6 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+    .navs { display: flex; flex-wrap: wrap; gap: 6px; }
+    .navs span { font-size: 13px; border: 1px solid var(--rule); padding: 1px 8px; background: var(--paper-3); white-space: nowrap; }
+    .navs span:first-child { border-color: var(--indigo-line); background: var(--indigo-bg); color: var(--indigo); font-weight: 500; }
+
+    .scr { background: var(--sheet); border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; font-size: 13px; line-height: 1.4; box-shadow: 0 24px 48px -36px rgba(13, 14, 20, .3); }
+    .scr-bar { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; border-bottom: 1px solid var(--rule); background: var(--paper-3); min-width: 0; }
+    .scr-bar .path { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; margin-left: auto; }
+    .scr-bar .ttl { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .scr-bar .ttl small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+    .scr-body { padding: 14px; }
+    .kpi { border: 1px solid var(--rule-2); padding: 9px 11px; min-width: 0; }
+    .kpi-l { font: 500 10px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
+    .kpi-v { font: 500 19px/1.2 var(--mono); letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .kpi-v.is-red { color: var(--red); }
+    .mini-kpis, .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .sub-h { font: 500 10px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; display: flex; justify-content: space-between; gap: 8px; }
+    .sub-h .mono { text-transform: none; letter-spacing: 0; font-weight: 400; }
+    .lst { border: 1px solid var(--rule-2); }
+    .lst li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--rule-2); }
+    .lst li:first-child { border-top: 0; }
+    .lst .nm2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+    .lst .d { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+    .regs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
+    .regs div { border: 1px solid var(--rule-2); padding: 7px 9px; min-width: 0; }
+    .regs span { display: block; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .regs b { font-family: var(--mono); font-weight: 500; font-size: 13px; }
+    .regs b small { font-size: 10.5px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+    .clients { border: 1px solid var(--rule-2); overflow: hidden; }
+    .clients .cl-h, .clients .cl-r { display: grid; grid-template-columns: minmax(0, 1fr) 62px 62px 76px 52px; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--rule-2); }
+    .clients .cl-h { border-top: 0; font: 500 9.5px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: var(--paper-3); }
+    .clients .cl-h span:not(:first-child), .clients .cl-r span:not(:first-child) { text-align: right; }
+    .clients .cl-r span { font-family: var(--mono); font-size: 12px; }
+    .clients .cl-r span:first-child { font-family: var(--sans); font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .clients .red { color: var(--red); font-weight: 500; }
+    .clients .mutd { color: var(--muted); }
+    .req { margin-top: 14px; border: 1px solid var(--rule-2); padding: 10px 12px; }
+    .req-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .req-top b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .req ul { margin-top: 8px; display: grid; gap: 5px; }
+    .req li { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+    .req li span:last-child { font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+    .req .got { color: var(--green); } .req .wait { color: var(--amber); }
+    .tile { border: 1px solid var(--rule-2); padding: 9px 11px; min-width: 0; }
+    .tile .v { font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .tile .f { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hash { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .alerts li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 9px 10px; border-top: 1px solid var(--rule-2); }
+    .alerts li:first-child { border-top: 0; }
+    .alerts .a-cp { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .alerts .a-t { grid-column: 1 / -1; color: var(--ink-2); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .alerts .a-m { grid-column: 1 / -1; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+    .net { margin-top: 14px; border: 1px dashed #B9B4A8; padding: 10px 12px; font-size: 12.5px; color: var(--ink-2); }
+    .net b { color: var(--ink); font-weight: 600; }
+
+    /* ---------- Coverage ---------- */
+    .pull { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: clamp(22px, 2.2vw, 30px); line-height: 1.32; letter-spacing: -.005em; color: var(--ink); max-width: 30ch; }
+    .pull-wrap { border-left: 1px solid var(--indigo); padding-left: 24px; }
+    .cov-head { align-items: start; }
+    .cov-head .pull-wrap { margin-top: 34px; }
+    .pull-src { font: 500 10.5px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 14px; }
+    .cov-meta { font-size: 15px; color: var(--ink-2); margin-top: 16px; max-width: 62ch; }
+    .cov-meta sup, .srcline sup { font: 500 10px/1 var(--mono); }
+    .fnref { color: var(--indigo); text-decoration: none; padding: 0 2px; border-radius: 1px; transition: background-color .2s ease, color .2s ease; }
+    .fnref:hover, .fnref.is-hl { background: var(--indigo); color: #fff; }
+    .rtable { width: 100%; border-collapse: collapse; margin-top: 48px; background: var(--sheet); border: 1px solid var(--rule); }
+    .rtable caption { text-align: left; padding: 0 0 12px; font: 500 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); caption-side: top; }
+    .rtable th, .rtable td { text-align: left; vertical-align: baseline; padding: 16px 18px; border-bottom: 1px solid var(--rule-2); }
+    .rtable thead th { font: 500 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--ink); padding-top: 14px; padding-bottom: 12px; }
+    .rtable tbody tr { transition: background-color .2s ease; }
+    .rtable tbody tr:hover { background: var(--indigo-bg); }
+    .rtable tbody tr:last-child td, .rtable tbody tr:last-child th { border-bottom: 0; }
+    .rtable .c-no { width: 56px; font: 400 11px/1 var(--mono); color: var(--muted); }
+    .rtable .c-reg { width: 26%; font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.2; }
+    .rtable .c-reg small { display: block; font: 400 12px/1.4 var(--sans); color: var(--muted); margin-top: 2px; }
+    .rtable .c-n { width: 150px; font: 500 15px/1 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .rbar { display: inline-block; vertical-align: middle; height: 2px; background: var(--navy); margin-left: 10px; width: calc(var(--w) * 0.8px); transform-origin: left; transition: transform .7s var(--ease); }
+    .js .rtable:not(.is-in) .rbar { transform: scaleX(0); }
+    .rtable .c-f { font: 400 12px/1.7 var(--mono); color: var(--ink-2); }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 40px; border-top: 1px solid var(--rule); }
+    .facts li { padding: 20px 24px 4px 0; min-width: 0; }
+    .facts li + li { padding-left: 24px; border-left: 1px solid var(--rule); }
+    .facts b { display: block; font: 500 10.5px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .facts span { display: block; font-size: 15px; color: var(--ink-2); margin-top: 8px; line-height: 1.6; }
+
+    .srcgrid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 56px; align-items: start; }
+    .srcs { border-top: 1px solid var(--ink); }
+    .srcs > li { display: grid; grid-template-columns: 44px 72px minmax(0, 1fr); gap: 14px; padding: 16px 12px 16px 0; border-bottom: 1px solid var(--rule); transition: background-color .2s ease; }
+    .srcs > li.is-hl, .srcs > li:hover { background: var(--indigo-bg); }
+    .srcs .sn { font: 400 12px/1.5 var(--mono); color: var(--indigo); padding-left: 8px; }
+    .srcs .sname { font: 500 13px/1.5 var(--mono); }
+    .srcs p { font-size: 15px; color: var(--ink-2); line-height: 1.6; }
+    .side-h { font: 500 10.5px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .excl { border-top: 1px solid var(--ink); }
+    .excl li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--rule); font-size: 15px; color: var(--ink-2); line-height: 1.6; }
+    .excl li b { font: 500 11px/1.6 var(--mono); color: var(--muted); letter-spacing: .06em; }
+    .india { margin-top: 28px; font-size: 15px; color: var(--ink-2); padding-left: 16px; border-left: 1px solid var(--indigo); line-height: 1.6; }
+    .srcline { font-size: 15px; color: var(--ink-2); margin-top: 18px; max-width: 62ch; }
+
+    /* ---------- Final CTA ---------- */
+    .final { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+    .final-main { padding: 56px 56px 60px; }
+    .final-main .h2 { margin-top: 26px; }
+    .final-main .lede { max-width: 46ch; }
+    .final-side { border-left: 3px double var(--rule); padding: 40px; background: var(--paper-3); display: flex; align-items: center; }
+    .form { width: 100%; background: var(--sheet); border: 1px solid var(--rule); font-size: 14px; }
+    .form-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--ink); }
+    .form-h b { font-family: var(--serif); font-weight: 400; font-size: 20px; }
+    .form-h span { font: 500 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .ff { padding: 12px 16px; border-bottom: 1px solid var(--rule-2); }
+    .ff dt { font: 500 10px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .ff dd { margin-top: 4px; font-weight: 500; border-bottom: 1px dotted #A9A59B; padding-bottom: 3px; }
+    .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 8px; }
+    .checks li { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+    .box { width: 15px; height: 15px; border: 1px solid var(--ink); flex: none; display: grid; place-items: center; background: var(--sheet); }
+    .box svg { width: 11px; height: 11px; }
+    .box path { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: square; stroke-dasharray: 16; stroke-dashoffset: 0; transition: stroke-dashoffset .35s ease; transition-delay: calc(var(--i, 0) * 90ms + 200ms); }
+    .js .form:not(.is-in) .box path { stroke-dashoffset: 16; }
+    .res { display: grid; grid-template-columns: 1fr 1fr; }
+    .res div { padding: 14px 16px; }
+    .res div + div { border-left: 1px solid var(--rule-2); }
+    .res b { display: block; font: 500 30px/1.1 var(--mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .res span { font-size: 12.5px; color: var(--muted); }
+    .form-f { padding: 10px 16px; border-top: 1px solid var(--rule-2); font: 400 11px/1.4 var(--mono); color: var(--muted); }
+
+    /* ---------- Footer ---------- */
+    .site-foot { position: relative; margin-top: 120px; border-top: 1px solid var(--ink); overflow: hidden; }
+    .foot-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 32px; padding: 40px 0 28px; }
+    .foot-brand { display: flex; flex-direction: column; gap: 14px; }
+    .foot-brand .brand-name { font-size: 16px; }
+    .foot-links { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px 24px; font-size: 15px; }
+    .foot-links a { color: var(--ink-2); text-decoration: none; padding: 2px 0; background-image: linear-gradient(currentColor, currentColor); background-size: 0 1px; background-repeat: no-repeat; background-position: 0 100%; transition: background-size .3s var(--ease), color .2s ease; justify-self: start; }
+    .foot-links a:hover { color: var(--ink); background-size: 100% 1px; }
+    .foot-fine { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 18px 0; border-top: 1px solid var(--rule); font-size: 13.5px; color: var(--muted); }
+    .wordmark { position: relative; display: flex; align-items: flex-start; gap: .12em; margin-top: 28px; height: calc(var(--wm) * .84); font-family: var(--serif); font-weight: 400; font-size: var(--wm); line-height: 1; letter-spacing: -.04em; color: #E9E5DA; white-space: nowrap; --wm: clamp(56px, 14vw, 204px); user-select: none; }
+    .wordmark svg { width: .5em; height: .58em; flex: none; color: #E9E5DA; margin-top: .2em; }
+    .wordmark .wm-t { display: inline-block; }
+    .wordmark .wl { display: inline-block; transition: transform .8s var(--ease); transition-delay: calc(var(--i, 0) * 40ms); }
+    .js .wordmark:not(.is-in) .wl { transform: translateY(.5em); }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1180px) {
+      .lrow, .l-colh { grid-template-columns: 26px 76px minmax(0, 1fr) 58px 112px 128px; column-gap: 12px; }
+      .l-body { grid-template-columns: minmax(0, 1fr) 210px; }
+      .chain { flex-direction: column; }
+      .chain .blk { display: grid; grid-template-columns: 150px minmax(0, 1fr) 210px; gap: 4px 20px; align-items: center; }
+      .chain .blk-when { margin-top: 0; grid-column: 1; grid-row: 2; }
+      .chain .blk-n { grid-column: 1; grid-row: 1; }
+      .chain .blk-p { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; min-height: 0; }
+      .chain .blk-h { grid-column: 3; grid-row: 1 / span 2; margin-top: 0; padding-top: 0; border-top: 0; padding-left: 16px; border-left: 1px dashed var(--rule); }
+      .lk { flex: 0 0 26px; align-self: flex-start; margin-left: 36px; width: 12px; height: 26px; }
+      .lk i { left: 5px; right: auto; width: 1px; top: 3px; bottom: 3px; height: auto; transform-origin: top; }
+      .js .chain:not(.is-in) .lk i { transform: scaleY(0); }
+      .lk i::after { right: auto; left: -3px; top: auto; bottom: -1px; border-left: 3.5px solid transparent; border-right: 3.5px solid transparent; border-top: 5px solid currentColor; border-bottom: 0; }
+      .lk.is-hl i { width: 2px; height: auto; top: 3px; left: 4.5px; }
+      .lk.is-bad::after { left: 22px; top: 6px; transform: none; }
+      .lk.is-ghost i { border-top: 0; border-left: 1px dashed var(--rule); }
+      .chain-sheet { padding: 28px 64px 28px 28px; }
+    }
+    @media (max-width: 1080px) {
+      .reg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .rcol:nth-child(3) { border-left: 0; }
+      .rcol:nth-child(n+3) { border-top: 1px solid var(--rule); }
+      .h1 { grid-column: 1 / -1; }
+      .hero-aside { grid-column: 1 / span 8; margin-top: 32px; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stat:nth-child(3) { border-left: 0; }
+      .stat:nth-child(n+3) { border-top: 1px solid var(--rule); }
+    }
+    @media (max-width: 1000px) {
+      .shead-grid, .role-panel, .srcgrid, .final, .sdd-foot { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+      .final-side { border-left: 0; border-top: 3px double var(--rule); }
+      .foot-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 960px) {
+      .head-nav, .head-signin { display: none; }
+      .menu { display: block; }
+    }
+    @media (max-width: 860px) {
+      .l-body { grid-template-columns: minmax(0, 1fr); }
+      .l-margin, .mline { display: none; }
+      .mnote-inline { display: block; border-top: 1px solid var(--rule); padding: 14px 18px 16px; background: var(--paper-3); }
+      .mnote-inline .mn-f { font: 500 10.5px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--indigo); }
+      .mnote-inline .mn-b { font: 400 12px/1.5 var(--mono); color: var(--ink-2); margin-top: 6px; }
+      .mnote-inline .mn-l { font: 400 11px/1.45 var(--mono); color: var(--muted); margin-top: 4px; }
+      .hero-after { flex-direction: column; gap: 0; }
+      .rsheet { width: 100%; margin: 16px 0 0; }
+      .chain .blk { grid-template-columns: minmax(0, 1fr); }
+      .chain .blk-n, .chain .blk-when, .chain .blk-p, .chain .blk-h { grid-column: 1; grid-row: auto; }
+      .chain .blk-h { padding-left: 0; border-left: 0; padding-top: 8px; border-top: 1px dashed var(--rule); margin-top: 6px; }
+      .chain .blk-when { margin-top: 2px; }
+    }
+    @media (max-width: 720px) {
+      :root { --gut: 16px; }
+      .sec { padding: 80px 0; }
+      .shead { margin-bottom: 36px; }
+      .hero { padding-top: 28px; }
+      .hero-frame { padding: 28px 0 40px; }
+      .hero-grid { margin-top: 26px; }
+      .hero-aside { grid-column: 1 / -1; margin-top: 24px; }
+      .cgrid::before { background-size: calc(100% / 4) 100%; }
+      .lbl-long { display: none; }
+      .lbl-short { display: inline; }
+      .l-head { flex-direction: column; gap: 12px; padding: 18px 16px 14px; }
+      .l-meta { justify-items: start; text-align: left; }
+      .l-title { font-size: 22px; }
+      .l-colh { display: none; }
+      .lrow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main fee" "st fee"; padding: 12px 16px; row-gap: 6px; column-gap: 12px; align-items: start; }
+      .lrow .l-no, .lrow .l-due { display: none; }
+      .lrow .l-main { grid-area: main; }
+      .lrow .l-st { grid-area: st; }
+      .lrow .l-fee { grid-area: fee; }
+      .l-fee small { white-space: normal; max-width: 15ch; margin-left: auto; }
+      .l-nm .fm-inline { display: inline-block; margin-right: 6px; }
+      .l-ent { white-space: normal; }
+      .l-ent .due-inline { display: inline; }
+      .l-foot { padding: 14px 16px 16px; flex-wrap: wrap; }
+      .l-foot .leader { display: none; }
+      .l-foot .tot { margin-left: auto; }
+      .sq-tip { right: auto; left: -8px; }
+      .folio { white-space: normal; line-height: 1.5; }
+      .shead-rule .folio { text-align: right; }
+      .l-meta .folio { text-align: left; }
+      .lrow { grid-template-areas: "fm fee" "main fee" "st fee"; }
+      .lrow .l-fm { display: block; grid-area: fm; }
+      .rs-key { flex-wrap: wrap; gap: 2px 12px; justify-content: flex-start; }
+      .rs-key span { white-space: nowrap; }
+      .sec .cgrid { display: none; }
+      .stat { padding: 22px 16px 24px; }
+      .stat .big { margin-top: 16px; }
+      .stat .lab { font-size: 15px; }
+      .reg { grid-template-columns: minmax(0, 1fr); }
+      .rcol + .rcol { border-left: 0; border-top: 1px solid var(--rule); }
+      .rcol::before { display: none; }
+      .rcol { padding: 0 16px 18px; }
+      .rcol-h { margin: 0 -16px; padding: 18px 16px 14px; }
+      .dk-t { font-size: 22px; gap: 12px; }
+      .dk-note { padding-left: 38px; }
+      .dk-note p { font-size: 15.5px; }
+      .chain-sheet { padding: 20px 44px 20px 16px; }
+      .chain-ctl { flex-direction: column; align-items: flex-start; }
+      .ctl-status { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .ctl-msg { text-align: left; }
+      .sdd-quote { font-size: 21px; }
+      .tabs { padding-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+      .tab { border-radius: 3px; border-bottom: 1px solid var(--rule); transform: none; margin-bottom: 0; padding: 11px 12px; font-size: 14px; }
+      .tab:hover { transform: none; }
+      .tab[aria-selected="true"] { padding-bottom: 11px; border-color: var(--ink); }
+      .roles-sheet { padding: 20px 16px; margin-top: 12px; }
+      .role-text h3 { font-size: 28px; }
+      .role-facts div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+      .scr-body { padding: 12px; }
+      .mini-kpis, .tiles { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .mini-kpis .kpi:last-child, .tiles .tile:last-child { grid-column: 1 / -1; }
+      .lst li { grid-template-columns: auto minmax(0, 1fr) auto; }
+      .lst li .d { display: none; }
+      .regs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .clients .cl-h, .clients .cl-r { grid-template-columns: minmax(0, 1fr) 58px 70px; }
+      .clients .c-hide { display: none; }
+      .scr-bar .path { display: none; }
+      .rtable { margin-top: 36px; }
+      .rtable thead { display: none; }
+      .rtable tr { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 4px 10px; padding: 14px 14px; border-bottom: 1px solid var(--rule-2); }
+      .rtable th, .rtable td { padding: 0; border: 0; width: auto !important; }
+      .rtable .c-no { grid-row: 1; padding-top: 6px; }
+      .rtable .c-f { grid-column: 2 / -1; }
+      .rbar { display: none; }
+      .facts { grid-template-columns: minmax(0, 1fr); }
+      .facts li, .facts li + li { padding: 16px 0; border-left: 0; }
+      .facts li + li { border-top: 1px solid var(--rule); }
+      .srcs > li { grid-template-columns: 34px minmax(0, 1fr); gap: 4px 10px; }
+      .srcs p { grid-column: 2; }
+      .srcs .sn { padding-left: 4px; }
+      .final-main { padding: 32px 18px 36px; }
+      .final-side { padding: 20px 14px; }
+      .checks { grid-template-columns: minmax(0, 1fr); }
+      .foot-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .site-foot { margin-top: 80px; }
+    }
+    @media (max-width: 380px) {
+      .h1 { font-size: 42px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; transition-delay: 0s !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+      .js [data-rv]:not(.is-in), .js .h1:not(.is-in) .ln { opacity: 1; transform: none; }
+      .js .tag[data-type]:not(.is-in) { clip-path: none; }
+      .js .ledger:not(.is-in) .lrow::after, .js .chain:not(.is-in) .lk i, .js .rtable:not(.is-in) .rbar { transform: none; }
+      .js .ledger:not(.is-in) .lrow > *, .js .ledger:not(.is-in) .mline, .js .ledger:not(.is-in) .mnote { opacity: 1; }
+      .js .ledger:not(.is-in) .l-foot { border-top-color: var(--ink); }
+      .js .sqs:not(.is-in) .sq.s-over { background: var(--red); border-color: var(--red); }
+      .js .sqs:not(.is-in) .sq.s-due { background: #D97706; border-color: #D97706; }
+      .js .form:not(.is-in) .box path { stroke-dashoffset: 0; }
+      .js .wordmark:not(.is-in) .wl { transform: none; }
+      .js .sdd-sheet:not(.is-ready) .stamp { opacity: 1; }
+    }
+    @media print {
+      .site-head, .skip, .chain-ctl .ctl-btns, .wordmark { display: none; }
+      body { background: #fff; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-head">
+    <div class="wrap head-row">
+      <a href="/" class="brand" aria-label="Delta Filings, home">
+        <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <polygon points="8,42 34,30 34,108 8,120"/>
+          <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+        </svg>
+        <span class="brand-name">Delta Filings</span>
+      </a>
+      <nav class="head-nav" aria-label="Primary">
+        <a href="/product">Product</a>
+        <a href="/solutions">Solutions</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/security">Security</a>
+        <a href="/tools">Free tools</a>
+        <a href="/blog">Blog</a>
+        <span class="nav-ind" aria-hidden="true"></span>
+      </nav>
+      <div class="head-cta">
+        <a href="/signin" class="head-signin">Sign in</a>
+        <a href="/signup" class="btn btn-primary btn-sm"><span class="lbl-long">Create workspace</span><span class="lbl-short">Sign up</span>
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg></a>
+        <details class="menu">
+          <summary><span class="bars" aria-hidden="true"></span>Menu</summary>
+          <nav class="menu-panel" aria-label="Site">
+            <a href="/product">Product</a>
+            <a href="/solutions">Solutions</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/security">Security</a>
+            <a href="/tools">Free tools</a>
+            <a href="/blog">Blog</a>
+            <a href="/about">About</a>
+            <hr>
+            <a href="/signin">Sign in</a>
+            <a href="/signup">Create workspace</a>
+          </nav>
+        </details>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ───────────── Folio 01 · Hero ───────────── -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="cgrid" aria-hidden="true"></div>
+      <div class="wrap">
+        <div class="hero-frame">
+          <span class="xh tl" aria-hidden="true"></span><span class="xh tr" aria-hidden="true"></span>
+          <div class="hero-top">
+            <span class="tag" data-type>Folio 01</span>
+            <p class="kicker">For company secretaries, compliance officers and risk officers in India</p>
+          </div>
+          <div class="hero-grid">
+            <h1 id="hero-title" class="h1">
+              <span class="ln">The compliance desk for Indian companies.</span>
+              <span class="ln mut">Deadlines dated, late fees <em>worked out</em>.</span>
+            </h1>
+            <div class="hero-aside" data-rv style="--d:220">
+              <nav class="toc" aria-label="On this page">
+                <p class="toc-h">Contents</p>
+                <ol>
+                  <li><a href="#product"><span class="toc-n">§ 02</span><span class="toc-t">Four menus</span><span class="leader" aria-hidden="true"></span><span class="toc-p">Product</span></a></li>
+                  <li><a href="#practice"><span class="toc-n">§ 03</span><span class="toc-t">Circular to filing</span><span class="leader" aria-hidden="true"></span><span class="toc-p">Practice</span></a></li>
+                  <li><a href="#register"><span class="toc-n">§ 04</span><span class="toc-t">The insider register</span><span class="leader" aria-hidden="true"></span><span class="toc-p">SDD</span></a></li>
+                  <li><a href="#roles"><span class="toc-n">§ 05</span><span class="toc-t">Roles</span><span class="leader" aria-hidden="true"></span><span class="toc-p">4 roles</span></a></li>
+                  <li><a href="#coverage"><span class="toc-n">§ 06</span><span class="toc-t">Coverage</span><span class="leader" aria-hidden="true"></span><span class="toc-p">{{ rule_count }} rules</span></a></li>
+                </ol>
+              </nav>
+              <p class="hero-lede">The ROC, SEBI, tax, GST, labour and FEMA deadlines your company owes, with the late fee worked out on anything overdue. Regulatory news, board meetings, registers, the insider-trading database, drafting and counterparty risk sit on the same desk.</p>
+              <div class="cta-row">
+                <a href="/signup" class="btn btn-primary">Create workspace
+                  <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg></a>
+                <a href="/signin" class="textlink ul">Sign in</a>
+              </div>
+              <p class="fine">You choose your role when you sign up. Your home screen follows it. Free during beta, see <a class="ul" href="/pricing">pricing</a>.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="ledger-fig">
+          <div class="sheet ledger" id="ledger" role="img" aria-label="Sample compliance calendar sheet as of 29 September 2026 for four fictional entities. Seven open filings, four overdue: Form 11 annual return 122 days late, 3,000 rupees, additional fee 20 times the normal fee of 150 rupees; DPT-3 return of deposits 91 days late, 4,000 rupees, 10 times the normal fee of 400 rupees; DIR-12 16 days late, 800 rupees, 2 times the normal fee of 400 rupees; GSTR-3B 9 days late, 450 rupees at 50 rupees a day for 9 days. Three due soon: AGM tomorrow, FC-GPR in 3 days, MGT-14 in 13 days. Indicative late-fee exposure 8,250 rupees.">
+            <span class="xh tl"></span><span class="xh tr"></span><span class="xh bl"></span><span class="xh br"></span>
+            <div class="l-head">
+              <div>
+                <div class="l-title">Compliance calendar</div>
+                <div class="l-sub">Open filings across 4 entities, overdue first.</div>
+              </div>
+              <div class="l-meta">
+                <span class="folio">Sheet 1 · As of 29 Sep 2026 · 4 entities</span>
+                <div class="sqs">
+                  <div class="sq-row">
+                    <span class="sq s-over" style="--i:0"><span class="sq-tip"><b>Form 11 · due 30 May</b><span>122 days late</span><span>₹3,000 indicative</span></span></span>
+                    <span class="sq s-over" style="--i:1"><span class="sq-tip"><b>DPT-3 · due 30 Jun</b><span>91 days late</span><span>₹4,000 indicative</span></span></span>
+                    <span class="sq s-over" style="--i:2"><span class="sq-tip"><b>DIR-12 · due 13 Sep</b><span>16 days late</span><span>₹800 indicative</span></span></span>
+                    <span class="sq s-over" style="--i:3"><span class="sq-tip"><b>GSTR-3B · due 20 Sep</b><span>9 days late</span><span>₹450 indicative</span></span></span>
+                    <span class="sq s-due" style="--i:4"><span class="sq-tip"><b>AGM · due 30 Sep</b><span>Due tomorrow</span><span>No fee yet</span></span></span>
+                    <span class="sq s-due" style="--i:5"><span class="sq-tip"><b>FC-GPR · due 2 Oct</b><span>Due in 3 days</span><span>No fee yet</span></span></span>
+                    <span class="sq s-due" style="--i:6"><span class="sq-tip"><b>MGT-14 · due 12 Oct</b><span>Due in 13 days</span><span>No fee yet</span></span></span>
+                  </div>
+                  <span class="sq-frac">4 of 7 overdue</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="l-body">
+              <div class="l-table">
+                <div class="l-colh"><span>No.</span><span>Form</span><span>Filing and entity</span><span>Due</span><span>Status</span><span>Late fee</span></div>
+
+                <div class="lrow" style="--i:0" data-form="Form 11 · Tungabhadra Logistics LLP" data-basis="Additional fee 20× normal fee of ₹150 (122 days late)" data-law="LLP Act s.35">
+                  <span class="l-no">01</span>
+                  <span class="l-fm"><span class="fm">Form 11</span></span>
+                  <div class="l-main"><div class="l-nm">Annual return · FY2025-26</div><div class="l-ent">Tungabhadra Logistics LLP<span class="due-inline"> · due 30 May</span></div></div>
+                  <span class="l-due">30 May</span>
+                  <span class="l-st"><span class="st over"><i></i>122 days late</span></span>
+                  <div class="l-fee"><b>₹3,000</b><small>20× normal fee of ₹150</small></div>
+                </div>
+                <div class="lrow is-pt" style="--i:1" data-form="DPT-3 · Kaveri Agro Foods Pvt Ltd" data-basis="Additional fee 10× normal fee of ₹400 (91 days late)" data-law="Companies (Acceptance of Deposits) Rules r.16" data-default>
+                  <span class="l-no">02</span>
+                  <span class="l-fm"><span class="fm">DPT-3</span></span>
+                  <div class="l-main"><div class="l-nm">Return of deposits</div><div class="l-ent">Kaveri Agro Foods Pvt Ltd<span class="due-inline"> · due 30 Jun</span></div></div>
+                  <span class="l-due">30 Jun</span>
+                  <span class="l-st"><span class="st over"><i></i>91 days late</span></span>
+                  <div class="l-fee"><b>₹4,000</b><small>10× normal fee of ₹400</small></div>
+                </div>
+                <div class="lrow" style="--i:2" data-form="DIR-12 · Kaveri Agro Foods Pvt Ltd" data-basis="Additional fee 2× normal fee of ₹400 (16 days late)" data-law="Companies Act s.170">
+                  <span class="l-no">03</span>
+                  <span class="l-fm"><span class="fm">DIR-12</span></span>
+                  <div class="l-main"><div class="l-nm">Change in directors / KMP</div><div class="l-ent">Kaveri Agro Foods Pvt Ltd · director appointed 14 Aug<span class="due-inline"> · due 13 Sep</span></div></div>
+                  <span class="l-due">13 Sep</span>
+                  <span class="l-st"><span class="st over"><i></i>16 days late</span></span>
+                  <div class="l-fee"><b>₹800</b><small>2× normal fee of ₹400</small></div>
+                </div>
+                <div class="lrow" style="--i:3" data-form="GSTR-3B · Periyar Spice Exports Pvt Ltd" data-basis="₹50/day × 9 days (plus 18% interest on late tax)" data-law="CGST Act s.39; late fee s.47">
+                  <span class="l-no">04</span>
+                  <span class="l-fm"><span class="fm">GSTR-3B</span></span>
+                  <div class="l-main"><div class="l-nm">Summary return · Aug 2026</div><div class="l-ent">Periyar Spice Exports Pvt Ltd<span class="due-inline"> · due 20 Sep</span></div></div>
+                  <span class="l-due">20 Sep</span>
+                  <span class="l-st"><span class="st over"><i></i>9 days late</span></span>
+                  <div class="l-fee"><b>₹450</b><small>₹50/day × 9 days</small></div>
+                </div>
+                <div class="lrow" style="--i:4" data-form="AGM · Kaveri Agro Foods Pvt Ltd" data-basis="Not late yet. If it is: up to ₹1 lakh on the company and ₹5,000/day while it continues (s.99)." data-law="Companies Act s.96">
+                  <span class="l-no">05</span>
+                  <span class="l-fm"><span class="fm">AGM</span></span>
+                  <div class="l-main"><div class="l-nm">Annual general meeting · FY2025-26</div><div class="l-ent">Kaveri Agro Foods Pvt Ltd<span class="due-inline"> · due 30 Sep</span></div></div>
+                  <span class="l-due">30 Sep</span>
+                  <span class="l-st"><span class="st due"><i></i>Tomorrow</span></span>
+                  <div class="l-fee"><span class="none">—</span></div>
+                </div>
+                <div class="lrow" style="--i:5" data-form="FC-GPR · Sabari Cables Ltd" data-basis="Not late yet. If it is: Late Submission Fee under RBI's LSF framework (amount- and delay-based)." data-law="FEMA (Non-debt Instruments) Rules">
+                  <span class="l-no">06</span>
+                  <span class="l-fm"><span class="fm">FC-GPR</span></span>
+                  <div class="l-main"><div class="l-nm">Reporting of FDI allotment</div><div class="l-ent">Sabari Cables Ltd · shares allotted 2 Sep<span class="due-inline"> · due 2 Oct</span></div></div>
+                  <span class="l-due">2 Oct</span>
+                  <span class="l-st"><span class="st due"><i></i>In 3 days</span></span>
+                  <div class="l-fee"><span class="none">—</span></div>
+                </div>
+                <div class="lrow" style="--i:6" data-form="MGT-14 · Sabari Cables Ltd" data-basis="Not late yet. If it is: additional fee of 2× to 12× the normal filing fee, by length of delay." data-law="Companies Act s.117">
+                  <span class="l-no">07</span>
+                  <span class="l-fm"><span class="fm">MGT-14</span></span>
+                  <div class="l-main"><div class="l-nm">Filing of resolutions</div><div class="l-ent">Sabari Cables Ltd · board meeting 12 Sep<span class="due-inline"> · due 12 Oct</span></div></div>
+                  <span class="l-due">12 Oct</span>
+                  <span class="l-st"><span class="st due"><i></i>In 13 days</span></span>
+                  <div class="l-fee"><span class="none">—</span></div>
+                </div>
+
+                <div class="l-foot">
+                  <span class="lab">Late-fee exposure<span class="tag-ind">INDICATIVE</span></span>
+                  <span class="leader" aria-hidden="true"></span>
+                  <span class="tot">₹8,250</span>
+                </div>
+              </div>
+
+              <div class="l-margin" aria-hidden="true">
+                <div class="l-margin-h"><span>Margin note</span></div>
+                <div class="mnote">
+                  <div class="mnote-in">
+                    <div class="mn-f">DPT-3 · Kaveri Agro Foods Pvt Ltd</div>
+                    <div class="mn-b">Additional fee 10× normal fee of ₹400 (91 days late)</div>
+                    <div class="mn-l">Companies (Acceptance of Deposits) Rules r.16</div>
+                  </div>
+                </div>
+              </div>
+              <span class="mline" aria-hidden="true"></span>
+            </div>
+            <div class="mnote-inline" aria-hidden="true">
+              <div class="mn-f">Margin note · DPT-3</div>
+              <div class="mn-b">Additional fee 10× normal fee of ₹400 (91 days late)</div>
+              <div class="mn-l">Companies (Acceptance of Deposits) Rules r.16</div>
+            </div>
+          </div>
+
+          <div class="hero-after">
+            <p class="hero-cap cap"><span class="tag">Sample</span><span>Company names are fictional. Late fees are worked out with the same formulas the app uses, and are indicative.</span></p>
+            <div class="sheet rsheet" data-rv style="--d:500" role="img" aria-label="Sample risk desk: five counterparties, 101.7 crore rupees of exposure. Satpura Steel Castings Ltd, a listed borrower with 42.5 crore of exposure, scores 68, Severe, up 28, after an IBBI insolvency announcement three days ago.">
+              <div class="rs-h"><b>Risk desk</b><span class="folio">5 counterparties · ₹101.7 Cr</span></div>
+              <div class="rs-b">
+                <div class="rs-top">
+                  <div><div class="rs-name">Satpura Steel Castings Ltd</div><div class="rs-sub">Borrower · listed · ₹42.5 Cr</div></div>
+                  <div class="rs-score"><b>68</b><span class="chip b-sev">Severe ↑28</span></div>
+                </div>
+                <div class="strip"><span class="bg-sev" style="width:41.8%"></span><span class="bg-high" style="width:8.1%"></span><span class="bg-mod" style="width:14.7%"></span><span class="bg-low" style="width:35.4%"></span></div>
+                <div class="rs-key"><span>Severe ₹42.5 Cr</span><span>High ₹8.2 Cr</span><span>Mod ₹15.0 Cr</span><span>Low ₹36.0 Cr</span></div>
+                <div class="rs-sig"><span>IBBI: insolvency (CIRP) announced</span><span class="s">IBBI · 3d</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stat grid on hairlines -->
+        <div class="stats sqs-host" id="stats">
+          <div class="stat" data-rv style="--d:0">
+            <div class="tagline">Rulebook</div>
+            <div class="big" data-count>{{ rule_count }}</div>
+            <div class="lab">rules</div>
+            <p class="fn">Each names its form, the law behind it, when it falls due and what a delay can cost.</p>
+          </div>
+          <div class="stat" data-rv style="--d:80">
+            <div class="tagline">Regimes</div>
+            <div class="big" data-count>{{ regime_counts|length }}</div>
+            <div class="lab">regimes</div>
+            <p class="fn">Companies Act · SEBI · income tax · GST · FEMA and RBI · labour · LLP Act</p>
+          </div>
+          <div class="stat" data-rv style="--d:160">
+            <div class="tagline">Entity types</div>
+            <div class="big" data-count>6</div>
+            <div class="lab">entity types</div>
+            <p class="fn">Private, public unlisted, listed, OPC, Section 8 and LLP.</p>
+          </div>
+          <div class="stat" data-rv style="--d:240">
+            <div class="tagline">Price</div>
+            <div class="big word">Free</div>
+            <div class="lab">during beta</div>
+            <p class="fn">See <a class="ul" href="/pricing">pricing</a> for what comes after.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── § 02 · Four menus ───────────── -->
+    <section id="product" class="sec" aria-labelledby="map-title">
+      <div class="wrap">
+        <div class="shead">
+          <div class="shead-rule"><span class="tag" data-type>§ 02 · Product</span><span class="folio">Folio 02</span></div>
+          <div class="shead-grid">
+            <h2 id="map-title" class="h2" data-rv>Four menus. <span class="mut">One workspace.</span></h2>
+            <p class="lede" data-rv style="--d:120">Monitor, Comply, Risk and Create are the four menus inside Delta Filings. This is what sits under each one, with a piece of the screen you will work in. Company names in the samples are fictional.</p>
+          </div>
+        </div>
+
+        <div class="reg">
+          <span class="xh tl" aria-hidden="true"></span><span class="xh tr" aria-hidden="true"></span><span class="xh bl" aria-hidden="true"></span><span class="xh br" aria-hidden="true"></span>
+          <article class="rcol" aria-labelledby="m1" data-rv style="--d:0">
+            <div class="rcol-h"><span class="no">01</span><h3 id="m1">Monitor</h3></div>
+            <p class="rcol-line">SEBI and RBI updates tagged by topic. Exchange filings for the companies you watch, with a diff against the last one.</p>
+            <ul class="entries">
+              <li><span class="nm">Regulatory news</span><span class="leader"></span><span class="r">SEBI · RBI</span></li>
+              <li><span class="nm">Disclosures</span><span class="leader"></span><span class="r">NSE</span></li>
+              <li><span class="nm">Signal</span><span class="leader"></span><span class="r">action queue</span></li>
+              <li><span class="nm">Compare</span><span class="leader"></span><span class="r">filing diff</span></li>
+              <li><span class="nm">Stock prices</span><span class="leader"></span><span class="r">alerts</span></li>
+              <li><span class="nm">DIN search</span><span class="leader"></span><span class="r">boards</span></li>
+            </ul>
+            <div class="mini">
+              <div class="msheet" role="img" aria-label="Sample news feed: a SEBI master circular tagged LODR, an RBI notification tagged KYC and AML, and a SEBI order tagged Enforcement.">
+                <div class="ms-head"><span>For you</span><span class="r mono">3 new</span></div>
+                <ul class="feed">
+                  <li><div class="feed-meta"><span class="src">SEBI</span><span>Master circular</span><span class="topic">LODR</span></div><p>Compliance with the LODR Regulations by listed entities</p></li>
+                  <li><div class="feed-meta"><span class="src">RBI</span><span>Notification</span><span class="topic">KYC / AML</span></div><p>Amendment to the Master Direction on KYC</p></li>
+                  <li><div class="feed-meta"><span class="src">SEBI</span><span>Order</span><span class="topic">Enforcement</span></div><p>In the matter of Konkan Coastal Finance Ltd</p></li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="rcol" aria-labelledby="m2" data-rv style="--d:90">
+            <div class="rcol-h"><span class="no">02</span><h3 id="m2">Comply</h3></div>
+            <p class="rcol-line">Your company's profile becomes a dated calendar. Log an event and its follow-up filings are dated from it.</p>
+            <ul class="entries">
+              <li><span class="nm">Workspace</span><span class="leader"></span><span class="r">per entity</span></li>
+              <li><span class="nm">Rulebook</span><span class="leader"></span><span class="r">{{ rule_count }} rules</span></li>
+              <li><span class="nm">Meetings, registers</span><span class="leader"></span><span class="r">.docx kit</span></li>
+              <li><span class="nm">Listed compliance</span><span class="leader"></span><span class="r">LODR</span></li>
+              <li><span class="nm">Insider trading</span><span class="leader"></span><span class="r">SDD</span></li>
+              <li><span class="nm">Document requests</span><span class="leader"></span><span class="r">client link</span></li>
+            </ul>
+            <div class="mini">
+              <div class="msheet" role="img" aria-label="Sample event: shares allotted on 2 September 2026 at a listed company with foreign investment. Delta dates three follow-ups: Regulation 30 disclosure by 3 September, PAS-3 by 17 September and FC-GPR by 2 October.">
+                <div class="ms-head"><span>Event logged</span><span class="r mono">2 Sep 2026</span></div>
+                <div class="ev">Shares allotted<small>Sabari Cables Ltd · listed · has FDI</small></div>
+                <ul class="evchain">
+                  <li><span class="fm">Reg 30</span><span>Disclose to exchanges</span><span>3 Sep</span></li>
+                  <li><span class="fm">PAS-3</span><span>Return of allotment</span><span>17 Sep</span></li>
+                  <li><span class="fm">FC-GPR</span><span>Report FDI allotment</span><span>2 Oct</span></li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="rcol" aria-labelledby="m3" data-rv style="--d:180">
+            <div class="rcol-h"><span class="no">03</span><h3 id="m3">Risk</h3></div>
+            <p class="rcol-line">Borrowers, vendors and investees scored 0 to 100 from exchange filings, SEBI orders, IBBI announcements and price moves.</p>
+            <ul class="entries">
+              <li><span class="nm">Risk desk</span><span class="leader"></span><span class="r">four bands</span></li>
+              <li><span class="nm">Alerts</span><span class="leader"></span><span class="r">assign, resolve</span></li>
+              <li><span class="nm">Director network</span><span class="leader"></span><span class="r">shared DINs</span></li>
+              <li><span class="nm">Committee report</span><span class="leader"></span><span class="r">print, CSV</span></li>
+            </ul>
+            <div class="mini">
+              <div class="msheet" role="img" aria-label="Sample score breakdown for Satpura Steel Castings Ltd: 68, Severe. Plus 40 for an IBBI insolvency announcement three days ago, plus 14 for a statutory auditor resignation six weeks ago, plus 14 for a default disclosure seven weeks ago.">
+                <div class="ms-head"><span>Why the score</span><span class="r mono">last 365 days</span></div>
+                <div class="rs2"><b>Satpura Steel Castings Ltd</b><span class="sc"><em>68</em><span class="chip b-sev">Severe</span></span></div>
+                <ul class="reasons">
+                  <li><span class="pts">+40</span><span>IBBI: insolvency (CIRP) announced</span><span class="when">3d</span></li>
+                  <li><span class="pts">+14</span><span>Statutory auditor resigned</span><span class="when">6w</span></li>
+                  <li><span class="pts">+14</span><span>Default disclosure filed; check the amounts</span><span class="when">7w</span></li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="rcol" aria-labelledby="m4" data-rv style="--d:270">
+            <div class="rcol-h"><span class="no">04</span><h3 id="m4">Create</h3></div>
+            <p class="rcol-line">A language model drafts exchange letters from your company's past letters of the same type. You review, export and file.</p>
+            <ul class="entries">
+              <li><span class="nm">Draft</span><span class="leader"></span><span class="r">Reg 29, 30, 33, 44</span></li>
+              <li><span class="nm">House style</span><span class="leader"></span><span class="r">past letters</span></li>
+              <li><span class="nm">Edit</span><span class="leader"></span><span class="r">polish, formal</span></li>
+              <li><span class="nm">Export</span><span class="leader"></span><span class="r">.docx · PDF</span></li>
+            </ul>
+            <div class="mini">
+              <div class="msheet" role="img" aria-label="Sample draft of a Regulation 30 outcome of board meeting letter to the National Stock Exchange, marked review before submitting, exportable as docx or PDF.">
+                <div class="ms-head"><span>Outcome of board meeting</span><span class="r mono">Reg 30</span></div>
+                <div class="letter">
+                  <p>To, Listing Department,<br>National Stock Exchange of India Ltd</p>
+                  <p><b>Sub:</b> Outcome of the Board Meeting held on 12 September 2026</p>
+                  <p class="typed" id="typed">Pursuant to Regulation 30 of the SEBI (LODR) Regulations, 2015, we inform you that the Board at its meeting held today approved …</p>
+                </div>
+                <div class="ms-foot"><span class="chip st-soon">Review before submitting</span><span class="mono">.docx · PDF</span></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── § 03 · Docket ───────────── -->
+    <section id="practice" class="sec band" aria-labelledby="flow-title">
+      <div class="wrap">
+        <div class="shead">
+          <div class="shead-rule"><span class="tag" data-type>§ 03 · In practice</span><span class="folio">Folio 03</span></div>
+          <div class="shead-grid">
+            <h2 id="flow-title" class="h2" data-rv>From the circular <span class="mut">to the filing.</span></h2>
+            <p class="lede" data-rv style="--d:120">One listed company, one quarter. Every step below happens inside Delta Filings. Filing on the exchange and the MCA portal is still yours to do.</p>
+          </div>
+        </div>
+
+        <ol class="docket" id="docket">
+          <li class="dk-item is-on">
+            <h3 class="dk-t"><span class="dk-no" aria-hidden="true">01</span><span class="dk-label">A SEBI circular lands</span></h3>
+            <div class="dk-note" id="dk-1"><div class="dk-tags"><span class="dk-when">Any day</span><span class="dk-mod">Regulatory news</span></div><p>It is tagged LODR and shows under For you, because you look after a listed company.</p></div>
+          </li>
+          <li class="dk-item">
+            <h3 class="dk-t"><span class="dk-no" aria-hidden="true">02</span><span class="dk-label">The trading window closes</span></h3>
+            <div class="dk-note" id="dk-2"><div class="dk-tags"><span class="dk-when">Quarter end</span><span class="dk-mod">Insider trading</span></div><p>Pre-clearance requests from designated persons are refused until it reopens.</p></div>
+          </li>
+          <li class="dk-item">
+            <h3 class="dk-t"><span class="dk-no" aria-hidden="true">03</span><span class="dk-label">Reg 29 goes on the calendar</span></h3>
+            <div class="dk-note" id="dk-3"><div class="dk-tags"><span class="dk-when">Meeting scheduled</span><span class="dk-mod">Calendar</span></div><p>The prior intimation to the exchange is dated two days before the board meeting.</p></div>
+          </li>
+          <li class="dk-item">
+            <h3 class="dk-t"><span class="dk-no" aria-hidden="true">04</span><span class="dk-label">Notice and agenda go out</span></h3>
+            <div class="dk-note" id="dk-4"><div class="dk-tags"><span class="dk-when">7 days before</span><span class="dk-mod">Meeting kit</span></div><p>Pick items from the agenda library. The kit writes the notice, agenda, draft resolutions and a minutes outline as one .docx.</p></div>
+          </li>
+          <li class="dk-item">
+            <h3 class="dk-t"><span class="dk-no" aria-hidden="true">05</span><span class="dk-label">Every recipient of UPSI is logged</span></h3>
+            <div class="dk-note" id="dk-5"><div class="dk-tags"><span class="dk-when">Results shared</span><span class="dk-mod">SDD</span></div><p>Entries are time-stamped in IST and hash-chained. There is no edit button. A mistake gets a correction entry that points at the original. <a class="ul" href="#sdd-title">Try it below.</a></p></div>
+          </li>
+          <li class="dk-item">
+            <h3 class="dk-t"><span class="dk-no" aria-hidden="true">06</span><span class="dk-label">The outcome letter is drafted</span></h3>
+            <div class="dk-note" id="dk-6"><div class="dk-tags"><span class="dk-when">Meeting day</span><span class="dk-mod">Draft</span></div><p>Reg 30 gives you 30 minutes. The draft follows your company's past outcome letters. You review it, export it and file it on NSE.</p></div>
+          </li>
+          <li class="dk-item">
+            <h3 class="dk-t"><span class="dk-no" aria-hidden="true">07</span><span class="dk-label">The follow-ups are dated</span></h3>
+            <div class="dk-note" id="dk-7"><div class="dk-tags"><span class="dk-when">Marked held</span><span class="dk-mod">Calendar</span></div><p>Minutes signing and MGT-14, where the resolution needs it, fall due within 30 days. If a director was appointed, DIR-12 joins them.</p></div>
+          </li>
+          <li class="dk-line" aria-hidden="true" role="presentation"></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ───────────── § 04 · SDD (signature) ───────────── -->
+    <section id="register" class="sec sdd" aria-labelledby="sdd-title">
+      <div class="cgrid" aria-hidden="true"></div>
+      <div class="wrap">
+        <div class="shead">
+          <div class="shead-rule"><span class="tag" data-type>§ 04 · Insider trading</span><span class="folio">Folio 04 · Structured digital database</span></div>
+          <div class="shead-grid">
+            <h2 id="sdd-title" class="h2" data-rv>Every recipient of UPSI is logged. <span class="mut">Try to <em>edit</em> the register.</span></h2>
+            <p class="lede" data-rv style="--d:120">Entries are time-stamped in IST and hash-chained. Each entry carries the hash of the one before it. Change an old entry and the next entry no longer matches it. Hiding that would mean rewriting every entry after it.</p>
+          </div>
+        </div>
+
+        <div class="sheet sdd-sheet" id="sdd">
+          <span class="xh tl" aria-hidden="true"></span><span class="xh tr" aria-hidden="true"></span><span class="xh bl" aria-hidden="true"></span><span class="xh br" aria-hidden="true"></span>
+          <div class="chain-sheet">
+            <ol class="chain" id="chain" aria-label="Sample SDD entries for a fictional listed company">
+              <li class="blk" tabindex="0" data-n="4810" data-when="22 Sep 2026, 15:10 IST" data-p="Term sheet shared with external legal counsel">
+                <div class="blk-n"><b>#4810</b></div>
+                <div class="blk-when">22 Sep 2026<br>15:10 IST</div>
+                <div class="blk-p">Term sheet shared with external legal counsel</div>
+                <div class="blk-h"><span class="h-prev"><em>prev</em><span class="hv">e7f4…1f4</span></span><span class="h-this"><em>this</em><span class="hv">501b…642</span></span></div>
+                <div class="blk-tip" aria-hidden="true"><b>SHA-256</b><span class="tip-v">501b12ec90e4ea148f687aed18762f4a711b23d46d6ab2abdd9d2b70bd3bd642</span></div>
+              </li>
+              <li class="lk" style="--i:0" aria-hidden="true"><i></i></li>
+              <li class="blk" tabindex="0" data-n="4811" data-when="23 Sep 2026, 09:30 IST" data-p="Valuation workings shared with the registered valuer">
+                <div class="blk-n"><b>#4811</b></div>
+                <div class="blk-when">23 Sep 2026<br>09:30 IST</div>
+                <div class="blk-p">Valuation workings shared with the registered valuer</div>
+                <div class="blk-h"><span class="h-prev"><em>prev</em><span class="hv">501b…642</span></span><span class="h-this"><em>this</em><span class="hv">7211…eed</span></span></div>
+                <div class="blk-tip" aria-hidden="true"><b>SHA-256</b><span class="tip-v">7211a15ee6a74668fbbe7c82787650fe61b08640cc2b1b939dc52432e5939eed</span></div>
+              </li>
+              <li class="lk" style="--i:1" aria-hidden="true"><i></i></li>
+              <li class="blk" tabindex="0" data-n="4812" data-when="24 Sep 2026, 10:42 IST" data-p="Board papers shared with the statutory auditor">
+                <div class="blk-n"><b>#4812</b></div>
+                <div class="blk-when">24 Sep 2026<br>10:42 IST</div>
+                <div class="blk-p">Board papers shared with the statutory auditor</div>
+                <div class="blk-h"><span class="h-prev"><em>prev</em><span class="hv">7211…eed</span></span><span class="h-this"><em>this</em><span class="hv">0a80…da1</span></span></div>
+                <div class="blk-tip" aria-hidden="true"><b>SHA-256</b><span class="tip-v">0a80ce475dbb206fb420c9e0810dc5c86ea264bc2546a752430290e4c5f3bda1</span></div>
+              </li>
+              <li class="lk" style="--i:2" aria-hidden="true"><i></i></li>
+              <li class="blk" tabindex="0" data-n="4813" data-when="25 Sep 2026, 14:18 IST" data-p="Draft Reg 30 disclosure shared with the merchant banker">
+                <div class="blk-n"><b>#4813</b></div>
+                <div class="blk-when">25 Sep 2026<br>14:18 IST</div>
+                <div class="blk-p">Draft Reg 30 disclosure shared with the merchant banker</div>
+                <div class="blk-h"><span class="h-prev"><em>prev</em><span class="hv">0a80…da1</span></span><span class="h-this"><em>this</em><span class="hv">ae68…854</span></span></div>
+                <div class="blk-tip" aria-hidden="true"><b>SHA-256</b><span class="tip-v">ae68c812a4bc8930279f7f13e8dcdfd51c651fedf62fd23b5cc10cdc75d91854</span></div>
+              </li>
+              <li class="lk" style="--i:3" aria-hidden="true"><i></i></li>
+              <li class="blk" tabindex="0" data-n="4814" data-when="26 Sep 2026, 18:05 IST" data-p="Board meeting notice shared with independent directors">
+                <div class="blk-n"><b>#4814</b></div>
+                <div class="blk-when">26 Sep 2026<br>18:05 IST</div>
+                <div class="blk-p">Board meeting notice shared with independent directors</div>
+                <div class="blk-h"><span class="h-prev"><em>prev</em><span class="hv">ae68…854</span></span><span class="h-this"><em>this</em><span class="hv">b86a…7cf</span></span></div>
+                <div class="blk-tip" aria-hidden="true"><b>SHA-256</b><span class="tip-v">b86ae655dbd718ec1d39b55ebadf52dd8ff1b549992fde9313645cb4c4a7a7cf</span></div>
+              </li>
+              <li class="lk is-ghost" style="--i:4" aria-hidden="true"><i></i></li>
+              <li class="blk is-slot" id="slot" aria-label="Next entry, not yet written">
+                <div class="blk-n"><b>#4815</b></div>
+                <div class="blk-when">Next entry<br>&nbsp;</div>
+                <div class="blk-p">Not yet written</div>
+                <div class="blk-h"><span class="h-prev"><em>prev</em><span class="hv">b86a…7cf</span></span><span class="h-this"><em>this</em><span class="hv">—</span></span></div>
+              </li>
+            </ol>
+            <svg class="arc" id="arc" aria-hidden="true"><g class="arc-g"><path id="arc-path" d=""/><text id="arc-text"></text></g></svg>
+
+            <div class="chain-ctl">
+              <div class="ctl-btns">
+                <button type="button" class="qbtn" id="btn-tamper" aria-pressed="false" aria-controls="chain">What if someone changed #4812?</button>
+                <button type="button" class="qbtn" id="btn-correct" aria-pressed="false" aria-controls="chain">How a correction is made</button>
+              </div>
+              <div class="ctl-status">
+                <p class="ctl-msg" id="ctl-msg" role="status" aria-live="polite">Every prev hash matches the entry before it.</p>
+                <span class="stamp" id="stamp"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path class="i-ok" d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.6"/><path class="i-bad" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6"/></svg><span id="stamp-t">Chain verified · 5 entries</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sdd-foot">
+          <p class="sdd-quote" data-rv>There is no edit button. A mistake gets a correction entry that points at the original.</p>
+          <p class="cap" data-rv style="--d:120">Sample entries for a fictional listed company. The hashes are SHA-256, computed in your browser from the text of each entry and the hash before it. Hover or focus an entry to see its full hash.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── § 05 · Roles ───────────── -->
+    <section id="roles" class="sec band" aria-labelledby="roles-title">
+      <div class="wrap">
+        <div class="shead">
+          <div class="shead-rule"><span class="tag" data-type>§ 05 · Roles</span><span class="folio">Folio 05</span></div>
+          <div class="shead-grid">
+            <h2 id="roles-title" class="h2" data-rv>Your role decides <span class="mut">the home screen.</span></h2>
+            <p class="lede" data-rv style="--d:120">You pick a role when you sign up. It changes where you land and what the top menu shows first. Every other module is one click away under All tools. The screens are samples with the same fictional companies.</p>
+          </div>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Roles" data-tabs>
+          <button class="tab" role="tab" id="tab-cs" aria-controls="panel-cs" aria-selected="true"><span class="no" aria-hidden="true">A</span>Company secretary</button>
+          <button class="tab" role="tab" id="tab-pcs" aria-controls="panel-pcs" aria-selected="false" tabindex="-1"><span class="no" aria-hidden="true">B</span>Practising CS</button>
+          <button class="tab" role="tab" id="tab-co" aria-controls="panel-co" aria-selected="false" tabindex="-1"><span class="no" aria-hidden="true">C</span>Compliance officer</button>
+          <button class="tab" role="tab" id="tab-cro" aria-controls="panel-cro" aria-selected="false" tabindex="-1"><span class="no" aria-hidden="true">D</span>Risk officer</button>
+        </div>
+
+        <div class="sheet roles-sheet">
+          <!-- Company secretary -->
+          <div class="role-panel" role="tabpanel" id="panel-cs" aria-labelledby="tab-cs" tabindex="0">
+            <div class="role-text">
+              <h3>Company secretary</h3>
+              <p>Your company's filings, meetings, registers and deadlines. Answer a few questions about the company and the calendar lists the filings that apply. Log a director's appointment and DIR-12 is dated from it. DIR-3 KYC is tracked per DIN on its three-year cycle.</p>
+              <dl class="role-facts">
+                <div><dt>Lands on</dt><dd>Workspace</dd></div>
+                <div><dt>Top menu</dt><dd class="navs"><span>Workspace</span><span>Regulatory news</span><span>Draft</span><span>Rulebook</span><span>Document requests</span></dd></div>
+              </dl>
+            </div>
+            <div class="scr" role="img" aria-label="Sample company secretary home screen for Kaveri Agro Foods Pvt Ltd: two filings overdue, one due in 15 days, 4,800 rupees of indicative late fees, the next four deadlines and entry counts for the six statutory registers.">
+              <div class="scr-bar"><span class="ttl">Kaveri Agro Foods Pvt Ltd<small>Private limited company</small></span><span class="path">/workspace</span></div>
+              <div class="scr-body">
+                <div class="mini-kpis">
+                  <div class="kpi"><div class="kpi-l">Overdue</div><div class="kpi-v is-red">2</div></div>
+                  <div class="kpi"><div class="kpi-l">Due in 15 days</div><div class="kpi-v">1</div></div>
+                  <div class="kpi"><div class="kpi-l">Late fees <span class="tag-ind">INDICATIVE</span></div><div class="kpi-v">₹4,800</div></div>
+                </div>
+                <div class="sub-h"><span>Next up</span><span class="mono">FY2025-26</span></div>
+                <ul class="lst">
+                  <li><span class="fm">AGM</span><span class="nm2">Annual general meeting</span><span class="d">30 Sep</span><span class="chip st-soon">Tomorrow</span></li>
+                  <li><span class="fm">ADT-1</span><span class="nm2">Auditor appointment</span><span class="d">15 Oct</span><span class="chip st-up">16 days</span></li>
+                  <li><span class="fm">AOC-4</span><span class="nm2">Financial statements</span><span class="d">30 Oct</span><span class="chip st-up">31 days</span></li>
+                  <li><span class="fm">ITR-6</span><span class="nm2">Income tax return</span><span class="d">31 Oct</span><span class="chip st-up">32 days</span></li>
+                  <li><span class="fm">DIR-3 KYC</span><span class="nm2">4 DINs, three-year cycle</span><span class="d">30 Jun 2028</span><span class="chip st-up">Upcoming</span></li>
+                </ul>
+                <div class="regs">
+                  <div><span>Members</span><b>42<small>MGT-1</small></b></div>
+                  <div><span>Directors and KMP</span><b>5</b></div>
+                  <div><span>Charges</span><b>2<small>CHG-7</small></b></div>
+                  <div><span>Related party contracts</span><b>3<small>MBP-4</small></b></div>
+                  <div><span>Loans and investments</span><b>1<small>MBP-2</small></b></div>
+                  <div><span>Share transfers</span><b>6</b></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Practising CS -->
+          <div class="role-panel" role="tabpanel" id="panel-pcs" aria-labelledby="tab-pcs" tabindex="0">
+            <div class="role-text">
+              <h3>Practising CS or firm</h3>
+              <p>Every client's compliance calendar in one place, most overdue first, with the late fee on each. Send a client one private link for the documents you need. They upload against each line without an account, and you see what has arrived.</p>
+              <dl class="role-facts">
+                <div><dt>Lands on</dt><dd>Workspace, all clients</dd></div>
+                <div><dt>Top menu</dt><dd class="navs"><span>Workspace</span><span>Document requests</span><span>Regulatory news</span><span>Draft</span><span>Rulebook</span></dd></div>
+              </dl>
+            </div>
+            <div class="scr" role="img" aria-label="Sample practising CS home screen: four client entities sorted by overdue filings and late-fee exposure, and an open document request with two of three documents received.">
+              <div class="scr-bar"><span class="ttl">All clients<small>4 entities, most overdue first</small></span><span class="path">/workspace</span></div>
+              <div class="scr-body">
+                <div class="clients">
+                  <div class="cl-h"><span>Entity</span><span>Overdue</span><span class="c-hide">Due 15d</span><span>Exposure</span><span class="c-hide">On time</span></div>
+                  <div class="cl-r"><span>Tungabhadra Logistics LLP</span><span class="red">1</span><span class="c-hide mutd">0</span><span>₹3,000</span><span class="c-hide">67%</span></div>
+                  <div class="cl-r"><span>Kaveri Agro Foods Pvt Ltd</span><span class="red">2</span><span class="c-hide">1</span><span>₹4,800</span><span class="c-hide">82%</span></div>
+                  <div class="cl-r"><span>Periyar Spice Exports Pvt Ltd</span><span class="red">1</span><span class="c-hide mutd">0</span><span>₹450</span><span class="c-hide">91%</span></div>
+                  <div class="cl-r"><span>Sabari Cables Ltd</span><span class="mutd">0</span><span class="c-hide">2</span><span class="mutd">—</span><span class="c-hide">100%</span></div>
+                </div>
+                <div class="req">
+                  <div class="req-top"><b>Kaveri Agro Foods · new director</b><span class="chip st-soon">2 of 3 in</span></div>
+                  <ul>
+                    <li><span>DIR-2 consent to act as director</span><span class="got">Received</span></li>
+                    <li><span>Identity and address proof</span><span class="got">Received</span></li>
+                    <li><span>Certified copy of board resolution</span><span class="wait">Waiting</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compliance officer -->
+          <div class="role-panel" role="tabpanel" id="panel-co" aria-labelledby="tab-co" tabindex="0">
+            <div class="role-text">
+              <h3>Compliance officer, listed company</h3>
+              <p>Exchange disclosures, insider-trading controls and the LODR calendar. The structured digital database is append-only and hash-chained, so you can show an auditor that nothing was edited after the fact. Pre-clearance is refused while the trading window is closed.</p>
+              <dl class="role-facts">
+                <div><dt>Lands on</dt><dd>Dashboard</dd></div>
+                <div><dt>Top menu</dt><dd class="navs"><span>Dashboard</span><span>Signal</span><span>Draft</span><span>Disclosures</span><span>Listed compliance</span><span>Insider trading (SDD)</span><span>Regulatory news</span></dd></div>
+              </dl>
+            </div>
+            <div class="scr" role="img" aria-label="Sample compliance officer home screen for Sabari Cables Ltd: trading window open until 1 October, 214 SDD entries with the hash chain verified, two pre-clearance requests pending, and the SEBI deadlines for the September quarter.">
+              <div class="scr-bar"><span class="ttl">Sabari Cables Ltd<small>Listed company</small></span><span class="path">/dashboard</span></div>
+              <div class="scr-body">
+                <div class="tiles">
+                  <div class="tile"><div class="kpi-l">Trading window</div><div class="v"><span class="chip st-ok">Open</span></div><div class="f">closes 1 Oct</div></div>
+                  <div class="tile"><div class="kpi-l">SDD</div><div class="v">214 entries</div><div class="f">chain verified</div></div>
+                  <div class="tile"><div class="kpi-l">Pre-clearance</div><div class="v">2 pending</div><div class="f">valid 7 trading days</div></div>
+                </div>
+                <div class="sub-h"><span>SEBI, Q2 FY2026-27</span><span class="mono">quarter ends 30 Sep</span></div>
+                <ul class="lst">
+                  <li><span class="fm">Reg 31</span><span class="nm2">Shareholding pattern</span><span class="d">21 Oct</span><span class="chip st-up">22 days</span></li>
+                  <li><span class="fm">Reg 13(3)</span><span class="nm2">Investor grievance report</span><span class="d">21 Oct</span><span class="chip st-up">22 days</span></li>
+                  <li><span class="fm">Reg 27</span><span class="nm2">Integrated filing (governance)</span><span class="d">30 Oct</span><span class="chip st-up">31 days</span></li>
+                  <li><span class="fm">Reg 76</span><span class="nm2">Share capital audit</span><span class="d">30 Oct</span><span class="chip st-up">31 days</span></li>
+                  <li><span class="fm">Reg 33</span><span class="nm2">Financial results</span><span class="d">14 Nov</span><span class="chip st-up">46 days</span></li>
+                </ul>
+                <div class="hash">head 9f3c…a41e · prev 07bd…c2f9 · SHA-256</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Risk officer -->
+          <div class="role-panel" role="tabpanel" id="panel-cro" aria-labelledby="tab-cro" tabindex="0">
+            <div class="role-text">
+              <h3>Risk officer</h3>
+              <p>Watch borrowers, vendors and investees for early warning signs. Each counterparty gets a score from exchange filings, SEBI orders, IBBI announcements and price moves, with the reasons listed. IBBI covers unlisted names too. Critical and high signals can also go to Telegram.</p>
+              <dl class="role-facts">
+                <div><dt>Lands on</dt><dd>Risk desk</dd></div>
+                <div><dt>Top menu</dt><dd class="navs"><span>Risk desk</span><span>Alerts</span><span>Director network</span><span>Regulatory news</span><span>Signal</span><span>Disclosures</span></dd></div>
+              </dl>
+            </div>
+            <div class="scr" role="img" aria-label="Sample risk officer home screen: 101.7 crore rupees of exposure, 50.7 crore in High or Severe names, five active alerts, and a director who sits on the boards of two counterparties.">
+              <div class="scr-bar"><span class="ttl">Risk desk<small>5 counterparties</small></span><span class="path">/risk</span></div>
+              <div class="scr-body">
+                <div class="mini-kpis">
+                  <div class="kpi"><div class="kpi-l">Exposure</div><div class="kpi-v">₹101.7 Cr</div></div>
+                  <div class="kpi"><div class="kpi-l">At risk</div><div class="kpi-v is-red">₹50.7 Cr</div></div>
+                  <div class="kpi"><div class="kpi-l">Active alerts</div><div class="kpi-v">5</div></div>
+                </div>
+                <div class="sub-h"><span>Alert queue</span><span class="mono">newest first</span></div>
+                <ul class="lst alerts">
+                  <li><span class="a-cp">Satpura Steel Castings Ltd</span><span class="chip b-sev">Critical</span><span class="a-t">IBBI: insolvency (CIRP) announced</span><span class="a-m">IBBI · 3 days ago · open</span></li>
+                  <li><span class="a-cp">Mandovi Polymers Ltd</span><span class="chip b-high">High</span><span class="a-t">Statutory auditor resigned</span><span class="a-m">Exchange filing · 12 days ago · acknowledged, assigned</span></li>
+                  <li><span class="a-cp">Konkan Coastal Finance Ltd</span><span class="chip b-mod">Medium</span><span class="a-t">SEBI order in a matter concerning this company</span><span class="a-m">SEBI · 19 days ago · open</span></li>
+                </ul>
+                <div class="net"><b>Director network:</b> one DIN sits on the boards of Mandovi Polymers Ltd and Konkan Coastal Finance Ltd.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── § 06 · Coverage ───────────── -->
+    <section id="coverage" class="sec" aria-labelledby="cov-title">
+      <div class="cgrid" aria-hidden="true"></div>
+      <div class="wrap">
+        <div class="shead">
+          <div class="shead-rule"><span class="tag" data-type>§ 06 · Coverage</span><span class="folio">Folio 06 · Rulebook</span></div>
+          <div class="shead-grid cov-head">
+            <h2 id="cov-title" class="h2" data-rv>{{ rule_count }} rules <span class="mut">across seven regimes.</span></h2>
+            <div data-rv style="--d:120">
+              <div class="pull-wrap">
+                <blockquote class="pull">India had about 1.85 million active companies at the end of March 2025, by MCA's count. Each one owes some version of this calendar.</blockquote>
+              </div>
+            </div>
+          </div>
+          <p class="cov-meta" data-rv style="--d:160">Every rule names its form, the law behind it, when it falls due and what a delay can cost. Rulebook last reviewed {{ reviewed_label }}. Late fees are indicative, and each one shows its basis so you can check it at source.</p>
+        </div>
+
+        <table class="rtable" id="rtable">
+          <caption>Rules by regime</caption>
+          <thead><tr><th scope="col">No.</th><th scope="col">Regime</th><th scope="col">Rules</th><th scope="col">Forms and returns</th></tr></thead>
+          <tbody>
+            <tr><td class="c-no">01</td><th scope="row" class="c-reg">Companies Act</th><td class="c-n">{{ regime_counts['Companies Act'] }}<span class="rbar" style="--w:{{ (100 * regime_counts['Companies Act'] / regime_max)|round(1) }}"></span></td><td class="c-f">AOC-4 · AOC-4 CFS · MGT-7 · MGT-15 · DIR-12 · DIR-3 KYC · MGT-14 · PAS-3 · PAS-6 · CHG-1 · DPT-3 · MSME-1 · ADT-1 · ADT-3 · BEN-2 · MBP-1</td></tr>
+            <tr><td class="c-no">02</td><th scope="row" class="c-reg">SEBI<small>LODR, PIT, SAST</small></th><td class="c-n">{{ regime_counts['SEBI'] }}<span class="rbar" style="--w:{{ (100 * regime_counts['SEBI'] / regime_max)|round(1) }}"></span></td><td class="c-f">Reg 33 · Reg 32 · Reg 31 · Reg 30 · Reg 29 · Reg 27 · Reg 24A · Reg 23(9) · Reg 44 · Reg 47 · BRSR · SAST Reg 31(4) · SDD certificate · trading window</td></tr>
+            <tr><td class="c-no">03</td><th scope="row" class="c-reg">Income tax and TDS</th><td class="c-n">{{ regime_counts['Income Tax'] }}<span class="rbar" style="--w:{{ (100 * regime_counts['Income Tax'] / regime_max)|round(1) }}"></span></td><td class="c-f">Advance tax · TDS and TCS deposits · Forms 138, 140, 143, 144 · Forms 130 and 131 · SFT · tax audit · Form 3CEB · ITR-6 · ITR-5</td></tr>
+            <tr><td class="c-no">04</td><th scope="row" class="c-reg">GST</th><td class="c-n">{{ regime_counts['GST'] }}<span class="rbar" style="--w:{{ (100 * regime_counts['GST'] / regime_max)|round(1) }}"></span></td><td class="c-f">GSTR-1 · GSTR-3B (22nd or 24th by state) · QRMP · PMT-06 · GSTR-9 · GSTR-9C · ITC-04 · LUT</td></tr>
+            <tr><td class="c-no">05</td><th scope="row" class="c-reg">FEMA and RBI</th><td class="c-n">{{ regime_counts['FEMA / RBI'] }}<span class="rbar" style="--w:{{ (100 * regime_counts['FEMA / RBI'] / regime_max)|round(1) }}"></span></td><td class="c-f">FC-GPR · FC-TRS · FLA return · ECB-2 · ODI APR · Form OPI · Form DI · allotment against inflow</td></tr>
+            <tr><td class="c-no">06</td><th scope="row" class="c-reg">Labour</th><td class="c-n">{{ regime_counts['Labour'] }}<span class="rbar" style="--w:{{ (100 * regime_counts['Labour'] / regime_max)|round(1) }}"></span></td><td class="c-f">PF and ECR · ESI · professional tax (Maharashtra, Karnataka) · labour welfare fund · POSH annual report</td></tr>
+            <tr><td class="c-no">07</td><th scope="row" class="c-reg">LLP Act</th><td class="c-n">{{ regime_counts['LLP Act'] }}<span class="rbar" style="--w:{{ (100 * regime_counts['LLP Act'] / regime_max)|round(1) }}"></span></td><td class="c-f">Form 11 · Form 8 · Forms 3 and 4</td></tr>
+          </tbody>
+        </table>
+
+        <ul class="facts">
+          <li data-rv><b>Entity types</b><span>Private, public unlisted, listed, OPC, Section 8 and LLP.</span></li>
+          <li data-rv style="--d:80"><b>Per director</b><span>DIR-3 KYC on its three-year cycle for each DIN, and DSC renewal before it expires.</span></li>
+          <li data-rv style="--d:160"><b>Events</b><span>A director appointed, shares allotted, a charge created, an office moved: log it and the follow-up filings are dated from it.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ───────────── § 07 · Sources and exclusions ───────────── -->
+    <section id="sources" class="sec band" aria-labelledby="src-title">
+      <div class="wrap">
+        <div class="shead">
+          <div class="shead-rule"><span class="tag" data-type>§ 07 · Sources</span><span class="folio">Folio 07</span></div>
+          <h2 id="src-title" class="h2" data-rv>Where the data <span class="mut">comes from.</span></h2>
+          <p class="srcline" data-rv style="--d:120">Regulatory news comes from SEBI<sup><a class="fnref" href="#src-1" data-src="1" aria-label="source 1">1</a></sup> and RBI<sup><a class="fnref" href="#src-2" data-src="2" aria-label="source 2">2</a></sup>. Risk scores read SEBI orders<sup><a class="fnref" href="#src-1" data-src="1" aria-label="source 1">1</a></sup>, IBBI announcements<sup><a class="fnref" href="#src-3" data-src="3" aria-label="source 3">3</a></sup> and NSE filings and prices<sup><a class="fnref" href="#src-4" data-src="4" aria-label="source 4">4</a></sup>. Your calendar starts from what you enter<sup><a class="fnref" href="#src-5" data-src="5" aria-label="source 5">5</a></sup>.</p>
+        </div>
+
+        <div class="srcgrid">
+          <div>
+            <p class="side-h">Sources</p>
+            <ol class="srcs">
+              <li id="src-1" data-src="1"><span class="sn">[1]</span><b class="sname">SEBI</b><p>Circulars, orders, recovery proceedings and press releases, from SEBI's own feed. Orders naming a counterparty become risk signals.</p></li>
+              <li id="src-2" data-src="2"><span class="sn">[2]</span><b class="sname">RBI</b><p>Notifications and press releases, tagged by department and topic.</p></li>
+              <li id="src-3" data-src="3"><span class="sn">[3]</span><b class="sname">IBBI</b><p>Public announcements of insolvency and liquidation. This works for unlisted companies too.</p></li>
+              <li id="src-4" data-src="4"><span class="sn">[4]</span><b class="sname">NSE</b><p>Corporate announcements, results and share prices for listed companies you watch or lend to.</p></li>
+              <li id="src-5" data-src="5"><span class="sn">[5]</span><b class="sname">You</b><p>Entity profiles, events, meetings, registers, SDD entries and anything your risk team logs by hand.</p></li>
+            </ol>
+          </div>
+          <div>
+            <p class="side-h">Exclusions · what it does not do</p>
+            <ul class="excl">
+              <li><b>EX. 1</b><span>It does not file on the MCA, GST or income-tax portals. It tells you what is due and what the delay costs, and drafts the letters and meeting papers.</span></li>
+              <li><b>EX. 2</b><span>MCA does not publish a feed we can read, so MCA notifications are not in the news yet.</span></li>
+              <li><b>EX. 3</b><span>Unlisted MCA data such as charges and struck-off status needs a licensed source, and is not included.</span></li>
+            </ul>
+            <p class="india">India first. Every rule carries a jurisdiction code, so another country can be added as data rather than as a rewrite.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── § 08 · Final CTA ───────────── -->
+    <section class="sec" aria-labelledby="cta-title" style="padding-bottom:0">
+      <div class="wrap">
+        <div class="sheet final" data-rv>
+          <span class="xh tl" aria-hidden="true"></span><span class="xh tr" aria-hidden="true"></span><span class="xh bl" aria-hidden="true"></span><span class="xh br" aria-hidden="true"></span>
+          <div class="final-main">
+            <div class="shead-rule" style="border-top-color:var(--rule)"><span class="tag" data-type>§ 08 · Get started</span><span class="folio">Folio 08</span></div>
+            <h2 id="cta-title" class="h2">Start with <em>one</em> company.</h2>
+            <p class="lede">Choose your role, answer a few questions about the company, and the calendar fills in. Add clients, counterparties and board meetings when you are ready.</p>
+            <div class="cta-row">
+              <a href="/signup" class="btn btn-primary">Create workspace
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg></a>
+              <a href="/signin" class="textlink ul">Sign in</a>
+            </div>
+          </div>
+          <div class="final-side">
+            <div class="form" id="form" role="img" aria-label="Example company profile: a private limited company that is GST registered, deducts TDS, has employees, is registered under EPF and owes MSME suppliers. The rulebook finds {{ sample_b_recurring }} recurring obligations and {{ sample_b_events }} more that follow events.">
+              <div class="form-h"><b>Company profile</b><span>Completed</span></div>
+              <dl>
+                <div class="ff"><dt>Type</dt><dd>Private limited company</dd></div>
+                <div class="ff"><dt>Answers</dt><dd style="border:0;padding:0">
+                  <ul class="checks">
+                    <li><span class="box"><svg viewBox="0 0 12 12"><path style="--i:0" d="M2 6.5l2.5 2.5L10 3"/></svg></span>GST registered</li>
+                    <li><span class="box"><svg viewBox="0 0 12 12"><path style="--i:1" d="M2 6.5l2.5 2.5L10 3"/></svg></span>Deducts TDS</li>
+                    <li><span class="box"><svg viewBox="0 0 12 12"><path style="--i:2" d="M2 6.5l2.5 2.5L10 3"/></svg></span>Has employees</li>
+                    <li><span class="box"><svg viewBox="0 0 12 12"><path style="--i:3" d="M2 6.5l2.5 2.5L10 3"/></svg></span>Registered under EPF</li>
+                    <li><span class="box"><svg viewBox="0 0 12 12"><path style="--i:4" d="M2 6.5l2.5 2.5L10 3"/></svg></span>MSME dues over 45 days</li>
+                  </ul>
+                </dd></div>
+              </dl>
+              <div class="res">
+                <div><b>{{ sample_b_recurring }}</b><span>recurring obligations</span></div>
+                <div><b>{{ sample_b_events }}</b><span>more that follow events</span></div>
+              </div>
+              <div class="form-f">Worked out by the rulebook for this profile.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="foot-grid">
+        <div class="foot-brand">
+          <a href="/" class="brand" aria-label="Delta Filings, home">
+            <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <polygon points="8,42 34,30 34,108 8,120"/>
+              <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+            </svg>
+            <span class="brand-name">Delta Filings</span>
+          </a>
+          <span class="folio">The compliance desk for Indian companies</span>
+        </div>
+        <nav class="foot-links" aria-label="Footer">
+          <a href="/product">Product</a>
+          <a href="/solutions">Solutions</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/security">Security</a>
+          <a href="/faq">FAQ</a>
+          <a href="/tools">Free tools</a>
+          <a href="/blog">Blog</a>
+          <a href="/about">About</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/signin">Sign in</a>
+        </nav>
+      </div>
+      <div class="foot-fine">
+        <span>Late-fee figures are indicative. Verify at source before you rely on them.</span>
+        <span>&copy; Delta Filings</span>
+      </div>
+      <div class="wordmark" id="wordmark" aria-hidden="true">
+        <svg viewBox="0 0 104 120" fill="currentColor"><polygon points="8,42 34,30 34,108 8,120"/><polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/></svg>
+        <span class="wm-t">Delta Filings</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      'use strict';
+      var root = document.documentElement;
+      var RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var $ = function (s, c) { return (c || document).querySelector(s); };
+      var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
+
+      // ---------- Reveal on scroll ----------
+      var onIn = new Map();
+      function whenIn(el, fn) { if (el) onIn.set(el, fn || null); }
+      $$('[data-rv], .stats, .rtable, .form, .wordmark').forEach(function (el) { whenIn(el); });
+      // A fully clipped tag never reports an intersection, so watch its parent row instead.
+      $$('.tag[data-type]').forEach(function (tag) { whenIn(tag.parentElement, function () { tag.classList.add('is-in'); }); });
+      whenIn($('.h1'));
+      // The exposure total runs up once its double rule has drawn (900ms, easeOutExpo).
+      var runTotal = function (el) {
+        var target = parseInt(el.textContent.replace(/[^0-9]/g, ''), 10);
+        if (!isFinite(target) || RM) return;
+        var fmt = function (n) { return '\u20B9' + n.toLocaleString('en-IN'); };
+        el.textContent = fmt(0);
+        setTimeout(function () {
+          var t0 = null;
+          var step = function (t) {
+            if (t0 === null) t0 = t;
+            var p = Math.min(1, (t - t0) / 900), e = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
+            el.textContent = fmt(Math.round(target * e / 50) * 50);
+            if (p < 1) requestAnimationFrame(step); else el.textContent = fmt(target);
+          };
+          requestAnimationFrame(step);
+        }, 620);
+      };
+      whenIn($('#ledger'), function () {
+        var s = $('#ledger .sqs'); if (s) s.classList.add('is-in');
+        var t = $('#ledger .tot'); if (t) runTotal(t);
+      });
+
+      // ---------- Stat counters (900ms, easeOutExpo) ----------
+      function countUp(el) {
+        var target = parseInt(el.textContent, 10);
+        if (!isFinite(target) || RM) return;
+        var t0 = null, dur = 900;
+        el.textContent = '0';
+        function step(t) {
+          if (t0 === null) t0 = t;
+          var p = Math.min(1, (t - t0) / dur);
+          var e = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
+          el.textContent = String(Math.round(target * e));
+          if (p < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
+      whenIn($('#stats'), function () { $$('#stats [data-count]').forEach(countUp); });
+
+      // ---------- Typed letter in the Create column ----------
+      var typed = $('#typed');
+      if (typed && !RM) {
+        var full = typed.textContent;
+        whenIn(typed.closest('.rcol'), function () {
+          typed.textContent = '';
+          typed.classList.add('is-typing');
+          var i = 0;
+          var iv = setInterval(function () {
+            i += 2;
+            typed.textContent = full.slice(0, i);
+            if (i >= full.length) { clearInterval(iv); typed.textContent = full; setTimeout(function () { typed.classList.remove('is-typing'); }, 1200); }
+          }, 22);
+        });
+      }
+
+      // ---------- Footer wordmark letters ----------
+      var wm = $('#wordmark .wm-t');
+      if (wm && !RM) {
+        var txt = wm.textContent;
+        wm.textContent = '';
+        txt.split('').forEach(function (ch, i) {
+          var s = document.createElement('span');
+          s.className = 'wl';
+          s.style.setProperty('--i', i);
+          s.textContent = ch === ' ' ? ' ' : ch;
+          wm.appendChild(s);
+        });
+      }
+
+      if (RM || !('IntersectionObserver' in window)) {
+        onIn.forEach(function (fn, el) { el.classList.add('is-in'); if (fn) fn(); });
+      } else {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (en) {
+            if (!en.isIntersecting) return;
+            var el = en.target;
+            el.classList.add('is-in');
+            var fn = onIn.get(el);
+            if (fn) fn();
+            io.unobserve(el);
+          });
+        }, { rootMargin: '0px 0px -8% 0px', threshold: 0.12 });
+        onIn.forEach(function (fn, el) { io.observe(el); });
+      }
+
+      // ---------- Header: one ink underline that slides to the hovered link ----------
+      var nav = $('.head-nav'), ind = $('.nav-ind');
+      if (nav && ind) {
+        var current = null;
+        $$('a', nav).forEach(function (a) {
+          if (a.getAttribute('href') === location.pathname) current = a;
+        });
+        var moveTo = function (a) {
+          if (!a) { ind.style.opacity = '0'; return; }
+          ind.style.width = (a.offsetWidth - 22) + 'px';
+          ind.style.transform = 'translateX(' + (a.offsetLeft + 11) + 'px)';
+          ind.style.opacity = '1';
+        };
+        $$('a', nav).forEach(function (a) {
+          a.addEventListener('mouseenter', function () { moveTo(a); });
+          a.addEventListener('focus', function () { moveTo(a); });
+        });
+        nav.addEventListener('mouseleave', function () { moveTo(current); });
+        moveTo(current);
+      }
+
+      // Close the mobile menu after following a link.
+      var menu = $('.menu');
+      if (menu) {
+        $$('a', menu).forEach(function (a) { a.addEventListener('click', function () { menu.removeAttribute('open'); }); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menu.hasAttribute('open')) { menu.removeAttribute('open'); $('summary', menu).focus(); } });
+        document.addEventListener('click', function (e) { if (menu.hasAttribute('open') && !menu.contains(e.target)) menu.removeAttribute('open'); });
+      }
+
+      // ---------- Ledger: the margin note re-points to the hovered row ----------
+      var ledger = $('#ledger');
+      if (ledger) {
+        var body = $('.l-body', ledger), margin = $('.l-margin', ledger), note = $('.mnote', ledger), line = $('.mline', ledger);
+        var rows = $$('.lrow', ledger), def = $('.lrow[data-default]', ledger) || rows[0], at = null;
+        var fill = function (row) {
+          $('.mn-f', note).textContent = row.getAttribute('data-form');
+          $('.mn-b', note).textContent = row.getAttribute('data-basis');
+          $('.mn-l', note).textContent = row.getAttribute('data-law');
+        };
+        var point = function (row, instant) {
+          if (!margin || getComputedStyle(margin).display === 'none') return;
+          var br = body.getBoundingClientRect(), rr = row.getBoundingClientRect(), fee = $('.l-fee', row).getBoundingClientRect(), mr = margin.getBoundingClientRect();
+          var y = rr.top - br.top + rr.height / 2;
+          var x1 = fee.right - br.left + 8, x2 = mr.left - br.left + 14;
+          line.style.width = Math.max(12, x2 - x1) + 'px';
+          line.style.setProperty('--lx', x1 + 'px');
+          line.style.setProperty('--ly', Math.round(y) + 'px');
+          var mh = note.offsetHeight, maxTop = margin.offsetHeight - mh - 8;
+          note.style.setProperty('--ny', Math.max(48, Math.min(maxTop, Math.round(y - 10))) + 'px');
+          rows.forEach(function (r) { r.classList.toggle('is-pt', r === row); });
+          if (row !== at) {
+            if (instant || RM) { fill(row); }
+            else {
+              note.classList.add('is-swap');
+              setTimeout(function () { fill(row); note.classList.remove('is-swap'); }, 140);
+            }
+            at = row;
+          }
+        };
+        rows.forEach(function (r) {
+          r.addEventListener('pointermove', function (e) {
+            if (r === at || (!e.movementX && !e.movementY)) return;
+            point(r);
+          });
+        });
+        $('.l-table', ledger).addEventListener('mouseleave', function () { point(def); });
+        var relayout = function () { point(at || def, true); };
+        relayout();
+        window.addEventListener('resize', relayout);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+      }
+
+      // ---------- Docket: contents on the left, the active note on the right ----------
+      var dk = $('#docket');
+      if (dk) {
+        var mq = window.matchMedia('(min-width: 960px)');
+        var items = $$('.dk-item', dk), dline = $('.dk-line', dk), active = 0;
+        items.forEach(function (li, i) {
+          var h = $('.dk-t', li), note = $('.dk-note', li);
+          var btn = document.createElement('button');
+          btn.type = 'button'; btn.className = 'dk-btn';
+          btn.setAttribute('aria-controls', note.id);
+          while (h.firstChild) btn.appendChild(h.firstChild);
+          h.appendChild(btn);
+          btn.addEventListener('click', function () { set(i); });
+          // Real pointer movement only: Chrome sends a synthetic move after scrolling, which
+          // would otherwise flip the active step as the list scrolls under a resting cursor.
+          btn.addEventListener('pointermove', function (e) {
+            if (!mq.matches || i === active || e.pointerType === 'touch') return;
+            if (!e.movementX && !e.movementY) return;
+            set(i);
+          });
+        });
+        // Only a step the reader picks animates in; layout changes never replay it.
+        var set = function (i) {
+          active = i;
+          items.forEach(function (li, j) { li.classList.toggle('is-fresh', j === i); });
+          place();
+        };
+        items.forEach(function (li) { li.addEventListener('animationend', function () { li.classList.remove('is-fresh'); }); });
+        var place = function () {
+          var enh = mq.matches;
+          // Switching layouts would otherwise fade all seven notes out at once.
+          if (dk.classList.contains('is-enh') !== enh) {
+            dk.classList.add('no-tr');
+            requestAnimationFrame(function () { requestAnimationFrame(function () { dk.classList.remove('no-tr'); }); });
+          }
+          dk.classList.toggle('is-enh', enh);
+          items.forEach(function (li, j) {
+            var on = j === active;
+            li.classList.toggle('is-on', on);
+            $('.dk-btn', li).setAttribute('aria-expanded', enh ? String(on) : 'true');
+          });
+          if (!enh) return;
+          var li = items[active], lab = $('.dk-label', li), note = $('.dk-note', li);
+          var dr = dk.getBoundingClientRect(), lr = lab.getBoundingClientRect();
+          var y = lr.top - dr.top + lr.height / 2;
+          var noteLeft = dk.offsetWidth * 0.6;
+          var top = Math.max(0, Math.min(dk.offsetHeight - note.offsetHeight, y - 40));
+          items.forEach(function (o) { $('.dk-note', o).style.top = top + 'px'; });
+          var x1 = lr.right - dr.left + 18;
+          dline.style.top = Math.round(y) + 'px';
+          dline.style.left = x1 + 'px';
+          dline.style.width = Math.max(16, noteLeft - x1 - 1) + 'px';
+        };
+        place();
+        // Debounced, so a momentary width change (a full-page capture, a window drag) settles first.
+        var rt = null;
+        var onResize = function () { clearTimeout(rt); rt = setTimeout(place, 120); };
+        window.addEventListener('resize', onResize);
+        if (mq.addEventListener) mq.addEventListener('change', onResize);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(place);
+      }
+
+      // ---------- SDD: a real SHA-256 hash chain, computed in the browser ----------
+      var chainEl = $('#chain');
+      if (chainEl) {
+        var SEED = '#4809 · 21 Sep 2026, 17:35 IST · Draft board note on the proposed acquisition shared with the CFO';
+        var TAMPER = { from: 'the statutory auditor', to: 'the internal auditor' };
+        var CORR = { n: '4815', when: '27 Sep 2026, 11:20 IST', p: 'Correction to #4812: the recipient was the internal auditor' };
+        var blocks = $$('.blk:not(.is-slot)', chainEl), links = $$('.lk', chainEl), slot = $('#slot');
+        var msg = $('#ctl-msg'), stamp = $('#stamp'), stampT = $('#stamp-t'), sheet = $('#sdd');
+        var arc = $('#arc'), arcPath = $('#arc-path'), arcText = $('#arc-text');
+        var bT = $('#btn-tamper'), bC = $('#btn-correct');
+        var canon = [], state = 'intact', busy = false;
+        var subtle = window.crypto && window.crypto.subtle;
+        var short = function (h) { return h.slice(0, 4) + '…' + h.slice(-3); };
+        var sha = function (t) {
+          return subtle.digest('SHA-256', new TextEncoder().encode(t)).then(function (buf) {
+            return Array.prototype.map.call(new Uint8Array(buf), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+          });
+        };
+        var text = function (n, when, p, prev) { return '#' + n + ' · ' + when + ' · ' + p + ' · prev ' + prev; };
+        var typeInto = function (el, val) {
+          if (RM) { el.textContent = val; return Promise.resolve(); }
+          return new Promise(function (res) {
+            var i = 0;
+            var iv = setInterval(function () {
+              i++;
+              el.textContent = val.slice(0, i);
+              if (i >= val.length) { clearInterval(iv); res(); }
+            }, 45);
+          });
+        };
+        var land = function (ok, label) {
+          stamp.classList.toggle('bad', !ok);
+          stampT.textContent = label;
+          stamp.classList.remove('land'); void stamp.offsetWidth; stamp.classList.add('land');
+        };
+        var setThis = function (blk, full, animate) {
+          var hv = $('.h-this .hv', blk);
+          var tip = $('.tip-v', blk); if (tip) tip.textContent = full;
+          return animate ? typeInto(hv, short(full)) : (hv.textContent = short(full), Promise.resolve());
+        };
+        var setPrev = function (blk, full) { $('.h-prev .hv', blk).textContent = short(full); };
+
+        // Highlight the links on either side of a hovered or focused block.
+        var all = $$('li', chainEl);
+        all.forEach(function (li, idx) {
+          if (!li.classList.contains('blk')) return;
+          var hl = function (on) {
+            [all[idx - 1], all[idx + 1]].forEach(function (n) { if (n && n.classList.contains('lk')) n.classList.toggle('is-hl', on); });
+          };
+          li.addEventListener('mouseenter', function () { hl(true); });
+          li.addEventListener('mouseleave', function () { hl(false); });
+          li.addEventListener('focus', function () { hl(true); });
+          li.addEventListener('blur', function () { hl(false); });
+        });
+
+        var drawArc = function () {
+          if (state !== 'corrected') { arc.classList.remove('is-on'); return; }
+          var cr = arc.getBoundingClientRect();
+          var a = blocks[2].getBoundingClientRect(), b = slot.getBoundingClientRect();
+          var d, tx, ty;
+          if (Math.abs(a.top - b.top) < 20) {
+            var x1 = b.left - cr.left + b.width / 2, x2 = a.left - cr.left + a.width / 2, y = a.top - cr.top - 4;
+            var lift = Math.min(54, y - 6);
+            d = 'M' + x1 + ' ' + y + ' C ' + x1 + ' ' + (y - lift) + ', ' + x2 + ' ' + (y - lift) + ', ' + x2 + ' ' + y;
+            tx = (x1 + x2) / 2 - 72; ty = y - lift * 0.75 - 6;
+          } else {
+            var xr = Math.max(a.right, b.right) - cr.left, y1 = b.top - cr.top + b.height / 2, y2 = a.top - cr.top + a.height / 2;
+            var out = Math.max(12, Math.min(24, cr.right - Math.max(a.right, b.right) - 8));
+            d = 'M' + (xr + 2) + ' ' + y1 + ' H ' + (xr + out) + ' V ' + y2 + ' H ' + (xr + 4);
+            tx = -999; ty = -999;
+          }
+          arcPath.setAttribute('d', d);
+          arcPath.setAttribute('marker-end', 'url(#arrow)');
+          arcText.setAttribute('x', tx); arcText.setAttribute('y', ty);
+          arcText.textContent = tx > -999 ? 'POINTS AT #4812' : '';
+          arc.classList.add('is-on');
+          if (!RM) {
+            var len = arcPath.getTotalLength();
+            arcPath.style.transition = 'none';
+            arcPath.style.strokeDasharray = len; arcPath.style.strokeDashoffset = len;
+            void arcPath.getBoundingClientRect();
+            arcPath.style.transition = 'stroke-dashoffset .7s cubic-bezier(.2,.8,.2,1)';
+            arcPath.style.strokeDashoffset = 0;
+          }
+        };
+        // Arrowhead marker for the correction arc.
+        var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML = '<marker id="arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" fill="#4338CA"/></marker>';
+        arc.insertBefore(defs, arc.firstChild);
+
+        var resetView = function () {
+          blocks.forEach(function (b, i) {
+            b.classList.remove('is-edit', 'is-bad');
+            $('.blk-p', b).textContent = b.getAttribute('data-p');
+            setPrev(b, canon[i].prev);
+            setThis(b, canon[i].hash, false);
+          });
+          links.forEach(function (l) { l.classList.remove('is-bad'); });
+          links[4].classList.add('is-ghost');
+          slot.className = 'blk is-slot';
+          slot.removeAttribute('tabindex');
+          slot.setAttribute('aria-label', 'Next entry, not yet written');
+          $('.blk-when', slot).innerHTML = 'Next entry<br>&nbsp;';
+          $('.blk-p', slot).textContent = 'Not yet written';
+          setPrev(slot, canon[4].hash);
+          $('.h-this .hv', slot).textContent = '—';
+          var t = $('.blk-tip', slot); if (t) t.remove();
+          arc.classList.remove('is-on');
+        };
+
+        // Pressing the active button again returns the chain to its intact state.
+        var intact = function () {
+          state = 'intact';
+          resetView();
+          bT.setAttribute('aria-pressed', 'false'); bC.setAttribute('aria-pressed', 'false');
+          msg.classList.remove('bad');
+          msg.textContent = 'Every prev hash matches the entry before it.';
+          land(true, 'Chain verified · 5 entries');
+        };
+
+        var tamper = function () {
+          if (busy) return;
+          if (state === 'tampered') { intact(); return; }
+          busy = true;
+          state = 'tampered';
+          resetView();
+          bT.setAttribute('aria-pressed', 'true'); bC.setAttribute('aria-pressed', 'false');
+          var b = blocks[2], p = b.getAttribute('data-p'), np = p.replace(TAMPER.from, TAMPER.to);
+          var pe = $('.blk-p', b);
+          pe.innerHTML = '';
+          pe.appendChild(document.createTextNode(p.replace(TAMPER.from, '')));
+          var del = document.createElement('del'); del.textContent = TAMPER.from;
+          var ins = document.createElement('ins'); ins.textContent = TAMPER.to;
+          pe.appendChild(del); pe.appendChild(document.createTextNode(' ')); pe.appendChild(ins);
+          b.classList.add('is-edit');
+          sha(text(b.getAttribute('data-n'), b.getAttribute('data-when'), np, canon[2].prev)).then(function (h) {
+            return setThis(b, h, true).then(function () {
+              // Verify: #4813 still carries the old hash of #4812, so the link between them breaks.
+              // #4813's own hash is unchanged, so the links after it still match.
+              var ok = h === canon[3].prev;
+              if (!ok) { blocks[3].classList.add('is-bad'); links[2].classList.add('is-bad'); }
+              msg.textContent = ok ? 'Every prev hash matches.' : '#4813 still points at the old hash of #4812 · chain broken at #4812';
+              msg.classList.toggle('bad', !ok);
+              land(ok, ok ? 'Chain verified' : 'Chain broken at #4812');
+              busy = false;
+            });
+          });
+        };
+
+        var correct = function () {
+          if (busy) return;
+          if (state === 'corrected') { intact(); return; }
+          busy = true;
+          state = 'corrected';
+          resetView();
+          bT.setAttribute('aria-pressed', 'false'); bC.setAttribute('aria-pressed', 'true');
+          msg.classList.remove('bad');
+          msg.textContent = 'Original #4812 kept. #4815 records the correction and points back at it.';
+          sha(text(CORR.n, CORR.when, CORR.p, canon[4].hash)).then(function (h) {
+            links[4].classList.remove('is-ghost');
+            slot.className = 'blk is-corr';
+            slot.setAttribute('tabindex', '0');
+            slot.removeAttribute('aria-label');
+            $('.blk-when', slot).innerHTML = CORR.when.replace(', ', '<br>');
+            $('.blk-p', slot).textContent = CORR.p;
+            var tip = document.createElement('div'); tip.className = 'blk-tip'; tip.setAttribute('aria-hidden', 'true');
+            tip.innerHTML = '<b>SHA-256</b><span class="tip-v"></span>';
+            slot.appendChild(tip);
+            drawArc();
+            return setThis(slot, h, true).then(function () {
+              land(true, 'Chain verified · 6 entries');
+              busy = false;
+            });
+          });
+        };
+
+        var build = function () {
+          if (!subtle || !window.TextEncoder) {
+            // Without Web Crypto the server-rendered sample hashes stay, labelled as samples.
+            msg.textContent = 'Sample hashes shown. Your browser did not allow the demo to compute them.';
+            bT.disabled = true; bC.disabled = true;
+            sheet.classList.add('is-ready');
+            return;
+          }
+          var prev;
+          sha(SEED).then(function (h0) {
+            prev = h0;
+            var p = Promise.resolve();
+            blocks.forEach(function (b) {
+              p = p.then(function () {
+                return sha(text(b.getAttribute('data-n'), b.getAttribute('data-when'), b.getAttribute('data-p'), prev)).then(function (h) {
+                  canon.push({ prev: prev, hash: h });
+                  prev = h;
+                });
+              });
+            });
+            return p;
+          }).then(function () {
+            resetView();
+            bT.addEventListener('click', tamper);
+            bC.addEventListener('click', correct);
+            window.addEventListener('resize', drawArc);
+            var reveal = function () {
+              var seq = Promise.resolve();
+              if (!RM) {
+                blocks.forEach(function (b) { $('.h-this .hv', b).textContent = ''; });
+                blocks.forEach(function (b, i) {
+                  seq = seq.then(function () { return setThis(b, canon[i].hash, true); });
+                });
+              }
+              seq.then(function () {
+                sheet.classList.add('is-ready');
+                land(true, 'Chain verified · 5 entries');
+              });
+            };
+            if (RM || !('IntersectionObserver' in window)) { chainEl.classList.add('is-in'); reveal(); }
+            else {
+              var cio = new IntersectionObserver(function (en) {
+                if (!en[0].isIntersecting) return;
+                cio.disconnect();
+                chainEl.classList.add('is-in');
+                reveal();
+              }, { threshold: 0.25 });
+              cio.observe(chainEl);
+            }
+          }).catch(function () {
+            msg.textContent = 'Sample hashes shown.';
+            sheet.classList.add('is-ready');
+          });
+        };
+        build();
+      }
+
+      // ---------- Roles: WAI-ARIA tabs ----------
+      var list = $('[data-tabs]');
+      if (list) {
+        var tabs = $$('[role="tab"]', list);
+        var select = function (tab, focus, animate) {
+          tabs.forEach(function (t) {
+            var on = t === tab;
+            t.setAttribute('aria-selected', on ? 'true' : 'false');
+            t.tabIndex = on ? 0 : -1;
+            var panel = document.getElementById(t.getAttribute('aria-controls'));
+            if (panel) {
+              panel.hidden = !on;
+              if (on && animate && !RM) { panel.classList.remove('is-enter'); void panel.offsetWidth; panel.classList.add('is-enter'); }
+            }
+          });
+          if (focus) tab.focus();
+        };
+        tabs.forEach(function (t, i) {
+          t.addEventListener('click', function () { if (t.getAttribute('aria-selected') !== 'true') select(t, false, true); });
+          t.addEventListener('keydown', function (e) {
+            var next = null;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = tabs[(i + 1) % tabs.length];
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = tabs[(i - 1 + tabs.length) % tabs.length];
+            else if (e.key === 'Home') next = tabs[0];
+            else if (e.key === 'End') next = tabs[tabs.length - 1];
+            if (next) { e.preventDefault(); select(next, true, true); }
+          });
+        });
+        select(tabs[0], false, false);
+      }
+
+      // ---------- Footnote superscripts and source rows highlight each other ----------
+      var refs = $$('.fnref'), srows = $$('.srcs > li');
+      var hlSrc = function (n, on) {
+        refs.forEach(function (r) { if (r.getAttribute('data-src') === n) r.classList.toggle('is-hl', on); });
+        srows.forEach(function (r) { if (r.getAttribute('data-src') === n) r.classList.toggle('is-hl', on); });
+      };
+      refs.concat(srows).forEach(function (el) {
+        var n = el.getAttribute('data-src');
+        el.addEventListener('mouseenter', function () { hlSrc(n, true); });
+        el.addEventListener('mouseleave', function () { hlSrc(n, false); });
+        el.addEventListener('focus', function () { hlSrc(n, true); });
+        el.addEventListener('blur', function () { hlSrc(n, false); });
+      });
+
+      window.__ledgerReady = true;
+    })();
+  </script>
+</body>
+</html>

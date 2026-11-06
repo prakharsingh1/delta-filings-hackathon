@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Delta Filings{% endblock %} · Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/app_ivory.css?v=2">
+    <link rel="stylesheet" href="/static/app_modules.css">
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-slate-50 text-gray-900">
+{# Pages built on this base pass `active_page` from the route. The shell
+   below is the approved layout: sidebar.html owns the fixed top bar and the
+   `.flex.h-screen` offset rule; <main> is the scroll container. #}
+<div class="flex h-screen overflow-hidden">
+    {% include 'sidebar.html' %}
+    <main class="flex-1 overflow-y-auto">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+<div id="df-toast" aria-live="polite"></div>
+<script>
+  // Tiny helpers shared by every module page.
+  window.dfToast = function (msg, kind) {
+    var box = document.getElementById('df-toast');
+    var el = document.createElement('div');
+    el.className = 'df-toast' + (kind ? ' ' + kind : '');
+    el.textContent = msg;
+    box.appendChild(el);
+    setTimeout(function () { el.remove(); }, 3800);
+  };
+  // JSON-only API calls. Mutating endpoints reject non-JSON bodies, which is
+  // what keeps them out of reach of cross-site form posts.
+  window.dfApi = async function (url, opts) {
+    opts = opts || {};
+    var init = { method: opts.method || 'GET', credentials: 'same-origin', headers: {} };
+    if (opts.body !== undefined) {
+      init.headers['Content-Type'] = 'application/json';
+      init.body = JSON.stringify(opts.body);
+    }
+    var res = await fetch(url, init);
+    var data = null;
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) {
+      var msg = (data && (data.error || data.message)) || ('Request failed (' + res.status + ')');
+      throw new Error(msg);
+    }
+    return data;
+  };
+  window.dfEsc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+    });
+  };
+  window.dfInr = function (n) {
+    n = Number(n || 0);
+    if (n >= 1e7) return '₹' + (n / 1e7).toFixed(n >= 1e9 ? 0 : 2) + ' cr';
+    if (n >= 1e5) return '₹' + (n / 1e5).toFixed(2) + ' L';
+    return '₹' + Math.round(n).toLocaleString('en-IN');
+  };
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

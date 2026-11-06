@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify, redirect, url_for, request, session, flash, send_from_directory, send_file, abort
 from functools import wraps
+from homepage_data import select_homepage
 from database import (
     init_db, get_cached_filings, filing_exists, insert_filing,
     get_previous_snapshot_ids, save_snapshot, get_filing_by_id, find_best_match,
@@ -83,13 +84,89 @@ from industry_intel import (
     get_industry_intel, list_supported_industries, INDUSTRY_PROFILES,
 )
 from company_logos import SYMBOL_DOMAIN_MAP, SYMBOL_TV_SLUG_MAP
+import roles as _roles
+import entities as _ents
+import risk as _risk
+import reg_news as _news
+import sdd as _sdd
+import secretarial as _sec
+import rulebook as _rb
+try:
+    # Model provider layer: routes every google-genai call to the provider chosen
+    # in Settings, AI provider (Gemini, a local or OpenAI-compatible model, Claude).
+    import llm as _llm
+    _llm.install()
+except ImportError:
+    _llm = None
 from logo_scraper import discover_logo, discover_logo_with_meta
 import os
+import re
+from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("DELTA_SECRET_KEY", "delta-filings-dev-secret-change-in-prod-7k2j9x")
+# The session cookie is signed with this key; a key in the source code lets
+# anyone who reads the code sign in as anyone. Without DELTA_SECRET_KEY the
+# process makes up its own, so sessions last until the next restart.
+app.secret_key = os.environ.get("DELTA_SECRET_KEY", "").strip()
+if not app.secret_key:
+    import secrets as _secrets
+    app.secret_key = _secrets.token_hex(32)
+    print("[SECURITY] DELTA_SECRET_KEY is not set: using a random key; everyone is signed out on restart.")
+# Nothing legitimate is bigger than this (client documents are capped at 15 MB
+# each); without a cap one request can exhaust the single worker's memory.
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+# Session cookie carries user_id; never let it travel over plain HTTP in prod.
+# Set DELTA_INSECURE_COOKIES=1 for local http development.
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("DELTA_INSECURE_COOKIES", "").strip() != "1"
+
+# Railway terminates TLS at its proxy; without this, url_for(_external=True)
+# builds http:// links (e.g. the client document-request share link).
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+_SQLITE_MAX_INT = 2 ** 63 - 1
+
+
+@app.url_value_preprocessor
+def _reject_oversized_ids(endpoint, values):
+    """An <int:id> beyond SQLite's 64-bit range raises OverflowError deep in a
+    query (a 500). Nothing can exist at such an id, so answer 404 up front."""
+    for v in (values or {}).values():
+        if isinstance(v, int) and abs(v) > _SQLITE_MAX_INT:
+            abort(404)
+
+
+@app.errorhandler(404)
+def _not_found(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Not found"}), 404
+    return render_template("404.html"), 404
+
+
+@app.after_request
+def _security_headers(resp):
+    """Headers every response carries. The CSP only covers what is safe with
+    today's inline scripts and CDN styles: no framing by other sites (click-
+    jacking), no plugins, no <base> rewriting."""
+    h = resp.headers
+    h.setdefault("X-Frame-Options", "SAMEORIGIN")
+    h.setdefault("X-Content-Type-Options", "nosniff")
+    h.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    h.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    h.setdefault("Content-Security-Policy", "frame-ancestors 'self'; object-src 'none'; base-uri 'self'")
+    if request.is_secure:
+        h.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return resp
+
+
+@app.errorhandler(413)
+def _too_large(e):
+    msg = "That upload is over 25 MB. Compress or split it and try again."
+    if request.path.startswith("/api/"):
+        return jsonify({"error": True, "message": msg}), 413
+    return msg, 413
 
 
 # ── Auth helpers ──────────────────────────────────────────
@@ -115,6 +192,13 @@ def current_user():
     return user
 
 
+def paywall_enabled():
+    """Paywall is OFF by default while we run the public beta.
+    Set DELTA_PAYWALL=1 on the host to turn billing back on — no code change.
+    """
+    return os.environ.get("DELTA_PAYWALL", "0").strip() not in ("0", "false", "False", "")
+
+
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -129,16 +213,53 @@ def login_required(f):
                 refresh_demo_session(session, user)
                 return f(*args, **kwargs)
 
+        is_api = request.path.startswith("/api/")
         if not user:
+            # fetch() follows a redirect to the sign-in HTML and the page then
+            # reads it as a silent success; tell API callers plainly instead.
+            if is_api:
+                return jsonify({"error": "Your session has ended. Sign in again."}), 401
             return redirect(url_for("signin_page", next=request.path))
         if not user.get("onboarded"):
+            if is_api:
+                return jsonify({"error": "Finish setting up your account first."}), 403
             return redirect(url_for("onboarding_page"))
-        # Payment gate — every authed feature route is paywalled.
-        # Bypass: the checkout page itself, payment APIs, logout.
-        if not is_user_paid(user["id"]):
+        # Payment gate — disabled during the public beta (see paywall_enabled).
+        if paywall_enabled() and not is_user_paid(user["id"]):
             return redirect(url_for("checkout_page"))
         return f(*args, **kwargs)
     return wrapper
+
+
+def is_platform_admin(user=None):
+    """Settings that apply to every account (the AI provider key, the model,
+    NSE history depth) belong to the operator, not to whoever is signed in.
+    Operators are listed by email in DELTA_ADMIN_EMAILS; with it unset, no
+    one can change them from the app and the environment variables rule."""
+    user = user if user is not None else (current_user() or {})
+    email = (user.get("email") or "").strip().lower()
+    admins = {e.strip().lower() for e in os.environ.get("DELTA_ADMIN_EMAILS", "").split(",") if e.strip()}
+    return bool(email) and email in admins
+
+
+def admin_required(f):
+    @wraps(f)
+    @login_required
+    def wrapper(*args, **kwargs):
+        if not is_platform_admin():
+            if request.path.startswith("/api/"):
+                return jsonify({"error": True, "message": "Only the workspace operator can change this."}), 403
+            return ("Not found", 404)
+        return f(*args, **kwargs)
+    return wrapper
+
+
+@app.context_processor
+def inject_platform_admin():
+    try:
+        return {"platform_admin": is_platform_admin()}
+    except Exception:
+        return {"platform_admin": False}
 
 
 # Internal lifecycle values are pipeline vocabulary. A Company Secretary sees
@@ -205,6 +326,8 @@ _COPILOT_PAGE_BY_PATH = (
     ("/company/", "company"), ("/draft", "draft"),
     ("/din-search", "din_search"), ("/prices", "prices"),
     ("/watchlist", "watchlist"), ("/dashboard", "dashboard"),
+    ("/workspace", "workspace"), ("/requests", "requests"), ("/sdd", "sdd"),
+    ("/news", "news"), ("/risk", "risk"),
 )
 
 
@@ -230,6 +353,25 @@ def inject_user():
         "demo_mode": demo_mode_enabled(),
         "is_demo": is_demo_user(_u),
     }
+
+
+@app.context_processor
+def inject_role():
+    """Role drives the top nav and the logo's home link on every page."""
+    role = _roles.get_role(session.get("user_id"))
+    return {
+        "current_role": role,
+        "role_nav": _roles.nav_for(role),
+        "role_home": _roles.ROLES[role]["home"],
+        "modules": _roles.MODULES,
+        "nav_labels": _roles.NAV_LABELS,
+        "module_groups": _roles.MODULE_GROUPS,
+        "roles": _roles.ROLES,
+    }
+
+
+def _role_home():
+    return _roles.home_for(session.get("user_id"))
 
 
 def _current_user_id():
@@ -370,14 +512,15 @@ def process_filings(symbol, years=None):
     raw_filings = fetch_filings(symbol, years=years, allow_fallback=False)
     if not raw_filings:
         print(f"[MAIN] NSE returned no filings for {symbol} — skipping insert")
+        # Stamp a zero-count attempt so a symbol NSE has nothing for backs off
+        # for the normal staleness window instead of being retried every cycle.
+        # (A hard failure raises instead of returning here, so genuine errors
+        # still go unstamped and get retried promptly.)
+        try:
+            set_filings_last_fetched(symbol, 0)
+        except Exception as e:
+            print(f"[MAIN] filings_meta upsert failed for {symbol}: {e}")
         return set(), set()
-    # Stamp the successful fetch so the company page knows when we last
-    # touched NSE for this symbol and can avoid redundant backfills.
-    try:
-        set_filings_last_fetched(symbol, len(raw_filings))
-    except Exception as e:
-        print(f"[MAIN] filings_meta upsert failed for {symbol}: {e}")
-
     # Dedupe in memory (one query) instead of N filing_exists() round-trips.
     existing_keys = get_existing_filing_keys(symbol)
 
@@ -414,6 +557,13 @@ def process_filings(symbol, years=None):
         })
 
     inserted = batch_insert_filings(to_insert) if to_insert else 0
+    # Stamp freshness only once the rows are actually persisted. Stamping
+    # before the insert made a lock-failed fetch look like a fresh one, so the
+    # refresher would skip the symbol and the loss stayed invisible.
+    try:
+        set_filings_last_fetched(symbol, len(raw_filings))
+    except Exception as e:
+        print(f"[MAIN] filings_meta upsert failed for {symbol}: {e}")
     print(f"[MAIN] {symbol}: {inserted} new filings inserted in 1 transaction "
           f"({len(raw_filings)} fetched, {len(raw_filings) - len(to_insert)} dedupe-skip).")
 
@@ -432,10 +582,60 @@ def index():
     """Public landing page. Authenticated users go straight to their dashboard."""
     user = current_user()
     if user and user.get("onboarded"):
-        return redirect(url_for("dashboard"))
+        return redirect(_role_home())
     if user and not user.get("onboarded"):
         return redirect(url_for("onboarding_page"))
-    return render_template("home.html")
+    # home_ivory.html is the approved homepage (Nov 2026); home_vb.html is the
+    # previous one, kept for a one-line rollback.
+    template, extra = select_homepage(request.args.get("theme"))
+    context = _home_context()
+    context.update(extra)
+    return render_template(template, **context)
+
+
+def _home_context():
+    """Figures the homepage quotes, read from the rulebook so the page can't
+    drift from what the product actually tracks."""
+    from collections import Counter
+    from datetime import date as _date
+    rules = _rb.RULES + [_rb.DIR3KYC_RULE]
+    counts = Counter(r["regime"] for r in rules)
+
+    def _profile(**flags):
+        appl = _rb.applicable_rules({"entity_type": "private", "state": "Maharashtra", "flags": flags})
+        return (sum(1 for r in appl if r["schedule"]["kind"] != "event"),
+                sum(1 for r in appl if r["schedule"]["kind"] == "event"))
+
+    a_rec, a_evt = _profile(gst_registered=True, tds_deductor=True, has_employees=True, pf_covered=True)
+    b_rec, b_evt = _profile(gst_registered=True, tds_deductor=True, has_employees=True, pf_covered=True,
+                            msme_dues=True)
+    reviewed = _date.fromisoformat(_rb.RULEBOOK_REVIEWED)
+    return {
+        "rule_count": len(rules), "regime_counts": counts, "regime_max": max(counts.values()),
+        "sample_a_applies": a_rec + a_evt + 1,   # + DIR-3 KYC for each director
+        "sample_b_recurring": b_rec, "sample_b_events": b_evt,
+        "reviewed_label": f"{reviewed.day} {reviewed.strftime('%B %Y')}",
+    }
+
+
+HOME_PREVIEW_VARIANTS = ("a", "b", "1", "2", "3", "4", "5")
+
+
+@app.route("/_preview/home/<variant>")
+def preview_home_variant(variant):
+    """Local-only side-by-side of homepage candidates. 404 unless
+    DELTA_PREVIEW_ROUTES=1, which is never set on Railway."""
+    if os.environ.get("DELTA_PREVIEW_ROUTES") != "1" or variant not in HOME_PREVIEW_VARIANTS:
+        abort(404)
+    return render_template(f"home_v{variant}.html", **_home_context())
+
+
+@app.route("/_preview/home")
+def preview_home_index():
+    """Local-only chooser linking every homepage candidate."""
+    if os.environ.get("DELTA_PREVIEW_ROUTES") != "1":
+        abort(404)
+    return render_template("home_preview_index.html")
 
 
 @app.route("/about")
@@ -573,7 +773,7 @@ def signup_page():
     # Already logged in? send onwards.
     user = current_user()
     if user:
-        return redirect(url_for("onboarding_page") if not user.get("onboarded") else url_for("dashboard"))
+        return redirect(url_for("onboarding_page") if not user.get("onboarded") else _role_home())
 
     form = {"name": "", "email": ""}
     error = None
@@ -645,7 +845,7 @@ def signup_page():
 def signin_page():
     user = current_user()
     if user:
-        return redirect(url_for("onboarding_page") if not user.get("onboarded") else url_for("dashboard"))
+        return redirect(url_for("onboarding_page") if not user.get("onboarded") else _role_home())
 
     form = {"email": ""}
     error = None
@@ -702,8 +902,12 @@ def signin_page():
             if invited_draft:
                 return redirect(url_for("draft_page"))
             nxt = request.args.get("next") or request.form.get("next")
+            # Only allow same-site relative paths — "//evil.com" and
+            # "https://evil.com" must never be honoured as a post-login target.
+            if not (isinstance(nxt, str) and nxt.startswith("/") and not nxt.startswith("//")):
+                nxt = None
             if authed.get("onboarded"):
-                return redirect(nxt or url_for("dashboard"))
+                return redirect(nxt or _role_home())
             return redirect(url_for("onboarding_page"))
 
     return render_template("signin.html", form=form, error=error, notice=notice)
@@ -735,52 +939,125 @@ def onboarding_page():
 
     # Already onboarded? skip the picker — but still gate on payment.
     if user.get("onboarded"):
-        if not is_user_paid(user["id"]):
+        if paywall_enabled() and not is_user_paid(user["id"]):
             return redirect(url_for("checkout_page"))
-        return redirect(url_for("dashboard"))
+        return redirect(_role_home())
 
     error = None
+    form = None
     if request.method == "POST":
-        industry = (request.form.get("industry") or "").strip()
-        company = (request.form.get("company") or "").strip()[:120]
-        designation = (request.form.get("designation") or "").strip()[:120]
-        if industry not in INDUSTRY_WATCHLISTS:
-            error = "Please choose one of the listed industries to continue."
+        form = request.form.to_dict()
+        role = (form.get("role") or "").strip()
+        industry = (form.get("industry") or "").strip()
+        company = (form.get("company") or "").strip()[:120]
+        designation = (form.get("designation") or "").strip()[:120]
+        symbol = (form.get("symbol") or "").strip().upper()[:20]
+        if role not in _roles.ROLES:
+            error = "Choose what you look after to continue."
+        elif role == "compliance" and industry not in INDUSTRY_WATCHLISTS:
+            error = "Choose your sector so we can build your peer watchlist."
+        elif industry and industry not in INDUSTRY_WATCHLISTS:
+            error = "Choose one of the listed sectors."
+        elif symbol and not symbol.replace("&", "").replace("-", "").isalnum():
+            error = "That doesn't look like an NSE symbol."
         else:
-            symbols = replace_watchlist_with_industry(user["id"], industry)
-            sb_update_user_metadata(user["id"], {
-                "industry": industry,
-                "company": company,
-                "designation": designation,
-                "onboarded": True,
+            uid = user["id"]
+            symbols = replace_watchlist_with_industry(uid, industry) if industry else []
+            landing = _roles.ROLES[role]["home"]
+
+            if role == "compliance" and symbol:
+                add_to_watchlist(uid, symbol)
+                symbols = [symbol] + [s for s in symbols if s != symbol]
+                # Re-submitting onboarding must not create a second copy.
+                if not any(e.get("symbol") == symbol for e in _ents.list_entities(uid)):
+                    _ents.create_entity(uid, {"name": company or symbol, "entity_type": "listed",
+                                              "symbol": symbol})
+            elif role in ("cs", "pcs"):
+                name = (form.get(f"entity_name_{role}") or "").strip()[:200]
+                etype = form.get(f"entity_type_{role}")
+                if etype not in _rb.ENTITY_TYPES:
+                    etype = "private"
+                if name:
+                    existing = next((e for e in _ents.list_entities(uid)
+                                     if e["name"].lower() == name.lower()), None)
+                    eid = existing["id"] if existing else _ents.create_entity(uid, {"name": name, "entity_type": etype})
+                    # Straight to the profile questions that build its calendar.
+                    landing = f"/workspace/entity/{eid}?setup=1"
+            elif role == "cro":
+                for rec in _risk.parse_bulk(form.get("counterparties") or "")[:200]:
+                    try:
+                        _risk.add_counterparty(uid, rec)
+                    except ValueError:
+                        continue
+
+            _roles.set_role(uid, role)
+            sb_update_user_metadata(uid, {
+                "industry": industry, "company": company, "designation": designation,
+                "role": role, "onboarded": True,
             })
             session["user_cache"] = {
                 **user, "industry": industry, "company": company,
                 "designation": designation, "onboarded": True,
             }
 
-            try:
-                if symbols:
-                    process_filings(symbols[0])
-            except Exception as e:
-                print(f"[ONBOARDING] pre-load warning: {e}")
-            try:
-                refresh_compliance()
-            except Exception as e:
-                print(f"[ONBOARDING] compliance refresh warning: {e}")
+            # Seed filings + compliance in the background. These hit NSE and
+            # sleep between requests, so running them inline overran gunicorn's
+            # timeout and the worker was killed mid-onboarding. Sequential on
+            # purpose: parallel threads hammer NSE and worsen SQLite lock
+            # contention on the shared volume.
+            def _bg_seed(symbols=symbols):
+                for sym in symbols:
+                    try:
+                        process_filings(sym)
+                    except Exception as e:
+                        print(f"[ONBOARDING] filings pre-load failed for {sym}: {e}")
+                    try:
+                        refresh_compliance(sym)
+                    except Exception as e:
+                        print(f"[ONBOARDING] compliance refresh failed for {sym}: {e}")
+                print(f"[ONBOARDING] seed complete for {len(symbols)} companies: {symbols}")
 
-            # Payment gate — every new user must clear checkout before
-            # the dashboard. Existing paid users get fast-tracked.
-            if is_user_paid(user["id"]):
-                return redirect(url_for("dashboard"))
+            if symbols:
+                threading.Thread(target=_bg_seed, name="onboarding-seed", daemon=True).start()
+            _news.refresh_async()
+
+            # Payment gate — skipped entirely while the paywall is off.
+            if not paywall_enabled() or is_user_paid(uid):
+                return redirect(landing)
             return redirect(url_for("checkout_page"))
 
     return render_template(
         "onboarding.html",
         user=user,
         industries=INDUSTRY_WATCHLISTS,
+        roles=_roles.ROLES,
+        role_gets=ONBOARDING_ROLE_GETS,
+        entity_types=_rb.ENTITY_TYPES,
+        form=form,
         error=error,
     )
+
+
+ONBOARDING_ROLE_GETS = {
+    "cro": "Risk desk · alerts · director network · committee report",
+    "compliance": "Disclosures · LODR calendar · insider-trading register · drafts",
+    "cs": "Compliance calendar · penalty meter · meetings · registers",
+    "pcs": "Every client's calendar · document requests · meetings · registers",
+}
+
+
+@app.route("/api/role", methods=["POST"])
+@login_required
+def api_set_role():
+    if not request.is_json:
+        return jsonify({"error": "JSON body required"}), 415
+    role = (request.get_json(silent=True) or {}).get("role")
+    uid = _current_user_id()
+    if not _roles.set_role(uid, role):
+        return jsonify({"error": "Unknown role"}), 400
+    if not is_demo_user(current_user()):
+        sb_update_user_metadata(uid, {"role": role})
+    return jsonify({"status": "ok", "role": role, "home": _roles.ROLES[role]["home"]})
 
 
 # ── Payment gate (Razorpay) ────────────────────────────────
@@ -794,8 +1071,8 @@ def checkout_page():
         return redirect(url_for("signin_page", next="/checkout"))
     if not user.get("onboarded"):
         return redirect(url_for("onboarding_page"))
-    if is_user_paid(user["id"]):
-        return redirect(url_for("dashboard"))
+    if not paywall_enabled() or is_user_paid(user["id"]):
+        return redirect(_role_home())
     return render_template(
         "checkout.html",
         user=user,
@@ -1417,6 +1694,7 @@ def company_view(symbol):
 
 
 @app.route("/api/filing/<int:filing_id>")
+@login_required
 def api_filing(filing_id):
     """Return filing details including full extracted text.
     If text not yet extracted, extract on demand."""
@@ -1453,6 +1731,7 @@ def api_filing(filing_id):
 
 
 @app.route("/api/tags/<symbol>")
+@login_required
 def api_tags(symbol):
     """Return all unique tags and their counts for a company."""
     symbol = symbol.upper()
@@ -1469,6 +1748,7 @@ def api_tags(symbol):
 
 
 @app.route("/api/summarize/<int:filing_id>", methods=["POST"])
+@login_required
 def api_summarize(filing_id):
     """Generate or return cached AI summary for a filing."""
     filing = get_filing_by_id(filing_id)
@@ -1500,6 +1780,7 @@ def api_summarize(filing_id):
 
 
 @app.route("/api/xbrl/<int:filing_id>")
+@login_required
 def api_xbrl(filing_id):
     """Extract and return XBRL data from a filing's PDF if available."""
     filing = get_filing_by_id(filing_id)
@@ -1553,6 +1834,7 @@ def api_xbrl(filing_id):
 
 
 @app.route("/api/search/<symbol>")
+@login_required
 def api_search(symbol):
     """Search filings for a company. Supports ?q=text, ?tag=TagName, ?page=N."""
     symbol = symbol.upper()
@@ -1595,6 +1877,7 @@ def api_search(symbol):
 
 
 @app.route("/api/compare/<int:filing_id>")
+@login_required
 def api_compare(filing_id):
     """Smart-match a previous filing and return the diff."""
     filing = get_filing_by_id(filing_id)
@@ -1643,6 +1926,7 @@ def api_compare(filing_id):
 
 
 @app.route("/api/compare/<int:id_a>/<int:id_b>")
+@login_required
 def api_compare_manual(id_a, id_b):
     """Compare two specific filings chosen by the user."""
     filing_a = get_filing_by_id(id_a)
@@ -1698,6 +1982,7 @@ def api_compare_manual(id_a, id_b):
 
 
 @app.route("/api/filings_list/<symbol>")
+@login_required
 def api_filings_list(symbol):
     """Return a compact list of all filings for the picker, grouped by month."""
     symbol = symbol.upper()
@@ -1717,6 +2002,7 @@ def api_filings_list(symbol):
 
 
 @app.route("/api/refresh/<symbol>", methods=["POST"])
+@login_required
 def refresh(symbol):
     symbol = symbol.upper()
     if symbol not in get_companies():
@@ -1740,6 +2026,7 @@ def refresh(symbol):
 
 
 @app.route("/api/symbol_search")
+@login_required
 def api_symbol_search():
     """Search NSE for company symbols. Returns top matches."""
     q = request.args.get("q", "").strip()
@@ -1773,10 +2060,14 @@ def api_watchlist_add():
         return jsonify({"error": True, "message": "Not signed in"}), 401
 
     data = request.get_json() or {}
-    symbol = (data.get("symbol") or "").strip().upper()
-    name = (data.get("name") or "").strip()
+    symbol = str(data.get("symbol") or "").strip().upper()
+    name = " ".join(str(data.get("name") or "").split())[:200]
     if not symbol:
         return jsonify({"error": True, "message": "Symbol is required"}), 400
+    # NSE symbols are letters, digits, & and -. Anything else would be stored
+    # and later rendered on several pages.
+    if not re.fullmatch(r"[A-Z0-9&-]{1,20}", symbol):
+        return jsonify({"error": True, "message": "That isn't an NSE symbol."}), 400
 
     added = add_to_watchlist(uid, symbol, name)
     if not added:
@@ -1827,6 +2118,7 @@ def api_watchlist_remove(symbol):
 
 
 @app.route("/api/settings", methods=["GET"])
+@login_required
 def api_settings_get():
     """Return current settings, available models, and industry options."""
     settings = get_all_settings()
@@ -1839,13 +2131,16 @@ def api_settings_get():
     user = current_user() or {}
     return jsonify({
         "gemini_api_key_set": bool(key),
-        "gemini_api_key_masked": masked,
+        # Deliberately NOT returning a masked key: the old value exposed the
+        # first 4 and last 4 characters of the real credential to the client.
+        "gemini_api_key_masked": "",
         "gemini_model": settings.get("gemini_model", "gemini-2.5-flash"),
         "models": GEMINI_MODELS,
         "industry": user.get("industry", ""),
         "industries": sorted(INDUSTRY_WATCHLISTS.keys()),
         "ui_version": "new",
         "filings_history_years": _history_years(),
+        "can_edit_platform": is_platform_admin(user),
     })
 
 
@@ -1910,6 +2205,7 @@ def api_settings_industry():
 
 
 @app.route("/api/settings", methods=["POST"])
+@admin_required
 def api_settings_update():
     """Update settings."""
     data = request.get_json() or {}
@@ -1934,6 +2230,7 @@ def api_settings_update():
 
 
 @app.route("/api/settings/test-key", methods=["POST"])
+@admin_required
 def api_settings_test_key():
     """Test if the AI API key works. Detects the provider by key prefix:
     sk-or-…  → OpenRouter;  anything else → Google Gemini."""
@@ -1974,6 +2271,7 @@ def api_settings_test_key():
 
 
 @app.route("/api/governance/<symbol>")
+@login_required
 def api_governance_list(symbol):
     """Return list of available governance reports for a company."""
     symbol = symbol.upper()
@@ -1982,6 +2280,7 @@ def api_governance_list(symbol):
 
 
 @app.route("/api/governance/<symbol>/<rec_id>")
+@login_required
 def api_governance_report(symbol, rec_id):
     """Fetch and return a parsed governance report."""
     symbol = symbol.upper()
@@ -1993,6 +2292,7 @@ def api_governance_report(symbol, rec_id):
 
 
 @app.route("/api/governance/compare/<symbol>/<rec_id_a>/<rec_id_b>")
+@login_required
 def api_governance_compare(symbol, rec_id_a, rec_id_b):
     """Compare two governance reports."""
     symbol = symbol.upper()
@@ -2048,19 +2348,17 @@ def watchlist_page():
 
 
 @app.route("/api/prices")
+@login_required
 def api_prices():
-    # Cached: this endpoint reaches out to NSE/BSE on every call.
-    # Keyed by watchlist: this response is user-scoped.
+    # Cached: this endpoint reaches out to NSE/BSE on every call. Only market
+    # data is cached, keyed by everything it depends on; the user's own alerts
+    # are evaluated per request, outside the cache. The cache refreshes in a
+    # background thread, so nothing in here may read the session.
     @demo_cached('prices', ttl=900)
-    def _compute(_scope):
-        """Get live prices for all watchlist stocks. Also evaluates the user's
-        custom alerts and includes any newly-fired ones in `fired_alerts` so
-        the front-end can play a sound + show a browser notification (Telegram
-        delivery already happened server-side if linked)."""
-        symbols = get_companies()
-        user = current_user()
-        industry = (user or {}).get("industry")
-        prices = fetch_watchlist_prices(symbols, industry=industry)
+    def _compute(symbols_csv, industry):
+        """Live prices for the watchlist and the built-in 3% movers."""
+        symbols = [x for x in symbols_csv.split(",") if x]
+        prices = fetch_watchlist_prices(symbols, industry=industry or None)
 
         # Built-in 3% movers (existing behavior)
         alerts = detect_price_alerts(prices, threshold=3.0)
@@ -2071,28 +2369,25 @@ def api_prices():
                 sym, alert["direction"], alert["pChange"], recent
             )
 
-        # User-defined custom alerts — evaluate against current snapshot,
-        # respecting per-alert cooldown and dispatching Telegram if linked.
-        fired_alerts = []
-        uid = _current_user_id()
-        if uid:
-            try:
-                fired_alerts = evaluate_user_alerts(uid, prices)
-            except Exception as e:
-                print(f"[ALERT] evaluate_user_alerts failed for {uid}: {e}")
+        return {"prices": prices, "alerts": alerts, "symbols": symbols}
 
-        return jsonify({
-            "prices": prices,
-            "alerts": alerts,
-            "fired_alerts": fired_alerts,
-            "telegram_configured": telegram_configured(),
-            "symbols": symbols,
-        })
-    result = _compute(",".join(sorted(get_companies())))
-    if result is None:
+    industry = (current_user() or {}).get("industry") or ""
+    market = _compute(",".join(sorted(get_companies())), industry)
+    if market is None:
         # Frozen with nothing cached — return empty rather than call out.
         return jsonify({}), 200
-    return result
+    # User-defined custom alerts — evaluate against the current snapshot,
+    # respecting per-alert cooldown and dispatching Telegram if linked. The
+    # front-end plays a sound and shows a browser notification for these.
+    fired_alerts = []
+    uid = _current_user_id()
+    if uid:
+        try:
+            fired_alerts = evaluate_user_alerts(uid, market.get("prices") or {})
+        except Exception as e:
+            print(f"[ALERT] evaluate_user_alerts failed for {uid}: {e}")
+    return jsonify({**market, "fired_alerts": fired_alerts,
+                    "telegram_configured": telegram_configured()})
 
 @app.route("/api/alerts", methods=["GET"])
 @login_required
@@ -2217,6 +2512,7 @@ def api_alerts_test():
 
 
 @app.route("/api/price/<symbol>")
+@login_required
 def api_price_detail(symbol):
     """Get detailed quote for a single stock."""
     symbol = symbol.upper()
@@ -2471,6 +2767,16 @@ def _build_letter_from_payload(data):
     ft = get_filing_type(data.get("filing_type", "")) or {}
     if ft.get("doc_kind"):
         doc_kind = ft["doc_kind"]
+    # The company's own letter format (salutation, sign-off, addressee and
+    # code blocks, date style), learned into draft memory. On by default.
+    house = {}
+    if data.get("use_house_format", True):
+        try:
+            import draft_memory
+            owner = draft_memory.memory_owner(_current_user_id(), data.get("draft_id"))
+            house = draft_memory.house_format(owner, data.get("nse_symbol") or data.get("symbol") or "")
+        except Exception as e:  # noqa: BLE001
+            print(f"[DRAFT] house format lookup failed: {e}")
     return build_letter_data(
         company_name=data.get("company_name", ""),
         registered_office=data.get("registered_office", ""),
@@ -2485,6 +2791,7 @@ def _build_letter_from_payload(data):
         annexures=data.get("annexures") or [],
         doc_kind=doc_kind,
         pdf_meta=data.get("pdf_meta") or {},
+        house=house,
     )
 
 
@@ -2516,15 +2823,27 @@ def _persist_on_export(data):
     }
     draft_id = data.get("draft_id")
     user_email = (current_user() or {}).get("email", "")
+    saved = None
     try:
-        if draft_id:
-            ok = update_draft(int(draft_id), uid, user_email=user_email, **payload)
-            if ok:
-                return int(draft_id)
-        return save_draft(uid, **payload)
+        if draft_id and update_draft(int(draft_id), uid, user_email=user_email, **payload):
+            saved = int(draft_id)
+        else:
+            saved = save_draft(uid, **payload)
     except Exception as e:
         print(f"[DRAFT] persist on export failed: {e}")
-        return None
+    # An exported letter teaches the desk: it becomes an approved example of
+    # how this team writes, and its particulars become company facts.
+    try:
+        import draft_memory
+        owner = draft_memory.memory_owner(uid, saved)
+        symbol = payload["company_symbol"]
+        if symbol:
+            draft_memory.record_approved(owner, symbol, payload["filing_type"], payload["subject"],
+                                         payload["body"], payload["annexures"], draft_id=saved, by=user_email)
+            draft_memory.record_export_facts(owner, symbol, {**metadata, "company_name": payload["company_name"]})
+    except Exception as e:  # noqa: BLE001
+        print(f"[DRAFT] memory update on export failed: {e}")
+    return saved
 
 
 @app.route("/api/draft/export/pdf", methods=["POST"])
@@ -2583,13 +2902,16 @@ def api_draft_pdf_tools():
     if do_ocr:
         try:
             import tempfile, ocrmypdf
-            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tin, \
-                 tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tout:
-                tin.write(working); tin.flush()
+            # A private directory removed afterwards: client filings must not
+            # pile up in /tmp, as they did with delete=False temp files.
+            with tempfile.TemporaryDirectory(prefix="delta-ocr-") as tmp:
+                tin, tout = os.path.join(tmp, "in.pdf"), os.path.join(tmp, "out.pdf")
+                with open(tin, "wb") as fh:
+                    fh.write(working)
                 # skip_text: only OCR pages that have no text layer already.
-                ocrmypdf.ocr(tin.name, tout.name, skip_text=True,
+                ocrmypdf.ocr(tin, tout, skip_text=True,
                              optimize=1, progress_bar=False, language="eng")
-                with open(tout.name, "rb") as fh:
+                with open(tout, "rb") as fh:
                     working = fh.read()
             notice = "OCR applied — PDF is now text-searchable."
         except ImportError:
@@ -2965,6 +3287,7 @@ def din_search_page():
 
 
 @app.route("/api/din-search")
+@login_required
 def api_din_search():
     """Search for a DIN across EVERY company the platform knows about.
 
@@ -3086,12 +3409,14 @@ def api_din_intel():
 
 
 @app.route("/api/pre-open")
+@login_required
 def api_pre_open():
-    # Cached: this endpoint reaches out to NSE/BSE on every call.
+    # Cached: this endpoint reaches out to NSE/BSE on every call. Keyed by the
+    # watchlist it is computed from; never reads the session (see api_prices).
     @demo_cached('pre_open', ttl=3600)
-    def _compute():
+    def _compute(symbols_csv):
         """Get pre-open session data and alerts for watchlist stocks."""
-        symbols = get_companies()
+        symbols = [x for x in symbols_csv.split(",") if x]
         pre_open = fetch_pre_open_data(symbols)
         alerts = detect_pre_open_alerts(pre_open, threshold=1.5)
 
@@ -3107,22 +3432,22 @@ def api_pre_open():
             "preOpen": pre_open,
             "alerts": alerts,
         })
-    result = _compute()
+    result = _compute(",".join(sorted(get_companies())))
     if result is None:
         # Frozen with nothing cached — return empty rather than call out.
         return jsonify({}), 200
     return result
 
 @app.route("/api/sector")
+@login_required
 def api_sector():
-    # Cached: this endpoint reaches out to NSE/BSE on every call.
+    # Cached: this endpoint reaches out to NSE/BSE on every call. Keyed by the
+    # watchlist and industry; never reads the session (see api_prices).
     @demo_cached('sector', ttl=3600)
-    def _compute():
+    def _compute(symbols_csv, industry):
         """Get sector data for the user's industry and detect sector-wide alerts."""
-        symbols = get_companies()
-        user = current_user()
-        industry = (user or {}).get("industry")
-        sector_data = fetch_sector_data(industry=industry, watchlist_symbols=symbols)
+        symbols = [x for x in symbols_csv.split(",") if x]
+        sector_data = fetch_sector_data(industry=industry or None, watchlist_symbols=symbols)
         if not sector_data:
             return jsonify({"error": True, "message": "Could not fetch sector data."})
 
@@ -3158,7 +3483,7 @@ def api_sector():
 
 
     # ── Company Logo Proxy ────────────────────────────────────
-    result = _compute()
+    result = _compute(",".join(sorted(get_companies())), (current_user() or {}).get("industry") or "")
     if result is None:
         # Frozen with nothing cached — return empty rather than call out.
         return jsonify({}), 200
@@ -3174,6 +3499,13 @@ def company_logo(symbol):
     redirect after warm-up. If nothing is found, returns 404 — the
     front-end then falls through to TradingView / Clearbit / gradient."""
     sym = (symbol or "").upper()
+    # A bundled or volume-stored file (any extension) wins over scraping, so
+    # the browser never has to guess .svg vs .png and log a 404 per company.
+    local = local_logo_url(sym)
+    if local:
+        resp = redirect(local, code=302)
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
     url = discover_logo(sym)
     if not url:
         return ("", 404)
@@ -3185,7 +3517,7 @@ def company_logo(symbol):
 
 
 @app.route("/admin/logos")
-@login_required
+@admin_required
 def logos_diagnostic():
     """Visual diagnostic — every mapped symbol's resolved logo, source,
     pixel dimensions, and rejected candidates. Use this to spot bad logos
@@ -3278,10 +3610,11 @@ def api_compliance():
     # Cached: enriches every obligation on the watchlist per call.
     # Keyed by watchlist: this response is user-scoped.
     @demo_cached('compliance_dashboard', ttl=1800)
-    def _compute(_scope):
+    def _compute(_scope, uid):
         """Return compliance dashboard data with reconciled metrics, scoped to the
-        current user's watchlist."""
-        watchlist = get_watchlist(_current_user_id())
+        user's watchlist. The user id is passed in, not read from the session:
+        the background refresh runs without one."""
+        watchlist = get_watchlist(uid)
         user_symbols = [w["symbol"] for w in watchlist]
         dashboard = get_compliance_dashboard(symbols=user_symbols)
         mandates = get_all_mandates()
@@ -3345,7 +3678,7 @@ def api_compliance():
             "mandates": mandates,
             "company_scores": company_scores,
         })
-    result = _compute(",".join(sorted(get_companies())))
+    result = _compute(",".join(sorted(get_companies())), _current_user_id())
     if result is None:
         return jsonify({}), 200
     return result
@@ -3366,6 +3699,7 @@ def api_xbrl_utilities():
 
 
 @app.route("/api/compliance/refresh", methods=["POST"])
+@login_required
 def api_compliance_refresh():
     """Refresh compliance data for all watchlisted companies."""
     try:
@@ -3378,6 +3712,7 @@ def api_compliance_refresh():
 
 
 @app.route("/api/compliance/<symbol>")
+@login_required
 def api_compliance_company(symbol):
     """Return compliance data for a specific company."""
     symbol = symbol.upper()
@@ -3463,7 +3798,7 @@ def intelligence_center():
     from agents.pipeline import generate_morning_brief
 
     brief = generate_morning_brief(symbols)
-    all_events = es.list_events_with_analysis(symbols, limit=300)
+    all_events = es.list_events_with_analysis(symbols, limit=300, user_id=_current_user_id())
     deadlines = es.get_upcoming_deadlines(symbols, within_days=60)
 
     view = request.args.get("view", "action")
@@ -3531,13 +3866,14 @@ def _gemini_ready():
 @app.route("/event/<int:event_id>")
 @login_required
 def event_detail(event_id):
-    event = es.get_event(event_id)
+    uid = _current_user_id()
+    event = es.get_event(event_id, uid)
     if not event:
         abort(404)
 
     analysis = es.get_analysis(event_id)
     artifacts = es.get_artifacts(event_id)
-    audit = es.get_audit_trail(event_id)
+    audit = es.get_audit_trail(event_id, uid)
 
     # Regulatory context is retrieval-based, so it is available even when the
     # model is not. Prefer the ids the agent actually cited; otherwise show the
@@ -3591,13 +3927,14 @@ def api_event_decision(event_id):
 
     user = current_user() or {}
     actor = user.get("email") or user.get("name") or "reviewer"
-    note = (data.get("note") or "").strip()
+    note = (data.get("note") or "").strip()[:1000]
+    uid = _current_user_id()
 
-    es.set_status(event_id, decision, actor=actor, actor_kind="human",
-                  note=note or f"Reviewer marked event as {decision}")
+    es.decide(event_id, uid, decision, actor=actor,
+              note=note or f"Reviewer marked event as {decision}")
 
     return jsonify({"status": "ok", "event_id": event_id, "new_status": decision,
-                    "audit": es.get_audit_trail(event_id)})
+                    "audit": es.get_audit_trail(event_id, uid)})
 
 
 @app.route("/api/event/<int:event_id>/rerun", methods=["POST"])
@@ -3644,7 +3981,7 @@ def api_event_rerun(event_id):
 @login_required
 def api_event_replay(event_id):
     """Timed reconstruction of the agent run, from stored records only."""
-    replay = es.build_replay(event_id)
+    replay = es.build_replay(event_id, _current_user_id())
     if not replay:
         return jsonify({"status": "error", "message": "not found"}), 404
     return jsonify(replay)
@@ -3982,6 +4319,24 @@ import financial_compare as _fin; _fin.init_fin_db()
 from agents.briefing import init_briefing_db as _ibd; _ibd()
 seed_default_referral_codes()
 init_watchlist()
+_roles.init_roles_db()
+_ents.init_entities_db()
+_sdd.init_sdd_db()
+_sec.init_secretarial_db()
+_news.init_news_db()
+_risk.init_risk_db()
+_risk.set_filings_fetcher(process_filings)
+
+# Feature modules are Flask blueprints built by a factory, so they share this
+# module's auth helpers without importing main (which gunicorn loads as
+# `main` but `python3 main.py` runs as `__main__`).
+import importlib as _importlib
+for _modname in ("routes_workspace", "routes_secretarial", "routes_sdd",
+                 "routes_risk", "routes_news", "routes_docs", "routes_site", "routes_drafting"):
+    _bp_mod = _importlib.import_module(_modname)
+    app.register_blueprint(_bp_mod.create_blueprint(login_required, _current_user_id, current_user))
+if _llm is not None:
+    _llm.register(app, admin_required=admin_required)
 
 # Warm SEBI legal-link cache in the background so per-obligation "SEBI Source"
 # buttons resolve to live URLs (SEBI rebuilds them on every amendment).
@@ -3993,10 +4348,16 @@ if not demo_frozen():
 # the DB-backed lease in alert_poller.py — only one worker per minute
 # actually hits NSE and dispatches Telegram messages.
 from alert_poller import start_alert_poller
+from filings_refresher import start_filings_refresher
 if demo_frozen():
     print("[MAIN] DELTA_DEMO_FREEZE set — alert poller disabled, no outbound calls.")
 else:
     start_alert_poller()
+    # Keeps every watchlist company's filings current. Without it, only the
+    # company a user personally opens ever gets refreshed.
+    start_filings_refresher(process_filings)
+    # Counterparty signals, IBBI announcements and the regulatory feed.
+    _risk.start_risk_scanner()
 
 print("[MAIN] Databases initialized.")
 

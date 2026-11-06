@@ -1,356 +1,61 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    {% include 'analytics.html' %}
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About · Delta Filings</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        html, body { font-family: 'Inter', system-ui, sans-serif; }
-        body {
-            background:
-              radial-gradient(1000px 500px at 10% -10%, rgba(99,102,241,0.18), transparent 60%),
-              radial-gradient(900px 500px at 110% 10%, rgba(56,189,248,0.18), transparent 60%),
-              radial-gradient(700px 500px at 50% 120%, rgba(236,72,153,0.10), transparent 60%),
-              #fbfbfe;
-            color: #0f172a;
-        }
-        .glass {
-            background: rgba(255,255,255,0.7);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            border: 1px solid rgba(255,255,255,0.7);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg,#4f46e5,#6366f1);
-            color: white; font-weight: 600;
-            padding: 12px 22px; border-radius: 10px;
-            box-shadow: 0 10px 25px -10px rgba(79,70,229,0.55);
-            transition: transform .15s ease, box-shadow .15s ease;
-            display: inline-flex; align-items: center; gap: 8px;
-        }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 30px -10px rgba(79,70,229,0.65); }
-        .btn-ghost {
-            background: rgba(255,255,255,0.8);
-            color: #1e293b; font-weight: 600;
-            padding: 12px 22px; border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            transition: background .15s ease;
-        }
-        .btn-ghost:hover { background: white; }
-        .gradient-text {
-            background: linear-gradient(120deg,#4f46e5 0%, #0ea5e9 50%, #ec4899 100%);
-            -webkit-background-clip: text; background-clip: text; color: transparent;
-        }
-        .tag {
-            display: inline-flex; align-items: center; gap: 6px;
-            font-size: 12px; font-weight: 600;
-            background: rgba(99,102,241,0.10);
-            color: #4f46e5;
-            padding: 6px 12px; border-radius: 999px;
-            border: 1px solid rgba(99,102,241,0.2);
-        }
-        .dot { width: 6px; height: 6px; border-radius: 999px; background: #4f46e5; }
+{% extends "site_base.html" %}
+{% block title %}About · Delta Filings{% endblock %}
+{% block meta_description %}Why Delta Filings exists, what it is built on, and what it is working on next.{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <p class="eyebrow">About</p>
+    <h1 class="h1">Compliance software that shows its working.</h1>
+    <p class="lede">Indian companies answer to the MCA, SEBI, the exchanges, the tax departments, RBI and the labour authorities, each with its own portal, its own dates and its own penalties. Delta Filings puts those obligations in one place, with the source and the arithmetic visible.</p>
+  </div>
+</section>
 
-        .section-card {
-            background: white;
-            border: 1px solid #eef1f7;
-            border-radius: 20px;
-            padding: 32px;
-            transition: transform .2s ease, box-shadow .2s ease;
-        }
-        .section-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 24px 50px -25px rgba(15,23,42,0.18);
-        }
-        .icon-box {
-            width: 56px; height: 56px; border-radius: 14px;
-            display: flex; align-items: center; justify-content: center;
-            margin-bottom: 18px;
-        }
-        .bullet {
-            display: flex; align-items: flex-start; gap: 10px;
-            font-size: 14px; color: #334155; margin-top: 10px;
-        }
-        .bullet .check {
-            flex-shrink: 0;
-            width: 18px; height: 18px; border-radius: 999px;
-            background: #ecfdf5; color: #10b981;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .step-card {
-            background: white; border: 1px solid #eef1f7;
-            border-radius: 16px; padding: 22px; position: relative;
-        }
-        .step-num {
-            position: absolute; top: -16px; left: 22px;
-            width: 32px; height: 32px; border-radius: 10px;
-            background: linear-gradient(135deg,#4f46e5,#0ea5e9);
-            color: white; font-weight: 800; font-size: 14px;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 8px 18px -8px rgba(79,70,229,0.55);
-        }
-        .pill {
-            display: inline-flex; align-items: center;
-            font-size: 11px; font-weight: 700; padding: 4px 10px;
-            border-radius: 999px; letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-    </style>
-</head>
-<body>
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">How we build</p><h2 class="h2">Four rules we hold ourselves to.</h2></div>
+    <div class="grid g2">
+      <div class="card"><h3>Every rule cites its source.</h3><p>A due date with no law behind it is a guess. Each rule names the section, links to where it comes from and carries the date it was last reviewed.</p></div>
+      <div class="card"><h3>Say what is estimated.</h3><p>Late fees depend on facts we may not have. We label them indicative and show how the figure was reached. Where we cannot work it out, we say so rather than invent a number.</p></div>
+      <div class="card"><h3>Check the corrections twice.</h3><p>The rulebook was fact-checked against official sources, and every correction was checked again by a second, independent pass before it went in.</p></div>
+      <div class="card"><h3>Say what is not built.</h3><p>The <a href="/security" style="color:var(--indigo-2)">security</a>, <a href="/faq" style="color:var(--indigo-2)">FAQ</a> and <a href="/product#coverage" style="color:var(--indigo-2)">product</a> pages list the gaps next to the features. A buyer should not find them out later.</p></div>
+    </div>
+  </div>
+</section>
 
-    <!-- Nav -->
-    <header class="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-        <a href="/" class="flex items-center gap-2">
-            <div class="w-9 h-9 flex items-center justify-center">
-                <svg class="w-7 h-7" style="color:#2D2A7C" viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="Delta Filings">
-                    <polygon points="8,42 34,30 34,108 8,120"/>
-                    <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
-                </svg>
-            </div>
-            <div>
-                <div class="font-bold text-slate-900 text-lg leading-tight">Delta Filings</div>
-                <div class="text-[11px] text-slate-500 -mt-0.5">Governance Intelligence</div>
-            </div>
-        </a>
-        <nav class="hidden md:flex items-center gap-8 text-sm text-slate-600 font-medium">
-            <a href="/" class="hover:text-slate-900">Home</a>
-            <a href="/about" class="text-slate-900 font-semibold">About</a>
-            <a href="/signin" class="hover:text-slate-900">Sign In</a>
-        </nav>
-        <div class="flex items-center gap-3">
-            <a href="/signin" class="hidden sm:inline-flex btn-ghost text-sm">Sign In</a>
-            <a href="/signup" class="btn-primary text-sm">Get Started</a>
-        </div>
-    </header>
+<section class="sec sec-alt">
+  <div class="wrap">
+    <div class="split">
+      <div><p class="eyebrow">Who it is for</p><h2 class="h2">The people who answer for compliance.</h2>
+        <p class="sec-lede">Company secretaries, practising CS firms, compliance officers of listed companies, and risk officers who watch counterparties. <a href="/solutions" style="color:var(--indigo-2)">See each role.</a></p></div>
+      <div class="prose-site">
+        <h3 style="margin-top:0">What it is not</h3>
+        <ul>
+          <li>It does not file on the MCA portal. MCA has no public API.</li>
+          <li>It does not replace your accounting or payroll software.</li>
+          <li>It is not legal advice. It tells you what the rules say and what lateness costs; you decide what to do.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <!-- Hero -->
-    <section class="max-w-5xl mx-auto px-6 pt-14 pb-16 text-center">
-        <span class="tag"><span class="dot"></span> About Delta Filings</span>
-        <h1 class="mt-6 text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
-            One platform for every<br>
-            <span class="gradient-text">corporate governance signal.</span>
-        </h1>
-        <p class="mt-6 text-lg text-slate-600 max-w-3xl mx-auto">
-            Delta Filings unifies SEBI filings, compliance deadlines, live stock prices,
-            board-governance data and AI-powered document intelligence into a single,
-            analyst-grade workspace for Indian listed companies.
-        </p>
-    </section>
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Working on</p><h2 class="h2">What comes next.</h2>
+      <p class="sec-lede">A direction, not a promise of dates.</p></div>
+    <div class="grid g3">
+      <div class="card"><span class="tag">Accuracy</span><h3 style="margin-top:6px">First AGM and extensions</h3><p>AOC-4, MGT-7 and ADT-1 now follow the real AGM date. A company's first AGM, and AGM extensions, are not modelled yet.</p></div>
+      <div class="card"><span class="tag">Proof</span><h3 style="margin-top:6px">Exchange-verified calendar</h3><p>SEBI items for listed companies close themselves when the exchange shows the filing.</p></div>
+      <div class="card"><span class="tag">Trust</span><h3 style="margin-top:6px">Backups, MFA and India hosting</h3><p>The gaps listed on the security page, in the order buyers ask about them.</p></div>
+      <div class="card"><span class="tag">Teams</span><h3 style="margin-top:6px">Seats, roles and history</h3><p>Assignees per company and a change history on every filing.</p></div>
+      <div class="card"><span class="tag">Reminders</span><h3 style="margin-top:6px">Calendar feed and digests</h3><p>Deadlines pushed to your calendar and inbox, not only shown when you open the app.</p></div>
+      <div class="card"><span class="tag">Data</span><h3 style="margin-top:6px">Licensed MCA data</h3><p>One-click company setup and signals on unlisted counterparties.</p></div>
+    </div>
+  </div>
+</section>
 
-    <!-- What it does -->
-    <section class="max-w-6xl mx-auto px-6 pb-6">
-        <div class="text-center max-w-2xl mx-auto mb-10">
-            <span class="tag">What it does</span>
-            <h2 class="mt-4 text-3xl sm:text-4xl font-bold tracking-tight">Seven capabilities, one workspace</h2>
-            <p class="mt-3 text-slate-600">Everything you'd otherwise stitch together from NSE, BSE, MCA, Bloomberg, and a pile of PDFs.</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <!-- 1. Filing Tracker -->
-            <div class="section-card">
-                <div class="icon-box" style="background:#eef2ff;">
-                    <svg class="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                </div>
-                <div class="flex items-center gap-2 mb-2">
-                    <h3 class="text-xl font-bold text-slate-900">Real-time Filing Tracker</h3>
-                    <span class="pill" style="background:#eef2ff;color:#4f46e5;">Core</span>
-                </div>
-                <p class="text-slate-600 text-sm">Fetch, store and browse every NSE corporate announcement for your watchlist — live.</p>
-                <div class="bullet"><span class="check">✓</span>Automatic filing ingestion per company</div>
-                <div class="bullet"><span class="check">✓</span>Full-text PDF extraction &amp; on-demand re-indexing</div>
-                <div class="bullet"><span class="check">✓</span>Smart tag detection (board meetings, results, rating, key-personnel, etc.)</div>
-                <div class="bullet"><span class="check">✓</span>Search, pagination &amp; tag filters inside each company</div>
-                <div class="bullet"><span class="check">✓</span>"New since last visit" highlighting via snapshots</div>
-            </div>
-
-            <!-- 2. AI Summaries -->
-            <div class="section-card">
-                <div class="icon-box" style="background:#ecfeff;">
-                    <svg class="w-7 h-7 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                </div>
-                <div class="flex items-center gap-2 mb-2">
-                    <h3 class="text-xl font-bold text-slate-900">AI Summaries</h3>
-                    <span class="pill" style="background:#ecfeff;color:#0891b2;">AI</span>
-                </div>
-                <p class="text-slate-600 text-sm">Understand any filing in seconds — no more scrolling 80-page PDFs.</p>
-                <div class="bullet"><span class="check">✓</span>One-click AI summary of any filing</div>
-                <div class="bullet"><span class="check">✓</span>Pick between Fast and Deep AI models</div>
-                <div class="bullet"><span class="check">✓</span>Graceful fallback to extractive summaries when AI is unavailable</div>
-                <div class="bullet"><span class="check">✓</span>Cached per filing to stay fast &amp; cheap</div>
-                <div class="bullet"><span class="check">✓</span>Regenerate on demand for a fresh take</div>
-            </div>
-
-            <!-- 3. Compliance OS -->
-            <div class="section-card">
-                <div class="icon-box" style="background:#ecfdf5;">
-                    <svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                </div>
-                <div class="flex items-center gap-2 mb-2">
-                    <h3 class="text-xl font-bold text-slate-900">Compliance</h3>
-                    <span class="pill" style="background:#ecfdf5;color:#059669;">SEBI</span>
-                </div>
-                <p class="text-slate-600 text-sm">Track every SEBI LODR &amp; PIT obligation across your watchlist, automatically.</p>
-                <div class="bullet"><span class="check">✓</span>12+ SEBI mandates (Reg 13, 27, 29, 30, 31, 33, 39, 44, 74 + PIT Reg 7)</div>
-                <div class="bullet"><span class="check">✓</span>Buckets: Upcoming, Overdue, Completed, Future — reconciled &amp; verified</div>
-                <div class="bullet"><span class="check">✓</span>Per-company compliance score (0–100) with health tags</div>
-                <div class="bullet"><span class="check">✓</span>Automatic filing → obligation linkage by keyword &amp; date window</div>
-                <div class="bullet"><span class="check">✓</span>Direct links to official SEBI source documents on sebi.gov.in</div>
-            </div>
-
-            <!-- 4. Stock Prices -->
-            <div class="section-card">
-                <div class="icon-box" style="background:#fef3c7;">
-                    <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                </div>
-                <div class="flex items-center gap-2 mb-2">
-                    <h3 class="text-xl font-bold text-slate-900">Live Stock Prices &amp; Alerts</h3>
-                    <span class="pill" style="background:#fef3c7;color:#b45309;">Live</span>
-                </div>
-                <p class="text-slate-600 text-sm">Prices, pre-open data and sector context — explained by recent filings.</p>
-                <div class="bullet"><span class="check">✓</span>Live NSE quotes for every watchlist stock</div>
-                <div class="bullet"><span class="check">✓</span>3% price-move alerts cross-referenced with recent filings</div>
-                <div class="bullet"><span class="check">✓</span>Pre-open session data with early-move detection</div>
-                <div class="bullet"><span class="check">✓</span>NIFTY FMCG / sector view with correlated movers</div>
-                <div class="bullet"><span class="check">✓</span>"Why did it move?" narrative using filings &amp; peers</div>
-            </div>
-
-            <!-- 5. Governance -->
-            <div class="section-card">
-                <div class="icon-box" style="background:#fdf4ff;">
-                    <svg class="w-7 h-7 text-fuchsia-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                </div>
-                <div class="flex items-center gap-2 mb-2">
-                    <h3 class="text-xl font-bold text-slate-900">Corporate Governance Reports</h3>
-                    <span class="pill" style="background:#fdf4ff;color:#c026d3;">Board</span>
-                </div>
-                <p class="text-slate-600 text-sm">Structured board &amp; committee data from NSE governance filings.</p>
-                <div class="bullet"><span class="check">✓</span>Quarterly governance report parsing (XBRL + text)</div>
-                <div class="bullet"><span class="check">✓</span>Board composition, tenure &amp; independent-director data</div>
-                <div class="bullet"><span class="check">✓</span>Compare any two reports &amp; see exactly what changed</div>
-                <div class="bullet"><span class="check">✓</span>Audit &amp; nomination committee snapshots</div>
-            </div>
-
-            <!-- 6. DIN Search -->
-            <div class="section-card">
-                <div class="icon-box" style="background:#f3e8ff;">
-                    <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                </div>
-                <div class="flex items-center gap-2 mb-2">
-                    <h3 class="text-xl font-bold text-slate-900">DIN Search</h3>
-                    <span class="pill" style="background:#f3e8ff;color:#7c3aed;">Directors</span>
-                </div>
-                <p class="text-slate-600 text-sm">Track a director across every company you watch — in one query.</p>
-                <div class="bullet"><span class="check">✓</span>Search any Director Identification Number across the full watchlist</div>
-                <div class="bullet"><span class="check">✓</span>Finds matches in both filing text and governance XBRL data</div>
-                <div class="bullet"><span class="check">✓</span>Year filter for time-windowed investigations</div>
-                <div class="bullet"><span class="check">✓</span>Board-role and tenure surfaced from governance reports</div>
-            </div>
-
-            <!-- 7. Filing Diff -->
-            <div class="section-card md:col-span-2">
-                <div class="icon-box" style="background:#e0f2fe;">
-                    <svg class="w-7 h-7 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-                </div>
-                <div class="flex items-center gap-2 mb-2">
-                    <h3 class="text-xl font-bold text-slate-900">Filing Diff &amp; Comparison Engine</h3>
-                    <span class="pill" style="background:#e0f2fe;color:#0369a1;">Diff</span>
-                </div>
-                <p class="text-slate-600 text-sm">See what actually changed — down to the word — between two filings.</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                    <div>
-                        <div class="bullet"><span class="check">✓</span>Smart auto-match: finds the best previous filing to compare against</div>
-                        <div class="bullet"><span class="check">✓</span>Inline diff view with red deletions &amp; green additions</div>
-                    </div>
-                    <div>
-                        <div class="bullet"><span class="check">✓</span>Side-by-side view for long documents</div>
-                        <div class="bullet"><span class="check">✓</span>Manual compare of any two filings for a company</div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    <!-- How it works -->
-    <section class="max-w-6xl mx-auto px-6 py-20">
-        <div class="text-center max-w-2xl mx-auto mb-14">
-            <span class="tag">How it works</span>
-            <h2 class="mt-4 text-3xl sm:text-4xl font-bold tracking-tight">From zero to governance-ready in 60 seconds</h2>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-            <div class="step-card">
-                <div class="step-num">1</div>
-                <div class="mt-2 font-semibold text-slate-900">Sign up</div>
-                <p class="mt-1 text-sm text-slate-600">Create an account in seconds — just name, email, password.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-num">2</div>
-                <div class="mt-2 font-semibold text-slate-900">Pick an industry</div>
-                <p class="mt-1 text-sm text-slate-600">FMCG, Steel, Banking, Pharma or IT. We pre-build your watchlist.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-num">3</div>
-                <div class="mt-2 font-semibold text-slate-900">We fetch the data</div>
-                <p class="mt-1 text-sm text-slate-600">Filings, prices, compliance obligations — all pulled automatically.</p>
-            </div>
-            <div class="step-card">
-                <div class="step-num">4</div>
-                <div class="mt-2 font-semibold text-slate-900">You stay ahead</div>
-                <p class="mt-1 text-sm text-slate-600">Dashboard, alerts &amp; AI summaries keep you a step ahead of SEBI.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Tech + trust -->
-    <section class="max-w-6xl mx-auto px-6 pb-16">
-        <div class="glass rounded-2xl p-10">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div>
-                    <div class="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2">Built on</div>
-                    <div class="text-slate-800 font-semibold">Python · Flask · SQLite · Tailwind · AI</div>
-                    <p class="text-sm text-slate-600 mt-2">Lightweight, auditable stack you can run on a laptop or a single VM.</p>
-                </div>
-                <div>
-                    <div class="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2">Data sources</div>
-                    <div class="text-slate-800 font-semibold">NSE Corporate Filings · NSE Governance · SEBI</div>
-                    <p class="text-sm text-slate-600 mt-2">Official, publicly-available regulatory data — no opaque third parties.</p>
-                </div>
-                <div>
-                    <div class="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2">Privacy</div>
-                    <div class="text-slate-800 font-semibold">Your data stays on your instance</div>
-                    <p class="text-sm text-slate-600 mt-2">Session-based auth, local database, no tracking. Your API keys are stored only on your server.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA -->
-    <section class="max-w-4xl mx-auto px-6 py-20 text-center">
-        <h2 class="text-4xl sm:text-5xl font-extrabold tracking-tight">Ready to see it in action?</h2>
-        <p class="mt-4 text-slate-600 text-lg">Create an account and your dashboard is live in under a minute.</p>
-        <div class="mt-8 flex items-center justify-center gap-3 flex-wrap">
-            <a href="/signup" class="btn-primary">Get Started — it's free</a>
-            <a href="/signin" class="btn-ghost">Sign In</a>
-        </div>
-    </section>
-
-    <footer class="border-t border-slate-200/60 py-8">
-        <div class="max-w-6xl mx-auto px-6 flex items-center justify-between text-sm text-slate-500">
-            <div>© Delta Filings · Governance Intelligence</div>
-            <div class="flex gap-5">
-                <a href="/" class="hover:text-slate-800">Home</a>
-                <a href="/about" class="hover:text-slate-800">About</a>
-                <a href="/signin" class="hover:text-slate-800">Sign In</a>
-                <a href="/signup" class="hover:text-slate-800">Sign Up</a>
-            </div>
-        </div>
-    </footer>
-
-</body>
-</html>
+<section class="sec final-cta">
+  <div class="wrap"><h2 class="h2">Try it on one company.</h2>
+    <div class="cta-row"><a href="/signup" class="btn btn-primary">Create workspace</a><a href="/product" class="btn btn-quiet">See the product</a></div></div>
+</section>
+{% endblock %}

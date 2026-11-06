@@ -1,0 +1,111 @@
+{% extends 'public_base.html' %}
+{% block title %}Income Tax Calculator FY 2026-27 (Old vs New) · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">Gross annual income — salary (₹)</label>
+                <input id="income" type="number" min="0" step="50000" value="1500000" class="input">
+            </div>
+            <div>
+                <label class="label">Deductions for Old Regime (80C, 80D, HRA, etc.) (₹)</label>
+                <input id="deductions" type="number" min="0" step="10000" value="200000" class="input">
+            </div>
+        </div>
+        <p class="mt-3 text-xs text-slate-500">Standard deduction (₹75,000 new / ₹50,000 old) is applied automatically for salaried income.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div class="result" id="new-box">
+                <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">New Regime</div>
+                <div class="mt-1 text-3xl font-extrabold text-slate-900" id="new-tax">₹0</div>
+                <div class="mt-2 text-xs text-slate-600 space-y-0.5" id="new-detail"></div>
+            </div>
+            <div class="result" id="old-box">
+                <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Old Regime</div>
+                <div class="mt-1 text-3xl font-extrabold text-slate-900" id="old-tax">₹0</div>
+                <div class="mt-2 text-xs text-slate-600 space-y-0.5" id="old-detail"></div>
+            </div>
+        </div>
+
+        <div class="mt-4 p-4 rounded-xl text-sm font-semibold text-center" id="verdict"
+             style="background:rgba(16,185,129,0.10); color:#047857;"></div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Slabs are for FY 2026-27 / AY 2027-28 for resident individuals below 60. New Regime: nil up to ₹4L, then 5/10/15/20/25/30% to ₹24L+, with a Section 87A rebate making tax nil up to ₹12L taxable income and a ₹75,000 standard deduction. Old Regime: nil to ₹2.5L, 5% to ₹5L, 20% to ₹10L, 30% above, rebate up to ₹5L, ₹50,000 standard deduction. A 4% health & education cess applies to both. Surcharge on incomes above ₹50L is NOT modelled. This is an estimate — confirm with your tax advisor.
+</div>
+</section>
+
+<script>
+const CFG = {{ cfg | tojson }};
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+function slabTax(taxable, slabs) {
+    let tax = 0, lower = 0;
+    for (const [upper, rate] of slabs) {
+        const cap = (upper === null) ? Infinity : upper;
+        if (taxable > lower) {
+            tax += (Math.min(taxable, cap) - lower) * rate;
+            lower = cap;
+        } else break;
+    }
+    return tax;
+}
+
+function computeRegime(gross, reg, deductions) {
+    let taxable = Math.max(0, gross - reg.std_deduction - deductions);
+    let tax = slabTax(taxable, reg.slabs);
+    let rebate = (taxable <= reg.rebate_income_limit) ? tax : 0;
+    let afterRebate = tax - rebate;
+    let cess = afterRebate * CFG.cess;
+    let total = afterRebate + cess;
+    return { taxable, tax, rebate, cess, total };
+}
+
+function compute() {
+    const gross = Math.max(0, parseFloat(document.getElementById('income').value || 0));
+    const deductions = Math.max(0, parseFloat(document.getElementById('deductions').value || 0));
+
+    // New regime ignores most deductions (only standard deduction).
+    const nw = computeRegime(gross, CFG.new_regime, 0);
+    const od = computeRegime(gross, CFG.old_regime, deductions);
+
+    document.getElementById('new-tax').textContent = fmt(nw.total);
+    document.getElementById('new-detail').innerHTML =
+        `<div>Taxable income: ${fmt(nw.taxable)}</div>
+         <div>Tax before rebate: ${fmt(nw.tax)}</div>
+         ${nw.rebate ? `<div>87A rebate: −${fmt(nw.rebate)}</div>` : ''}
+         <div>+ 4% cess: ${fmt(nw.cess)}</div>`;
+
+    document.getElementById('old-tax').textContent = fmt(od.total);
+    document.getElementById('old-detail').innerHTML =
+        `<div>Taxable income: ${fmt(od.taxable)}</div>
+         <div>Tax before rebate: ${fmt(od.tax)}</div>
+         ${od.rebate ? `<div>87A rebate: −${fmt(od.rebate)}</div>` : ''}
+         <div>+ 4% cess: ${fmt(od.cess)}</div>`;
+
+    const verdict = document.getElementById('verdict');
+    const diff = Math.abs(nw.total - od.total);
+    if (diff < 1) {
+        verdict.textContent = 'Both regimes result in the same tax.';
+    } else if (nw.total < od.total) {
+        verdict.innerHTML = `New Regime saves you ${fmt(diff)} → choose <strong>New Regime</strong>.`;
+    } else {
+        verdict.innerHTML = `Old Regime saves you ${fmt(diff)} → choose <strong>Old Regime</strong>.`;
+    }
+}
+['income','deductions'].forEach(id => document.getElementById(id).addEventListener('input', compute));
+compute();
+</script>
+{% endblock %}

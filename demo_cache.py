@@ -173,10 +173,22 @@ def _refresh_async(key: str, fn: Callable, args, kwargs):
         if key in _refreshing:
             return
         _refreshing.add(key)
+    # The refresh runs after the request has gone: give it the app context
+    # (jsonify, config) but no request or session. Cached functions take
+    # everything user-specific as arguments for this reason.
+    try:
+        from flask import current_app
+        app = current_app._get_current_object()
+    except RuntimeError:
+        app = None
 
     def _work():
         try:
-            value = fn(*args, **kwargs)
+            if app is not None:
+                with app.app_context():
+                    value = fn(*args, **kwargs)
+            else:
+                value = fn(*args, **kwargs)
             store = _to_cacheable(value)
             if _is_worth_caching(store):
                 write(key, store)

@@ -1,0 +1,457 @@
+{% from 'ivory_components.html' import mark, icon, eyebrow %}
+{% from 'ivory_art.html' import iso_art, disc_art %}
+{% set regime_class = {'Companies Act': 'r-ca', 'SEBI': 'r-sebi', 'Income Tax': 'r-it', 'GST': 'r-gst', 'Labour': 'r-lab', 'FEMA / RBI': 'r-fema', 'LLP Act': 'r-llp'} %}
+{% set latest = archive.filings[0] if archive.filings else none %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>{{ seo.title }}</title>
+  <meta name="description" content="{{ seo.description }}">
+  <link rel="canonical" href="{{ seo.url }}">
+  <meta name="theme-color" content="#faf9f5">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Delta Filings">
+  <meta property="og:locale" content="en_IN">
+  <meta property="og:url" content="{{ seo.url }}">
+  <meta property="og:title" content="{{ seo.title }}">
+  <meta property="og:description" content="{{ seo.description }}">
+  <meta property="og:image" content="{{ seo.image }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{{ seo.image_alt }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ seo.title }}">
+  <meta name="twitter:description" content="{{ seo.description }}">
+  <meta name="twitter:image" content="{{ seo.image }}">
+  <meta name="twitter:image:alt" content="{{ seo.image_alt }}">
+  <link rel="icon" href="/static/favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/redesign/ivory-touch-icon.png">
+  <script type="application/ld+json">{{ seo.jsonld|safe }}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="preload" as="image" type="image/webp" href="{{ stage_tabs[0].webp }}">
+  <link rel="stylesheet" href="/static/home_ivory.css?v=1">
+  <script src="/static/home_ivory.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="strip">
+  <span>Delta maps <b>{{ rulebook.rule_count }} obligations</b> across {{ rulebook.regimes|length }} Indian regimes, reviewed {{ rulebook.reviewed_label }}.</span>
+  <a href="#obligations">See the governance year {{ icon('up') }}</a>
+</div>
+
+<header class="hdr" data-header>
+  <div class="wrap hdr-row">
+    <a class="wordmark" href="/" aria-label="Delta Filings home">{{ mark() }}<span>Delta Filings</span></a>
+    <nav class="hdr-nav" aria-label="Main">
+      <a href="#platform">Platform</a>
+      <a href="#how">How it works</a>
+      <a href="#obligations">Obligations</a>
+      <a href="/tools">Free tools</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="hdr-actions">
+      <a class="hdr-signin" href="/signin">Sign in</a>
+      <a class="btn btn-white btn-sm hdr-demo" href="#how">See how it works</a>
+      <a class="btn btn-yellow btn-sm" href="{{ cta.url }}">{{ cta.label }}</a>
+      <button class="burger" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="mobile-nav"><span></span><span></span></button>
+    </div>
+  </div>
+  <nav id="mobile-nav" class="mobile-nav" aria-label="Mobile" hidden>
+    <a href="#platform">Platform</a>
+    <a href="#how">How it works</a>
+    <a href="#obligations">Obligations</a>
+    <a href="/tools">Free tools</a>
+    <a href="#faq">FAQ</a>
+    <a href="/signin">Sign in</a>
+    <a class="btn btn-yellow" href="{{ cta.url }}">{{ cta.label }}</a>
+  </nav>
+</header>
+
+<main id="main">
+
+  <!-- ───────── Hero ───────── -->
+  <section class="hero" id="platform">
+    <div class="hero-orn hero-orn-l" aria-hidden="true"></div>
+    <div class="hero-orn hero-orn-r" aria-hidden="true"></div>
+    <div class="wrap hero-copy">
+      <span class="pill">{{ mark() }}100+ clients using Delta Filings</span>
+      <h1>One desk for <em>every</em> <br>governance obligation.</h1>
+      <p class="lede">Delta Filings follows public disclosures at the source, maps the obligations that apply to each company and prepares the drafts that follow. Built for the people behind Indian corporate governance.</p>
+      <div class="cta-row">
+        <a class="btn btn-white" href="#how">See how it works</a>
+        <a class="btn btn-yellow" href="{{ cta.url }}">{{ cta.label }} {{ icon('up') }}</a>
+      </div>
+    </div>
+
+    <div class="stage" data-stage>
+      <div class="stage-orn stage-orn-l" aria-hidden="true"></div>
+      <div class="stage-orn stage-orn-r" aria-hidden="true"></div>
+      <div class="stage-frame wrap">
+        <div class="stage-bar">
+          <div class="stage-tabs" role="tablist" aria-label="Workspace screens">
+            {% for tab in stage_tabs %}
+            <button class="stage-tab" type="button" role="tab" id="tab-{{ tab.key }}" aria-controls="panel-{{ tab.key }}" aria-selected="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}" data-src="{{ tab.webp }}">{{ icon(tab.icon) }}<span>{{ tab.label }}</span></button>
+            {% endfor %}
+          </div>
+          <span class="stage-status"><i aria-hidden="true"></i>Real screens, running locally</span>
+        </div>
+        {% for tab in stage_tabs %}
+        <div class="stage-panel" role="tabpanel" id="panel-{{ tab.key }}" aria-labelledby="tab-{{ tab.key }}"{% if not loop.first %} hidden{% endif %}>
+          <a class="stage-shot" href="{{ tab.href }}" aria-label="{{ 'Open the ' ~ tab.label ~ ' screen' if demo else 'Create your workspace' }}">
+            <picture>
+              <source type="image/webp" srcset="{{ tab.webp }}">
+              <img src="{{ tab.src }}" width="1440" height="816" alt="{{ tab.alt }}"{% if loop.first %} fetchpriority="high"{% else %} loading="lazy"{% endif %}>
+            </picture>
+          </a>
+          <div class="stage-caption"><p>{{ tab.caption }}</p><a href="{{ tab.href }}">{{ 'Open this screen' if demo else 'Create your workspace' }} {{ icon('up') }}</a></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── Coverage ───────── -->
+  <section class="coverage wrap" aria-label="Company coverage">
+    <p>Public disclosures already in the archive from</p>
+    <div class="logo-row">
+      {% for c in archive.companies %}<span class="logo-item"><img src="/static/logos/{{ c.logo }}" alt="{{ c.name }}"><b>{{ c.name }}</b></span>{% endfor %}
+    </div>
+    <small>Company coverage in the archive. Not client endorsements.</small>
+  </section>
+
+  <!-- ───────── Proof ───────── -->
+  <section class="proof wrap section" aria-labelledby="proof-title">
+    <h2 id="proof-title" class="sr-only">The archive in numbers</h2>
+    <div class="proof-numbers">
+      <div class="big-number" data-count="{{ archive.total }}">{{ '{:,}'.format(archive.total) }}</div>
+      <p class="big-label">Public disclosures in the archive<span>{{ archive.companies|length }} companies · latest stored filing {{ archive.latest_label }}</span></p>
+      <div class="proof-stats">
+        <div><b>{{ rulebook.rule_count }}</b><i aria-hidden="true"></i><span>Obligations in the rulebook</span></div>
+        <div><b>{{ rulebook.regimes|length }}</b><i aria-hidden="true"></i><span>Regimes, from Companies Act to FEMA</span></div>
+      </div>
+    </div>
+    <div class="proof-statement">
+      <p class="statement">A filing is only the beginning. Delta keeps the original exchange document, the obligation it triggers and the draft that follows on one desk, so the judgement stays with you.</p>
+      {% if latest %}
+      <div class="latest-card">
+        <div class="latest-head">
+          <span class="latest-logo"><img src="/static/logos/{{ company_logos.get(latest.company, '') }}" alt=""></span>
+          <div><b>{{ company_names.get(latest.company, latest.company) }}</b><small>Latest stored filing · {{ latest.date }}</small></div>
+        </div>
+        <p class="latest-title">{{ latest.title }}</p>
+        <div class="tags">{% for t in latest.tags[:3] %}<span>{{ t }}</span>{% endfor %}</div>
+        {% if latest.url %}<a class="text-link" href="{{ latest.url }}" target="_blank" rel="noopener">Open the source document {{ icon('up') }}</a>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ───────── How it works ───────── -->
+  <section class="how section" id="how">
+    <div class="wrap">
+      <div class="center-head">
+        {{ eyebrow('How it works') }}
+        <h2>From the first filing <br>to a considered next step.</h2>
+        <p>Follow the companies you cover, read every disclosure at the source and prepare what comes next, in the same workspace.</p>
+      </div>
+      <div class="steps">
+        <article class="step">
+          <span class="step-no">01</span>
+          <h3>Follow the companies you cover.</h3>
+          <p>Build a watchlist around your coverage. Every public disclosure lands in one archive, organised by company and tag.</p>
+          <div class="win">
+            <div class="win-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            {% set order = [none, 0, none, 1, 2, none, 3, none, none, 4, 'add', none] %}
+            <div class="tile-grid" aria-label="Companies on the watchlist">
+              {% for slot in order %}
+                {% if slot == 'add' %}<span class="tile tile-add">{{ icon('plus') }}<small>Add company</small></span>
+                {% elif slot is none %}<span class="tile" aria-hidden="true"></span>
+                {% else %}{% set c = archive.companies[slot] %}<span class="tile has-logo"><img src="/static/logos/{{ c.logo }}" alt="{{ c.name }}"><b>{{ '{:,}'.format(c.count) }}</b></span>{% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <span class="step-no">02</span>
+          <h3>Read every disclosure at the source.</h3>
+          <p>Search the archive, filter by tag and open the original exchange document behind each announcement.</p>
+          <div class="win win-list">
+            <div class="win-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="list-card">
+              <div class="list-head">{{ icon('file') }}<div><b>Disclosure library</b><small>Newest filings across the watchlist</small></div></div>
+              <div class="list-cols"><span>Filing</span><span>Company</span><span>Date</span></div>
+              {% for f in featured_filings[:4] %}
+              <div class="list-row"><span class="list-title">{{ f.title }}</span><span>{{ f.company }}</span><span>{{ f.date }}</span></div>
+              {% endfor %}
+            </div>
+            <span class="win-lens" aria-hidden="true"></span>
+          </div>
+        </article>
+
+        <article class="step">
+          <span class="step-no">03</span>
+          <h3>Prepare the draft that follows.</h3>
+          <p>Generate the statutory correspondence a filing triggers, review the wording and sign it off in your own words.</p>
+          <div class="win win-drafts">
+            <div class="win-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="draft-stack">
+              <div class="draft-card back-2"><span>Outcome of board meeting</span><i>Reg 30(6)</i></div>
+              <div class="draft-card back-1"><span>Disclosure of change in directors / KMP</span><i>Reg 30</i></div>
+              <div class="draft-card front">{{ icon('file') }}<div><b>Notice of the Annual General Meeting</b><small>Draft · 2 annexures · prepared from the source filing</small></div><em>Ready for review</em></div>
+              <div class="draft-meta">{{ icon('clock') }} Edit, share with your team, sign off in your words</div>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div class="divider"><span>{{ mark() }}</span></div>
+    </div>
+  </section>
+
+  <!-- ───────── What you get ───────── -->
+  <section class="what section" id="workspace">
+    <div class="wrap what-grid">
+      <div class="what-copy">
+        {{ eyebrow('What you get') }}
+        <h2>The governance desk <br>you can <em>finally</em> trust.</h2>
+        <p>One place for the disclosure, the obligation it triggers and the draft that follows. Built from public sources and a reviewed rulebook, with the final call left to you.</p>
+        <div class="cta-row">
+          <a class="btn btn-white" href="{{ links.workspace }}">{{ 'See the workspace' if demo else 'See what it does' }}</a>
+          <a class="btn btn-yellow" href="/signup">Create your workspace {{ icon('up') }}</a>
+        </div>
+      </div>
+      <div class="what-art" aria-hidden="true">{{ iso_art() }}</div>
+    </div>
+
+    <div class="wrap bento">
+      <article class="panel panel-dark">
+        <h3>Changes between filings, highlighted.</h3>
+        <p>Delta compares a disclosure with the one before it and marks what moved: figures, dates, names. Read the difference, not the whole document.</p>
+        <div class="diff" data-diff>
+          <div class="diff-head">
+            <span>Outcome of board meeting · illustrative</span>
+            <div class="seg" role="group" aria-label="Compare versions">
+              <button type="button" data-view="prev" aria-pressed="false">Previous</button>
+              <button type="button" data-view="diff" aria-pressed="true">Changes</button>
+              <button type="button" data-view="curr" aria-pressed="false">Current</button>
+            </div>
+          </div>
+          <p class="diff-body">The Board, at its meeting held today, approved an interim dividend of <span class="del">₹12</span><span class="ins">₹14</span> per equity share and fixed <span class="del">Friday, 14 November</span><span class="ins">Friday, 21 November</span> as the record date for the purpose. The meeting commenced at 11:00 a.m. and concluded at <span class="del">1:10 p.m.</span><span class="ins">1:35 p.m.</span></p>
+          <div class="diff-foot"><span><i class="k-del"></i>Previous wording</span><span><i class="k-ins"></i>Current wording</span><a class="text-link text-link-light" href="{{ links.library }}">{{ 'Open the library' if demo else 'See what it does' }} {{ icon('up') }}</a></div>
+        </div>
+      </article>
+
+      <article class="panel panel-light">
+        <h3>One library for every disclosure.</h3>
+        <p>Every announcement, result and notice, searchable by company and tag, with the original exchange document one click away.</p>
+        <div class="library">
+          <div class="recent-card">
+            <b>{{ icon('file') }}Recently added</b>
+            <ul>{% for f in featured_filings[:4] %}<li>{{ icon('check') }}<span>{{ f.title }}</span></li>{% endfor %}</ul>
+          </div>
+          <div class="doc-table">
+            <div class="doc-head"><span class="doc-ico">{{ icon('layers') }}</span><div><b>Document library</b><small>{{ '{:,}'.format(archive.total) }} filings across {{ archive.companies|length }} companies.</small></div></div>
+            <div class="doc-cols"><span>Document</span><span>Company</span><span>Tag</span></div>
+            {% for f in featured_filings[:5] %}
+            <div class="doc-row"><span class="doc-title">{{ icon('file') }}{{ f.title }}</span><span>{{ company_names.get(f.company, f.company) }}</span><span class="chip">{{ f.tags[0] if f.tags else 'Filing' }}</span></div>
+            {% endfor %}
+          </div>
+        </div>
+      </article>
+
+      <article class="panel panel-light panel-mapper">
+        <h3>Obligations, mapped to the company.</h3>
+        <p>Answer a few questions about the entity and Delta lists what applies, from Companies Act filings to GST, labour and FEMA.</p>
+        <form class="mapper" data-mapper onsubmit="return false">
+          <div class="mapper-controls">
+            <div class="seg seg-light" role="group" aria-label="Entity type">
+              <button type="button" data-type="private" aria-pressed="false">Private</button>
+              <button type="button" data-type="public_unlisted" aria-pressed="false">Public</button>
+              <button type="button" data-type="listed" aria-pressed="true">Listed</button>
+              <button type="button" data-type="llp" aria-pressed="false">LLP</button>
+            </div>
+            <label class="mapper-state"><span>State</span>
+              <select name="state"><option>Maharashtra</option><option>Karnataka</option><option>Delhi</option><option>Gujarat</option><option>Tamil Nadu</option></select>
+            </label>
+          </div>
+          <div class="mapper-flags">
+            {% for key, label, on in [('gst_registered', 'GST registered', true), ('tds_deductor', 'Deducts TDS', true), ('has_employees', 'Has employees', true), ('pf_covered', 'PF covered', true), ('msme_dues', 'MSME dues', false), ('csr', 'CSR applies', false), ('fdi', 'Has FDI', false), ('tax_audit', 'Tax audit', false)] %}
+            <label class="flag"><input type="checkbox" name="{{ key }}"{% if on %} checked{% endif %}><i aria-hidden="true"></i><span>{{ label }}</span></label>
+            {% endfor %}
+          </div>
+          <div class="mapper-result" aria-live="polite">
+            <div class="mapper-count"><b data-count-out>—</b><span>obligations apply<small data-split-out></small></span></div>
+            <div class="mapper-bar" data-bar-out aria-hidden="true"></div>
+            <ul class="mapper-legend" data-legend-out></ul>
+          </div>
+        </form>
+        <a class="text-link" href="#obligations">See the governance year {{ icon('arrow') }}</a>
+      </article>
+
+      <article class="panel panel-dark">
+        <h3>Drafts, ready for your review.</h3>
+        <p>Generate the statutory correspondence a filing triggers, then edit, share with your team and sign off in your own words.</p>
+        <div class="reports">
+          <div class="reports-head"><div><b>Recent drafts</b><small>Prepared from the source filing. Saved on every edit.</small></div><a class="btn btn-ghost btn-xs" href="{{ links.drafts }}">{{ 'View all' if demo else 'Learn more' }}</a></div>
+          <ul>
+            <li>{{ icon('file') }}<div><b>Notice of the Annual General Meeting</b><small>HINDUNILVR · agm_notice · 2 annexures</small></div><span class="chip chip-ready">Saved</span></li>
+            <li>{{ icon('file') }}<div><b>Intimation of dividend / record date</b><small>HINDUNILVR · Reg 30 / 42 · no annexures</small></div><span class="chip chip-ready">Saved</span></li>
+            <li>{{ icon('file') }}<div><b>Disclosure of change in directors / KMP</b><small>DABUR · Reg 30 · 1 annexure</small></div><span class="chip chip-ready">Saved</span></li>
+            <li>{{ icon('file') }}<div><b>Disclosure of change in directors / KMP</b><small>BRITANNIA · Reg 30 · 1 annexure</small></div><span class="chip chip-edit">Editing</span></li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ───────── Inside Delta ───────── -->
+  <section class="inside section">
+    <div class="wrap">
+      <div class="center-head">
+        {{ eyebrow('Inside Delta') }}
+        <h2>Everything a governance team <br>needs to stay ahead.</h2>
+      </div>
+      <div class="inside-grid">
+        <div class="callout c1"><h3>Source-linked disclosures.</h3><p>Every announcement keeps its link to the original exchange document, so the full context is one click away.</p></div>
+        <div class="inside-art">{{ disc_art() }}</div>
+        <div class="callout c2"><h3>A calendar built from the rulebook.</h3><p>{{ rulebook.rule_count }} obligations with forms, sections and penalties, switched on by a few answers about the entity.</p></div>
+        <div class="callout c3"><h3>Review-first drafting.</h3><p>Drafts are prepared from the filing that triggered them and wait for your wording and your sign-off.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── The governance year ───────── -->
+  <section class="year section" id="obligations">
+    <div class="wrap">
+      <div class="year-head">
+        <div>
+          {{ eyebrow('The governance year', dark=true) }}
+          <h2>Every deadline, <br>on <em>one</em> timeline.</h2>
+          <p>Fifteen of the {{ rulebook.rule_count }} obligations Delta tracks, drawn for a listed company across {{ rulebook.fy_label }}. Hover or tap a mark for the due date.</p>
+        </div>
+        <div class="chips" role="group" aria-label="Filter by regime" data-year-filter>
+          <button type="button" data-regime="all" aria-pressed="true">All</button>
+          {% for r in ['Companies Act', 'SEBI', 'Income Tax', 'GST', 'Labour'] %}<button type="button" data-regime="{{ r }}" aria-pressed="false"><i class="{{ regime_class[r] }}" aria-hidden="true"></i>{{ r }}</button>{% endfor %}
+        </div>
+      </div>
+
+      <div class="gantt" data-gantt>
+        <div class="gantt-scroll">
+          <div class="gantt-head">
+            <div class="gantt-label">Obligation</div>
+            <div class="gantt-months">{% for m in rulebook.months %}<span>{{ m }}</span>{% endfor %}<b class="gantt-today-label" style="--t:{{ rulebook.today_pos }}">Today</b></div>
+          </div>
+          {% for row in rulebook.timeline %}
+          <div class="gantt-row {{ regime_class[row.regime] }}" data-regime="{{ row.regime }}">
+            <div class="gantt-label"><b>{{ row.name }}</b><small>{{ row.form }}</small></div>
+            <div class="gantt-track">
+              <i class="gantt-today" style="--t:{{ rulebook.today_pos }}" aria-hidden="true"></i>
+              {% for m in row.marks %}
+              <button type="button" class="mark mark-{{ m.type }}" style="--s:{{ m.start }};--e:{{ m.end }}" data-tip="{{ m.title }}" data-name="{{ row.name }}" data-form="{{ row.form }}" data-law="{{ row.law }}" aria-label="{{ row.name }}, {{ row.form }}: {{ m.title }}"></button>
+              {% endfor %}
+              {% if row.note %}<span class="gantt-note">{{ row.note }}</span>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="gantt-tip" role="tooltip" hidden></div>
+      </div>
+      <p class="year-fine">Deadlines and late fees are indicative. Check the source before you rely on them. The other {{ rulebook.event_count }} obligations are event-driven and run from the event, not the calendar.</p>
+
+      <div class="year-feats">
+        <article><span class="feat-icon">{{ icon('shield') }}</span><h3>Dates from a reviewed rulebook.</h3><p>Every obligation carries its form, section and penalty, last reviewed on {{ rulebook.reviewed_label }}.</p></article>
+        <article><span class="feat-icon">{{ icon('bolt') }}</span><h3>Events, not just calendars.</h3><p>A board outcome, a director change, an allotment: each starts its own clock, and Delta keeps it.</p></article>
+        <article><span class="feat-icon">{{ icon('eye') }}</span><h3>Your judgement stays central.</h3><p>Delta prepares and reminds. You decide what the detail means and what happens next.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── Who it is for ───────── -->
+  <section class="people section wrap">
+    <div class="people-head">
+      <div>{{ eyebrow('Who it is for') }}<h2>Built for the people <br>behind the filings.</h2></div>
+      <div class="people-aside"><p>Delta is shaped around the roles that carry Indian corporate governance day to day. Choose yours and the home screen is built around it.</p><a class="btn btn-white" href="/solutions">Explore solutions</a></div>
+    </div>
+    <div class="roles">
+      <a class="role" href="/solutions/company-secretary"><span class="role-icon">{{ icon('people') }}</span><h3>Company secretaries</h3><p>The calendar, the meetings, the registers and the drafts for every company you look after.</p><span class="role-more">Learn more {{ icon('arrow') }}</span></a>
+      <a class="role" href="/solutions/practising-cs"><span class="role-icon">{{ icon('layers') }}</span><h3>Practising CS firms</h3><p>Many clients, one desk. Import a client list and see what is due across all of them.</p><span class="role-more">Learn more {{ icon('arrow') }}</span></a>
+      <a class="role" href="/solutions/listed-company"><span class="role-icon">{{ icon('shield') }}</span><h3>Listed-company compliance</h3><p>SEBI LODR and PIT in one place, from Reg 30 intimations to the structured digital database.</p><span class="role-more">Learn more {{ icon('arrow') }}</span></a>
+      <a class="role" href="/solutions/risk-officer"><span class="role-icon">{{ icon('eye') }}</span><h3>Risk officers</h3><p>Counterparties checked against filings, SEBI orders and insolvency notices, rolled into one score.</p><span class="role-more">Learn more {{ icon('arrow') }}</span></a>
+    </div>
+  </section>
+
+  <!-- ───────── FAQ ───────── -->
+  <section class="faq section wrap" id="faq">
+    <div class="faq-intro">
+      <h2>FAQ.</h2>
+      <p>Still have questions? <br>Reach the team at <a href="mailto:hi@deltafiling.tech">hi@deltafiling.tech</a></p>
+      <div class="faq-mark" aria-hidden="true">{{ mark() }}</div>
+    </div>
+    <div class="faq-list" data-faq>
+      {% set faqs = [
+        ('What is Delta Filings?', 'A workspace for Indian corporate governance. It follows public disclosures at the source, builds an obligation calendar from a reviewed rulebook, and prepares drafts that wait for your review.'),
+        ('Can I explore before signing up?', ('Yes. Open the dashboard to walk through the filing archive, the company watchlists and the activity views. <a href="/dashboard">Open the dashboard ↗</a>' if demo else 'Create a free workspace and the first screens are built from your own company: the calendar, the disclosures and the drafts. <a href="/signup">Create your workspace ↗</a>')),
+        ('Where do the company records come from?', 'From the public disclosures companies make to the exchanges. Each filing in the archive links back to its original document, so you can read the complete context.'),
+        ('Are the deadlines authoritative?', 'They come from a rulebook of ' ~ rulebook.rule_count ~ ' obligations last reviewed on ' ~ rulebook.reviewed_label ~ ', but they are indicative. Check the source before you rely on one.'),
+        ('Does Delta file documents for me?', 'No. Delta helps you read, understand and prepare. You review the work and make the final filing through the relevant authority or exchange.'),
+        ('What does it cost?', 'Delta is free during the beta and no card is needed. <a href="/signup">Create a workspace ↗</a>'),
+      ] %}
+      {% for q, a in faqs %}
+      <div class="qa{% if loop.first %} open{% endif %}">
+        <button type="button" class="q" id="q{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="a{{ loop.index }}"><span>{{ q }}</span>{{ icon('plus') }}</button>
+        <div class="a" id="a{{ loop.index }}" role="region" aria-labelledby="q{{ loop.index }}"{% if not loop.first %} hidden{% endif %}>
+          <div class="a-bubble"><p>{{ a|safe }}</p></div>
+          <span class="a-avatar" aria-hidden="true">{{ mark() }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-cta">
+      <h2>Bring every filing into focus.</h2>
+      <p>Free during the beta. No card needed.</p>
+      <div class="cta-row">
+        <a class="btn btn-yellow" href="/signup">Create your workspace {{ icon('up') }}</a>
+        <a class="btn btn-ghost" href="/signin">Sign in</a>
+      </div>
+    </div>
+    <div class="foot-body">
+      <div class="foot-brand">
+        <a class="wordmark" href="/">{{ mark() }}<span>Delta Filings</span></a>
+        <p>One workspace for Indian corporate compliance: the calendar, the meetings, the registers, the insider-trading record, the drafts and the counterparty watch.</p>
+      </div>
+      <div class="foot-cols">
+        <div><b>Product</b><a href="/product">What it does</a><a href="/product#calendar">Compliance calendar</a><a href="/product#risk">Risk desk</a><a href="/pricing">Pricing</a><a href="/security">Security</a></div>
+        <div><b>Solutions</b><a href="/solutions/company-secretary">Company secretaries</a><a href="/solutions/practising-cs">Practising CS firms</a><a href="/solutions/listed-company">Listed companies</a><a href="/solutions/risk-officer">Risk officers</a></div>
+        <div><b>Resources</b><a href="/tools">Free calculators</a><a href="/blog">Blog</a><a href="/faq">FAQ</a><a href="/about">About</a></div>
+        <div><b>Account</b><a href="/signin">Sign in</a><a href="/signup">Create workspace</a><a href="/privacy">Privacy</a></div>
+      </div>
+    </div>
+    <div class="foot-fine"><span>© {{ current_year|default(2026) }} Delta Filings</span><span>Deadlines and late fees are indicative. Check the source before you rely on them.</span></div>
+  </div>
+</footer>
+
+<script type="application/json" id="rules-data">{{ rulebook.rules_json|safe }}</script>
+{% if comparisons and (request.host.startswith('127.0.0.1') or request.host.startswith('localhost')) %}
+<aside class="theme-review" aria-label="Local design references">
+  <span><i aria-hidden="true"></i>Local preview</span>
+  <a href="/?theme=ivory" class="active" aria-current="page">Ivory</a>
+  <a href="/?theme=lemon">Lemon</a>
+  <a href="/?theme=signal">Signal <small>REF</small></a>
+  <a href="/?theme=electric">Electric</a>
+  <a href="/?theme=orbit">Orbit</a>
+  <a href="/?theme=skyline">Skyline</a>
+</aside>
+{% endif %}
+</body>
+</html>

@@ -1,10 +1,22 @@
 {% extends "auth_base.html" %}
-{% set page_title = "Sign Up · Delta Filings" %}
+{% set page_title = "Create workspace · Delta Filings" %}
+{% set split = true %}
+{% block aside %}
+<p class="eyebrow">Free during the beta</p>
+<h2 class="h2">Create a workspace in about a minute.</h2>
+<p class="sec-lede">Name, email and password. Then choose what you look after, and your home screen is built around it.</p>
+<ol class="steps" style="margin-top:26px">
+    <li><div><b>Choose your role</b><span>Company secretary, practising CS or firm, listed-company compliance officer, or risk officer.</span></div></li>
+    <li><div><b>Add your first company or counterparties</b><span>A name and a type is enough. Risk officers can paste a list with exposure amounts.</span></div></li>
+    <li><div><b>See what is due</b><span>The calendar is built from a few yes or no answers about the company.</span></div></li>
+</ol>
+<p class="fine">No card needed. Read <a href="/security">how your data is handled</a> and what is <a href="/faq">not built yet</a> before you start.</p>
+{% endblock %}
 {% block content %}
-<div class="auth-card w-full max-w-md p-8 sm:p-10">
+<div class="auth-card w-full p-8 sm:p-10">
     <div class="mb-6">
-        <h1 class="text-2xl font-bold tracking-tight">Create your account</h1>
-        <p class="text-sm text-slate-500 mt-1">Free. No card required. Set up in under a minute.</p>
+        <h1 class="text-2xl font-bold tracking-tight">Create workspace</h1>
+        <p class="text-sm text-slate-500 mt-1">Free during the beta. No card required.</p>
     </div>
 
     {% if error %}
@@ -27,13 +39,13 @@
             <input class="field" type="password" id="password" name="password"
                    placeholder="At least 6 characters" required minlength="6">
         </div>
-        <button class="btn-primary" type="submit">Create account →</button>
+        <button class="btn-primary" type="submit">Create account</button>
     </form>
 
     <div class="divider">or</div>
 
     <p class="text-sm text-center text-slate-600">
-        Already have an account? <a href="/signin" class="font-semibold text-indigo-600 hover:text-indigo-700">Sign in</a>
+        Already have an account? <a href="/signin" style="color:var(--indigo-2);font-weight:600">Sign in</a>
     </p>
 </div>
 {% endblock %}

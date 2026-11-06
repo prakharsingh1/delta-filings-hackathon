@@ -1,0 +1,174 @@
+{% extends 'app_base.html' %}
+{% block title %}Insider trading{% endblock %}
+
+{% block head %}
+<style>
+  .sdd-ent-name { font-weight: 650; }
+  .sdd-ent-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .sdd-start { max-width: 640px; }
+  .sdd-start-title { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .sdd-start-text { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 16px; }
+  .sdd-form-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+  .sdd-err { display: none; margin-bottom: 12px; padding: 9px 12px; border-radius: 9px; font-size: 13px;
+             background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  .sdd-err.show { display: block; }
+  html.dark .sdd-err { background: rgba(239,68,68,.14); color: #fca5a5; border-color: rgba(239,68,68,.3); }
+  .sdd-row-cta { text-align: right; white-space: nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap">
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Insider trading · SEBI PIT</div>
+      <h1 class="mod-title">Structured digital database</h1>
+      <p class="mod-sub">PIT Reg 3(5) requires a structured digital database of who received unpublished price sensitive information, with time stamps and an audit trail that shows tampering.</p>
+    </div>
+    {% if rows %}
+    <div class="mod-actions">
+      <button type="button" class="btn btn-secondary" id="open-entity-dlg">Add listed company</button>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if rows %}
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">Pick a company</div>
+        <div class="panel-sub">Listed companies first. Intermediaries and fiduciaries must keep one too, so any entity can open a desk.</div>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Entity</th>
+            <th class="num">UPSI</th>
+            <th class="num">Entries</th>
+            <th>Trading window</th>
+            <th>Audit trail</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          {% set e = r.entity %}{% set s = r.summary %}
+          {% set chain_text, chain_cls = chain_label(s.chain) %}
+          <tr>
+            <td>
+              <a class="link sdd-ent-name" href="/sdd/{{ e.id }}">{{ e.name }}</a>
+              {% if e.entity_type == 'listed' %}<span class="chip chip-info">Listed</span>{% endif %}
+              <div class="sdd-ent-meta">{{ e.symbol ~ ' · ' if e.symbol }}{{ e.type_label }}</div>
+            </td>
+            <td class="num">{{ s.upsi }}{% if s.open_upsi %} <span class="muted">· {{ s.open_upsi }} open</span>{% endif %}</td>
+            <td class="num">{{ s.entries }}</td>
+            <td>
+              {% if s.window_closed %}<span class="chip chip-medium">Closed</span>
+              {% else %}<span class="chip chip-low">Open</span>{% endif %}
+            </td>
+            <td><span class="chip {{ chain_cls }}">{{ chain_text }}</span></td>
+            <td class="sdd-row-cta"><a class="btn btn-secondary btn-sm" href="/sdd/{{ e.id }}">Open desk</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <p class="note" style="margin-top:16px">Keeping the database for another entity or a client? Add it from the <a class="link" href="/workspace">workspace</a> and it will appear here.</p>
+
+  {% else %}
+  <div class="panel">
+    <div class="panel-body">
+      <div class="sdd-start">
+        <div class="sdd-start-title">Add the listed company whose database you keep</div>
+        <p class="sdd-start-text">The desk holds its UPSI register and sharing log, designated persons, trading window closures and pre-clearance requests.</p>
+        <form id="entity-form-inline" class="js-entity-form" novalidate>
+          <div class="sdd-err" role="alert"></div>
+          <div class="fld-grid">
+            <label class="fld">
+              <span class="fld-label">Company name</span>
+              <input class="fld-input" name="name" maxlength="200" required placeholder="e.g. Tata Motors Limited">
+            </label>
+            <label class="fld">
+              <span class="fld-label">NSE symbol</span>
+              <input class="fld-input" name="symbol" maxlength="20" placeholder="e.g. TATAMOTORS" autocapitalize="characters">
+              <span class="fld-hint">Leave blank if listed only on BSE.</span>
+            </label>
+          </div>
+          <div class="sdd-form-foot">
+            <button type="submit" class="btn btn-primary">Create and open desk</button>
+            <span class="muted" style="font-size:12.5px">Keeping it for an intermediary or a client? Add the entity from the <a class="link" href="/workspace">workspace</a>.</span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if rows %}
+<dialog class="mod-dialog" id="dlg-entity" aria-labelledby="dlg-entity-title">
+  <form class="js-entity-form" novalidate>
+    <div class="dlg-head"><span id="dlg-entity-title">Add listed company</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      <label class="fld">
+        <span class="fld-label">Company name</span>
+        <input class="fld-input" name="name" maxlength="200" required placeholder="e.g. Tata Motors Limited">
+      </label>
+      <label class="fld">
+        <span class="fld-label">NSE symbol</span>
+        <input class="fld-input" name="symbol" maxlength="20" placeholder="e.g. TATAMOTORS" autocapitalize="characters">
+        <span class="fld-hint">Leave blank if listed only on BSE.</span>
+      </label>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Create and open desk</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var dlg = document.getElementById('dlg-entity');
+  var opener = document.getElementById('open-entity-dlg');
+  if (dlg && opener) {
+    opener.addEventListener('click', function () { dlg.showModal(); dlg.querySelector('[name=name]').focus(); });
+    dlg.querySelector('[data-close]').addEventListener('click', function () { dlg.close(); });
+    dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+  }
+
+  document.querySelectorAll('.js-entity-form').forEach(function (form) {
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var err = form.querySelector('.sdd-err');
+      var btn = form.querySelector('[type=submit]');
+      err.classList.remove('show');
+      var name = form.elements.name.value.trim();
+      if (!name) {
+        err.textContent = 'Company name is required.';
+        err.classList.add('show');
+        form.elements.name.focus();
+        return;
+      }
+      btn.disabled = true;
+      try {
+        var res = await dfApi('/api/sdd/entities', { method: 'POST', body: { name: name, symbol: form.elements.symbol.value.trim() } });
+        if (!res || !res.url) throw new Error('Your session has ended. Reload the page and sign in again.');
+        window.location.href = res.url;
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.classList.add('show');
+        btn.disabled = false;
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

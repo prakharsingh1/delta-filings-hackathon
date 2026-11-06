@@ -1,0 +1,1075 @@
+{% extends 'app_base.html' %}
+{% block title %}{{ ent.name }} · Insider trading{% endblock %}
+
+{% block head %}
+<style>
+  .sdd-back { display: inline-block; font-size: 13px; margin-bottom: 10px; }
+  .sdd-badge { text-decoration: none; font-size: 12.5px; padding: 4px 11px; }
+
+  .sdd-banner { border: 1px solid var(--border); border-left-width: 4px; border-radius: 12px; padding: 12px 16px; margin-bottom: 18px; background: var(--surface); }
+  .sdd-banner.is-open { border-left-color: #10b981; }
+  .sdd-banner.is-closed { background: #fffbeb; border-color: #fde68a; border-left-color: #d97706; }
+  .sdd-banner.is-alert { background: #fef2f2; border-color: #fecaca; border-left-color: #dc2626; }
+  .sdd-banner-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .sdd-banner-text { font-size: 13px; color: var(--text-secondary); margin-top: 2px; max-width: 90ch; }
+  .sdd-banner.is-closed .sdd-banner-title { color: #92400e; }
+  .sdd-banner.is-closed .sdd-banner-text { color: #78350f; }
+  .sdd-banner.is-alert .sdd-banner-title { color: #991b1b; }
+  .sdd-banner.is-alert .sdd-banner-text { color: #7f1d1d; }
+  html.dark .sdd-banner.is-open { border-left-color: #34d399; }
+  html.dark .sdd-banner.is-closed { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.3); border-left-color: #f59e0b; }
+  html.dark .sdd-banner.is-closed .sdd-banner-title { color: #fcd34d; }
+  html.dark .sdd-banner.is-closed .sdd-banner-text { color: #fde68a; }
+  html.dark .sdd-banner.is-alert { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); border-left-color: #ef4444; }
+  html.dark .sdd-banner.is-alert .sdd-banner-title { color: #fca5a5; }
+  html.dark .sdd-banner.is-alert .sdd-banner-text { color: #fecaca; }
+
+  @media (max-width: 640px) {
+    .sdd-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .sdd-kpis .kpi { padding: 12px 14px; }
+    .sdd-kpis .kpi-value { font-size: 22px; }
+  }
+
+  .sdd-ph { flex-wrap: wrap; }
+  .sdd-ph-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .sdd-filter { width: auto; min-width: 150px; max-width: 240px; padding: 5px 9px; font-size: 12.5px; }
+  .sdd-strong { font-weight: 650; }
+  .sdd-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .sdd-nowrap { white-space: nowrap; }
+  .sdd-act { text-align: right; white-space: nowrap; }
+  .sdd-act .btn + .btn { margin-left: 6px; }
+  .sdd-purpose { min-width: 180px; max-width: 300px; }
+  .sdd-rel td:first-child { padding-left: 32px; }
+  .sdd-foot { border-top: 1px solid var(--border-light); }
+  .sdd-group-label { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 6px 0 8px; }
+  .sdd-lead { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 12px; }
+  .sdd-p { font-size: 13.5px; color: var(--text-secondary); max-width: 72ch; }
+  .sdd-h3 { font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin: 20px 0 6px; }
+  .fld-textarea.sdd-short { min-height: 64px; }
+  .sdd-err { display: none; margin-bottom: 12px; padding: 9px 12px; border-radius: 9px; font-size: 13px;
+             background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  .sdd-err.show { display: block; }
+  html.dark .sdd-err { background: rgba(239,68,68,.14); color: #fca5a5; border-color: rgba(239,68,68,.3); }
+  .sdd-verify { display: flex; flex-direction: column; gap: 6px; }
+  .sdd-hash { margin-top: 18px; }
+  .sdd-hash-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .sdd-hash-code { padding: 6px 10px; border-radius: 8px; background: var(--surface-secondary); border: 1px solid var(--border); color: var(--text-primary); word-break: break-all; }
+  .sdd-pane .panel + .panel { margin-top: 18px; }
+  .btn[disabled] { opacity: .55; cursor: not-allowed; }
+  /* .fld and .btn set display, which would otherwise beat the hidden attribute. */
+  .mod-wrap [hidden], dialog.mod-dialog [hidden] { display: none !important; }
+  html.dark .mod-dialog input[type=date], html.dark .mod-dialog input[type=datetime-local] { color-scheme: dark; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set chain = summary.chain %}
+{% set chain_text, chain_cls = chain_label(chain) %}
+{% set n_dp = persons | selectattr('relation', 'equalto', 'self') | list | length %}
+{% set dps = persons | selectattr('relation', 'equalto', 'self') | list %}
+{% set type_short = {'designated': 'Designated', 'connected': 'Connected', 'external': 'External'} %}
+{% set cur = wstatus.current %}{% set nxt = wstatus.next %}
+<div class="mod-wrap">
+  <a class="sdd-back link" href="/sdd">All companies</a>
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Insider trading · SEBI PIT</div>
+      <h1 class="mod-title">{{ ent.name }}</h1>
+      <p class="mod-sub">{{ ent.symbol ~ ' · ' if ent.symbol }}{{ ent.type_label }}. UPSI register, designated persons, trading window and pre-clearance.</p>
+    </div>
+    <div class="mod-actions">
+      <a href="#audit" data-tab-link="audit" class="chip {{ chain_cls }} sdd-badge js-chain-badge" title="Open the audit trail">{{ chain_text }}</a>
+    </div>
+  </div>
+
+  <div class="sdd-banner is-alert js-tamper-alert" role="alert" {% if chain.ok %}hidden{% endif %}>
+    <div class="sdd-banner-title js-tamper-title">{% if not chain.ok %}{{ chain.problem }}{% endif %}</div>
+    <div class="sdd-banner-text">Download the CSV for the record and report it to the audit committee.</div>
+  </div>
+
+  <div class="sdd-banner {{ 'is-closed' if wstatus.closed else 'is-open' }}">
+    {% if wstatus.closed %}
+    <div class="sdd-banner-title">Trading window closed today</div>
+    <div class="sdd-banner-text">Closed since {{ fmt_d(cur.closes_on) }}{% if cur.opens_on %}, reopens on {{ fmt_d(cur.opens_on) }}{% else %}, until reopened{% endif %}. Designated persons and their immediate relatives cannot trade, and pre-clearance cannot be granted.</div>
+    {% else %}
+    <div class="sdd-banner-title">Trading window open today</div>
+    <div class="sdd-banner-text">{% if nxt %}Next closure from {{ fmt_d(nxt.closes_on) }}{% if nxt.reason %}: {{ nxt.reason }}{% endif %}.{% else %}No closure scheduled. The next quarterly closure would start on {{ fmt_d(suggestion.closes_on) }}.{% endif %} Trades above the code of conduct threshold still need pre-clearance.</div>
+    {% endif %}
+  </div>
+
+  <div class="kpi-grid sdd-kpis">
+    <div class="kpi">
+      <div class="kpi-label">Open UPSI</div>
+      <div class="kpi-value">{{ summary.open_upsi }}</div>
+      <div class="kpi-foot">{{ summary.upsi }} tracked in total</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Sharing entries</div>
+      <div class="kpi-value">{{ summary.entries }}</div>
+      <div class="kpi-foot">Append-only, hash-chained</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Designated persons</div>
+      <div class="kpi-value">{{ n_dp }}</div>
+      <div class="kpi-foot">{{ persons | length - n_dp }} immediate relative{{ 's' if persons | length - n_dp != 1 }}</div>
+    </div>
+    <div class="kpi {{ 'kpi-accent' if summary.pending_preclearance }}">
+      <div class="kpi-label">Pending pre-clearance</div>
+      <div class="kpi-value">{{ summary.pending_preclearance }}</div>
+      <div class="kpi-foot">Valid {{ valid_days }} trading days once approved</div>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab active" role="tab" data-tab="upsi">UPSI register</button>
+    <button type="button" class="tab" role="tab" data-tab="persons">Designated persons</button>
+    <button type="button" class="tab" role="tab" data-tab="window">Trading window</button>
+    <button type="button" class="tab" role="tab" data-tab="preclear">Pre-clearance{% if summary.pending_preclearance %} ({{ summary.pending_preclearance }}){% endif %}</button>
+    <button type="button" class="tab" role="tab" data-tab="audit">Audit</button>
+  </div>
+
+  {# ── UPSI register ─────────────────────────────────────────────── #}
+  <section class="sdd-pane" data-pane="upsi" role="tabpanel">
+    <div class="panel">
+      <div class="panel-head sdd-ph">
+        <div>
+          <div class="panel-title">UPSI items</div>
+          <div class="panel-sub">Each price sensitive matter you track. Mark it public once it is disclosed to the exchanges.</div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" data-open="dlg-upsi">New UPSI</button>
+      </div>
+      {% if upsi %}
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>UPSI</th><th>Opened</th><th>Public on</th><th class="num">Entries</th><th></th></tr></thead>
+          <tbody>
+            {% for u in upsi %}
+            <tr>
+              <td><div class="sdd-strong">{{ u.title }}</div>{% if u.nature %}<div class="sdd-sub">{{ u.nature }}</div>{% endif %}</td>
+              <td class="sdd-nowrap">{{ fmt_d(u.opened_at) }}</td>
+              <td class="sdd-nowrap">{% if u.public_on %}{{ fmt_d(u.public_on) }}{% else %}<span class="chip chip-info">Unpublished</span>{% endif %}</td>
+              <td class="num">{{ u.entries }}</td>
+              <td class="sdd-act">{% if not u.public_on %}<button type="button" class="btn btn-secondary btn-sm js-mark-public" data-id="{{ u.id }}" data-title="{{ u.title }}">Mark public</button>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">
+        <div class="empty-title">No UPSI items yet</div>
+        Add each price sensitive matter, such as the quarter's results or a proposed acquisition. Every sharing entry is logged against one.
+        <div style="margin-top:14px"><button type="button" class="btn btn-primary btn-sm" data-open="dlg-upsi">New UPSI</button></div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-head sdd-ph">
+        <div>
+          <div class="panel-title">Sharing log</div>
+          <div class="panel-sub">Who received UPSI, when and why. Newest first.</div>
+        </div>
+        <div class="sdd-ph-actions">
+          {% if entries and upsi | length > 1 %}
+          <select class="fld-select sdd-filter" id="entry-filter" aria-label="Filter by UPSI">
+            <option value="">All UPSI</option>
+            {% for u in upsi %}<option value="{{ u.id }}">{{ u.title }}</option>{% endfor %}
+          </select>
+          {% endif %}
+          {% if entries %}<a class="btn btn-secondary btn-sm" href="/sdd/{{ ent.id }}/export.csv" title="Full export, handle as confidential">Download CSV</a>{% endif %}
+          <button type="button" class="btn btn-primary btn-sm js-record" {% if not upsi %}disabled title="Add a UPSI item first"{% endif %}>Record sharing</button>
+        </div>
+      </div>
+      {% if entries %}
+      <div class="tbl-wrap">
+        <table class="tbl sdd-entries">
+          <thead><tr><th>#</th><th>Shared at</th><th>UPSI</th><th>From</th><th>To</th><th>Type</th><th>Purpose</th><th>PAN (from / to)</th><th></th></tr></thead>
+          <tbody>
+            {% for e in entries %}
+            <tr data-upsi="{{ e.upsi_id }}">
+              <td class="sdd-nowrap">
+                <span class="mono">#{{ e.id }}</span>
+                {% if e.corrects_id %}<div style="margin-top:4px"><span class="chip chip-info">Correction of #{{ e.corrects_id }}</span></div>{% endif %}
+                {% if e.corrected_by %}<div class="sdd-sub">Corrected by {% for c in e.corrected_by %}#{{ c }}{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
+              </td>
+              <td class="sdd-nowrap">{{ fmt_dt(e.shared_at) }}{% if e.logged_after_days >= 1 %}<div class="sdd-sub">Logged {{ e.logged_after_days }} day{{ 's' if e.logged_after_days != 1 }} later</div>{% endif %}</td>
+              <td>{{ e.upsi_title }}</td>
+              <td>{{ e.shared_by_name }}</td>
+              <td>{{ e.shared_with_name }}{% if e.shared_with_org %}<div class="sdd-sub">{{ e.shared_with_org }}</div>{% endif %}</td>
+              <td><span class="chip chip-low" title="{{ e.recipient_label }}">{{ type_short.get(e.recipient_type, e.recipient_type) }}</span></td>
+              <td class="sdd-purpose">{{ e.purpose }}</td>
+              <td class="sdd-nowrap mono"><div>{{ e.shared_by_pan or 'Not given' }}</div><div>{{ e.shared_with_pan }}</div></td>
+              <td class="sdd-act"><button type="button" class="btn btn-secondary btn-sm js-correct" data-id="{{ e.id }}">Correct</button></td>
+            </tr>
+            {% endfor %}
+            <tr class="js-filter-empty" hidden><td colspan="9" class="muted">No entries for this UPSI yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">
+        <div class="empty-title">No sharing recorded yet</div>
+        {% if upsi %}Each time someone receives UPSI, record who shared it, who received it, their PAN and the purpose.{% else %}Add a UPSI item first, then record each time someone receives it.{% endif %}
+        {% if upsi %}<div style="margin-top:14px"><button type="button" class="btn btn-primary btn-sm js-record">Record sharing</button></div>{% endif %}
+      </div>
+      {% endif %}
+      <div class="panel-body sdd-foot">
+        <p class="note">Entries cannot be edited or deleted. To fix a mistake, use Correct: it adds a new entry that points to the original, and both stay on record.</p>
+        {% if entries %}<p class="sdd-sub" style="margin-top:8px">Download CSV is the full export with complete PANs. Handle it as confidential.</p>{% endif %}
+      </div>
+    </div>
+  </section>
+
+  {# ── Designated persons ────────────────────────────────────────── #}
+  <section class="sdd-pane" data-pane="persons" role="tabpanel" hidden>
+    <div class="panel">
+      <div class="panel-head sdd-ph">
+        <div>
+          <div class="panel-title">Designated persons and immediate relatives</div>
+          <div class="panel-sub">The trading window and pre-clearance apply to everyone on this list.</div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm js-add-person">Add person</button>
+      </div>
+      {% if persons %}
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Name</th><th>Designation</th><th>Relation</th><th>PAN</th><th>Email</th><th></th></tr></thead>
+          <tbody>
+            {% for p in persons %}
+            {% set rel_count = persons | selectattr('related_to', 'equalto', p.id) | list | length %}
+            <tr class="{{ 'sdd-rel' if p.relation == 'immediate_relative' }}">
+              <td class="sdd-strong">{{ p.name }}</td>
+              <td>{{ p.designation }}</td>
+              <td>{% if p.relation == 'immediate_relative' %}Immediate relative{% if p.related_name %} of {{ p.related_name }}{% endif %}{% else %}Designated person{% endif %}</td>
+              <td class="sdd-nowrap">{% if p.pan %}<span class="mono">{{ p.pan_masked }}</span>{% else %}<span class="muted">Not given</span>{% endif %}</td>
+              <td>{{ p.email }}</td>
+              <td class="sdd-act"><button type="button" class="btn btn-secondary btn-sm js-remove-person" data-id="{{ p.id }}" data-name="{{ p.name }}" data-relatives="{{ rel_count if p.relation == 'self' else 0 }}">Remove</button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">
+        <div class="empty-title">No designated persons yet</div>
+        Add the promoters, directors, KMP and employees the board has designated, then their immediate relatives.
+        <div style="margin-top:14px"><button type="button" class="btn btn-primary btn-sm js-add-person">Add person</button></div>
+      </div>
+      {% endif %}
+      <div class="panel-body sdd-foot">
+        <p class="note">Removing a person keeps their history. Their immediate relatives are removed with them.</p>
+      </div>
+    </div>
+  </section>
+
+  {# ── Trading window ───────────────────────────────────────────── #}
+  <section class="sdd-pane" data-pane="window" role="tabpanel" hidden>
+    <div class="panel">
+      <div class="panel-head sdd-ph">
+        <div>
+          <div class="panel-title">Trading window closures</div>
+          <div class="panel-sub">Closed from the end of every quarter until 48 hours after results are published, and whenever the compliance officer decides.</div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" data-open="dlg-close">Close window</button>
+      </div>
+      {% if windows %}
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Closes on</th><th>Reopens on</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {% for w in windows %}
+            <tr>
+              <td class="sdd-nowrap">{{ fmt_d(w.closes_on) }}</td>
+              <td class="sdd-nowrap">{% if w.opens_on %}{{ fmt_d(w.opens_on) }}{% else %}<span class="muted">Until reopened</span>{% endif %}</td>
+              <td>{{ w.reason }}</td>
+              <td>
+                {% if w.state == 'closed' %}<span class="chip chip-medium">Closed now</span>
+                {% elif w.state == 'scheduled' %}<span class="chip chip-info">Scheduled</span>
+                {% else %}<span class="chip chip-low">Reopened</span>{% endif %}
+              </td>
+              <td class="sdd-act">
+                {% if w.can_reopen %}
+                <button type="button" class="btn btn-secondary btn-sm js-reopen" data-id="{{ w.id }}" data-closes="{{ w.closes_on }}" data-opens="{{ w.opens_on }}" data-summary="Closed from {{ fmt_d(w.closes_on) }}{{ ': ' ~ w.reason if w.reason }}">{{ 'Change date' if w.opens_on else 'Reopen' }}</button>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">
+        <div class="empty-title">No closures recorded</div>
+        Record each quarterly closure here. The next one would start on {{ fmt_d(suggestion.closes_on) }}.
+        <div style="margin-top:14px"><button type="button" class="btn btn-primary btn-sm" data-open="dlg-close">Close window</button></div>
+      </div>
+      {% endif %}
+      <div class="panel-body sdd-foot">
+        <p class="note">The window reopens 48 hours after results are published. Set the reopening date once the results are out.</p>
+      </div>
+    </div>
+  </section>
+
+  {# ── Pre-clearance ────────────────────────────────────────────── #}
+  <section class="sdd-pane" data-pane="preclear" role="tabpanel" hidden>
+    <div class="panel">
+      <div class="panel-head sdd-ph">
+        <div>
+          <div class="panel-title">Pre-clearance requests</div>
+          <div class="panel-sub">Valid for {{ valid_days }} trading days once approved. Cannot be approved while the window is closed.</div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" data-open="dlg-request" {% if not persons %}disabled title="Add designated persons first"{% endif %}>New request</button>
+      </div>
+      {% if requests %}
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Person</th><th>Type</th><th class="num">Quantity</th><th class="num">Est. value</th><th>Requested</th><th>Status</th><th>Valid until</th><th></th></tr></thead>
+          <tbody>
+            {% for r in requests %}
+            <tr>
+              <td>
+                <div class="sdd-strong">{{ r.person_name }}</div>
+                <div class="sdd-sub">{{ 'Immediate relative' if r.relation == 'immediate_relative' else (r.designation or 'Designated person') }}{{ ' · removed from list' if r.person_removed_at }}</div>
+                {% if r.notes %}<div class="sdd-sub">{{ r.notes }}</div>{% endif %}
+              </td>
+              <td>{{ r.txn_label }}</td>
+              <td class="num">{{ num(r.quantity) }}</td>
+              <td class="num">{{ inr(r.est_value) if r.est_value else '' }}</td>
+              <td class="sdd-nowrap">{{ fmt_dt(r.requested_at) }}</td>
+              <td>
+                {% if r.state == 'pending' %}<span class="chip chip-medium">Pending</span>
+                {% elif r.state == 'approved' %}<span class="chip chip-ok">Approved</span>
+                {% elif r.state == 'rejected' %}<span class="chip chip-critical">Rejected</span>
+                {% else %}<span class="chip chip-low">Expired</span>{% endif %}
+                {% if r.decision_note %}<div class="sdd-sub">{{ r.decision_note }}</div>{% endif %}
+              </td>
+              <td class="sdd-nowrap">{{ fmt_d(r.valid_until) if r.valid_until else '' }}</td>
+              <td class="sdd-act">
+                {% if r.status == 'pending' %}
+                <button type="button" class="btn btn-secondary btn-sm js-decide-open" data-id="{{ r.id }}" data-summary="{{ r.person_name }} · {{ r.txn_label }} {{ num(r.quantity) }} shares{{ ' · ' ~ inr(r.est_value) if r.est_value }}">Decide</button>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">
+        <div class="empty-title">No pre-clearance requests</div>
+        {% if persons %}Log a request before a designated person or relative trades. Approval is valid for {{ valid_days }} trading days.{% else %}Add designated persons first. Their requests to trade are logged and decided here.{% endif %}
+        {% if persons %}<div style="margin-top:14px"><button type="button" class="btn btn-primary btn-sm" data-open="dlg-request">New request</button></div>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ── Audit ────────────────────────────────────────────────────── #}
+  <section class="sdd-pane" data-pane="audit" role="tabpanel" hidden>
+    <div class="panel">
+      <div class="panel-head sdd-ph">
+        <div>
+          <div class="panel-title">Audit trail</div>
+          <div class="panel-sub">Reg 3(6): time stamps and an audit trail that shows tampering.</div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm js-reverify">Re-verify</button>
+      </div>
+      <div class="panel-body">
+        <div class="sdd-verify">
+          <div><span class="chip {{ chain_cls }} js-verify-chip">{{ chain_text }}</span></div>
+          <p class="sdd-p js-verify-text">
+            {% if not chain.ok %}{{ chain.problem }}
+            {% elif chain.entries %}All {{ chain.entries }} {{ 'entry matches its' if chain.entries == 1 else 'entries match their' }} fingerprints.
+            {% else %}No entries yet. The chain starts with the first one you record.{% endif %}
+          </p>
+          <p class="sdd-sub">Last checked <span class="js-verify-time">{{ fmt_dt(chain.checked_at) }}</span> IST</p>
+        </div>
+
+        <div class="sdd-hash">
+          <div class="fld-label">Head hash (fingerprint of the latest entry)</div>
+          <div class="sdd-hash-row">
+            <code class="mono sdd-hash-code js-head" data-full="{{ chain.head if chain.ok and chain.entries else '' }}" title="{{ chain.head if chain.ok and chain.entries else '' }}">{% if chain.ok and chain.entries %}{{ chain.head[:16] }}…{{ chain.head[-8:] }}{% elif chain.ok %}No entries yet{% else %}Not available while the chain is broken{% endif %}</code>
+            <button type="button" class="btn btn-secondary btn-sm js-copy-head" {% if not (chain.ok and chain.entries) %}hidden{% endif %}>Copy</button>
+          </div>
+        </div>
+
+        <h3 class="sdd-h3">How the chain works</h3>
+        <p class="sdd-p">Each entry stores a SHA-256 fingerprint of its own contents combined with the fingerprint of the entry before it. Changing, deleting or reordering any past entry breaks every fingerprint after it. UPSI records, trading-window closures, pre-clearance decisions and the designated persons list go into a second chain of the same kind. A separate record of how long both chains are shows when the newest entries are deleted. Re-verify checks all of it, and every UPSI record against what was logged for it.</p>
+        <p class="note" style="margin-top:14px">Someone with direct access to the database could still rebuild every record consistently. Record the head hash in the audit committee minutes each quarter: a recorded head that is missing from the CSV's Hash column shows that.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+{# ── Dialogs ──────────────────────────────────────────────────────── #}
+<dialog class="mod-dialog" id="dlg-upsi" aria-labelledby="dlg-upsi-title">
+  <form id="form-upsi" novalidate>
+    <div class="dlg-head"><span id="dlg-upsi-title">New UPSI item</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      <label class="fld">
+        <span class="fld-label">Title</span>
+        <input class="fld-input" name="title" maxlength="200" placeholder="e.g. Q2 FY27 financial results">
+      </label>
+      <label class="fld">
+        <span class="fld-label">Nature</span>
+        <select class="fld-select" name="category">
+          <option>Financial results</option>
+          <option>Dividend</option>
+          <option>Change in capital structure</option>
+          <option>Merger, demerger, acquisition, delisting, disposal or expansion</option>
+          <option>Change in key managerial personnel or auditor</option>
+          <option>Change in credit rating</option>
+          <option>Proposed fund raising</option>
+          <option>Agreement affecting management or control</option>
+          <option>Fraud, default or arrest</option>
+          <option>Loan restructuring or one-time settlement</option>
+          <option>Insolvency or winding-up admission</option>
+          <option>Forensic audit</option>
+          <option>Regulatory or court action</option>
+          <option>Outcome of litigation</option>
+          <option>Guarantee or indemnity outside normal business</option>
+          <option>Key licence or approval granted or withdrawn</option>
+          <option>Other</option>
+        </select>
+        <span class="fld-hint">Categories from PIT Reg 2(1)(n).</span>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Details <span class="muted">(optional)</span></span>
+        <input class="fld-input" name="detail" maxlength="300" placeholder="e.g. Board meeting on 12 Nov 2026">
+      </label>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Add UPSI</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mod-dialog" id="dlg-public" aria-labelledby="dlg-public-title">
+  <form id="form-public" novalidate>
+    <div class="dlg-head"><span id="dlg-public-title">Mark UPSI public</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      <p class="sdd-lead js-public-name"></p>
+      <label class="fld">
+        <span class="fld-label">Public on</span>
+        <input class="fld-input" type="date" name="public_on" max="{{ today }}" value="{{ today }}">
+        <span class="fld-hint">The day it was disclosed to the stock exchanges. Sharing after this no longer needs an entry.</span>
+      </label>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Mark public</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mod-dialog" id="dlg-entry" aria-labelledby="dlg-entry-title">
+  <form id="form-entry" novalidate>
+    <div class="dlg-head"><span id="dlg-entry-title">Record sharing</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      <p class="note js-correct-note" style="margin-bottom:14px" hidden>This adds a new entry marked as a correction of #<span class="js-correct-id"></span>. The original stays on record.</p>
+      <input type="hidden" name="corrects_id">
+      <label class="fld">
+        <span class="fld-label">UPSI</span>
+        <select class="fld-select" name="upsi_id">
+          {% for u in upsi | sort(attribute='public_on') %}
+          <option value="{{ u.id }}">{{ u.title }}{{ ' (public since ' ~ fmt_d(u.public_on) ~ ')' if u.public_on }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="sdd-group-label">Shared by</div>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">Name</span>
+          <input class="fld-input" name="shared_by_name" maxlength="160" autocomplete="off">
+        </label>
+        <label class="fld">
+          <span class="fld-label">PAN</span>
+          <input class="fld-input" name="shared_by_pan" maxlength="10" placeholder="ABCDE1234F" autocapitalize="characters" autocomplete="off">
+        </label>
+      </div>
+      <div class="sdd-group-label">Shared with</div>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">Name</span>
+          <input class="fld-input" name="shared_with_name" maxlength="160" autocomplete="off">
+        </label>
+        <label class="fld js-pan-wrap">
+          <span class="fld-label">PAN</span>
+          <input class="fld-input" name="shared_with_pan" maxlength="10" placeholder="ABCDE1234F" autocapitalize="characters" autocomplete="off">
+        </label>
+        <label class="fld js-ident-wrap" hidden>
+          <span class="fld-label">Other identifier</span>
+          <input class="fld-input" name="identifier_note" maxlength="36" placeholder="e.g. Passport K1234567" autocomplete="off">
+        </label>
+      </div>
+      <label class="check-row" style="margin:-4px 0 10px">
+        <input type="checkbox" name="no_pan">
+        <span>Recipient has no PAN. Use another identifier authorised by law.</span>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Organisation <span class="muted">(optional)</span></span>
+        <input class="fld-input" name="shared_with_org" maxlength="160" placeholder="e.g. statutory auditor, bank, law firm">
+      </label>
+      <label class="fld">
+        <span class="fld-label">Recipient type</span>
+        <select class="fld-select" name="recipient_type">
+          <option value="">Choose</option>
+          {% for k, v in recipient_types.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Purpose</span>
+        <textarea class="fld-textarea sdd-short" name="purpose" maxlength="500" placeholder="e.g. Review of draft results before the audit committee meeting"></textarea>
+        <span class="fld-hint">The legitimate purpose, as defined in the board's policy under Reg 3(2A).</span>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Shared at (IST)</span>
+        <input class="fld-input" type="datetime-local" name="shared_at">
+      </label>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary js-entry-submit">Record entry</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mod-dialog" id="dlg-person" aria-labelledby="dlg-person-title">
+  <form id="form-person" novalidate>
+    <div class="dlg-head"><span id="dlg-person-title">Add person</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">Name</span>
+          <input class="fld-input" name="name" maxlength="160" autocomplete="off">
+        </label>
+        <label class="fld">
+          <span class="fld-label">Relation</span>
+          <select class="fld-select" name="relation">
+            <option value="self">Designated person</option>
+            <option value="immediate_relative" {% if not dps %}disabled{% endif %}>Immediate relative</option>
+          </select>
+        </label>
+      </div>
+      <label class="fld js-related-wrap" hidden>
+        <span class="fld-label">Relative of</span>
+        <select class="fld-select" name="related_to">
+          {% for p in dps %}<option value="{{ p.id }}">{{ p.name }}{{ ' · ' ~ p.designation if p.designation }}</option>{% endfor %}
+        </select>
+        <span class="fld-hint">Spouse, and a parent, sibling or child of the person or the spouse, who is financially dependent on them or consults them on trading.</span>
+      </label>
+      <label class="fld js-designation-wrap">
+        <span class="fld-label">Designation</span>
+        <input class="fld-input" name="designation" maxlength="100" placeholder="e.g. Director, CFO, Finance team">
+      </label>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">PAN</span>
+          <input class="fld-input" name="pan" maxlength="10" placeholder="ABCDE1234F" autocapitalize="characters" autocomplete="off">
+        </label>
+        <label class="fld">
+          <span class="fld-label">Email <span class="muted">(optional)</span></span>
+          <input class="fld-input" type="email" name="email" maxlength="160" autocomplete="off">
+        </label>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Add person</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mod-dialog" id="dlg-confirm" aria-labelledby="dlg-confirm-title">
+  <form id="form-confirm" novalidate>
+    <div class="dlg-head"><span id="dlg-confirm-title">Remove person</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      <p class="sdd-lead js-confirm-text" style="margin:0"></p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Remove</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mod-dialog" id="dlg-close" aria-labelledby="dlg-close-title">
+  <form id="form-close" novalidate>
+    <div class="dlg-head"><span id="dlg-close-title">Close trading window</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">Closes on</span>
+          <input class="fld-input" type="date" name="closes_on" value="{{ suggestion.closes_on }}">
+        </label>
+        <label class="fld">
+          <span class="fld-label">Reopens on <span class="muted">(optional)</span></span>
+          <input class="fld-input" type="date" name="opens_on">
+        </label>
+      </div>
+      <p class="fld-hint" style="margin:-4px 0 12px">Leave the reopening date blank until results are out. The window stays closed until you reopen it.</p>
+      <label class="fld">
+        <span class="fld-label">Reason</span>
+        <input class="fld-input" name="reason" maxlength="300" value="{{ suggestion.reason }}">
+      </label>
+      <p class="note">Schedule B closes the window from the end of every quarter until 48 hours after the results are published.</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Close window</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mod-dialog" id="dlg-reopen" aria-labelledby="dlg-reopen-title">
+  <form id="form-reopen" novalidate>
+    <div class="dlg-head"><span id="dlg-reopen-title">Reopen trading window</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      <p class="sdd-lead js-reopen-summary"></p>
+      <label class="fld">
+        <span class="fld-label">Results published at (IST) <span class="muted">(optional)</span></span>
+        <input class="fld-input" type="datetime-local" name="results_at">
+        <span class="fld-hint">Fills the date below: the first day whose whole trading session starts after the 48 hours.</span>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Window reopens on</span>
+        <input class="fld-input" type="date" name="opens_on">
+      </label>
+      <p class="note">The window reopens 48 hours after results are published.</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Save reopening date</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mod-dialog" id="dlg-request" aria-labelledby="dlg-request-title">
+  <form id="form-request" novalidate>
+    <div class="dlg-head"><span id="dlg-request-title">New pre-clearance request</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      {% if wstatus.closed %}<p class="note" style="margin-bottom:14px">The trading window is closed today. You can log the request, but approval waits until it reopens.</p>{% endif %}
+      <label class="fld">
+        <span class="fld-label">Person</span>
+        <select class="fld-select" name="person_id">
+          {% for p in persons %}<option value="{{ p.id }}">{{ p.name }}{% if p.relation == 'immediate_relative' and p.related_name %} (relative of {{ p.related_name }}){% elif p.designation %} · {{ p.designation }}{% endif %}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">Transaction</span>
+          <select class="fld-select" name="txn_type">
+            {% for k, v in txn_types.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="fld">
+          <span class="fld-label">Quantity (shares)</span>
+          <input class="fld-input" type="number" name="quantity" min="1" step="1" inputmode="numeric">
+        </label>
+      </div>
+      <label class="fld">
+        <span class="fld-label">Estimated value in rupees <span class="muted">(optional)</span></span>
+        <input class="fld-input" type="number" name="est_value" min="0" step="1" inputmode="numeric">
+      </label>
+      <label class="fld">
+        <span class="fld-label">Notes <span class="muted">(optional)</span></span>
+        <textarea class="fld-textarea sdd-short" name="notes" maxlength="500" placeholder="e.g. Sale to fund a home purchase"></textarea>
+      </label>
+      <p class="fld-hint">Valid for {{ valid_days }} trading days once approved.</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Log request</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mod-dialog" id="dlg-decide" aria-labelledby="dlg-decide-title">
+  <form id="form-decide" novalidate>
+    <div class="dlg-head"><span id="dlg-decide-title">Decide pre-clearance</span></div>
+    <div class="dlg-body">
+      <div class="sdd-err" role="alert"></div>
+      <p class="sdd-lead js-decide-summary"></p>
+      {% if wstatus.closed %}<p class="note" style="margin-bottom:14px">The trading window is closed today, so approval will be refused.</p>{% endif %}
+      <label class="fld">
+        <span class="fld-label">Note <span class="muted">(required to reject)</span></span>
+        <textarea class="fld-textarea sdd-short" name="note" maxlength="500"></textarea>
+      </label>
+      <p class="fld-hint">Valid for {{ valid_days }} trading days from approval, and ends the day before any closure that starts sooner.</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="button" class="btn btn-secondary js-decide" data-decision="reject">Reject</button>
+      <button type="button" class="btn btn-primary js-decide" data-decision="approve">Approve</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var API = '/api/sdd/{{ ent.id }}';
+  var TODAY = '{{ today }}';
+  // A lapsed session answers with the sign-in page, which dfApi reads as null.
+  var SESSION_MSG = 'Your session has ended. Reload the page and sign in again.';
+
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  // Wall-clock IST regardless of the viewer's own time zone.
+  function nowIst() { return new Date(Date.now() + 330 * 60000).toISOString().slice(0, 16); }
+
+  // A saved change reloads the page; the toast survives the reload.
+  try {
+    var flash = sessionStorage.getItem('sdd-flash');
+    if (flash) { sessionStorage.removeItem('sdd-flash'); dfToast(flash, 'ok'); }
+  } catch (e) {}
+  function done(msg, tab) {
+    try { sessionStorage.setItem('sdd-flash', msg); } catch (e) {}
+    if (tab) history.replaceState(null, '', '#' + tab);
+    location.reload();
+  }
+
+  // ── Tabs ──
+  var TAB_NAMES = $all('.tabs [data-tab]').map(function (t) { return t.dataset.tab; });
+  function showTab(name) {
+    if (TAB_NAMES.indexOf(name) < 0) name = 'upsi';
+    $all('[data-pane]').forEach(function (p) { p.hidden = p.dataset.pane !== name; });
+    $all('.tabs [data-tab]').forEach(function (t) {
+      var on = t.dataset.tab === name;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+  function goTab(name) { showTab(name); history.replaceState(null, '', '#' + name); }
+  $all('.tabs [data-tab]').forEach(function (t) { t.addEventListener('click', function () { goTab(t.dataset.tab); }); });
+  $all('[data-tab-link]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      goTab(a.dataset.tabLink);
+      $('.tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+  showTab((location.hash || '#upsi').slice(1));
+
+  // ── Dialogs ──
+  function clearErr(form) { var el = $('.sdd-err', form); if (el) el.classList.remove('show'); }
+  function showErr(form, msg) {
+    var el = $('.sdd-err', form);
+    el.textContent = msg;
+    el.classList.add('show');
+    el.scrollIntoView({ block: 'nearest' });
+  }
+  function openDlg(id, keep) {
+    var d = document.getElementById(id);
+    var f = $('form', d);
+    if (f && !keep) f.reset();
+    if (f) clearErr(f);
+    $all('button', d).forEach(function (b) { b.disabled = false; });
+    d.showModal();
+    return d;
+  }
+  $all('dialog.mod-dialog').forEach(function (d) {
+    d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
+    $all('[data-close]', d).forEach(function (b) { b.addEventListener('click', function () { d.close(); }); });
+  });
+  $all('[data-open]').forEach(function (b) { b.addEventListener('click', function () { openDlg(b.dataset.open); }); });
+
+  // Disable the buttons while saving: a double click must not append two entries.
+  async function send(form, url, method, payload, msg, tab) {
+    var btns = $all('button[type=submit], .js-decide', form);
+    btns.forEach(function (b) { b.disabled = true; });
+    clearErr(form);
+    try {
+      var res = await dfApi(url, { method: method, body: payload });
+      if (!res) throw new Error(SESSION_MSG);
+      done(typeof msg === 'function' ? msg(res) : msg, tab);
+      return res;
+    } catch (ex) {
+      showErr(form, ex.message);
+      dfToast(ex.message, 'err');
+      btns.forEach(function (b) { b.disabled = false; });
+    }
+  }
+  function onSubmit(id, handler) {
+    var form = document.getElementById(id);
+    form.addEventListener('submit', function (e) { e.preventDefault(); handler(form, form.elements); });
+  }
+
+  // ── UPSI ──
+  onSubmit('form-upsi', function (form, el) {
+    var cat = el.category.value, detail = el.detail.value.trim();
+    var nature = cat === 'Other' ? detail : (detail ? cat + ': ' + detail : cat);
+    send(form, API + '/upsi', 'POST', { title: el.title.value.trim(), nature: nature }, 'UPSI item added.', 'upsi');
+  });
+
+  var publicForm = document.getElementById('form-public');
+  $all('.js-mark-public').forEach(function (b) {
+    b.addEventListener('click', function () {
+      openDlg('dlg-public');
+      publicForm.dataset.id = b.dataset.id;
+      $('.js-public-name', publicForm).textContent = b.dataset.title;
+      publicForm.elements.public_on.value = TODAY;
+    });
+  });
+  onSubmit('form-public', function (form, el) {
+    send(form, API + '/upsi/' + form.dataset.id + '/public', 'POST', { public_on: el.public_on.value },
+         'Marked public.', 'upsi');
+  });
+
+  // ── Sharing entries ──
+  var entryForm = document.getElementById('form-entry');
+  function syncPanToggle() {
+    var noPan = entryForm.elements.no_pan.checked;
+    $('.js-pan-wrap', entryForm).hidden = noPan;
+    $('.js-ident-wrap', entryForm).hidden = !noPan;
+  }
+  entryForm.elements.no_pan.addEventListener('change', syncPanToggle);
+
+  function openEntry(correcting) {
+    openDlg('dlg-entry');
+    var el = entryForm.elements;
+    el.shared_at.max = nowIst();
+    el.shared_at.value = nowIst();
+    el.corrects_id.value = correcting ? String(correcting.id) : '';
+    $('#dlg-entry-title').textContent = correcting ? 'Correct entry #' + correcting.id : 'Record sharing';
+    $('.js-entry-submit').textContent = correcting ? 'Record correction' : 'Record entry';
+    $('.js-correct-note', entryForm).hidden = !correcting;
+    $('.js-correct-id', entryForm).textContent = correcting ? correcting.id : '';
+    if (correcting) {
+      ['upsi_id', 'shared_by_name', 'shared_by_pan', 'shared_with_name', 'shared_with_pan', 'identifier_note',
+       'shared_with_org', 'recipient_type', 'purpose'].forEach(function (k) {
+        el[k].value = correcting[k] == null ? '' : correcting[k];
+      });
+      el.no_pan.checked = !!correcting.no_pan;
+      if (correcting.shared_at) el.shared_at.value = String(correcting.shared_at).slice(0, 16);
+    }
+    syncPanToggle();
+  }
+  $all('.js-record').forEach(function (b) { b.addEventListener('click', function () { openEntry(null); }); });
+  $all('.js-correct').forEach(function (b) {
+    b.addEventListener('click', async function () {
+      b.disabled = true;
+      try {
+        var entry = await dfApi(API + '/entries/' + b.dataset.id);
+        if (!entry) throw new Error(SESSION_MSG);
+        openEntry(entry);
+      }
+      catch (ex) { dfToast(ex.message, 'err'); }
+      finally { b.disabled = false; }
+    });
+  });
+  onSubmit('form-entry', function (form, el) {
+    var noPan = el.no_pan.checked;
+    var payload = {
+      upsi_id: el.upsi_id.value,
+      shared_by_name: el.shared_by_name.value.trim(),
+      shared_by_pan: el.shared_by_pan.value.trim(),
+      shared_with_name: el.shared_with_name.value.trim(),
+      shared_with_pan: noPan ? '' : el.shared_with_pan.value.trim(),
+      identifier_note: noPan ? el.identifier_note.value.trim() : '',
+      shared_with_org: el.shared_with_org.value.trim(),
+      recipient_type: el.recipient_type.value,
+      purpose: el.purpose.value.trim(),
+      shared_at: el.shared_at.value
+    };
+    if (el.corrects_id.value) payload.corrects_id = el.corrects_id.value;
+    send(form, API + '/entries', 'POST', payload, function (res) {
+      return payload.corrects_id ? 'Correction recorded as entry #' + res.id + '.' : 'Entry #' + res.id + ' recorded.';
+    }, 'upsi');
+  });
+
+  var filter = document.getElementById('entry-filter');
+  if (filter) {
+    filter.addEventListener('change', function () {
+      var v = filter.value, shown = 0;
+      $all('.sdd-entries tbody tr[data-upsi]').forEach(function (tr) {
+        var on = !v || tr.dataset.upsi === v;
+        tr.hidden = !on;
+        if (on) shown++;
+      });
+      $('.js-filter-empty').hidden = shown > 0;
+    });
+  }
+
+  // ── Designated persons ──
+  var personForm = document.getElementById('form-person');
+  function syncRelation() {
+    var rel = personForm.elements.relation.value === 'immediate_relative';
+    $('.js-related-wrap', personForm).hidden = !rel;
+    $('.js-designation-wrap', personForm).hidden = rel;
+  }
+  personForm.elements.relation.addEventListener('change', syncRelation);
+  $all('.js-add-person').forEach(function (b) {
+    b.addEventListener('click', function () { openDlg('dlg-person'); syncRelation(); });
+  });
+  onSubmit('form-person', function (form, el) {
+    var rel = el.relation.value === 'immediate_relative';
+    send(form, API + '/persons', 'POST', {
+      name: el.name.value.trim(),
+      relation: el.relation.value,
+      related_to: rel ? el.related_to.value : '',
+      designation: rel ? '' : el.designation.value.trim(),
+      pan: el.pan.value.trim(),
+      email: el.email.value.trim()
+    }, 'Person added.', 'persons');
+  });
+
+  var confirmForm = document.getElementById('form-confirm');
+  $all('.js-remove-person').forEach(function (b) {
+    b.addEventListener('click', function () {
+      openDlg('dlg-confirm');
+      confirmForm.dataset.id = b.dataset.id;
+      var n = parseInt(b.dataset.relatives || '0', 10);
+      $('.js-confirm-text', confirmForm).textContent = 'Remove ' + b.dataset.name + ' from the list?' +
+        (n ? ' Their ' + n + ' immediate relative' + (n === 1 ? '' : 's') + ' will be removed too.' : '') +
+        ' Past sharing entries and pre-clearance records stay.';
+    });
+  });
+  onSubmit('form-confirm', function (form) {
+    send(form, API + '/persons/' + form.dataset.id, 'DELETE', {}, 'Removed from the list.', 'persons');
+  });
+
+  // ── Trading window ──
+  onSubmit('form-close', function (form, el) {
+    send(form, API + '/windows', 'POST', {
+      closes_on: el.closes_on.value, opens_on: el.opens_on.value, reason: el.reason.value.trim()
+    }, 'Trading window closure recorded.', 'window');
+  });
+
+  var reopenForm = document.getElementById('form-reopen');
+  function addDays(iso, n) {
+    var d = new Date(iso + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+  // 48 hours after publication; if that lands after 09:15 the day's session
+  // has already started, so the window opens the next day.
+  function reopenDate(resultsAt) {
+    var d = new Date(resultsAt + ':00Z');
+    if (isNaN(d.getTime())) return '';
+    d = new Date(d.getTime() + 48 * 3600000);
+    if (d.getUTCHours() * 60 + d.getUTCMinutes() > 9 * 60 + 15) d = new Date(d.getTime() + 86400000);
+    return d.toISOString().slice(0, 10);
+  }
+  reopenForm.elements.results_at.addEventListener('change', function () {
+    var v = reopenDate(reopenForm.elements.results_at.value);
+    if (v) reopenForm.elements.opens_on.value = v;
+  });
+  $all('.js-reopen').forEach(function (b) {
+    b.addEventListener('click', function () {
+      openDlg('dlg-reopen');
+      reopenForm.dataset.id = b.dataset.id;
+      $('.js-reopen-summary', reopenForm).textContent = b.dataset.summary;
+      reopenForm.elements.opens_on.min = addDays(b.dataset.closes, 1);
+      reopenForm.elements.opens_on.value = b.dataset.opens || '';
+      reopenForm.elements.results_at.max = nowIst();
+    });
+  });
+  onSubmit('form-reopen', function (form, el) {
+    send(form, API + '/windows/' + form.dataset.id + '/open', 'POST', { opens_on: el.opens_on.value },
+         'Reopening date saved.', 'window');
+  });
+
+  // ── Pre-clearance ──
+  onSubmit('form-request', function (form, el) {
+    send(form, API + '/preclearance', 'POST', {
+      person_id: el.person_id.value, txn_type: el.txn_type.value,
+      quantity: el.quantity.value, est_value: el.est_value.value, notes: el.notes.value.trim()
+    }, 'Request logged.', 'preclear');
+  });
+
+  var decideForm = document.getElementById('form-decide');
+  decideForm.addEventListener('submit', function (e) { e.preventDefault(); });
+  $all('.js-decide-open').forEach(function (b) {
+    b.addEventListener('click', function () {
+      openDlg('dlg-decide');
+      decideForm.dataset.id = b.dataset.id;
+      $('.js-decide-summary', decideForm).textContent = b.dataset.summary;
+    });
+  });
+  $all('.js-decide', decideForm).forEach(function (b) {
+    b.addEventListener('click', function () {
+      var decision = b.dataset.decision;
+      send(decideForm, API + '/preclearance/' + decideForm.dataset.id + '/decide', 'POST',
+           { decision: decision, note: decideForm.elements.note.value.trim() },
+           function (res) {
+             if (decision === 'reject') return 'Request rejected.';
+             return 'Approved. Valid until ' + res.valid_until_label +
+                    (res.cut_by_closure ? ', the day before the window closes.' : '.');
+           }, 'preclear');
+    });
+  });
+
+  // ── Audit ──
+  var headEl = $('.js-head'), copyBtn = $('.js-copy-head'), verifyBtn = $('.js-reverify');
+  function renderVerify(v) {
+    $all('.js-chain-badge, .js-verify-chip').forEach(function (el) {
+      el.classList.remove('chip-ok', 'chip-critical', 'chip-low');
+      el.classList.add(v.chip);
+      el.textContent = v.label;
+    });
+    var text;
+    if (!v.ok) text = v.problem;
+    else if (v.entries) text = 'All ' + v.entries + (v.entries === 1 ? ' entry matches its' : ' entries match their') + ' fingerprints.';
+    else text = 'No entries yet. The chain starts with the first one you record.';
+    $('.js-verify-text').textContent = text;
+    $('.js-verify-time').textContent = v.checked_label;
+    var alertBox = $('.js-tamper-alert');
+    alertBox.hidden = !!v.ok;
+    if (!v.ok) $('.js-tamper-title').textContent = v.problem;
+    var full = v.ok && v.entries ? v.head : '';
+    headEl.dataset.full = full;
+    headEl.title = full;
+    headEl.textContent = full ? full.slice(0, 16) + '…' + full.slice(-8)
+      : (v.ok ? 'No entries yet' : 'Not available while the chain is broken');
+    copyBtn.hidden = !full;
+  }
+  verifyBtn.addEventListener('click', async function () {
+    verifyBtn.disabled = true;
+    try {
+      var v = await dfApi(API + '/verify');
+      if (!v) throw new Error(SESSION_MSG);
+      renderVerify(v);
+      dfToast(v.ok ? 'Verified. ' + v.label + '.' : v.label, v.ok ? 'ok' : 'err');
+    } catch (ex) {
+      dfToast(ex.message, 'err');
+    } finally {
+      verifyBtn.disabled = false;
+    }
+  });
+  copyBtn.addEventListener('click', function () {
+    var full = headEl.dataset.full;
+    if (!full) return;
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = full;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      ta.remove();
+      dfToast(ok ? 'Head hash copied.' : 'Copy failed. Select the hash and copy it by hand.', ok ? 'ok' : 'err');
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(full).then(function () { dfToast('Head hash copied.', 'ok'); }, fallback);
+    } else {
+      fallback();
+    }
+  });
+})();
+</script>
+{% endblock %}

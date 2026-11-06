@@ -1,0 +1,313 @@
+{# ── Delta Copilot ──────────────────────────────────────────────────────
+   Floating assistant, present on every screen. Overlays the app: the page
+   behind stays visible and interactive, and nothing navigates away.
+   Context comes from the server (see inject_copilot in main.py), so the
+   assistant already knows the page, company and document being viewed. #}
+<style>
+    /* Launcher borrows the topbar's glass treatment and the app's own tokens
+       rather than introducing a second visual language. */
+    /* Circular icon button — no wordmark. Borrows the topbar's glass
+       treatment so it belongs to the app rather than sitting on top of it. */
+    .dc-launcher {
+        position: fixed; right: 22px; bottom: 22px; z-index: 900;
+        width: 56px; height: 56px; border-radius: 50%; padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.86);
+        backdrop-filter: saturate(180%) blur(18px);
+        -webkit-backdrop-filter: saturate(180%) blur(18px);
+        border: 1px solid var(--border, #e2e8f0);
+        color: var(--primary, #4f46e5); cursor: pointer;
+        box-shadow: 0 4px 18px -6px rgba(15,23,42,.2);
+        transition: border-color .15s, box-shadow .15s, transform .15s;
+    }
+    .dc-launcher:hover {
+        border-color: var(--primary, #4f46e5);
+        box-shadow: 0 10px 26px -8px rgba(79,70,229,.34);
+        transform: translateY(-2px);
+    }
+    .dc-launcher:active { transform: translateY(0); }
+    .dc-launcher.hidden { display: none; }
+    .dc-mark { width: 22px; height: 22px; flex-shrink: 0; }
+
+    /* Label appears on hover so the circle stays discoverable without a
+       permanent wordmark competing with the page. */
+    .dc-tip {
+        position: absolute; right: 66px; top: 50%; transform: translateY(-50%) translateX(4px);
+        white-space: nowrap; font-size: 12px; font-weight: 600; letter-spacing: -.01em;
+        padding: 6px 11px; border-radius: 8px; pointer-events: none;
+        background: var(--text-primary, #0f172a); color: #fff;
+        opacity: 0; transition: opacity .15s, transform .15s;
+    }
+    .dc-launcher:hover .dc-tip { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+    html.dark .dc-launcher { background: rgba(16,16,18,0.88); border-color: #27272a;
+        color: #a5b4fc; box-shadow: 0 4px 20px -6px rgba(0,0,0,.65); }
+    html.dark .dc-launcher:hover { border-color: #6366f1; box-shadow: 0 10px 28px -8px rgba(99,102,241,.45); }
+    html.dark .dc-tip { background: #27272a; color: #fafafa; }
+
+    .dc-panel {
+        position: fixed; right: 24px; bottom: 24px; z-index: 901;
+        width: min(420px, calc(100vw - 32px));
+        height: min(620px, calc(100vh - 48px));
+        display: none; flex-direction: column; overflow: hidden;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 18px;
+        box-shadow: 0 28px 70px -20px rgba(15,23,42,.42);
+        animation: dcIn .2s cubic-bezier(.22,.61,.36,1);
+    }
+    .dc-panel.open { display: flex; }
+    @keyframes dcIn { from { opacity:0; transform: translateY(14px) scale(.98); } }
+
+    .dc-head { display:flex; align-items:center; gap:11px; padding:15px 17px;
+        border-bottom:1px solid var(--border-light, #f1f5f9); flex-shrink:0;
+        background: var(--surface, #fff); color: var(--text-primary, #0f172a); }
+    .dc-head .dc-mark { width:17px; height:17px; }
+    .dc-title { font-size:14.5px; font-weight:700; letter-spacing:-.015em; }
+    .dc-sub { font-size:11.5px; color: var(--text-muted, #94a3b8); margin-top:1px; }
+    .dc-x { margin-left:auto; background:transparent; border:1px solid transparent;
+        color: var(--text-muted, #94a3b8);
+        width:26px; height:26px; border-radius:7px; cursor:pointer; font-size:13px; line-height:1;
+        display:flex; align-items:center; justify-content:center; transition:all .13s; }
+    .dc-x:hover { background: var(--surface-secondary, #f8fafc); color: var(--text-primary, #0f172a); }
+
+    .dc-ctx { padding:8px 18px; background:#f8fafc; border-bottom:1px solid #f1f5f9;
+        font-size:11px; color:#64748b; display:flex; gap:6px; align-items:center; flex-shrink:0; }
+    .dc-ctx b { color:#334155; font-weight:700; }
+
+    .dc-body { flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:14px; }
+
+    .dc-msg { max-width:88%; font-size:13.5px; line-height:1.6; }
+    .dc-msg.user { align-self:flex-end; background: var(--primary, #4f46e5); color:#fff;
+        padding:9px 13px; border-radius:12px 12px 4px 12px; font-weight:500; }
+    .dc-msg.bot { align-self:flex-start; width:100%; max-width:100%; color:#1e293b; }
+
+    .dc-sec { margin-bottom:12px; }
+    .dc-sec:last-child { margin-bottom:0; }
+    .dc-sec-h { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+        color:#94a3b8; margin-bottom:4px; }
+    .dc-act { display:flex; gap:9px; padding:6px 0; font-size:13px; }
+    .dc-act-n { width:16px; height:16px; border-radius:5px; background:#eef2ff; color:#4338ca;
+        font-size:9.5px; font-weight:800; display:flex; align-items:center; justify-content:center;
+        flex-shrink:0; margin-top:2px; }
+    .dc-act-when { font-size:10px; color:#b45309; background:#fffbeb; padding:1px 6px;
+        border-radius:4px; margin-left:4px; white-space:nowrap; }
+    .dc-prep { display:flex; align-items:center; gap:7px; font-size:12.5px; color:#047857;
+        padding:3px 0; }
+    .dc-src { display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700;
+        background:#eef2ff; color:#4338ca; padding:3px 8px; border-radius:6px; margin:3px 4px 0 0;
+        font-family:ui-monospace,Menlo,monospace; }
+    .dc-review { font-size:11px; color:#92400e; background:#fffbeb; border:1px solid #fde68a;
+        border-radius:8px; padding:8px 11px; margin-top:10px; line-height:1.5; }
+
+    .dc-sugg { display:flex; flex-direction:column; gap:7px; }
+    .dc-sugg-btn { text-align:left; font-size:12.5px; font-weight:500;
+        color: var(--text-secondary, #475569);
+        background: var(--surface-secondary, #f8fafc);
+        border:1px solid var(--border, #e2e8f0); border-radius:9px;
+        padding:9px 12px; cursor:pointer; transition:all .13s; }
+    .dc-sugg-btn:hover { border-color: var(--primary, #4f46e5);
+        color: var(--text-primary, #0f172a); background: var(--surface, #fff); }
+
+    .dc-foot { border-top:1px solid #f1f5f9; padding:12px 14px; flex-shrink:0; background:#fff; }
+    .dc-inputrow { display:flex; gap:8px; align-items:flex-end; }
+    .dc-input { flex:1; border:1px solid #e2e8f0; border-radius:11px; padding:10px 13px;
+        font-size:13.5px; resize:none; max-height:110px; font-family:inherit; color:#0f172a; }
+    .dc-input:focus { outline:none; border-color:#c7d2fe; box-shadow:0 0 0 3px rgba(79,70,229,.12); }
+    .dc-send { width:36px; height:36px; border-radius:10px; border:none; cursor:pointer;
+        background: var(--primary, #4f46e5); color:#fff; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center; transition:background .13s; }
+    .dc-send:hover:not(:disabled) { background: var(--primary-hover, #4338ca); }
+    .dc-send:disabled { opacity:.45; cursor:not-allowed; }
+
+    .dc-typing { display:flex; gap:4px; padding:6px 0; }
+    .dc-typing span { width:6px; height:6px; border-radius:50%; background:#c7d2fe;
+        animation: dcBounce 1.1s infinite; }
+    .dc-typing span:nth-child(2){animation-delay:.15s;} .dc-typing span:nth-child(3){animation-delay:.3s;}
+    @keyframes dcBounce { 0%,60%,100%{transform:translateY(0);opacity:.5;} 30%{transform:translateY(-5px);opacity:1;} }
+
+    /* Dark theme */
+    html.dark .dc-panel { background:#0f0f10; border-color:#232326; }
+    html.dark .dc-head { background:#0f0f10; border-bottom-color:#1c1c1f; color:#fafafa; }
+    html.dark .dc-ctx { background:#141416; border-bottom-color:#1c1c1f; color:#a1a1aa; }
+    html.dark .dc-ctx b { color:#e4e4e7; }
+    html.dark .dc-msg.bot { color:#e4e4e7; }
+    html.dark .dc-sec-h { color:#71717a; }
+    html.dark .dc-act { color:#e4e4e7; }
+    html.dark .dc-act-n { background:#1e1b4b; color:#a5b4fc; }
+    html.dark .dc-act-when { background:#2a1d05; color:#fcd34d; }
+    html.dark .dc-prep { color:#6ee7b7; }
+    html.dark .dc-src { background:#1e1b4b; color:#a5b4fc; }
+    html.dark .dc-review { background:#2a1d05; border-color:#78350f; color:#fcd34d; }
+    html.dark .dc-sugg-btn { background:#141416; border-color:#27272a; color:#a1a1aa; }
+    html.dark .dc-sugg-btn:hover { border-color:#6366f1; color:#fafafa; background:#18181b; }
+    html.dark .dc-foot { background:#0f0f10; border-top-color:#1c1c1f; }
+    html.dark .dc-input { background:#141416; border-color:#27272a; color:#fafafa; }
+    html.dark .dc-input::placeholder { color:#52525b; }
+
+    @media (max-width: 520px) {
+        .dc-panel { right:8px; left:8px; bottom:8px; width:auto; height:calc(100vh - 16px); }
+        .dc-launcher { right:16px; bottom:16px; }
+    }
+</style>
+
+<button class="dc-launcher" id="dcLauncher" onclick="dcOpen()"
+        aria-label="Ask Delta — AI compliance assistant" title="Ask Delta">
+    <svg class="dc-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/></svg><span class="dc-tip">Ask Delta</span>
+</button>
+
+<div class="dc-panel" id="dcPanel" role="dialog" aria-label="Delta Copilot">
+    <div class="dc-head">
+        <svg class="dc-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/></svg>
+        <div>
+            <div class="dc-title">Delta Copilot</div>
+            <div class="dc-sub">Your AI compliance assistant</div>
+        </div>
+        <button class="dc-x" onclick="dcClose()" aria-label="Minimise">&#10005;</button>
+    </div>
+
+    <div class="dc-ctx" id="dcCtx"></div>
+    <div class="dc-body" id="dcBody"></div>
+
+    <div class="dc-foot">
+        <div class="dc-inputrow">
+            <textarea class="dc-input" id="dcInput" rows="1" placeholder="Ask about filings, deadlines or governance…"
+                      onkeydown="dcKey(event)" oninput="dcGrow(this)"></textarea>
+            <button class="dc-send" id="dcSend" onclick="dcSend()" aria-label="Send">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+const DC_CONTEXT = {{ (copilot_ctx or {}) | tojson }};
+const DC_SUGGESTIONS = {{ (copilot_suggestions or []) | tojson }};
+let dcHistory = [];
+let dcBusy = false;
+let dcGreeted = false;
+
+function dcEsc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
+
+function dcContextLine() {
+    const c = DC_CONTEXT || {};
+    const bits = [];
+    const labels = { dashboard:'Dashboard', command_center:'Signal', compliance:'Compliance',
+                     company:'Company', filing:'Filing', event:'Governance event',
+                     director:'Director', draft:'Drafting', prices:'Prices', generic:'Delta Filings' };
+    bits.push(labels[c.page_type] || 'Delta Filings');
+    if (c.company_name || c.company) bits.push(`<b>${dcEsc(c.company_name || c.company)}</b>`);
+    if (c.director) bits.push(`<b>${dcEsc(c.director)}</b>`);
+    else if (c.document) bits.push(dcEsc(String(c.document).slice(0, 44)));
+    return `<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 2v20M2 12h20"/></svg> Viewing: ${bits.join(' · ')}`;
+}
+
+function dcOpen() {
+    document.getElementById('dcPanel').classList.add('open');
+    document.getElementById('dcLauncher').classList.add('hidden');
+    document.getElementById('dcCtx').innerHTML = dcContextLine();
+    if (!dcGreeted) { dcGreet(); dcGreeted = true; }
+    setTimeout(() => document.getElementById('dcInput').focus(), 60);
+}
+function dcClose() {
+    document.getElementById('dcPanel').classList.remove('open');
+    document.getElementById('dcLauncher').classList.remove('hidden');
+}
+
+function dcGreet() {
+    const c = DC_CONTEXT || {};
+    let intro = 'I can see what you’re working on. Ask me anything, or start here:';
+    if (c.company_name || c.company) intro = `I’m looking at ${dcEsc(c.company_name || c.company)} with you. Ask me anything, or start here:`;
+    const sugg = (DC_SUGGESTIONS || []).map(s =>
+        `<button class="dc-sugg-btn" onclick="dcAsk(this.textContent.trim())">${dcEsc(s)}</button>`).join('');
+    dcPush('bot', `<div class="dc-sec"><div style="margin-bottom:10px">${intro}</div>
+                   <div class="dc-sugg">${sugg}</div></div>`);
+}
+
+function dcPush(role, html) {
+    const b = document.getElementById('dcBody');
+    const el = document.createElement('div');
+    el.className = 'dc-msg ' + role;
+    el.innerHTML = html;
+    b.appendChild(el);
+    b.scrollTop = b.scrollHeight;
+    return el;
+}
+
+function dcGrow(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 110) + 'px'; }
+function dcKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dcSend(); } }
+function dcAsk(q) { document.getElementById('dcInput').value = q; dcSend(); }
+
+function dcRender(d) {
+    let h = '';
+    if (d.understanding) h += `<div class="dc-sec"><div class="dc-sec-h">Understanding</div><div>${dcEsc(d.understanding)}</div></div>`;
+    if (d.impact) h += `<div class="dc-sec"><div class="dc-sec-h">Why it matters</div><div>${dcEsc(d.impact)}</div></div>`;
+    if ((d.required_actions || []).length) {
+        h += `<div class="dc-sec"><div class="dc-sec-h">Required action</div>`;
+        d.required_actions.forEach((a, i) => {
+            h += `<div class="dc-act"><span class="dc-act-n">${i + 1}</span><span>${dcEsc(a.action)}` +
+                 (a.timeline ? `<span class="dc-act-when">${dcEsc(a.timeline)}</span>` : '') +
+                 (a.detail ? `<div style="font-size:12px;color:#64748b;margin-top:2px">${dcEsc(a.detail)}</div>` : '') +
+                 `<div style="font-size:11px;color:#94a3b8;margin-top:2px">${dcEsc(a.owner)}</div></span></div>`;
+        });
+        h += `</div>`;
+    }
+    if ((d.delta_can_prepare || []).length) {
+        h += `<div class="dc-sec"><div class="dc-sec-h">Delta can prepare</div>`;
+        d.delta_can_prepare.forEach(c => {
+            h += `<div class="dc-prep"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>${dcEsc(c.label)}</div>`;
+        });
+        h += `</div>`;
+    }
+    if ((d.sources || []).length) {
+        h += `<div class="dc-sec"><div class="dc-sec-h">Sources</div>` +
+             d.sources.map(s => `<span class="dc-src" title="${dcEsc(s.name || '')}">${dcEsc(s.id)}</span>`).join('') +
+             `</div>`;
+    }
+    if (!h) h = `<div>${dcEsc(d.understanding || 'No answer could be produced.')}</div>`;
+    return h;
+}
+
+async function dcSend() {
+    if (dcBusy) return;
+    const input = document.getElementById('dcInput');
+    const q = input.value.trim();
+    if (!q) return;
+
+    input.value = ''; dcGrow(input);
+    dcPush('user', dcEsc(q));
+    dcHistory.push({ role: 'user', content: q });
+
+    dcBusy = true;
+    document.getElementById('dcSend').disabled = true;
+    const typing = dcPush('bot', `<div class="dc-typing"><span></span><span></span><span></span></div>`);
+
+    try {
+        const r = await fetch('/api/copilot/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                question: q,
+                context: DC_CONTEXT.source || { active_page: DC_CONTEXT.active_page || '' },
+                history: dcHistory.slice(-6),
+            }),
+        });
+        const d = await r.json();
+        typing.innerHTML = dcRender(d);
+        dcHistory.push({ role: 'assistant', content: (d.understanding || '') + ' ' + (d.impact || '') });
+    } catch (e) {
+        typing.innerHTML = `<div class="dc-review">Delta Copilot could not be reached: ${dcEsc(e.message)}</div>`;
+    } finally {
+        dcBusy = false;
+        document.getElementById('dcSend').disabled = false;
+        document.getElementById('dcBody').scrollTop = 1e9;
+    }
+}
+
+document.addEventListener('keydown', e => {
+    const open = document.getElementById('dcPanel').classList.contains('open');
+    if (e.key === 'Escape' && open) { dcClose(); return; }
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName || '')) || e.target.isContentEditable;
+    if (e.key === '/' && !open && !typing) { e.preventDefault(); dcOpen(); }
+});
+</script>

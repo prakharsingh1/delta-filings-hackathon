@@ -63,6 +63,24 @@ _BY_PAGE: Dict[str, List[str]] = {
         "Is a Regulation 30 disclosure required?",
         "Summarise recent material events",
     ],
+    "risk": [
+        "Which counterparties moved to High this month?",
+        "Explain why this company's score rose",
+        "What should the risk committee see first?",
+        "What does an IBBI CIRP admission mean for our exposure?",
+    ],
+    "news": [
+        "Which of these updates affect my companies?",
+        "Summarise this week's SEBI circulars",
+        "What changed for listed companies this month?",
+        "Which RBI notifications matter for NBFCs?",
+    ],
+    "insider": [
+        "When should the trading window close this quarter?",
+        "Who must be recorded in the structured digital database?",
+        "Can a designated person trade after pre-clearance?",
+        "What goes into a PIT Reg 7 disclosure?",
+    ],
     "generic": [
         "What filings are triggered by a director resignation?",
         "Explain SEBI LODR Regulation 30",
@@ -80,6 +98,18 @@ def suggest_for(ctx: Dict) -> List[str]:
 
     company = ctx.get("company")
     facts = ctx.get("facts") or {}
+
+    if page == "news" and company:
+        name = ctx.get("company_name") or company
+        desk = facts.get("news_desk") or {}
+        moves = desk.get("notable_moves") or []
+        out = [f"Why did {name} move this month?",
+               "Which filings does this news trigger, and by when?",
+               "What could move the price next?",
+               f"What is Reddit saying about {name}?"]
+        if moves:
+            m = moves[0]
+            out[0] = f"Why did {name} move {'up' if (m.get('pct') or 0) > 0 else 'down'} on {m.get('date')}?"
 
     if page == "company" and company:
         out[0] = f"Summarise {company}'s recent filings"

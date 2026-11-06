@@ -26,8 +26,12 @@ This module queries multiple authoritative sources for each obligation:
        Last-resort fallback — catches event-based filings.
 
 Decision rule:
-  * If ANY source returns a matching filing → 'submitted' (or 'delayed' if late)
-  * Else if ≥2 authoritative sources responded AND none had a match → 'missed'
+  * If an authoritative feed (1-3) returns the filing → 'submitted' (or 'delayed' if late)
+  * A match found only by keywords in announcements (5-6) is a candidate, not
+    proof: words like "reg 31" or "shp" appear in unrelated announcements, and
+    calling those filed is worse than saying nothing. → 'unverified', with the
+    candidate kept in the evidence for the CS to check.
+  * Else if an authoritative feed and one other source responded AND none had a match → 'missed'
   * Else → 'unverified' (we don't have enough signal to claim anything)
 """
 
@@ -568,8 +572,19 @@ def verify_obligation(symbol: str, mandate_id: str, q_end: date, due_dt: date) -
             matches.append((name, match))
         time.sleep(0.4)  # rate-limit: be polite
 
+    authoritative_names = {"nse_integrated_filing", "nse_cg_master", "nse_shp_master"}
+    if matches and not any(n in authoritative_names for n, _ in matches):
+        return {
+            "status": "unverified",
+            "filed_date": None,
+            "delay_days": 0,
+            "evidence": evidence,
+            "confidence": "low",
+        }
+    matches = [(n, m) for n, m in matches if n in authoritative_names]
+
     if matches:
-        # Pick earliest filed_date across all source matches
+        # Pick earliest filed_date across the authoritative matches
         dated = [(n, m) for n, m in matches if m.get("filed_date")]
         if dated:
             _, best = min(dated, key=lambda x: x[1]["filed_date"])
@@ -595,8 +610,7 @@ def verify_obligation(symbol: str, mandate_id: str, q_end: date, due_dt: date) -
         }
 
     # No matches anywhere. Was the check reliable?
-    # Require: ≥2 authoritative (non-fallback) sources responded.
-    authoritative_names = {"nse_integrated_filing", "nse_cg_master", "nse_shp_master"}
+    # Require: an authoritative source and at least one other responded.
     authoritative_responded = sum(
         1 for e in evidence if e["source"] in authoritative_names and e["responded"]
     )

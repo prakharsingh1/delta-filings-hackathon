@@ -1,0 +1,349 @@
+{% extends 'app_base.html' %}
+{% block title %}Registers · {{ entity.name }}{% endblock %}
+
+{% block head %}
+<style>
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; }
+  .crumbs a { color: var(--text-secondary); font-weight: 600; text-decoration: none; }
+  .crumbs a:hover { color: var(--primary); }
+  .crumbs [aria-current] { color: var(--text-primary); font-weight: 600; }
+
+  .tab-count { display: inline-block; min-width: 20px; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; background: var(--border-light); color: var(--text-muted); }
+  .tab.active .tab-count { background: var(--primary-light); color: var(--primary); }
+
+  #reg-panel .panel-head { flex-wrap: wrap; align-items: flex-start; }
+  .reg-head-text { min-width: 0; flex: 1 1 280px; }
+  .reg-law { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+  .reg-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .reg-tools .check-row { padding: 0 4px 0 0; font-size: 12.5px; color: var(--text-secondary); white-space: nowrap; cursor: pointer; }
+  .reg-tools .check-row input { margin-top: 0; }
+
+  .reg-tbl td { white-space: nowrap; }
+  .reg-tbl td.wrap { white-space: normal; min-width: 180px; max-width: 300px; }
+  .reg-tbl td.act { text-align: right; width: 1%; }
+  .reg-tbl .ver { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
+  .reg-tbl .ver b { color: var(--text-secondary); font-weight: 700; }
+  .reg-tbl tr.superseded td { color: var(--text-muted); background: var(--surface-secondary); }
+  .reg-tbl tbody tr.superseded:hover td { background: var(--surface-secondary); }
+  .reg-tbl tr.group-start td { border-top: 1px solid var(--border); }
+  .vtag { font-size: 11px; color: var(--text-muted); margin-right: 8px; }
+
+  .reg-note { margin-top: 14px; }
+  .fld-wide { grid-column: 1 / -1; }
+  .fld-textarea.short { min-height: 64px; }
+  .req { color: #b91c1c; font-weight: 700; }
+  .dlg-x { background: none; border: 0; padding: 4px; border-radius: 6px; color: var(--text-muted); cursor: pointer; display: inline-flex; }
+  .dlg-x:hover { color: var(--text-primary); background: var(--surface-secondary); }
+  .dlg-err { font-size: 12.5px; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; margin-top: 4px; }
+  .dlg-lead { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px; }
+  .upper { text-transform: uppercase; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+  html.dark .reg-tbl tr.superseded td, html.dark .reg-tbl tbody tr.superseded:hover td { background: #101010; color: #7a7a7a; }
+  html.dark .reg-tbl tr.group-start td { border-top-color: #262626; }
+  html.dark .req { color: #fca5a5; }
+  html.dark .dlg-err { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); color: #fca5a5; }
+  html.dark .dlg-x:hover { background: #1c1c1c; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/workspace">Workspace</a><span aria-hidden="true">/</span>
+    <a href="/workspace/entity/{{ entity.id }}">{{ entity.name }}</a><span aria-hidden="true">/</span>
+    <span aria-current="page">Registers</span>
+  </nav>
+
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Statutory registers</div>
+      <h1 class="mod-title">{{ entity.name }}</h1>
+      <p class="mod-sub">{{ entity.type_label }}{% if entity.cin %} · CIN <span class="mono">{{ entity.cin }}</span>{% endif %}. Enter each change as it happens; the registers are kept at the registered office.{% if entity.entity_type == 'llp' %} These are Companies Act registers. An LLP keeps its own records of partners and contributions instead.{% endif %}</p>
+    </div>
+    <div class="mod-actions">
+      <a class="btn btn-secondary" href="/workspace/entity/{{ entity.id }}/meetings">Meetings</a>
+      <a class="btn btn-secondary" href="/workspace/entity/{{ entity.id }}">Entity calendar</a>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Registers" id="reg-tabs">
+    {% for r in registers %}
+    <button type="button" class="tab{% if r.key == initial_tab %} active{% endif %}" role="tab" id="tab-{{ r.key }}" data-key="{{ r.key }}"
+            aria-controls="reg-panel" aria-selected="{{ 'true' if r.key == initial_tab else 'false' }}" tabindex="{{ '0' if r.key == initial_tab else '-1' }}">
+      {{ r.short }}<span class="tab-count" data-count="{{ r.key }}">{{ counts.get(r.key, 0) }}</span>
+    </button>
+    {% endfor %}
+  </div>
+
+  <section class="panel" id="reg-panel" role="tabpanel" aria-labelledby="tab-{{ initial_tab }}">
+    <div class="panel-head">
+      <div class="reg-head-text">
+        <div class="panel-title" id="reg-title"></div>
+        <div class="reg-law" id="reg-law"></div>
+      </div>
+      <div class="reg-tools">
+        <label class="check-row"><input type="checkbox" id="show-history"> Show history</label>
+        <a class="btn btn-secondary btn-sm" id="csv-link" href="#">Download CSV</a>
+        <button type="button" class="btn btn-primary btn-sm" data-add>Add entry</button>
+      </div>
+    </div>
+    <div id="reg-body"></div>
+  </section>
+
+  <p class="note reg-note">Each edit is kept as a new version, so the register keeps its own history.</p>
+</div>
+
+<dialog class="mod-dialog" id="row-dlg" aria-labelledby="row-dlg-title">
+  <form id="row-form" novalidate>
+    <div class="dlg-head">
+      <span id="row-dlg-title">Add entry</span>
+      <button type="button" class="dlg-x" data-close aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body">
+      <p class="dlg-lead" id="row-dlg-lead"></p>
+      <div class="fld-grid" id="row-fields"></div>
+      <p class="dlg-err" id="row-err" role="alert" hidden></p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary" id="row-save">Save entry</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="application/json" id="reg-meta">{{ registers|tojson }}</script>
+<script type="application/json" id="reg-data">{{ reg_data|tojson }}</script>
+<script type="application/json" id="reg-counts">{{ counts|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var EID = {{ entity.id|tojson }};
+  var REGS = JSON.parse(document.getElementById('reg-meta').textContent);
+  var DATA = JSON.parse(document.getElementById('reg-data').textContent);
+  var COUNTS = JSON.parse(document.getElementById('reg-counts').textContent);
+  var BY_KEY = {};
+  REGS.forEach(function (r) { BY_KEY[r.key] = r; });
+
+  var current = {{ initial_tab|tojson }};
+  var fromHash = (location.hash || '').slice(1);
+  if (BY_KEY[fromHash]) current = fromHash;
+  var showHistory = false;
+  var editing = null;
+
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/i;
+  var WIDE = { address: 1, property: 1, purpose: 1 };
+
+  function fmtDay(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || '');
+    return m ? (+m[3]) + ' ' + MONTHS[+m[2] - 1] + ' ' + m[1] : (s || '');
+  }
+  function fmtStamp(s) {
+    var t = /T(\d{2}:\d{2})/.exec(s || '');
+    return fmtDay(s) + (t ? ', ' + t[1] : '');
+  }
+  function fmtNum(v) {
+    var n = Number(String(v).replace(/,/g, ''));
+    return isFinite(n) ? n.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : v;
+  }
+  function maskPan(v) {
+    v = String(v);
+    return v.length > 5 ? v.slice(0, 2) + '*'.repeat(v.length - 5) + v.slice(-3) : v;
+  }
+  function cell(f, v) {
+    var cls = f.kind === 'number' ? 'num' : (WIDE[f.key] ? 'wrap' : '');
+    var html;
+    if (!v) html = '<span class="muted">&ndash;</span>';
+    else if (f.kind === 'date') html = dfEsc(fmtDay(v));
+    else if (f.kind === 'number') html = dfEsc(fmtNum(v));
+    else if (f.key === 'pan' || (f.key === 'din_pan' && PAN_RE.test(v))) html = '<span class="mono">' + dfEsc(maskPan(v)) + '</span>';
+    else if (f.key === 'din_pan' || f.key === 'folio' || f.key === 'charge_id') html = '<span class="mono">' + dfEsc(v) + '</span>';
+    else html = dfEsc(v);
+    return '<td' + (cls ? ' class="' + cls + '"' : '') + '>' + html + '</td>';
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var body = $('reg-body');
+
+  function groups(rows) {
+    var order = [], map = {};
+    rows.forEach(function (r) {
+      if (!map[r.row_key]) { map[r.row_key] = []; order.push(r.row_key); }
+      map[r.row_key].push(r);
+    });
+    return order.map(function (k) {
+      return map[k].slice().sort(function (a, b) { return b.version - a.version; });
+    });
+  }
+
+  function render() {
+    var reg = BY_KEY[current];
+    document.querySelectorAll('#reg-tabs .tab').forEach(function (t) {
+      var on = t.dataset.key === current;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+    });
+    $('reg-panel').setAttribute('aria-labelledby', 'tab-' + current);
+    document.querySelectorAll('[data-count]').forEach(function (el) {
+      el.textContent = COUNTS[el.dataset.count] || 0;
+    });
+    $('reg-title').textContent = reg.label;
+    $('reg-law').textContent = reg.form + ' · ' + reg.law;
+    $('csv-link').href = '/workspace/entity/' + EID + '/registers/' + current + '.csv' + (showHistory ? '?history=1' : '');
+
+    var rows = DATA[current] || [];
+    var live = rows.filter(function (r) { return r.is_current; });
+    if (!live.length) {
+      body.innerHTML = '<div class="empty"><div class="empty-title">No entries in the ' + dfEsc(reg.label.toLowerCase()) + ' yet</div>' +
+        '<p style="max-width:52ch;margin:0 auto 14px">This register will list ' + dfEsc(reg.about.charAt(0).toLowerCase() + reg.about.slice(1)) + '</p>' +
+        '<button type="button" class="btn btn-primary btn-sm" data-add>Add the first entry</button></div>';
+      return;
+    }
+    var head = '<tr>' + (showHistory ? '<th>Version</th>' : '') +
+      reg.fields.map(function (f) { return '<th' + (f.kind === 'number' ? ' class="num"' : '') + '>' + dfEsc(f.label) + '</th>'; }).join('') +
+      '<th><span class="sr-only">Actions</span></th></tr>';
+    var out = [];
+    groups(showHistory ? rows : live).forEach(function (versions) {
+      versions.forEach(function (r, i) {
+        var cls = [];
+        if (!r.is_current) cls.push('superseded');
+        if (showHistory && i === 0) cls.push('group-start');
+        var tr = '<tr' + (cls.length ? ' class="' + cls.join(' ') + '"' : '') + '>';
+        if (showHistory) {
+          tr += '<td><div class="ver"><b>v' + dfEsc(r.version) + '</b> · ' + (r.is_current ? 'Current' : 'Superseded') +
+                '</div><div class="ver">' + dfEsc(fmtStamp(r.created_at)) + '</div></td>';
+        }
+        reg.fields.forEach(function (f) { tr += cell(f, r.data[f.key]); });
+        tr += '<td class="act">';
+        if (r.is_current) {
+          if (!showHistory && r.version > 1) tr += '<span class="vtag" title="Edited ' + dfEsc(fmtStamp(r.created_at)) + '">v' + dfEsc(r.version) + '</span>';
+          tr += '<button type="button" class="btn btn-secondary btn-sm" data-edit="' + dfEsc(r.row_key) + '">Edit</button>';
+        }
+        tr += '</td></tr>';
+        out.push(tr);
+      });
+    });
+    body.innerHTML = '<div class="tbl-wrap"><table class="tbl reg-tbl"><thead>' + head + '</thead><tbody>' + out.join('') + '</tbody></table></div>';
+  }
+
+  // ── Tabs ──
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('#reg-tabs .tab'));
+  function select(key, focus) {
+    current = key;
+    try { history.replaceState(null, '', '#' + key); } catch (e) {}
+    render();
+    if (focus) $('tab-' + key).focus();
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { select(t.dataset.key); });
+    t.addEventListener('keydown', function (e) {
+      var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      select(tabs[(i + d + tabs.length) % tabs.length].dataset.key, true);
+    });
+  });
+  $('show-history').addEventListener('change', function (e) { showHistory = e.target.checked; render(); });
+
+  // ── Add / edit dialog ──
+  var dlg = $('row-dlg'), form = $('row-form'), errBox = $('row-err'), saveBtn = $('row-save');
+
+  function openDialog(row) {
+    var reg = BY_KEY[current];
+    editing = row || null;
+    $('row-dlg-title').textContent = row ? 'Edit entry' : 'Add entry';
+    $('row-dlg-lead').textContent = row
+      ? 'Saving keeps version ' + row.version + ' in the history and records your changes as version ' + (row.version + 1) + '.'
+      : reg.label + ' (' + reg.form + ').';
+    saveBtn.textContent = row ? 'Save as version ' + (row.version + 1) : 'Save entry';
+    var data = row ? row.data : {};
+    $('row-fields').innerHTML = reg.fields.map(function (f) {
+      var id = 'f-' + f.key, v = dfEsc(data[f.key] || ''), req = reg.required.indexOf(f.key) >= 0;
+      var input;
+      if (f.kind === 'date') {
+        input = '<input type="date" class="fld-input" id="' + id + '" name="' + f.key + '" value="' + v + '">';
+      } else if (f.kind === 'number') {
+        input = '<input type="number" class="fld-input" id="' + id + '" name="' + f.key + '" value="' + v + '" min="0" step="any" inputmode="decimal">';
+      } else if (WIDE[f.key]) {
+        input = '<textarea class="fld-textarea short" id="' + id + '" name="' + f.key + '" rows="2" maxlength="300">' + v + '</textarea>';
+      } else {
+        var extra = '';
+        if (f.key === 'pan') extra = ' maxlength="10" autocomplete="off" class="fld-input upper" placeholder="ABCDE1234F"';
+        else if (f.key === 'din_pan') extra = ' maxlength="10" autocomplete="off" class="fld-input upper" placeholder="8-digit DIN or PAN"';
+        else extra = ' maxlength="300" class="fld-input"';
+        input = '<input type="' + (f.key === 'email' ? 'email' : 'text') + '" id="' + id + '" name="' + f.key + '" value="' + v + '"' + extra + '>';
+      }
+      return '<label class="fld' + (WIDE[f.key] ? ' fld-wide' : '') + '" for="' + id + '"><span class="fld-label">' + dfEsc(f.label) +
+        (req ? ' <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span>' : '') + '</span>' + input + '</label>';
+    }).join('');
+    errBox.hidden = true;
+    dlg.showModal();
+    var first = form.querySelector('input, textarea');
+    if (first) first.focus();
+  }
+
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-add]')) { openDialog(null); return; }
+    var ed = e.target.closest('[data-edit]');
+    if (ed) {
+      var row = (DATA[current] || []).filter(function (r) { return r.is_current && r.row_key === ed.dataset.edit; })[0];
+      if (row) openDialog(row);
+      return;
+    }
+    if (e.target.closest('[data-close]')) dlg.close();
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var reg = BY_KEY[current], data = {};
+    // A number or date the browser cannot parse reads back as '', which would
+    // save the field blank without a word (e.g. "1,00,000" typed in Firefox).
+    var bad = reg.fields.filter(function (f) {
+      var el = form.elements[f.key];
+      return el.validity && el.validity.badInput;
+    });
+    if (bad.length) {
+      errBox.textContent = bad[0].label + ': enter ' + (bad[0].kind === 'date' ? 'a valid date.' : 'digits only, without commas.');
+      errBox.hidden = false;
+      form.elements[bad[0].key].focus();
+      return;
+    }
+    reg.fields.forEach(function (f) { data[f.key] = (form.elements[f.key].value || '').trim(); });
+    var missing = reg.required.filter(function (k) { return !data[k]; }).map(function (k) {
+      return reg.fields.filter(function (f) { return f.key === k; })[0].label;
+    });
+    if (missing.length) {
+      errBox.textContent = missing.join(' and ') + (missing.length === 1 ? ' is' : ' are') + ' required.';
+      errBox.hidden = false;
+      return;
+    }
+    saveBtn.disabled = true;
+    errBox.hidden = true;
+    var wasEditing = editing;
+    try {
+      var url = '/api/secretarial/entities/' + EID + '/registers/' + current +
+        (wasEditing ? '/' + encodeURIComponent(wasEditing.row_key) : '');
+      var res = await dfApi(url, { method: wasEditing ? 'PUT' : 'POST', body: { data: data } });
+      DATA[current] = res.rows;
+      COUNTS[current] = res.count;
+      dlg.close();
+      render();
+      dfToast(wasEditing ? 'Saved as version ' + (wasEditing.version + 1) : 'Entry added', 'ok');
+    } catch (err) {
+      errBox.textContent = err.message;
+      errBox.hidden = false;
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  render();
+})();
+</script>
+{% endblock %}

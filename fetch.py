@@ -130,12 +130,29 @@ FALLBACK_RAW_TEXT = {
 }
 
 
-def _warm_session():
-    """Visit NSE homepage to get cookies before making API calls."""
+# NSE cookies stay valid for a long while, but _warm_session() used to run on
+# EVERY api call — a full homepage GET plus a hard 1s sleep. Across a refresh
+# cycle that is hundreds of redundant requests to nseindia.com, which both slows
+# fetches and invites the rate-limiting/timeouts it was meant to avoid.
+_WARM_TTL_SECONDS = 600
+_last_warm_at = 0.0
+
+
+def _warm_session(force=False):
+    """Visit NSE homepage to get cookies before making API calls.
+
+    Throttled: re-warms at most once per _WARM_TTL_SECONDS unless forced.
+    """
+    global _last_warm_at
+    now = time.time()
+    if not force and (now - _last_warm_at) < _WARM_TTL_SECONDS:
+        return
     try:
         SESSION.get(BASE_URL, timeout=10)
         time.sleep(1)
+        _last_warm_at = now
     except Exception as e:
+        # Leave _last_warm_at untouched so the next call retries the warm-up.
         print(f"[FETCH] Session warm-up failed: {e}")
 
 
@@ -253,7 +270,7 @@ MAX_HISTORY_YEARS = 15
 
 
 def fetch_filings(symbol, years=DEFAULT_HISTORY_YEARS, max_results=12000,
-                  allow_fallback=True):
+                  allow_fallback=False):
     """Fetch corporate announcements for an NSE symbol over the last `years`.
 
     Strategy:

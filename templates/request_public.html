@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light">
+  <title>{% if req %}Upload documents: {{ req.title }}{% else %}Link not active{% endif %} · Delta Filings</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  {# No analytics and no third-party assets here: the token is in the URL. #}
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f8fafc; color: #0f172a; font-size: 15px; line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .pb-top { border-bottom: 1px solid #e2e8f0; background: #fff; }
+    .pb-top-in, .pb-main, .pb-footer { max-width: 720px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+    .pb-top-in { display: flex; align-items: center; gap: 8px; height: 56px; }
+    .pb-brand { font-weight: 700; font-size: 15px; color: #0f172a; letter-spacing: -.01em; }
+    .pb-main { padding-top: 28px; padding-bottom: 32px; }
+
+    .pb-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #4f46e5; }
+    h1 { font-size: 24px; line-height: 1.25; letter-spacing: -.02em; margin: 6px 0 6px; overflow-wrap: anywhere; }
+    .pb-meta { color: #475569; font-size: 14px; margin: 0; }
+    .pb-lede { color: #475569; font-size: 14px; margin: 14px 0 0; max-width: 60ch; }
+
+    .pb-progress { display: flex; align-items: center; gap: 12px; margin: 22px 0 14px; font-size: 13.5px; color: #475569; font-weight: 600; }
+    .pb-meter { flex: 1; height: 6px; border-radius: 999px; background: #e2e8f0; overflow: hidden; max-width: 240px; }
+    .pb-meter > span { display: block; height: 100%; background: #4f46e5; border-radius: inherit; transition: width .3s ease; }
+
+    .pb-items { list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
+    .pb-item { padding: 16px 18px; border-top: 1px solid #f1f5f9; }
+    .pb-item:first-child { border-top: 0; }
+    .pb-item-head { display: flex; align-items: flex-start; gap: 12px; }
+    .pb-num { flex: none; width: 24px; height: 24px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+    .pb-item.is-received .pb-num { background: #ecfdf5; color: #047857; }
+    .pb-item-text { flex: 1; min-width: 0; }
+    .pb-item-title { font-weight: 650; font-size: 15px; overflow-wrap: anywhere; }
+    .pb-item-note { font-size: 13px; color: #64748b; margin-top: 2px; overflow-wrap: anywhere; }
+    .pb-status { flex: none; font-size: 12px; font-weight: 650; padding: 2px 9px; border-radius: 999px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+    .pb-item.is-received .pb-status { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+
+    .pb-actions { margin: 12px 0 0 36px; }
+    .pb-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; padding: 8px 14px; border-radius: 9px; cursor: pointer; background: #4f46e5; color: #fff; border: 1px solid #4f46e5; }
+    .pb-btn:hover { background: #4338ca; }
+    .pb-item.is-received .pb-btn { background: #fff; color: #4338ca; border-color: #c7d2fe; }
+    .pb-item.is-received .pb-btn:hover { background: #eef2ff; }
+    .pb-btn:focus-within { outline: 3px solid rgba(129,140,248,.45); outline-offset: 2px; }
+    .pb-btn.is-busy { opacity: .6; pointer-events: none; }
+    .pb-file { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+
+    .pb-sent { list-style: none; margin: 10px 0 0 36px; padding: 0; }
+    .pb-sent:empty { display: none; }
+    .pb-sent li { font-size: 13px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 9px; margin-top: 6px; background: #f8fafc; }
+    .pb-sent-row { display: flex; gap: 10px; align-items: baseline; }
+    .pb-sent-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .pb-sent-state { flex: none; font-size: 12px; font-weight: 600; color: #64748b; }
+    .pb-sent li.is-done .pb-sent-state { color: #047857; }
+    .pb-sent li.is-error { border-color: #fecaca; background: #fef2f2; }
+    .pb-sent li.is-error .pb-sent-state { color: #b91c1c; }
+    .pb-sent-err { font-size: 12.5px; color: #b91c1c; margin-top: 4px; }
+    .pb-bar { height: 4px; border-radius: 999px; background: #e2e8f0; overflow: hidden; margin-top: 6px; }
+    .pb-bar > span { display: block; height: 100%; width: 0; background: #4f46e5; transition: width .15s linear; }
+    .pb-sent li.is-done .pb-bar, .pb-sent li.is-error .pb-bar { display: none; }
+
+    .pb-foot { font-size: 13px; color: #64748b; margin: 16px 0 0; }
+    .pb-done { display: none; margin: 16px 0 0; padding: 12px 14px; border-radius: 10px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; font-size: 14px; font-weight: 600; }
+    .pb-done.is-shown { display: block; }
+
+    .pb-missing { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 32px 24px; text-align: center; margin-top: 24px; }
+    .pb-missing h1 { font-size: 20px; }
+    .pb-missing p { color: #475569; font-size: 14px; margin: 0 auto; max-width: 44ch; }
+
+    .pb-footer { padding-top: 8px; padding-bottom: 36px; font-size: 12px; color: #94a3b8; }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 21px; }
+      .pb-item { padding: 14px; }
+      .pb-actions, .pb-sent { margin-left: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="pb-top">
+    <div class="pb-top-in">
+      <svg width="22" height="26" style="color:#2D2A7C" viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <polygon points="8,42 34,30 34,108 8,120"/>
+        <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+      </svg>
+      <span class="pb-brand">Delta Filings</span>
+    </div>
+  </header>
+
+  <main class="pb-main">
+    {% if not req %}
+    <div class="pb-missing">
+      <h1>This link is not active</h1>
+      <p>It may have been closed or copied incompletely. Ask the person who sent it for a new link.</p>
+    </div>
+    {% else %}
+    <div class="pb-eyebrow">Documents requested{% if req.requested_by %} by {{ req.requested_by }}{% endif %}</div>
+    <h1>{{ req.title }}</h1>
+    <p class="pb-meta">For {{ req.client_name }}{% if due %} · Due by {{ due }}{% endif %}</p>
+    <p class="pb-lede">Upload each document against its line below. You do not need an account. Only the person who sent this link can see the files you upload.</p>
+
+    <div class="pb-progress">
+      <span><span id="pb-count">{{ received }}</span> of {{ total }} received</span>
+      <div class="pb-meter" aria-hidden="true"><span id="pb-meter" style="width: {{ (100 * received / total)|round|int if total else 0 }}%"></span></div>
+    </div>
+
+    <ol class="pb-items" id="pb-items" data-upload="{{ upload_url }}" data-total="{{ total }}" data-max-mb="{{ max_mb }}">
+      {% for it in req['items'] %}
+      <li class="pb-item{{ ' is-received' if it.received }}" data-index="{{ it.index }}">
+        <div class="pb-item-head">
+          <span class="pb-num">{{ loop.index }}</span>
+          <div class="pb-item-text">
+            <div class="pb-item-title" id="pb-title-{{ it.index }}">{{ it.title }}</div>
+            {% if it.note %}<div class="pb-item-note">{{ it.note }}</div>{% endif %}
+          </div>
+          <span class="pb-status">{{ 'Received' if it.received else 'Needed' }}</span>
+        </div>
+        <div class="pb-actions">
+          <label class="pb-btn">
+            <input type="file" class="pb-file" multiple accept="{% for e in extensions %}.{{ e }}{{ ',' if not loop.last }}{% endfor %}" aria-describedby="pb-title-{{ it.index }}">
+            <span class="pb-btn-label">{{ 'Add another file' if it.received else 'Choose file' }}</span>
+          </label>
+        </div>
+        <ul class="pb-sent" aria-live="polite"></ul>
+      </li>
+      {% endfor %}
+    </ol>
+
+    <div class="pb-done{{ ' is-shown' if total and received == total }}" id="pb-done">Everything on this list has been received. You can close this page, or add more files if something was missing.</div>
+    <p class="pb-foot">PDF, Word, Excel, CSV, JPG or PNG, up to {{ max_mb }} MB per file. You can add more than one file to a line, for example twelve monthly bank statements.</p>
+    {% endif %}
+  </main>
+
+  <footer class="pb-footer">Sent through Delta Filings. Files are shared only with the person who requested them.</footer>
+
+  {% if req %}
+  <script>
+  (function () {
+    var list = document.getElementById('pb-items');
+    var url = list.getAttribute('data-upload');
+    var total = parseInt(list.getAttribute('data-total'), 10) || 0;
+    var maxBytes = (parseInt(list.getAttribute('data-max-mb'), 10) || 15) * 1024 * 1024;
+    var allowed = {{ extensions|list|tojson }};
+
+    function refreshProgress() {
+      var got = list.querySelectorAll('.pb-item.is-received').length;
+      document.getElementById('pb-count').textContent = got;
+      document.getElementById('pb-meter').style.width = (total ? Math.round(100 * got / total) : 0) + '%';
+      document.getElementById('pb-done').classList.toggle('is-shown', total > 0 && got === total);
+    }
+
+    function sizeLabel(n) {
+      if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+      if (n >= 1024) return Math.round(n / 1024) + ' KB';
+      return n + ' bytes';
+    }
+
+    function row(sent, file) {
+      var li = document.createElement('li');
+      var top = document.createElement('div');
+      top.className = 'pb-sent-row';
+      var name = document.createElement('span');
+      name.className = 'pb-sent-name';
+      name.textContent = file.name + ' (' + sizeLabel(file.size) + ')';
+      var state = document.createElement('span');
+      state.className = 'pb-sent-state';
+      state.textContent = 'Waiting';
+      var bar = document.createElement('div');
+      bar.className = 'pb-bar';
+      var fill = document.createElement('span');
+      bar.appendChild(fill);
+      top.appendChild(name);
+      top.appendChild(state);
+      li.appendChild(top);
+      li.appendChild(bar);
+      sent.appendChild(li);
+      return {
+        progress: function (pct) { fill.style.width = pct + '%'; state.textContent = pct >= 100 ? 'Saving' : pct + '%'; },
+        done: function () { li.className = 'is-done'; state.textContent = 'Uploaded'; },
+        fail: function (msg) {
+          li.className = 'is-error';
+          state.textContent = 'Not uploaded';
+          var err = document.createElement('div');
+          err.className = 'pb-sent-err';
+          err.textContent = msg;
+          li.appendChild(err);
+        }
+      };
+    }
+
+    function send(item, file, ui) {
+      return new Promise(function (resolve) {
+        var ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (file.name.indexOf('.') < 0 || allowed.indexOf(ext) < 0) {
+          ui.fail('Upload a PDF, Word, Excel, CSV, JPG or PNG file.');
+          return resolve(false);
+        }
+        if (file.size > maxBytes) {
+          ui.fail('This file is over ' + (maxBytes / 1048576) + ' MB. Compress it or split it and try again.');
+          return resolve(false);
+        }
+        if (file.size === 0) {
+          ui.fail('This file is empty.');
+          return resolve(false);
+        }
+        var fd = new FormData();
+        fd.append('item_index', item.getAttribute('data-index'));
+        fd.append('file', file);
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable) ui.progress(Math.round(100 * e.loaded / e.total));
+        };
+        xhr.onload = function () {
+          var data = null;
+          try { data = JSON.parse(xhr.responseText); } catch (e) {}
+          if (xhr.status >= 200 && xhr.status < 300) {
+            ui.done();
+            return resolve(true);
+          }
+          ui.fail((data && data.error) || ('Upload failed (' + xhr.status + '). Try again.'));
+          resolve(false);
+        };
+        xhr.onerror = function () {
+          ui.fail('The connection dropped. Check your internet and try again.');
+          resolve(false);
+        };
+        ui.progress(0);
+        xhr.send(fd);
+      });
+    }
+
+    list.querySelectorAll('.pb-item').forEach(function (item) {
+      var input = item.querySelector('.pb-file');
+      var btn = item.querySelector('.pb-btn');
+      var label = item.querySelector('.pb-btn-label');
+      var sent = item.querySelector('.pb-sent');
+      input.addEventListener('change', async function () {
+        var files = Array.prototype.slice.call(input.files || []);
+        input.value = '';
+        if (!files.length) return;
+        btn.classList.add('is-busy');
+        input.disabled = true;
+        var uis = files.map(function (f) { return row(sent, f); });
+        for (var i = 0; i < files.length; i++) {
+          var ok = await send(item, files[i], uis[i]);
+          if (ok && !item.classList.contains('is-received')) {
+            item.classList.add('is-received');
+            item.querySelector('.pb-status').textContent = 'Received';
+            label.textContent = 'Add another file';
+            refreshProgress();
+          }
+        }
+        btn.classList.remove('is-busy');
+        input.disabled = false;
+      });
+    });
+  })();
+  </script>
+  {% endif %}
+</body>
+</html>

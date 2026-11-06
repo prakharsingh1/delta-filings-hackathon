@@ -8,7 +8,8 @@ actually rendered.
 from typing import Any, Dict, Optional
 
 PAGE_TYPES = ("dashboard", "command_center", "compliance", "company",
-              "filing", "event", "director", "draft", "prices", "generic")
+              "filing", "event", "director", "draft", "prices", "risk", "news",
+              "insider", "generic")
 
 # Route's active_page -> copilot page_type.
 _ACTIVE_PAGE_MAP = {
@@ -22,6 +23,11 @@ _ACTIVE_PAGE_MAP = {
     "draft": "draft",
     "prices": "prices",
     "watchlist": "dashboard",
+    "workspace": "compliance",
+    "requests": "compliance",
+    "sdd": "insider",
+    "news": "news",
+    "risk": "risk",
 }
 
 
@@ -97,6 +103,8 @@ def enrich(ctx: Dict[str, Any]) -> Dict[str, Any]:
             _enrich_director(conn, ctx)
         if ctx["page_type"] in ("compliance", "command_center", "dashboard"):
             _enrich_portfolio(conn, ctx)
+        if ctx["page_type"] == "news" and ctx.get("company"):
+            _enrich_news_desk(ctx)
     except Exception as e:
         print(f"[COPILOT] context enrich failed: {str(e)[:140]}")
     finally:
@@ -104,6 +112,40 @@ def enrich(ctx: Dict[str, Any]) -> Dict[str, Any]:
 
     ctx["available_actions"] = _actions_for(ctx)
     return ctx
+
+
+def _enrich_news_desk(ctx):
+    """The company news desk as the assistant should see it: the cached desk
+    (press across editions, Reddit, filings, the price moves and the filings
+    the news may trigger), compacted so it fits the prompt. Read-only; a desk
+    that has not been built yet simply contributes nothing."""
+    import demo_cache
+    hit = demo_cache.read(f"news.desk:{ctx['company']}")
+    if not hit or not isinstance(hit.get("value"), dict):
+        return
+    d = hit["value"]
+    lanes = d.get("lanes") or {}
+    def story(it):
+        return {"id": it.get("id"), "date": it.get("date"), "source": it.get("source"), "lane": it.get("lane"),
+                "title": (it.get("title") or "")[:140], "tags": it.get("tags") or []}
+    stories = [story(it) for it in (lanes.get("official") or [])[:6]] + [story(it) for it in (lanes.get("press") or [])[:14]] \
+        + [story(it) for it in (lanes.get("social") or [])[:5]] + [story(it) for it in (lanes.get("industry") or [])[:5]]
+    brief = d.get("brief") or {}
+    ctx["facts"]["news_desk"] = {
+        "window": "last 30 days", "fetched_at": d.get("fetched_at"),
+        "quote": {k: (d.get("quote") or {}).get(k) for k in ("lastPrice", "pChange", "previousClose", "yearHigh", "yearLow", "lastUpdateTime")},
+        "price_series_source": d.get("series_source"), "price_verified": d.get("series_verified"),
+        "notable_moves": [{"date": m.get("label"), "pct": m.get("pct"), "close": m.get("close"),
+                           "stories": [s.get("title") for s in (m.get("stories") or [])[:2]]} for m in (d.get("moves") or [])[:8]],
+        "ai_brief": {k: brief.get(k) for k in ("headline", "why_moved", "could_move", "watch_next", "filing_watch") if brief.get(k)},
+        "filings_the_news_may_trigger": [{"form": s.get("form"), "name": s.get("name"), "law": s.get("law"), "due": s.get("due"),
+                                          "certain": s.get("certain"), "stories": [x.get("title") for x in (s.get("stories") or [])[:2]]}
+                                         for s in (d.get("signals") or [])[:6]],
+        "sector": {k: (d.get("industry") or {}).get(k) for k in ("name", "drivers", "risks", "summary")},
+        "stories": stories,
+        "source_status": {k: ("ok" if v.get("ok") else (v.get("error") or "off")[:60]) for k, v in (d.get("status") or {}).items()},
+    }
+    ctx["company_name"] = ctx.get("company_name") or (d.get("company") or {}).get("name")
 
 
 def _enrich_company(conn, ctx):

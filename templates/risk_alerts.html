@@ -1,0 +1,295 @@
+{% extends 'app_base.html' %}
+{% block title %}Risk alerts{% endblock %}
+
+{% macro sev_chip(sev) -%}
+<span class="chip chip-{{ sev }}">{{ sev_label.get(sev, sev|title) }}</span>
+{%- endmacro %}
+{% macro status_chip(st) -%}
+<span class="chip {{ {'open': 'chip-info', 'acknowledged': 'chip-medium', 'resolved': 'chip-ok', 'dismissed': 'chip-low'}.get(st, 'chip-low') }}">{{ statuses.get(st, st|title) }}</span>
+{%- endmacro %}
+{% macro qs(over={}) -%}
+{%- set p = {'status': status, 'severity': severity, 'source': source, 'q': q, 'cp': cp_id or ''} -%}
+{%- set _ = p.update(over) -%}
+?{% for k, v in p.items() if v and not (k == 'status' and v == 'active') %}{{ k }}={{ v|urlencode }}{{ '&' if not loop.last }}{% endfor %}
+{%- endmacro %}
+
+{% block head %}
+<style>
+  .rk-sevgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+  @media (max-width: 640px) { .rk-sevgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .rk-sevtile { display: block; text-decoration: none; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; transition: border-color .15s ease; }
+  .rk-sevtile:hover { border-color: #a5b4fc; }
+  .rk-sevtile.on { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+  .rk-sevtile .kpi-value { font-size: 22px; margin-top: 6px; }
+  .rk-sevtile .chip { font-size: 11px; }
+
+  .rk-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border-light); }
+  .rk-bar .fld-input, .rk-bar .fld-select { width: auto; padding: 7px 10px; font-size: 13px; }
+  .rk-bar .fld-input { flex: 1 1 200px; min-width: 0; }
+  .rk-bar .fld-select { max-width: 100%; }
+  .rk-bulk { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 18px; border-bottom: 1px solid var(--border-light); background: var(--surface-secondary); font-size: 13px; }
+  .rk-bulk[hidden] { display: none; }
+  .rk-bulk b { margin-right: 4px; }
+
+  .rk-cb { width: 16px; height: 16px; accent-color: var(--primary); }
+  .rk-cp { font-weight: 650; }
+  .rk-title { font-weight: 600; }
+  .rk-detail { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 460px; overflow-wrap: anywhere; }
+  .rk-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .rk-acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; min-width: 180px; }
+  .rk-nowrap { white-space: nowrap; }
+  .rk-lownote { padding: 10px 18px; font-size: 12.5px; color: var(--text-secondary); border-bottom: 1px solid var(--border-light); }
+  .rk-trunc { padding: 12px 18px; font-size: 12.5px; color: var(--text-muted); border-top: 1px solid var(--border-light); }
+
+  html.dark .rk-sevtile { background: #141414; border-color: #262626; }
+  html.dark .rk-sevtile:hover { border-color: #4f46e5; }
+  html.dark .rk-sevtile.on { border-color: #818cf8; box-shadow: 0 0 0 1px #818cf8; }
+  html.dark .rk-bar, html.dark .rk-trunc, html.dark .rk-lownote { border-color: #1f1f1f; }
+  html.dark .rk-bulk { background: #101010; border-color: #1f1f1f; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap">
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Risk desk</div>
+      <h1 class="mod-title">Alerts</h1>
+      <p class="mod-sub">Medium, high and critical signals across your counterparties. Acknowledge what you have seen, assign follow-ups, and resolve or dismiss with a note. Every action is logged.</p>
+    </div>
+    <div class="mod-actions">
+      <a class="btn btn-secondary" href="/risk">Counterparty watch</a>
+    </div>
+  </div>
+
+  {% if not has_counterparties %}
+  <div class="panel">
+    <div class="empty">
+      <div class="empty-title">No alerts yet</div>
+      <p>Alerts come from the counterparties you watch: exchange filings, SEBI orders, IBBI notices, price shocks and anything your team logs.</p>
+      <div style="margin-top:14px"><a class="btn btn-primary" href="/risk">Add counterparties</a></div>
+    </div>
+  </div>
+  {% else %}
+
+  <div class="rk-sevgrid" role="group" aria-label="Filter by severity">
+    {% for k in ['critical', 'high', 'medium', 'low'] %}
+    <a class="rk-sevtile {{ 'on' if severity == k }}" href="{{ qs({'severity': '' if severity == k else k}) }}" aria-pressed="{{ 'true' if severity == k else 'false' }}">
+      {{ sev_chip(k) }}
+      <div class="kpi-value">{{ sev_counts[k] }}</div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <nav class="tabs" style="margin:0;padding:0 12px" aria-label="Status">
+      {% for key, label in status_filters %}
+      <a class="tab {{ 'active' if status == key }}" href="{{ qs({'status': key}) }}" {{ 'aria-current=page' if status == key }}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <form class="rk-bar" method="get" action="/risk/alerts" id="filter-form">
+      {% if status != 'active' %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+      {% if severity %}<input type="hidden" name="severity" value="{{ severity }}">{% endif %}
+      <input type="search" class="fld-input" name="q" value="{{ q }}" placeholder="Search alerts, names or assignees" aria-label="Search">
+      <select class="fld-select" name="cp" aria-label="Counterparty" data-autosubmit>
+        <option value="">All counterparties</option>
+        {% for c in cps %}<option value="{{ c.id }}" {{ 'selected' if c.id == cp_id }}>{{ c.name }}</option>{% endfor %}
+      </select>
+      <select class="fld-select" name="source" aria-label="Source" data-autosubmit>
+        <option value="">All sources</option>
+        {% for k, v in sources.items() %}<option value="{{ k }}" {{ 'selected' if k == source }}>{{ v[0] }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm btn-secondary">Apply</button>
+      {% if filtered %}<a class="link" style="font-size:13px" href="/risk/alerts">Clear</a>{% endif %}
+    </form>
+
+    {% if hidden_low %}
+    <div class="rk-lownote">{{ hidden_low }} low-severity {{ 'note is' if hidden_low == 1 else 'notes are' }} not shown: routine tax orders, litigation updates and director exits. They still count toward scores. <a class="link" href="{{ qs({'severity': 'all'}) }}">Show them</a></div>
+    {% elif severity == 'all' %}
+    <div class="rk-lownote">Showing alerts and low-severity notes. <a class="link" href="{{ qs({'severity': ''}) }}">Alerts only</a></div>
+    {% endif %}
+
+    <div class="rk-bulk" id="bulk" hidden>
+      <b id="bulk-count">0 selected</b>
+      <button type="button" class="btn btn-sm btn-secondary" data-bulk="acknowledged">Acknowledge</button>
+      <button type="button" class="btn btn-sm btn-secondary" data-bulk="resolved">Resolve</button>
+      <button type="button" class="btn btn-sm btn-secondary" data-bulk="dismissed">Dismiss</button>
+      <button type="button" class="btn btn-sm btn-secondary" data-bulk="open">Reopen</button>
+    </div>
+
+    {% if rows %}
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:34px"><input type="checkbox" class="rk-cb" id="select-all" aria-label="Select all shown"></th>
+            <th>Severity</th>
+            <th>Counterparty</th>
+            <th>Alert</th>
+            <th>Event date</th>
+            <th>Status</th>
+            <th>Assignee</th>
+            <th class="num">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in rows %}
+          {% set href = s.source_url | risk_url %}
+          <tr data-sid="{{ s.id }}" data-title="{{ s.title }}">
+            <td><input type="checkbox" class="rk-cb" data-select value="{{ s.id }}" aria-label="Select alert: {{ s.title }}"></td>
+            <td>{{ sev_chip(s.severity) }}</td>
+            <td>
+              <a class="link rk-cp" href="/risk/counterparty/{{ s.counterparty_id }}">{{ s.cp_name }}</a>
+              <div class="rk-meta">{{ s.exposure_inr | risk_inr }}</div>
+            </td>
+            <td>
+              <div class="rk-title">{{ s.title }}</div>
+              {% if s.detail %}<div class="rk-detail" title="{{ s.detail[:400] }}">{{ s.detail }}</div>{% endif %}
+              <div class="rk-meta">{{ s.source }}{% if href %} · <a class="link" href="{{ href }}" target="_blank" rel="noopener">Source</a>{% endif %}</div>
+            </td>
+            <td class="rk-nowrap">{{ s.event_date | risk_date }}</td>
+            <td>{{ status_chip(s.status) }}</td>
+            <td>{{ s.assignee or '' }}{% if not s.assignee %}<span class="muted">—</span>{% endif %}</td>
+            <td>
+              <div class="rk-acts">
+                {% if s.status == 'open' %}<button type="button" class="btn btn-sm btn-secondary" data-act="acknowledged">Acknowledge</button>{% endif %}
+                {% if s.status in ('open', 'acknowledged') %}
+                  <button type="button" class="btn btn-sm btn-secondary" data-act="resolved">Resolve</button>
+                  <button type="button" class="btn btn-sm btn-secondary" data-act="dismissed">Dismiss</button>
+                  <button type="button" class="btn btn-sm btn-secondary" data-act="assign" data-assignee="{{ s.assignee or '' }}">Assign</button>
+                {% else %}
+                  <button type="button" class="btn btn-sm btn-secondary" data-act="open">Reopen</button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if total > rows|length %}<div class="rk-trunc">Showing the {{ rows|length }} most severe of {{ total }}. Narrow the filters to see the rest.</div>{% endif %}
+    {% else %}
+    <div class="empty">
+      {% if filtered %}
+        <div class="empty-title">No alerts match these filters</div>
+        <a class="link" href="/risk/alerts">Clear filters</a>
+      {% else %}
+        <div class="empty-title">No active alerts</div>
+        New signals from exchange filings, SEBI orders and IBBI notices land here. Resolved and dismissed alerts are under their tabs.
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<dialog class="mod-dialog" id="act-dlg" aria-labelledby="act-title">
+  <form id="act-form" method="dialog" novalidate>
+    <div class="dlg-head"><span id="act-title">Resolve alert</span><button type="button" class="btn btn-sm btn-secondary" data-close>Close</button></div>
+    <div class="dlg-body">
+      <p id="act-signal" style="font-size:13.5px;font-weight:600;margin-bottom:12px"></p>
+      <label class="fld" id="act-assignee-wrap"><span class="fld-label">Assign to</span>
+        <input class="fld-input" name="assignee" maxlength="120" autocomplete="off" placeholder="Name of the colleague following up">
+        <span class="fld-hint">Leave blank to unassign.</span></label>
+      <label class="fld"><span class="fld-label">Note</span>
+        <textarea class="fld-textarea" name="note" maxlength="500" placeholder="What was checked, and what happens next"></textarea></label>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary" id="act-go">Resolve</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  function flash(msg) { try { sessionStorage.setItem('rk-flash', msg); } catch (e) {} }
+  try { var f = sessionStorage.getItem('rk-flash'); if (f) { sessionStorage.removeItem('rk-flash'); dfToast(f, 'ok'); } } catch (e) {}
+  function done(msg) { flash(msg); window.location.reload(); }
+
+  document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+    el.addEventListener('change', function () { document.getElementById('filter-form').submit(); });
+  });
+  document.querySelectorAll('dialog [data-close]').forEach(function (b) {
+    b.addEventListener('click', function () { b.closest('dialog').close(); });
+  });
+
+  // ── Selection ──
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-select]'));
+  var all = document.getElementById('select-all');
+  var bulk = document.getElementById('bulk'), bulkCount = document.getElementById('bulk-count');
+  function selected() { return boxes.filter(function (b) { return b.checked; }).map(function (b) { return Number(b.value); }); }
+  function sync() {
+    var n = selected().length;
+    bulk.hidden = n === 0;
+    bulkCount.textContent = n + ' selected';
+    if (all) { all.checked = n > 0 && n === boxes.length; all.indeterminate = n > 0 && n < boxes.length; }
+  }
+  boxes.forEach(function (b) { b.addEventListener('change', sync); });
+  if (all) all.addEventListener('change', function () { boxes.forEach(function (b) { b.checked = all.checked; }); sync(); });
+
+  // ── Actions (single and bulk share one dialog for notes) ──
+  var dlg = document.getElementById('act-dlg'), form = document.getElementById('act-form'), A = form.elements;
+  var pending = null;
+  var LABELS = { resolved: ['Resolve', 'Resolve'], dismissed: ['Dismiss', 'Dismiss'], assign: ['Assign alert', 'Save'] };
+  var DONE = { acknowledged: 'acknowledged', resolved: 'resolved', dismissed: 'dismissed', open: 'reopened' };
+
+  async function run(p) {
+    if (p.ids) {
+      var res = await dfApi('/api/risk/signals/bulk', { method: 'POST', body: { ids: p.ids, action: p.action, note: p.note || '' } });
+      return res.updated + ' alert' + (res.updated === 1 ? '' : 's') + ' ' + DONE[p.action] + '.';
+    }
+    await dfApi('/api/risk/signals/' + p.sid + '/action', { method: 'POST', body: { action: p.action, note: p.note || '', assignee: p.assignee || '' } });
+    return p.action === 'assign' ? 'Assignment saved.' : 'Alert ' + DONE[p.action] + '.';
+  }
+  function openDialog(p, label) {
+    pending = p;
+    var t = LABELS[p.action];
+    document.getElementById('act-title').textContent = p.ids ? t[0] + ' ' + p.ids.length + ' alert' + (p.ids.length === 1 ? '' : 's') : (p.action === 'assign' ? t[0] : t[0] + ' alert');
+    document.getElementById('act-go').textContent = t[1];
+    document.getElementById('act-signal').textContent = label || '';
+    document.getElementById('act-assignee-wrap').hidden = p.action !== 'assign';
+    A['assignee'].value = p.assignee || '';
+    A['note'].value = '';
+    dlg.showModal();
+    (p.action === 'assign' ? A['assignee'] : A['note']).focus();
+  }
+  document.querySelectorAll('[data-act]').forEach(function (b) {
+    b.addEventListener('click', async function () {
+      var tr = b.closest('tr'), p = { sid: Number(tr.dataset.sid), action: b.dataset.act, assignee: b.dataset.assignee };
+      if (p.action === 'acknowledged' || p.action === 'open') {
+        b.disabled = true;
+        try { done(await run(p)); } catch (e) { dfToast(e.message, 'err'); b.disabled = false; }
+        return;
+      }
+      openDialog(p, tr.dataset.title);
+    });
+  });
+  document.querySelectorAll('[data-bulk]').forEach(function (b) {
+    b.addEventListener('click', async function () {
+      var ids = selected();
+      if (!ids.length) return;
+      var p = { ids: ids, action: b.dataset.bulk };
+      if (p.action === 'acknowledged' || p.action === 'open') {
+        b.disabled = true;
+        try { done(await run(p)); } catch (e) { dfToast(e.message, 'err'); b.disabled = false; }
+        return;
+      }
+      openDialog(p, 'The note is saved on each selected alert.');
+    });
+  });
+  form.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    if (!pending) return;
+    var btn = document.getElementById('act-go'), label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Saving';
+    pending.note = A['note'].value.trim();
+    if (pending.action === 'assign') pending.assignee = A['assignee'].value.trim();
+    try { done(await run(pending)); }
+    catch (e) { dfToast(e.message, 'err'); btn.disabled = false; btn.textContent = label; }
+  });
+})();
+</script>
+{% endblock %}

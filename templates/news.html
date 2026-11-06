@@ -1,0 +1,539 @@
+{% extends 'app_base.html' %}
+
+{% block title %}Regulatory news{% endblock %}
+
+{% block head %}
+<style>
+  /* .check-row sets display:flex, which would beat the hidden attribute. */
+  .nw-page [hidden] { display: none !important; }
+  .nw-refresh { align-items: center; }
+  .nw-updated { font-size: 12.5px; color: var(--text-muted); white-space: nowrap; }
+
+  .nw-note { font-size: 12.5px; color: var(--text-secondary); margin: -6px 0 14px; line-height: 1.5; }
+  .nw-note strong { font-weight: 650; color: var(--text-primary); }
+
+  .nw-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 12px; }
+  .nw-filters .nw-search { flex: 1 1 260px; max-width: 420px; }
+  .nw-filters .nw-source { width: auto; min-width: 150px; }
+  .nw-filters .check-row { padding: 0; align-items: center; }
+  .nw-filters .check-row input { margin-top: 0; }
+
+  .nw-topics { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .nw-topics .nw-topic { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
+    font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.4; white-space: nowrap; cursor: pointer;
+    color: var(--text-secondary); background: var(--surface); border: 1px solid var(--border); }
+  .nw-topics .nw-topic:hover { color: var(--text-primary); border-color: var(--text-muted); }
+  .nw-topics .nw-topic.is-active { color: var(--primary); background: var(--primary-light); border-color: var(--primary); }
+  .nw-topics .nw-topic:focus-visible, .nw-act:focus-visible, .nw-tag:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .nw-count { font-size: 11px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .nw-topic.is-active .nw-count { color: inherit; opacity: .8; }
+
+  .nw-list { transition: opacity .15s; }
+  .nw-list.is-loading { opacity: .5; pointer-events: none; }
+  .nw-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 20px; padding: 15px 18px;
+    border-bottom: 1px solid var(--border-light); }
+  .nw-item:last-child { border-bottom: 0; }
+  .nw-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .nw-date { font-size: 12px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-right: 2px; }
+  .nw-title { font-size: 14.5px; font-weight: 650; line-height: 1.45; color: var(--text-primary); text-decoration: none; overflow-wrap: anywhere; }
+  .nw-title:hover { color: var(--primary); text-decoration: underline; }
+  .nw-excerpt { font-size: 13px; line-height: 1.55; color: var(--text-secondary); margin-top: 4px; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; }
+  .nw-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; min-width: 0; }
+  .nw-tags .chip { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .nw-tag { cursor: pointer; font-family: inherit; }
+  .nw-tag:hover { text-decoration: underline; }
+  a.chip { text-decoration: none; }
+  a.chip:hover { text-decoration: underline; }
+  .nw-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; padding-top: 2px; }
+  .nw-act { background: none; border: 0; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 600;
+    color: var(--primary); cursor: pointer; white-space: nowrap; }
+  .nw-act:hover { text-decoration: underline; }
+  .nw-act[disabled] { color: var(--text-muted); cursor: default; text-decoration: none; }
+
+  .nw-more { padding: 14px 18px; border-top: 1px solid var(--border-light); text-align: center; }
+  .nw-empty-actions { margin-top: 14px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+
+  .nw-x { background: none; border: 0; padding: 4px; margin: -4px; color: var(--text-muted); cursor: pointer; border-radius: 6px; line-height: 0; }
+  .nw-x:hover { color: var(--text-primary); background: var(--surface-secondary); }
+  .nw-task-name { font-size: 13px; font-weight: 600; color: var(--text-primary); line-height: 1.5; margin-bottom: 14px; overflow-wrap: anywhere; }
+  .nw-task-name span { display: block; font-size: 11.5px; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  #nw-task-dlg .fld-hint { display: block; }
+  .nw-dlg-empty { font-size: 13.5px; color: var(--text-secondary); line-height: 1.55; }
+
+  @media (max-width: 640px) {
+    .nw-refresh { width: 100%; justify-content: space-between; }
+    .nw-filters .nw-search { flex-basis: 100%; max-width: none; }
+    .nw-filters .nw-source { flex: 1 1 auto; }
+    .nw-topics { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+    .nw-topics::-webkit-scrollbar { display: none; }
+    .nw-item { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; }
+    .nw-actions { flex-direction: row; align-items: center; gap: 18px; margin-top: 10px; padding-top: 0; }
+  }
+
+  html.dark .nw-topics .nw-topic { background: #111111; border-color: #2a2a2a; color: #a3a3a3; }
+  html.dark .nw-topics .nw-topic:hover { color: #f5f5f5; border-color: #3a3a3a; }
+  html.dark .nw-topics .nw-topic.is-active { background: rgba(166,139,26,.16); border-color: rgba(201,173,51,.5); color: #eadb97; }
+  html.dark .nw-item, html.dark .nw-more { border-color: #1f1f1f; }
+  html.dark .nw-act, html.dark .nw-title:hover { color: #dcc766; }
+  html.dark .nw-act[disabled] { color: #737373; }
+  html.dark .nw-x:hover { background: #1f1f1f; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap nw-page">
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Regulatory news</div>
+      <h1 class="mod-title">What changed</h1>
+      <p class="mod-sub">SEBI and RBI updates, tagged by topic. MCA does not publish a feed we can read, so MCA notifications are not here yet.</p>
+    </div>
+    <div class="mod-actions nw-refresh">
+      <span class="nw-updated" id="nw-updated">{{ last_refresh_label }}</span>
+      <button type="button" class="btn btn-secondary btn-sm" id="nw-refresh">Refresh</button>
+      <a class="btn btn-secondary btn-sm" href="/news">Company desk</a>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Views" id="nw-tabs">
+    {% for key, label in tabs.items() %}
+    <button type="button" role="tab" class="tab{% if state.tab == key %} active{% endif %}" data-tab="{{ key }}"
+            aria-selected="{{ 'true' if state.tab == key else 'false' }}">{{ label }}</button>
+    {% endfor %}
+  </div>
+
+  <p class="nw-note" id="nw-foryou-note"{% if state.tab != 'foryou' %} hidden{% endif %}>
+    Picked for your role ({{ role_label }}){% if has_entities %} and your entities{% endif %}:
+    <strong>{{ for_you_topics|join(', ') }}</strong>.
+  </p>
+
+  <div class="nw-filters">
+    <input type="search" class="fld-input nw-search" id="nw-q" placeholder="Search titles" aria-label="Search titles"
+           value="{{ state.q }}" maxlength="80" autocomplete="off">
+    <select class="fld-select nw-source" id="nw-source" aria-label="Source"{% if state.tab == 'rbi' %} hidden{% endif %}>
+      <option value="">SEBI and RBI</option>
+      <option value="SEBI"{% if state.source == 'SEBI' %} selected{% endif %}>SEBI only</option>
+      <option value="RBI"{% if state.source == 'RBI' %} selected{% endif %}>RBI only</option>
+    </select>
+    {% set rec_foryou = 'Enforcement' in for_you_topics %}
+    <label class="check-row" id="nw-recovery-wrap" data-foryou="{{ '1' if rec_foryou else '0' }}"
+           {%- if not (state.tab == 'all' or (state.tab == 'foryou' and rec_foryou)) %} hidden{% endif %}>
+      <input type="checkbox" id="nw-recovery"{% if state.include_recovery %} checked{% endif %}>
+      Include recovery proceedings
+    </label>
+  </div>
+
+  <div class="nw-topics" id="nw-topics" role="group" aria-label="Filter by topic"></div>
+
+  <div class="panel">
+    <div class="nw-list" id="nw-list" aria-live="polite"></div>
+    <div class="nw-more" id="nw-more-wrap" hidden>
+      <button type="button" class="btn btn-secondary btn-sm" id="nw-more">Load more</button>
+    </div>
+  </div>
+</div>
+
+<dialog class="mod-dialog" id="nw-task-dlg" aria-labelledby="nw-task-head">
+  <form method="dialog" id="nw-task-form" novalidate>
+    <div class="dlg-head">
+      <span id="nw-task-head">Add as task</span>
+      <button type="button" class="nw-x" data-close aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body">
+      {% if entities %}
+      <div class="nw-task-name"><span>Task</span><div id="nw-task-title"></div></div>
+      <label class="fld">
+        <span class="fld-label">Entity</span>
+        <select class="fld-select" id="nw-task-entity">
+          {% for e in entities %}<option value="{{ e.id }}">{{ e.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Due date</span>
+        <input type="date" class="fld-input" id="nw-task-due" required>
+      </label>
+      <label class="fld">
+        <span class="fld-label">Note</span>
+        <textarea class="fld-textarea" id="nw-task-note"></textarea>
+        <span class="fld-hint">The link to the source is always saved with the task.</span>
+      </label>
+      {% else %}
+      <div class="empty-title">Add an entity first</div>
+      <p class="nw-dlg-empty">Tasks sit on an entity's compliance calendar. Add your company or a client in the Workspace, then come back to this update.</p>
+      {% endif %}
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary btn-sm" data-close>Cancel</button>
+      {% if entities %}
+      <button type="submit" class="btn btn-primary btn-sm" id="nw-task-save">Add task</button>
+      {% else %}
+      <a class="btn btn-primary btn-sm" href="/workspace">Go to Workspace</a>
+      {% endif %}
+    </div>
+  </form>
+</dialog>
+
+<script type="application/json" id="nw-init">{{ init|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var init = JSON.parse(document.getElementById('nw-init').textContent);
+  var state = init.state;
+  var listEl = document.getElementById('nw-list');
+  var moreWrap = document.getElementById('nw-more-wrap');
+  var moreBtn = document.getElementById('nw-more');
+  var topicsEl = document.getElementById('nw-topics');
+  var updatedEl = document.getElementById('nw-updated');
+  var refreshBtn = document.getElementById('nw-refresh');
+  var qEl = document.getElementById('nw-q');
+  var sourceEl = document.getElementById('nw-source');
+  var recoveryWrap = document.getElementById('nw-recovery-wrap');
+  var recoveryEl = document.getElementById('nw-recovery');
+  var forYouNote = document.getElementById('nw-foryou-note');
+  var dlg = document.getElementById('nw-task-dlg');
+
+  var items = {};
+  var added = {};
+  var nextOffset = 0;
+  var seq = 0;
+  var pollTimer = null;
+  var polls = 0;
+  var MAX_POLLS = 8;
+
+  function safeUrl(u) { return /^https?:\/\//i.test(u || '') ? u : '#'; }
+
+  function params(offset) {
+    var p = new URLSearchParams();
+    p.set('tab', state.tab);
+    if (state.topic) p.set('topic', state.topic);
+    if (state.source && state.tab !== 'rbi') p.set('source', state.source);
+    if (state.q) p.set('q', state.q);
+    if (state.include_recovery) p.set('include_recovery', '1');
+    if (offset) p.set('offset', String(offset));
+    return p;
+  }
+
+  function syncUrl() {
+    var p = params(0);
+    if (p.get('tab') === 'foryou') p.delete('tab');
+    var qs = p.toString();
+    try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '')); } catch (e) {}
+  }
+
+  function syncControls() {
+    document.querySelectorAll('#nw-tabs .tab').forEach(function (b) {
+      var on = b.getAttribute('data-tab') === state.tab;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    forYouNote.hidden = state.tab !== 'foryou';
+    sourceEl.hidden = state.tab === 'rbi';
+    // Recovery items are tagged Enforcement only, so on For you the toggle
+    // matters only when Enforcement is one of the user's topics.
+    var recForYou = recoveryWrap.getAttribute('data-foryou') === '1';
+    recoveryWrap.hidden = !(state.tab === 'all' || (state.tab === 'foryou' && recForYou));
+  }
+
+  function topicsHtml(counts) {
+    var html = '<button type="button" class="nw-topic' + (state.topic ? '' : ' is-active') + '" data-topic=""' +
+      ' aria-pressed="' + (state.topic ? 'false' : 'true') + '">All topics</button>';
+    var seen = false;
+    counts.forEach(function (pair) {
+      var t = pair[0], n = pair[1], on = t === state.topic;
+      if (on) seen = true;
+      html += '<button type="button" class="nw-topic' + (on ? ' is-active' : '') + '" data-topic="' + dfEsc(t) + '"' +
+        ' aria-pressed="' + (on ? 'true' : 'false') + '">' + dfEsc(t) + ' <span class="nw-count">' + Number(n) + '</span></button>';
+    });
+    if (state.topic && !seen) {
+      html += '<button type="button" class="nw-topic is-active" data-topic="' + dfEsc(state.topic) + '" aria-pressed="true">' +
+        dfEsc(state.topic) + ' <span class="nw-count">0</span></button>';
+    }
+    return html;
+  }
+
+  function itemHtml(it) {
+    var mentions = (it.mentions || []).map(function (m) {
+      return '<a class="chip chip-critical" href="/risk/counterparty/' + encodeURIComponent(m.id) + '" title="Open ' + dfEsc(m.name) +
+        ' on the risk desk">Mentions ' + dfEsc(m.name) + '</a>';
+    }).join('');
+    var tags = (it.topics || []).map(function (t) {
+      return '<button type="button" class="chip chip-info nw-tag" data-topic="' + dfEsc(t) + '" title="Show only ' + dfEsc(t) + '">' + dfEsc(t) + '</button>';
+    }).join('');
+    var done = added[it.id];
+    return '<article class="nw-item" data-id="' + Number(it.id) + '">' +
+      '<div>' +
+        '<div class="nw-meta">' +
+          '<span class="nw-date">' + dfEsc(it.date_label) + '</span>' +
+          '<span class="chip chip-low">' + dfEsc(it.source) + '</span>' +
+          '<span class="chip chip-low">' + dfEsc(it.kind_label) + '</span>' +
+        '</div>' +
+        '<a class="nw-title" href="' + dfEsc(safeUrl(it.url)) + '" target="_blank" rel="noopener">' + dfEsc(it.title) + '</a>' +
+        (it.excerpt ? '<p class="nw-excerpt">' + dfEsc(it.excerpt) + '</p>' : '') +
+        (mentions || tags ? '<div class="nw-tags">' + mentions + tags + '</div>' : '') +
+      '</div>' +
+      '<div class="nw-actions">' +
+        '<button type="button" class="nw-act" data-act="task"' + (done ? ' disabled' : '') + '>' + (done ? 'Task added' : 'Add as task') + '</button>' +
+        '<button type="button" class="nw-act" data-act="copy">Copy link</button>' +
+      '</div>' +
+    '</article>';
+  }
+
+  function emptyHtml(data) {
+    if (!data.total_stored) {
+      var gaveUp = polls >= MAX_POLLS && !data.refreshing;
+      return '<div class="empty">' +
+        '<div class="empty-title">Fetching the latest SEBI and RBI updates…</div>' +
+        '<div>' + (gaveUp ? 'SEBI or RBI did not respond. Try again in a minute.' : 'This takes a few seconds the first time.') + '</div>' +
+        '<div class="nw-empty-actions"><button type="button" class="btn btn-secondary btn-sm" data-act="retry">Retry</button></div>' +
+      '</div>';
+    }
+    // The source select is hidden and ignored on the RBI tab.
+    var filtered = state.topic || state.q || (state.source && state.tab !== 'rbi');
+    if (state.tab === 'foryou' && !filtered) {
+      return '<div class="empty">' +
+        '<div class="empty-title">Nothing in your topics yet</div>' +
+        '<div>Updates on the topics picked for your role will show here.</div>' +
+        '<div class="nw-empty-actions"><button type="button" class="btn btn-secondary btn-sm" data-act="all">See all updates</button></div>' +
+      '</div>';
+    }
+    if (!filtered) {
+      return '<div class="empty">' +
+        '<div class="empty-title">Nothing in this view yet</div>' +
+        '<div>New updates of this type will show here after the next check.</div>' +
+      '</div>';
+    }
+    return '<div class="empty">' +
+      '<div class="empty-title">No updates match these filters</div>' +
+      '<div>Try another topic or a shorter search.</div>' +
+      '<div class="nw-empty-actions"><button type="button" class="btn btn-secondary btn-sm" data-act="clear">Clear filters</button></div>' +
+    '</div>';
+  }
+
+  function render(data, append) {
+    if (!append) {
+      items = {};
+      if (data.topic_counts) topicsEl.innerHTML = topicsHtml(data.topic_counts);
+    }
+    data.items.forEach(function (it) { items[it.id] = it; });
+    var html = data.items.map(itemHtml).join('');
+    if (append) listEl.insertAdjacentHTML('beforeend', html);
+    else listEl.innerHTML = data.items.length ? html : emptyHtml(data);
+    nextOffset = data.next_offset;
+    moreWrap.hidden = !data.has_more;
+    if (data.last_refresh_label) updatedEl.textContent = data.last_refresh_label;
+
+    clearTimeout(pollTimer);
+    if (!data.total_stored && !append && polls < MAX_POLLS) {
+      pollTimer = setTimeout(function () { polls += 1; load(false, true); }, 4000);
+    }
+  }
+
+  async function load(append, quiet) {
+    var mine = ++seq;
+    if (!append && !quiet) listEl.classList.add('is-loading');
+    if (append) { moreBtn.disabled = true; moreBtn.textContent = 'Loading…'; }
+    try {
+      var data = await dfApi('/api/news?' + params(append ? nextOffset : 0).toString());
+      if (mine !== seq) return;
+      render(data, append);
+    } catch (e) {
+      if (mine === seq) dfToast(e.message, 'err');
+    } finally {
+      if (mine === seq) listEl.classList.remove('is-loading');
+      moreBtn.disabled = false;
+      moreBtn.textContent = 'Load more';
+    }
+  }
+
+  function reload() {
+    polls = 0;
+    syncControls();
+    syncUrl();
+    load(false);
+  }
+
+  async function refresh(btn) {
+    var label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Checking…';
+    try {
+      var res = await dfApi('/api/news/refresh', { method: 'POST', body: {} });
+      if (res.last_refresh_label) updatedEl.textContent = res.last_refresh_label;
+      dfToast(res.message || 'Done.', 'ok');
+    } catch (e) {
+      dfToast(e.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+    reload();
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      ta.remove();
+      ok ? resolve() : reject(new Error('copy failed'));
+    });
+  }
+
+  function isoInDays(n) {
+    var d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // ── Task dialog ──
+  var taskItem = null;
+  function openTask(it) {
+    taskItem = it;
+    var titleEl = document.getElementById('nw-task-title');
+    if (titleEl) {
+      titleEl.textContent = 'Review: ' + it.title.slice(0, 150);
+      var due = document.getElementById('nw-task-due');
+      due.value = isoInDays(14);
+      due.min = isoInDays(0);
+      document.getElementById('nw-task-note').value = it.title + '\n' + it.url;
+      var sel = document.getElementById('nw-task-entity');
+      try {
+        var last = localStorage.getItem('df-news-entity');
+        if (last && sel.querySelector('option[value="' + CSS.escape(last) + '"]')) sel.value = last;
+      } catch (e) {}
+    }
+    dlg.showModal();
+  }
+
+  dlg.addEventListener('click', function (e) {
+    if (e.target.closest('[data-close]') || e.target === dlg) dlg.close();
+  });
+
+  var form = document.getElementById('nw-task-form');
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var save = document.getElementById('nw-task-save');
+    if (!save || !taskItem) return;
+    var sel = document.getElementById('nw-task-entity');
+    var due = document.getElementById('nw-task-due').value;
+    if (!due) { dfToast('Pick a due date.', 'err'); return; }
+    save.disabled = true;
+    try {
+      await dfApi('/api/news/' + encodeURIComponent(taskItem.id) + '/task', {
+        method: 'POST',
+        body: { entity_id: Number(sel.value), due_date: due, notes: document.getElementById('nw-task-note').value }
+      });
+      try { localStorage.setItem('df-news-entity', sel.value); } catch (err) {}
+      added[taskItem.id] = true;
+      var btn = listEl.querySelector('.nw-item[data-id="' + Number(taskItem.id) + '"] [data-act="task"]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Task added'; }
+      var ent = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'the entity';
+      dlg.close();
+      dfToast('Added to ' + ent + '’s calendar.', 'ok');
+    } catch (err) {
+      dfToast(err.message, 'err');
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  // ── Events ──
+  document.getElementById('nw-tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tab]');
+    if (!b || b.getAttribute('data-tab') === state.tab) return;
+    state.tab = b.getAttribute('data-tab');
+    state.topic = '';
+    reload();
+  });
+
+  topicsEl.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-topic]');
+    if (!b) return;
+    var t = b.getAttribute('data-topic');
+    if (t === state.topic) return;
+    state.topic = t;
+    reload();
+  });
+
+  listEl.addEventListener('click', function (e) {
+    var tag = e.target.closest('.nw-tag');
+    if (tag) {
+      state.topic = tag.getAttribute('data-topic');
+      reload();
+      topicsEl.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var act = b.getAttribute('data-act');
+    if (act === 'retry') { polls = 0; refresh(b); return; }
+    if (act === 'all') { state.tab = 'all'; state.topic = ''; reload(); return; }
+    if (act === 'clear') {
+      state.topic = ''; state.q = ''; state.source = '';
+      qEl.value = ''; sourceEl.value = '';
+      reload();
+      return;
+    }
+    var row = b.closest('.nw-item');
+    var it = row && items[row.getAttribute('data-id')];
+    if (!it) return;
+    if (act === 'task') openTask(it);
+    if (act === 'copy') {
+      copyText(it.url).then(function () { dfToast('Link copied.', 'ok'); },
+        function () { dfToast('Could not copy. Open the title to get the link.', 'err'); });
+    }
+  });
+
+  var qTimer = null;
+  qEl.addEventListener('input', function () {
+    clearTimeout(qTimer);
+    qTimer = setTimeout(function () {
+      var v = qEl.value.trim();
+      if (v === state.q) return;
+      state.q = v;
+      reload();
+    }, 300);
+  });
+  sourceEl.addEventListener('change', function () { state.source = sourceEl.value; reload(); });
+  recoveryEl.addEventListener('change', function () { state.include_recovery = recoveryEl.checked; reload(); });
+  moreBtn.addEventListener('click', function () { load(true); });
+  refreshBtn.addEventListener('click', function () { refresh(refreshBtn); });
+
+  // A background fetch starts on page load when the feed is stale. Watch it
+  // and reload once if it brought anything new.
+  function watchRefresh(tries, baseTotal) {
+    if (tries <= 0) return;
+    setTimeout(async function () {
+      try {
+        var p = params(0);
+        p.set('limit', '1');
+        var d = await dfApi('/api/news?' + p.toString());
+        if (d.last_refresh_label) updatedEl.textContent = d.last_refresh_label;
+        if (d.refreshing) { watchRefresh(tries - 1, baseTotal); return; }
+        var n = d.total_stored - baseTotal;
+        if (n > 0) {
+          dfToast(n + ' new update' + (n === 1 ? '' : 's') + ' loaded.', 'ok');
+          reload();
+        }
+      } catch (e) {}
+    }, 5000);
+  }
+
+  syncControls();
+  render(init, false);
+  if (init.refreshing && init.total_stored) watchRefresh(8, init.total_stored);
+})();
+</script>
+{% endblock %}

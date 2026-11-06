@@ -1,0 +1,72 @@
+{% extends 'public_base.html' %}
+{% block title %}ROC Late Filing Fee Calculator · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">MCA form</label>
+                <select id="form" class="input">
+                    {% for f in forms %}<option value="{{ loop.index0 }}">{{ f.code }} — {{ f.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label">Days of delay</label>
+                <input id="days" type="number" min="0" value="30" class="input">
+            </div>
+        </div>
+
+        <div class="mt-5 text-xs text-slate-500">
+            <span id="form-rule"></span>
+        </div>
+
+        <div class="result mt-6">
+            <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Additional fee payable to MCA</div>
+            <div class="mt-2 text-4xl font-extrabold text-slate-900" id="result-amount">₹0</div>
+            <div class="mt-2 text-sm text-slate-600" id="result-detail"></div>
+        </div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border-color:rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Most MCA e-forms attract a flat ₹100 per day additional fee with no upper cap (Companies (Registration Offices and Fees) Rules, 2014). DIR-3 KYC is the main exception — late filing carries a flat ₹5,000 penalty and DIN deactivation. Rates current to May 2026; verify with a practising CS before final filing.
+    </div>
+</section>
+
+<script>
+const FORMS = {{ forms | tojson }};
+
+function compute() {
+    const idx = parseInt(document.getElementById('form').value);
+    const days = Math.max(0, parseInt(document.getElementById('days').value || 0));
+    const f = FORMS[idx];
+    document.getElementById('form-rule').textContent = `Due: ${f.due_rule}`;
+
+    let amt = 0, detail = '';
+    if (f.flat_fee) {
+        amt = days > 0 ? f.flat_fee : 0;
+        detail = days > 0
+            ? `Flat penalty for late ${f.code} filing. DIN gets deactivated and ₹${f.flat_fee.toLocaleString('en-IN')} must be paid to reactivate.`
+            : 'Filing on or before the due date — no penalty.';
+    } else {
+        amt = f.per_day_fee * days;
+        detail = days > 0
+            ? `₹${f.per_day_fee}/day × ${days} days of delay. There is no upper cap on this additional fee.`
+            : 'Filing on or before the due date — no additional fee.';
+    }
+    document.getElementById('result-amount').textContent = '₹' + amt.toLocaleString('en-IN');
+    document.getElementById('result-detail').textContent = detail;
+}
+document.getElementById('form').addEventListener('change', compute);
+document.getElementById('days').addEventListener('input', compute);
+compute();
+</script>
+{% endblock %}

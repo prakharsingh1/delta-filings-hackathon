@@ -1,0 +1,34 @@
+{# Shared public header. `nav_active` (product, solutions, pricing, security, tools, blog, about) comes from the route. #}
+{% set _items = [('product', '/product', 'Product'), ('solutions', '/solutions', 'Solutions'), ('pricing', '/pricing', 'Pricing'),
+                 ('security', '/security', 'Security'), ('tools', '/tools', 'Free tools'), ('blog', '/blog', 'Blog'), ('about', '/about', 'About')] %}
+<header class="site-head">
+  <div class="wrap head-row">
+    <a href="/" class="brand" aria-label="Delta Filings, home">
+      <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <polygon points="8,42 34,30 34,108 8,120"/>
+        <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+      </svg>
+      <span class="brand-name">Delta Filings</span>
+    </a>
+    <nav class="head-nav" aria-label="Primary">
+      {% for key, href, label in _items %}<a href="{{ href }}"{% if request.path == href or request.path.startswith(href ~ '/') %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+    </nav>
+    <div class="head-cta">
+      {% if current_user %}
+        <a href="{{ role_home if role_home is defined else '/dashboard' }}" class="btn btn-primary btn-sm"><span class="lbl-long">Open workspace</span><span class="lbl-short">Open app</span></a>
+      {% else %}
+        <a href="/signin" class="btn btn-quiet btn-sm head-signin">Sign in</a>
+        <a href="/signup" class="btn btn-primary btn-sm"><span class="lbl-long">Create workspace</span><span class="lbl-short">Sign up</span></a>
+      {% endif %}
+      <details class="menu">
+        <summary><span class="bars" aria-hidden="true"></span>Menu</summary>
+        <nav class="menu-panel" aria-label="Site">
+          {% for key, href, label in _items %}<a href="{{ href }}">{{ label }}</a>{% endfor %}
+          <hr>
+          {% if current_user %}<a href="{{ role_home if role_home is defined else '/dashboard' }}">Open workspace</a>
+          {% else %}<a href="/signin">Sign in</a><a href="/signup">Create workspace</a>{% endif %}
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>

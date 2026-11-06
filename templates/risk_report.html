@@ -1,0 +1,216 @@
+{% extends 'app_base.html' %}
+{% block title %}Counterparty risk report{% endblock %}
+
+{% macro sev_chip(sev) -%}
+<span class="chip chip-{{ sev }}">{{ sev_label.get(sev, sev|title) }}</span>
+{%- endmacro %}
+
+{% block head %}
+<style>
+  .rp-wrap { max-width: 1040px; }
+  .rp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; padding-bottom: 18px; margin-bottom: 22px; border-bottom: 2px solid var(--text-primary); }
+  .rp-meta { display: grid; grid-template-columns: auto auto; gap: 4px 14px; font-size: 13px; color: var(--text-secondary); margin-top: 10px; }
+  .rp-meta dt { color: var(--text-muted); }
+  .rp-meta dd { margin: 0; color: var(--text-primary); font-weight: 600; }
+  .rp-sec { margin-bottom: 26px; break-inside: avoid-page; }
+  .rp-sec h2 { font-size: 16px; font-weight: 750; color: var(--text-primary); margin: 0 0 4px; letter-spacing: -.01em; }
+  .rp-sec h2 small { font-size: 12.5px; font-weight: 500; color: var(--text-muted); margin-left: 6px; }
+  .rp-lead { font-size: 13px; color: var(--text-secondary); margin: 0 0 10px; }
+  .rp-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .rp-sum > div { padding: 12px 14px; border-right: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light); background: var(--surface); }
+  .rp-sum .kpi-value { font-size: 21px; margin-top: 4px; }
+  .rp-box { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .rp-reasons { margin: 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--text-secondary); }
+  .rp-reasons li + li { margin-top: 2px; }
+  .rp-sevhead td { background: var(--surface-secondary); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .rp-foot { font-size: 12.5px; color: var(--text-secondary); line-height: 1.6; }
+  .rp-foot p { margin: 0 0 8px; }
+  .rp-total td { font-weight: 700; border-top: 1px solid var(--border); }
+  .rp-empty { padding: 16px; font-size: 13px; color: var(--text-muted); }
+  .rk-nowrap { white-space: nowrap; }
+  html.dark .rp-head { border-color: #e5e5e5; }
+  html.dark .rp-sum, html.dark .rp-box { border-color: #262626; }
+  html.dark .rp-sum > div { background: #141414; border-color: #1f1f1f; }
+  html.dark .rp-sevhead td { background: #101010; }
+
+  @media print {
+    @page { size: A4; margin: 14mm 12mm; }
+    html, body { background: #fff !important; color: #111 !important; }
+    .app-topbar, #df-toast, .no-print, .dc-launcher, .dc-panel, .dc-tip, #settings-modal { display: none !important; }
+    body > .flex.h-screen, .flex.h-screen { height: auto !important; overflow: visible !important; margin-top: 0 !important; display: block !important; }
+    main { overflow: visible !important; height: auto !important; }
+    .mod-wrap { padding: 0 !important; max-width: none !important; }
+    .rp-sum > div, .rp-box, .tbl td, .tbl th { background: #fff !important; color: #111 !important; border-color: #d4d4d8 !important; }
+    .tbl th { color: #52525b !important; }
+    .tbl tbody tr:hover td { background: #fff !important; }
+    .tbl-wrap { overflow: visible !important; }
+    .tbl { font-size: 11px; }
+    .tbl tr { break-inside: avoid; }
+    .chip { border: 1px solid #a1a1aa !important; background: #fff !important; color: #111 !important; }
+    .rp-sec { break-inside: auto; }
+    .rp-sec h2 { break-after: avoid; }
+    a { color: #111 !important; text-decoration: none !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap rp-wrap">
+  <div class="rp-head">
+    <div>
+      <div class="mod-eyebrow">Risk committee</div>
+      <h1 class="mod-title">Counterparty risk report</h1>
+      <dl class="rp-meta">
+        {% if institution %}<dt>Institution</dt><dd>{{ institution }}</dd>{% endif %}
+        <dt>As at</dt><dd>{{ today.strftime('%d %B %Y') }}</dd>
+        <dt>Period</dt><dd>{{ since.strftime('%d %b %Y') }} to {{ today.strftime('%d %b %Y') }} (last 30 days)</dd>
+      </dl>
+    </div>
+    <div class="mod-actions no-print">
+      <a class="btn btn-secondary" href="/risk/export.csv">Export CSV</a>
+      <button type="button" class="btn btn-primary" onclick="window.print()">Print or save as PDF</button>
+    </div>
+  </div>
+
+  {% if not pf.count %}
+  <div class="panel">
+    <div class="empty">
+      <div class="empty-title">Nothing to report yet</div>
+      The report summarises exposure, scores and alerts across the counterparties you watch. Add them first.
+      <div style="margin-top:14px"><a class="btn btn-primary" href="/risk">Add counterparties</a></div>
+    </div>
+  </div>
+  {% else %}
+
+  <section class="rp-sec">
+    <h2>1. Summary</h2>
+    <div class="rp-sum">
+      <div><div class="kpi-label">Counterparties</div><div class="kpi-value">{{ pf.count }}</div></div>
+      <div><div class="kpi-label">Total exposure</div><div class="kpi-value">{{ pf.total_exposure | risk_inr }}</div></div>
+      <div><div class="kpi-label">Exposure at risk</div><div class="kpi-value">{{ pf.exposure_at_risk | risk_inr }}</div><div class="kpi-foot">{{ '%.1f' % at_risk_pct }}% of total</div></div>
+      <div><div class="kpi-label">Severe / High names</div><div class="kpi-value">{{ pf.by_band.Severe }} / {{ pf.by_band.High }}</div></div>
+      <div><div class="kpi-label">Active alerts</div><div class="kpi-value">{{ pf.active_alerts }}</div><div class="kpi-foot">{{ pf.alerts_by_severity.critical }} critical, {{ pf.alerts_by_severity.high }} high</div></div>
+      <div><div class="kpi-label">New signals, 30 days</div><div class="kpi-value">{{ recent|length }}</div></div>
+    </div>
+  </section>
+
+  <section class="rp-sec">
+    <h2>2. Exposure by risk band</h2>
+    <div class="rp-box tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Band</th><th>Score range</th><th class="num">Names</th><th class="num">Exposure</th><th class="num">Share</th></tr></thead>
+        <tbody>
+          {% set ranges = {'Severe': '60 and above', 'High': '35 to 59', 'Moderate': '15 to 34', 'Low': 'Under 15'} %}
+          {% for b in band_rows %}
+          <tr><td><span class="chip band-{{ b.band }}">{{ b.band }}</span></td><td>{{ ranges[b.band] }}</td><td class="num">{{ b.count }}</td><td class="num">{{ b.exposure | risk_inr }}</td><td class="num">{{ '%.1f' % b.pct }}%</td></tr>
+          {% endfor %}
+          <tr class="rp-total"><td colspan="2">Total</td><td class="num">{{ pf.count }}</td><td class="num">{{ total | risk_inr }}</td><td class="num">{{ '100%' if total else '—' }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="rp-sec">
+    <h2>3. Exposure by category</h2>
+    <div class="rp-box tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Category</th><th class="num">Names</th><th class="num">Exposure</th><th class="num">At risk</th><th class="num">At risk, % of category</th></tr></thead>
+        <tbody>
+          {% for c in cat_rows %}
+          <tr><td>{{ c.label }}</td><td class="num">{{ c.count }}</td><td class="num">{{ c.exposure | risk_inr }}</td><td class="num">{{ c.at_risk | risk_inr }}</td><td class="num">{{ '%.1f' % c.pct_at_risk }}%</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="rp-sec">
+    <h2>4. Highest scores <small>top {{ top|length }}</small></h2>
+    {% if top %}
+    <div class="rp-box tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Counterparty</th><th class="num">Exposure</th><th>Score</th><th>Main reasons</th></tr></thead>
+        <tbody>
+          {% for r in top %}
+          <tr>
+            <td><a class="link" href="/risk/counterparty/{{ r.id }}">{{ r.name }}</a><div class="muted" style="font-size:12px">{{ categories.get(r.category, 'Other') }}{% if r.symbol %} · <span class="mono">{{ r.symbol }}</span>{% endif %}</div></td>
+            <td class="num rk-nowrap">{{ r.exposure_inr | risk_inr }}</td>
+            <td class="rk-nowrap"><b>{{ r.score }}</b> <span class="chip band-{{ r.band }}">{{ r.band }}</span></td>
+            <td>
+              <ul class="rp-reasons">
+                {% for rs in r.reasons[:3] %}<li>{{ rs.title }} <span class="muted">({{ rs.event_date | risk_date }}, {{ rs.points }} pts)</span></li>{% endfor %}
+              </ul>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="rp-box rp-empty">No counterparty has a score above zero.</div>
+    {% endif %}
+  </section>
+
+  <section class="rp-sec">
+    <h2>5. New signals in the period <small>{{ recent|length }}, dated {{ since.strftime('%d %b') }} to {{ today.strftime('%d %b %Y') }}</small></h2>
+    {% if recent %}
+    <div class="rp-box tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Date</th><th>Counterparty</th><th>Signal</th><th>Source</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for sev in ['critical', 'high', 'medium', 'low'] if recent_by_sev[sev] %}
+          <tr class="rp-sevhead"><td colspan="5">{{ sev_label[sev] }} · {{ recent_by_sev[sev]|length }}</td></tr>
+          {% for s in recent_by_sev[sev] %}
+          <tr>
+            <td class="rk-nowrap">{{ s.event_date | risk_date }}</td>
+            <td>{{ s.cp_name }}</td>
+            <td>{{ s.title }}</td>
+            <td>{{ s.source }}</td>
+            <td>{{ statuses.get(s.status, s.status) }}</td>
+          </tr>
+          {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="rp-box rp-empty">No new signals were dated in the last 30 days.</div>
+    {% endif %}
+  </section>
+
+  <section class="rp-sec">
+    <h2>6. Open critical and high alerts <small>{{ open_serious|length }}</small></h2>
+    {% if open_serious %}
+    <div class="rp-box tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Severity</th><th>Counterparty</th><th>Alert</th><th>Event date</th><th class="num">Age, days</th><th>Status</th><th>Assignee</th></tr></thead>
+        <tbody>
+          {% for s in open_serious %}
+          <tr>
+            <td>{{ sev_chip(s.severity) }}</td>
+            <td>{{ s.cp_name }}</td>
+            <td>{{ s.title }}</td>
+            <td class="rk-nowrap">{{ s.event_date | risk_date }}</td>
+            <td class="num">{{ s.age if s.age is not none else '' }}</td>
+            <td>{{ statuses.get(s.status, s.status) }}</td>
+            <td>{{ s.assignee or 'Unassigned' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="rp-box rp-empty">No critical or high alerts are open.</div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="rp-sec rp-foot">
+    <h2>Methodology</h2>
+    <p><b>Sources.</b> Exchange filings of listed counterparties (NSE announcements, including the attached letter where available); SEBI orders and recovery proceedings from the SEBI feed and SEBI's enforcement records; IBBI public announcements of insolvency and liquidation, matched by name; one-day share-price falls of 5% or more; and signals logged by the risk team. Board composition comes from quarterly corporate governance filings.</p>
+    <p><b>Scoring.</b> Each signal adds {{ weights.critical }} points if critical, {{ weights.high }} if high, {{ weights.medium }} if medium and {{ weights.low }} if low. Points fade with the age of the event: full weight for 30 days, 70% to 90 days, 45% to 180 days, 25% to a year, then nothing. Resolved signals count at half weight and dismissed ones not at all. Repeats of the same kind of signal count at half, then a quarter, and filings about the same event within a week are merged. The score is capped at 100.</p>
+    <p><b>Bands.</b> Severe 60 and above, High 35 to 59, Moderate 15 to 34, Low under 15. An open critical signal (insolvency admission, payment default, fraud) from the last 90 days puts a name in Severe on its own. Exposure at risk is the recorded exposure to names in the High and Severe bands.</p>
+    <p><b>Limitations.</b> Unlisted companies are covered only through IBBI announcements, SEBI orders and the team's own entries. MCA data such as charges, filing defaults and strike-off status is not yet covered. Name matches marked "verify" need a human check. Exposures are as entered by the team.</p>
+  </section>
+</div>
+{% endblock %}

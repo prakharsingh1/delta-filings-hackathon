@@ -151,7 +151,7 @@ function startPayment() {
                 description: data.description,
                 order_id: data.order_id,
                 prefill: data.prefill || {},
-                theme: { color: '#4f46e5' },
+                theme: { color: '#9b801c' },
                 handler: function(resp) {
                     _setStatus('pay-status', '<span class="text-slate-600">Verifying payment…</span>');
                     fetch('/api/payment/verify', {

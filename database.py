@@ -862,6 +862,11 @@ def get_previous_snapshot_ids(company):
     return set(int(x) for x in row["filing_ids"].split(",") if x.strip())
 
 
+# How many snapshots to keep per company. Only the newest is read; the tail is
+# kept purely so a regression in diff detection can be inspected.
+SNAPSHOT_RETAIN = int(os.environ.get("DELTA_SNAPSHOT_RETAIN", "3"))
+
+
 def save_snapshot(company):
     conn = get_connection()
     rows = conn.execute(
@@ -872,6 +877,20 @@ def save_snapshot(company):
     conn.execute(
         "INSERT INTO snapshots (company, taken_at, filing_ids) VALUES (?, ?, ?)",
         (company, now, ids_str),
+    )
+    # Only the newest snapshot is ever read (get_previous_snapshot_ids uses
+    # ORDER BY taken_at DESC LIMIT 1), but a row was appended on EVERY
+    # process_filings call — each holding the company's entire filing-id list
+    # (~10KB for a 1,500-filing company). With the hourly refresher that grew
+    # without bound and was filling the 500MB volume. Keep a small tail for
+    # debugging and drop the rest.
+    conn.execute(
+        """DELETE FROM snapshots
+           WHERE company = ? AND id NOT IN (
+               SELECT id FROM snapshots WHERE company = ?
+               ORDER BY taken_at DESC LIMIT ?
+           )""",
+        (company, company, SNAPSHOT_RETAIN),
     )
     conn.commit()
     conn.close()

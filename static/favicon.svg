@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 104 120" fill="#2D2A7C" shape-rendering="geometricPrecision">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 104 120" fill="#8a7b2b" shape-rendering="geometricPrecision">
   <style>
-    @media (prefers-color-scheme: dark) { :root { fill: #8B87F0; } svg { fill: #8B87F0; } }
+    @media (prefers-color-scheme: dark) { :root { fill: #ffe24a; } svg { fill: #ffe24a; } }
   </style>
   <polygon points="8,42 34,30 34,108 8,120"/>
   <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>

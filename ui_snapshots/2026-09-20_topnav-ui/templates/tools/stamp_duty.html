@@ -1,0 +1,99 @@
+{% extends 'public_base.html' %}
+{% block title %}Stamp Duty Calculator · Delta Filings{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-6 pt-10 pb-16">
+    <div class="mb-6 text-sm text-slate-500"><a href="/tools" class="hover:text-slate-800">← All tools</a></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">{{ tool.title }}</h1>
+        <p class="mt-2 text-slate-600">{{ tool.tagline }}</p>
+    </div>
+
+    <div class="card-glass p-7">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="label">Document type</label>
+                <select id="doctype" class="input">
+                    <option value="share-transfer">Share transfer</option>
+                    <option value="moa">MOA & AOA (incorporation)</option>
+                    <option value="loan">Loan agreement</option>
+                    <option value="lease">Lease deed</option>
+                </select>
+            </div>
+            <div>
+                <label class="label">State</label>
+                <select id="state" class="input">
+                    {% for s in states.keys() %}<option value="{{ s }}"{% if s == 'Default' %} disabled{% endif %}>{{ s }}</option>{% endfor %}
+                </select>
+            </div>
+
+            <div id="value-wrap">
+                <label class="label" id="value-label">Consideration / value (₹)</label>
+                <input id="value" type="number" min="0" step="1000" value="100000" class="input">
+            </div>
+            <div id="lease-wrap" style="display:none;">
+                <label class="label">Lease tenure (years)</label>
+                <input id="years" type="number" min="1" max="99" value="3" class="input">
+            </div>
+        </div>
+
+        <div class="result mt-6">
+            <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Estimated stamp duty</div>
+            <div class="mt-2 text-4xl font-extrabold text-slate-900" id="duty">₹0</div>
+            <div class="mt-2 text-sm text-slate-600" id="basis"></div>
+        </div>
+    </div>
+
+    <div class="mt-6 p-5 rounded-xl text-xs leading-relaxed"
+         style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.3); color:#92400e;">
+        <strong>Note:</strong> Share transfer stamp duty is uniform across India at 0.015% of consideration since the Indian Stamp Act amendment (1-Jul-2020). MOA/AOA, loan, and lease deed stamp duty are state-specific and computed against headline rates here. Actual rates may include slabs based on capital, loan amount, or lease consideration, and execution location. For high-value documents, verify with the state stamp authority or your CS.
+    </div>
+</section>
+
+<script>
+const SHARE_RATE = {{ share_rate }};
+const STATES = {{ states | tojson }};
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+function compute() {
+    const dt = document.getElementById('doctype').value;
+    const state = document.getElementById('state').value;
+    const value = Math.max(0, parseFloat(document.getElementById('value').value || 0));
+    const years = Math.max(1, parseInt(document.getElementById('years').value || 1));
+
+    document.getElementById('lease-wrap').style.display = (dt === 'lease') ? '' : 'none';
+    document.getElementById('value-label').textContent = (
+        dt === 'share-transfer' ? 'Consideration on transfer (₹)' :
+        dt === 'moa' ? 'Authorised share capital (₹)' :
+        dt === 'loan' ? 'Loan amount (₹)' :
+        'Annual rent (₹)'
+    );
+
+    let duty = 0, basis = '';
+    const cfg = STATES[state] || STATES.Default;
+
+    if (dt === 'share-transfer') {
+        duty = value * SHARE_RATE;
+        basis = `0.015% of consideration (Indian Stamp Act amendment, uniform across India).`;
+    } else if (dt === 'moa') {
+        const fixed = cfg.moa;
+        const variable = value * cfg.aoa_pct_of_capital;
+        duty = fixed + variable;
+        basis = `${state}: ₹${fixed.toLocaleString('en-IN')} on MOA + ${(cfg.aoa_pct_of_capital * 100).toFixed(3)}% of authorised capital on AOA.`;
+    } else if (dt === 'loan') {
+        duty = value * cfg.loan_pct;
+        basis = `${state}: ${(cfg.loan_pct * 100).toFixed(2)}% of loan amount.`;
+    } else if (dt === 'lease') {
+        duty = value * years * cfg.lease_pct_annual_rent_yr;
+        basis = `${state}: ${(cfg.lease_pct_annual_rent_yr * 100).toFixed(2)}% of (annual rent × tenure of ${years} year(s)).`;
+    }
+
+    document.getElementById('duty').textContent = fmt(duty);
+    document.getElementById('basis').textContent = basis;
+}
+['doctype','state','value','years'].forEach(id => document.getElementById(id).addEventListener('input', compute));
+compute();
+</script>
+{% endblock %}

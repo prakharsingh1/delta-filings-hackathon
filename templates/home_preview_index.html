@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homepage options · Delta Filings (local preview)</title>
+<style>
+  :root { --bg:#0b0d12; --card:#141821; --ink:#e8ebf2; --muted:#9aa3b5; --line:#262c3a; --accent:#7c8cff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:960px; margin:0 auto; padding:48px 16px; }
+  h1 { font-size:28px; margin:0 0 6px; }
+  p { color:var(--muted); margin:0 0 28px; }
+  ol { list-style:none; padding:0; margin:0; display:grid; gap:12px; }
+  a.card { display:flex; gap:16px; align-items:center; padding:18px 20px; background:var(--card); border:1px solid var(--line);
+           border-radius:12px; color:inherit; text-decoration:none; transition:border-color .2s, transform .2s; }
+  a.card:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .n { font:600 14px/1 ui-monospace,Menlo,monospace; color:var(--accent); width:28px; }
+  .t b { display:block; font-size:17px; }
+  .t span { color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Homepage options</h1>
+  <p>Local preview only. The live homepage is unchanged until one is chosen.</p>
+  <ol>
+    {% for n, name, blurb in [
+      ("1", "Night Desk", "Dark command centre: a live week calendar in a glowing browser frame, cursor-lit cards."),
+      ("2", "The Ledger · recommended", "Paper and serif, like an annual report: a ruled register, and a tamper demo of the insider log."),
+      ("3", "Stage and Bento", "Bright white stage with app fragments floating around it and a bento grid of small working tools."),
+      ("4", "Indigo Field", "Soft gradient, fanned 3D product screens, and a scroll story through one quarter."),
+      ("5", "Filing Terminal", "Monospace data grid, a live deadline ticker, and a working late-fee calculator as the hero."),
+      ("b", "Current homepage", "What deltafiling.tech shows today")] %}
+    <li><a class="card" href="/_preview/home/{{ n }}"><span class="n">{{ n|upper }}</span>
+      <span class="t"><b>{{ name }}</b><span>{{ blurb }}</span></span></a></li>
+    {% endfor %}
+  </ol>
+</main>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{% extends "auth_base.html" %}
+{% set page_title = "Page not found · Delta Filings" %}
+{% block content %}
+<div class="auth-card w-full max-w-md p-8 sm:p-10 text-center">
+    <p class="text-xs font-bold uppercase tracking-widest text-indigo-600">404</p>
+    <h1 class="text-2xl font-bold tracking-tight mt-2">This page isn't here</h1>
+    <p class="text-sm text-slate-500 mt-2">The link may be old, or the record belongs to another account or has been archived.</p>
+    <div class="mt-6 flex items-center justify-center gap-3">
+        <a href="{{ role_home if current_user else '/' }}" class="btn-primary" style="width:auto;padding:10px 22px;">Go to your home screen</a>
+    </div>
+</div>
+{% endblock %}

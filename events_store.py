@@ -131,6 +131,32 @@ def init_events_db():
     conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_log(event_id, id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts DESC)")
 
+    # Events come from public filings and are shared; what a reviewer decides
+    # about one is theirs. One row per (account, event).
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS event_decisions (
+            user_id TEXT NOT NULL,
+            event_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            note TEXT DEFAULT '',
+            actor TEXT DEFAULT '',
+            decided_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, event_id)
+        )
+    """)
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(audit_log)")}
+    if "user_id" not in cols:
+        conn.execute("ALTER TABLE audit_log ADD COLUMN user_id TEXT DEFAULT ''")
+        # Decisions used to be written onto the shared event, so one account's
+        # approve or dismiss showed for everyone. They can't be attributed to
+        # an account now: put those events back to their pipeline status.
+        conn.execute("""
+            UPDATE governance_events SET status = CASE
+                WHEN EXISTS (SELECT 1 FROM event_artifacts a WHERE a.event_id = governance_events.id) THEN 'actioned'
+                WHEN EXISTS (SELECT 1 FROM event_analysis a WHERE a.event_id = governance_events.id) THEN 'analyzed'
+                ELSE 'new' END
+            WHERE status IN ('approved', 'dismissed', 'escalated')""")
+
     conn.commit()
     conn.close()
     print("[EVENTS] Event intelligence tables initialized.")
@@ -140,25 +166,33 @@ def init_events_db():
 
 def log_audit(actor: str, action: str, event_id: Optional[int] = None,
               symbol: str = "", detail: str = "", detail_obj: Any = None,
-              model: str = "", latency_ms: int = 0, actor_kind: str = "agent"):
-    """Append-only. Every agent write and every human decision goes through here."""
+              model: str = "", latency_ms: int = 0, actor_kind: str = "agent",
+              user_id: str = ""):
+    """Append-only. Every agent write and every human decision goes through here.
+    A human decision carries its account's user_id and only that account sees it."""
     conn = get_connection()
     conn.execute(
         """INSERT INTO audit_log
-           (ts, actor, actor_kind, action, event_id, symbol, detail, detail_json, model, latency_ms)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           (ts, actor, actor_kind, action, event_id, symbol, detail, detail_json, model, latency_ms, user_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (_now(), actor, actor_kind, action, event_id, symbol, detail,
-         json.dumps(detail_obj or {}), model, latency_ms),
+         json.dumps(detail_obj or {}), model, latency_ms, user_id or ""),
     )
     conn.commit()
     conn.close()
 
 
-def get_audit_trail(event_id: int) -> List[Dict]:
+def get_audit_trail(event_id: int, user_id: Optional[str] = None) -> List[Dict]:
+    """The shared agent steps plus this account's own decisions. Human rows
+    from before decisions were per-account have no owner and are not shown."""
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM audit_log WHERE event_id = ? ORDER BY id ASC", (event_id,)
-    ).fetchall()
+    if user_id is None:
+        rows = conn.execute(
+            "SELECT * FROM audit_log WHERE event_id = ? ORDER BY id ASC", (event_id,)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM audit_log WHERE event_id = ? AND ((actor_kind != 'human' AND COALESCE(user_id, '') = '') "
+            "OR user_id = ?) ORDER BY id ASC", (event_id, str(user_id))).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -249,11 +283,51 @@ def _hydrate(row) -> Dict:
     return e
 
 
-def get_event(event_id: int) -> Optional[Dict]:
+def get_event(event_id: int, user_id: Optional[str] = None) -> Optional[Dict]:
     conn = get_connection()
     row = conn.execute("SELECT * FROM governance_events WHERE id = ?", (event_id,)).fetchone()
     conn.close()
-    return _hydrate(row) if row else None
+    if not row:
+        return None
+    return apply_decisions([_hydrate(row)], user_id)[0]
+
+
+def apply_decisions(events: List[Dict], user_id: Optional[str]) -> List[Dict]:
+    """Show each event with this account's decision as its status."""
+    if not events or not user_id:
+        return events
+    ids = [e["id"] for e in events]
+    conn = get_connection()
+    mine = {r["event_id"]: r["status"] for r in conn.execute(
+        f"SELECT event_id, status FROM event_decisions WHERE user_id = ? AND event_id IN ({','.join('?' * len(ids))})",
+        (str(user_id), *ids))}
+    conn.close()
+    for e in events:
+        if e["id"] in mine:
+            e["status"] = mine[e["id"]]
+    return events
+
+
+def decide(event_id: int, user_id: str, status: str, actor: str, note: str = "") -> bool:
+    """A reviewer's approve / dismiss / escalate, for their account only."""
+    if status not in ("approved", "dismissed", "escalated"):
+        raise ValueError(f"unknown decision: {status}")
+    if not user_id:
+        raise ValueError("a decision needs an account")
+    ev = get_event(event_id)
+    if not ev:
+        return False
+    conn = get_connection()
+    conn.execute(
+        """INSERT INTO event_decisions (user_id, event_id, status, note, actor, decided_at) VALUES (?,?,?,?,?,?)
+           ON CONFLICT(user_id, event_id) DO UPDATE SET status = excluded.status, note = excluded.note,
+               actor = excluded.actor, decided_at = excluded.decided_at""",
+        (str(user_id), event_id, status, note, actor, _now()))
+    conn.commit()
+    conn.close()
+    log_audit(actor=actor, actor_kind="human", action=f"status:{status}", event_id=event_id,
+              symbol=ev["symbol"], detail=note or f"Status set to {status}", user_id=str(user_id))
+    return True
 
 
 def list_events(symbols: Optional[List[str]] = None, status: Optional[str] = None,
@@ -463,10 +537,11 @@ def get_company_timeline(symbol: str, days: int = 365) -> List[Dict]:
 
 
 def list_events_with_analysis(symbols: Optional[List[str]] = None, limit: int = 200,
-                              **kw) -> List[Dict]:
+                              user_id: Optional[str] = None, **kw) -> List[Dict]:
     """Events joined to their analysis in one pass — the Intelligence Center
-    register renders straight from this."""
-    events = list_events(symbols=symbols, limit=limit, **kw)
+    register renders straight from this. With user_id, statuses carry that
+    account's decisions."""
+    events = apply_decisions(list_events(symbols=symbols, limit=limit, **kw), user_id)
     if not events:
         return []
 
@@ -512,7 +587,7 @@ def list_events_with_analysis(symbols: Optional[List[str]] = None, limit: int = 
     return events
 
 
-def build_replay(event_id: int) -> Optional[Dict]:
+def build_replay(event_id: int, user_id: Optional[str] = None) -> Optional[Dict]:
     """Reconstruct an event's agent run as a timed script for replay.
 
     Reads the stored audit trail, analysis and artifacts — it never calls a
@@ -521,13 +596,13 @@ def build_replay(event_id: int) -> Optional[Dict]:
     shown are the real recorded ones, so the replay is an honest reconstruction
     of what actually happened, not a dramatisation.
     """
-    event = get_event(event_id)
+    event = get_event(event_id, user_id)
     if not event:
         return None
 
     analysis = get_analysis(event_id) or {}
     artifacts = get_artifacts(event_id)
-    trail = get_audit_trail(event_id)
+    trail = get_audit_trail(event_id, user_id)
 
     steps: List[Dict] = []
 

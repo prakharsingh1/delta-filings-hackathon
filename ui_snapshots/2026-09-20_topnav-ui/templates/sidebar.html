@@ -1,0 +1,902 @@
+<!-- Shared Top Navigation -->
+<style>
+    /* ── Fixed horizontal top bar (replaces the old sidebar) ── */
+    .app-topbar {
+        position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 50;
+        background: rgba(255,255,255,0.78);
+        backdrop-filter: saturate(180%) blur(18px);
+        -webkit-backdrop-filter: saturate(180%) blur(18px);
+        border-bottom: 1px solid rgba(226,232,240,0.7);
+    }
+    html.dark .app-topbar { background: rgba(10,10,10,0.78); border-bottom-color: #1f1f1f; }
+    .app-topbar-inner { max-width: 1480px; margin: 0 auto; height: 100%;
+        display: flex; align-items: center; gap: 14px; padding: 0 24px; }
+    .topbar-logo { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        color: #2D2A7C;
+        transition: transform .25s cubic-bezier(.22,.61,.36,1); }
+    /* Lighter tint on dark surfaces — the brand navy is unreadable there. */
+    html.dark .topbar-logo { color: #8B87F0; }
+    .topbar-logo:hover { transform: scale(1.06); }
+    .topbar-logo svg { width: 26px; height: 26px; }
+    .topbar-wordmark { font-weight: 700; font-size: 15px; letter-spacing: -.02em; color: var(--text-primary); }
+
+    /* ── Current-page indicator pill (animated) ── */
+    .page-chevron { display: inline-flex; align-items: center; color: var(--text-muted); opacity: 0;
+        animation: pageChevIn .35s cubic-bezier(.22,.61,.36,1) forwards .05s; }
+    .page-pill {
+        view-transition-name: page-pill;
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 6px 12px 6px 10px; border-radius: 999px;
+        font-size: 12.5px; font-weight: 600; color: #4f46e5;
+        background: linear-gradient(135deg, rgba(99,102,241,0.10), rgba(14,165,233,0.10));
+        border: 1px solid rgba(99,102,241,0.18);
+        white-space: nowrap; flex-shrink: 0;
+        opacity: 0; transform: translateX(-6px);
+        animation: pagePillIn .45s cubic-bezier(.22,.61,.36,1) forwards .08s;
+    }
+    html.dark .page-pill { color: #a5b4fc;
+        background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(14,165,233,0.14));
+        border-color: rgba(99,102,241,0.32); }
+    .page-pill svg { width: 14px; height: 14px; flex-shrink: 0; }
+    @keyframes pageChevIn { to { opacity: 1; } }
+    @keyframes pagePillIn { to { opacity: 1; transform: none; } }
+
+    .top-nav { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; margin-left: 6px; }
+    .top-nav::-webkit-scrollbar { display: none; }
+    .top-nav-item { position: relative; padding: 8px 13px; border-radius: 9px; font-size: 13.5px;
+        font-weight: 600; color: var(--text-secondary); white-space: nowrap;
+        transition: color .18s ease, background .18s ease; text-decoration: none; }
+    .top-nav-item:hover { color: var(--text-primary); background: var(--surface-secondary); }
+    .top-nav-item.active { color: var(--primary); }
+    .top-nav-item.active::after { content: ''; position: absolute; left: 13px; right: 13px; bottom: -3px;
+        height: 2.5px; border-radius: 3px; background: var(--primary); }
+    html.dark .top-nav-item.active { color: #a5b4fc; }
+    html.dark .top-nav-item.active::after { background: #6366f1; }
+    .topbar-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 10px;
+        font-size: 12.5px; font-weight: 600; color: var(--text-secondary); background: transparent;
+        border: 1px solid transparent; cursor: pointer; transition: all .18s ease; }
+    .topbar-btn:hover { background: var(--surface-secondary); color: var(--text-primary); }
+    .topbar-icon { position: relative; width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: var(--text-secondary); background: transparent; border: none; cursor: pointer; transition: all .18s ease; }
+    .topbar-icon:hover { background: var(--surface-secondary); color: var(--text-primary); }
+    .topbar-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; }
+
+    /* ── Avatar (with uploaded-image support + status dot) ── */
+    /* NOTE: no overflow:hidden on the button — the inner <img> clips itself with
+       border-radius:50%, and overflow:hidden would clip the status dot too. */
+    .topbar-avatar { position: relative; width: 38px; height: 38px; flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center; color: #fff;
+        font-weight: 700; font-size: 14px; line-height: 1;
+        background: transparent; border: none; cursor: pointer; padding: 0;
+        transition: transform .25s ease; }
+    .topbar-avatar:hover { transform: translateY(-1px); }
+    /* The actual round face: gradient by default, replaced by <img> when a photo is set. */
+    .topbar-avatar .avatar-initial,
+    .topbar-avatar img {
+        width: 100%; height: 100%; border-radius: 50%; display: flex;
+        align-items: center; justify-content: center; object-fit: cover;
+        background: linear-gradient(135deg, #4f46e5, #0ea5e9);
+        box-shadow: 0 0 0 0 rgba(99,102,241,0); transition: box-shadow .25s ease;
+    }
+    .topbar-avatar:hover .avatar-initial,
+    .topbar-avatar:hover img { box-shadow: 0 0 0 4px rgba(99,102,241,0.18); }
+    .topbar-avatar img { background: #e2e8f0; }    /* neutral bg if image is transparent */
+    .avatar-status-dot {
+        position: absolute; right: -2px; bottom: -2px;
+        width: 11px; height: 11px; border-radius: 50%;
+        background: #cbd5e1; border: 2.5px solid white;
+        box-shadow: 0 1px 3px rgba(15,23,42,0.18);
+        transition: background .25s ease;
+        z-index: 2;
+    }
+    html.dark .avatar-status-dot { border-color: #141414; }
+
+    /* ── Dropdown menus ── */
+    .topbar-dd { position: relative; }
+    .topbar-menu { position: absolute; top: 52px; left: 0; min-width: 260px; background: var(--surface);
+        border: 1px solid var(--border); border-radius: 16px;
+        box-shadow: 0 20px 50px -12px rgba(15,23,42,0.20), 0 6px 16px -6px rgba(15,23,42,0.08);
+        padding: 8px; z-index: 60;
+        transform-origin: top right;
+        opacity: 0; transform: translateY(-6px) scale(.96); pointer-events: none;
+        transition: opacity .18s ease, transform .22s cubic-bezier(.22,.61,.36,1);
+    }
+    .topbar-menu.visible { opacity: 1; transform: none; pointer-events: auto; }
+    .topbar-menu-right { left: auto; right: 0; }
+    html.dark .topbar-menu { background: #141414; border-color: #262626; }
+    .topbar-menu-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+        color: var(--text-muted); padding: 7px 10px 5px; }
+    .topbar-menu-item { display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: 10px;
+        font-size: 13px; font-weight: 500; color: var(--text-secondary); text-decoration: none;
+        cursor: pointer; transition: background .15s ease, color .15s ease, padding-left .15s ease;
+        border: none; background: transparent; width: 100%; text-align: left; }
+    .topbar-menu-item:hover { background: var(--surface-secondary); color: var(--text-primary); padding-left: 14px; }
+    .topbar-menu-item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); }
+    .topbar-menu-item:hover svg { color: var(--primary); }
+    .topbar-menu-item.danger { color: #e11d48; font-weight: 600; }
+    .topbar-menu-item.danger svg { color: #e11d48; }
+    .topbar-menu-item.danger:hover { background: rgba(244,63,94,0.08); color: #be123c; }
+    .topbar-menu-divider { height: 1px; background: var(--border); margin: 6px 4px; }
+    .topbar-menu .wl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .topbar-menu-count { margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 10px;
+        background: var(--border-light); color: var(--text-muted); }
+
+    /* User-card header inside avatar dropdown */
+    .user-card {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 11px 14px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 6px;
+    }
+    .user-card-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center; color: #fff;
+        font-weight: 700; font-size: 16px; overflow: hidden;
+        background: linear-gradient(135deg, #4f46e5, #0ea5e9); }
+    .user-card-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .user-card-name { font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+    .user-card-email { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.2; }
+
+    /* Content sits below the fixed topbar. The app shell is `flex h-screen
+       overflow-hidden`; overflow-hidden makes it a BFC so this margin doesn't
+       collapse into <body>, reliably leaving a 64px gap for the fixed bar.
+       Because <main> (overflow-y-auto) is then the scroll container starting
+       at y=64, any `sticky top-0` inside a page sticks BELOW the bar — no
+       per-page sticky fixes needed. */
+    @media (max-width: 1000px) { .topbar-wordmark { display: none; } }
+    @media (max-width: 860px) { .page-pill .page-pill-label, .page-chevron { display: none; }
+        .page-pill { padding: 7px 8px; } }
+
+    /* ── Cross-page view transition ── */
+    /* When the View Transitions API is available, the page-pill morphs across navigations. */
+    ::view-transition-old(page-pill),
+    ::view-transition-new(page-pill) {
+        animation-duration: .35s;
+        animation-timing-function: cubic-bezier(.22,.61,.36,1);
+    }
+</style>
+
+{#  Mapping of active_page → display label + icon path. Keep in sync with the
+    nav links below; rendering happens once per page server-side. Adding a new
+    page = adding one entry here. #}
+{% set _PAGE_INFO = {
+    'intelligence':  {'label': 'Signal', 'icon': 'M13 10V3L4 14h7v7l9-11h-7z'},
+    'dashboard':     {'label': 'Dashboard',     'icon': 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z'},
+    'draft':         {'label': 'Draft',         'icon': 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'},
+    'announcements': {'label': 'Disclosures',   'icon': 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z'},
+    'prices':        {'label': 'Stock Prices',  'icon': 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6'},
+    'din_search':    {'label': 'DIN Search',    'icon': 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'},
+    'compliance':    {'label': 'Compliance',    'icon': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'},
+    'compare':       {'label': 'Compare',       'icon': 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'},
+    'watchlist':     {'label': 'Watchlist',     'icon': 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'},
+    'company':       {'label': 'Company',       'icon': 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'},
+} %}
+{# The company page hosts two top-nav destinations (Disclosures / Compare),
+   distinguished by ?tab=. Resolve which one is "current" for the pill + nav. #}
+{% set _company_tab = request.args.get('tab', 'announcements') if active_page == 'company' else None %}
+{% if active_page == 'company' %}
+    {% set _current_page = _PAGE_INFO.get('compare' if _company_tab == 'compare' else 'announcements') %}
+{% else %}
+    {% set _current_page = _PAGE_INFO.get(active_page) %}
+{% endif %}
+
+<style>.flex.h-screen { margin-top: 64px; height: calc(100vh - 64px); }</style>
+<header class="app-topbar">
+    <div class="app-topbar-inner">
+        <a href="/dashboard" class="flex items-center gap-2.5 flex-shrink-0">
+            <span class="topbar-logo">
+                <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="Delta Filings">
+                    <polygon points="8,42 34,30 34,108 8,120"/>
+                    <polygon points="50,4 100,28 100,100 70,86 70,52 50,42"/>
+                </svg>
+            </span>
+            <span class="topbar-wordmark">Delta Filings</span>
+        </a>
+
+        {# Current-page indicator pill — only renders if active_page is in the map. #}
+        {% if _current_page %}
+        <span class="page-chevron" aria-hidden="true">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </span>
+        <span class="page-pill" id="page-pill" aria-label="Current page: {{ _current_page.label }}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ _current_page.icon }}"/>
+            </svg>
+            <span class="page-pill-label">{{ _current_page.label }}</span>
+        </span>
+        {% endif %}
+
+        {% set _nav_target = None %}
+        {% if selected is defined and selected %}{% set _nav_target = selected %}
+        {% elif watchlist is defined and watchlist %}{% set _first = watchlist[0] %}{% set _nav_target = (_first.symbol if _first is mapping else _first) %}
+        {% elif companies is defined and companies %}{% set _nav_target = companies[0] %}{% endif %}
+
+        <nav class="top-nav">
+            <a href="/dashboard" class="top-nav-item {{ 'active' if active_page == 'dashboard' else '' }}">Dashboard</a>
+            <a href="/intelligence" class="top-nav-item {{ 'active' if active_page == 'intelligence' else '' }}">Signal</a>
+            <a href="/draft" class="top-nav-item {{ 'active' if active_page == 'draft' else '' }}">Draft</a>
+            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'announcements' or (active_page == 'company' and _company_tab != 'compare')) else '' }}">Disclosures</a>
+            <a href="/compliance" class="top-nav-item {{ 'active' if active_page == 'compliance' else '' }}">Compliance</a>
+            <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'compare' or (active_page == 'company' and _company_tab == 'compare')) else '' }}">Compare</a>
+        </nav>
+
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+            <div class="topbar-dd">
+                <button type="button" class="topbar-btn" onclick="toggleDd('wl-dd', event)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                    <span class="hidden lg:inline">Watchlist</span>
+                </button>
+                <div id="wl-dd" class="topbar-menu">
+                    <div class="topbar-menu-label">Your watchlist</div>
+                    {% set _wl = (watchlist if watchlist is defined else []) %}
+                    {% for w in _wl %}
+                    {% set _sym = w.symbol if w is mapping else w %}
+                    <a href="/company/{{ _sym }}" class="topbar-menu-item">
+                        <span class="wl-dot" style="background: {{ ['#3b82f6','#6366f1','#0ea5e9','#818cf8','#38bdf8'][loop.index0 % 5] }}"></span>
+                        <span class="flex-1 truncate font-medium">{{ _sym }}</span>
+                        {% if company_counts is defined and _sym in company_counts %}<span class="topbar-menu-count">{{ company_counts[_sym] }}</span>{% endif %}
+                    </a>
+                    {% endfor %}
+                    {% if not _wl %}<div class="px-3 py-3 text-xs text-slate-400">No companies yet.</div>{% endif %}
+                    <a href="/watchlist" class="topbar-menu-item" style="color:var(--primary);font-weight:600;">View all &rarr;</a>
+                </div>
+            </div>
+
+            <button type="button" class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+                <svg class="icon-moon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+                <svg class="icon-sun w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </button>
+
+            {% if current_user %}
+            <div class="topbar-dd">
+                <button type="button" class="topbar-avatar" id="topbar-avatar-btn"
+                        onclick="toggleDd('user-dd', event)" title="{{ current_user.email }}"
+                        aria-label="Account menu">
+                    <span class="avatar-initial">{{ current_user.name[0]|upper if current_user.name else 'U' }}</span>
+                    <span id="ai-status-dot" class="avatar-status-dot" title="AI status"></span>
+                </button>
+                <input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none">
+                <div id="user-dd" class="topbar-menu topbar-menu-right">
+                    <div class="user-card">
+                        <div class="user-card-avatar" id="user-card-avatar">
+                            <span class="user-card-initial">{{ current_user.name[0]|upper if current_user.name else 'U' }}</span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="user-card-name truncate">{{ current_user.name or 'Account' }}</div>
+                            <div class="user-card-email truncate">{{ current_user.email }}</div>
+                        </div>
+                    </div>
+
+                    <button type="button" class="topbar-menu-item" onclick="triggerAvatarUpload(event)">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <span class="flex-1">Upload photo</span>
+                    </button>
+                    <button type="button" class="topbar-menu-item" id="remove-avatar-item" style="display:none" onclick="removeAvatarImage(event)">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+                        <span class="flex-1">Remove photo</span>
+                    </button>
+
+                    <div class="topbar-menu-divider"></div>
+
+                    <button type="button" class="topbar-menu-item" onclick="openSettingsModalFromMenu(event)">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <span class="flex-1">Settings</span>
+                        <span id="settings-menu-status" class="text-[10px] text-slate-400"></span>
+                    </button>
+
+                    <div class="topbar-menu-divider"></div>
+
+                    <a href="/logout" class="topbar-menu-item danger">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        <span class="flex-1">Sign out</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</header>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width:580px">
+        <div class="modal-header">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">Settings</h3>
+                <p class="text-sm text-gray-500 mt-0.5">Industry watchlist and AI configuration</p>
+            </div>
+            <button onclick="closeSettingsModal()"
+                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" style="padding:0">
+
+            <!-- Filing history depth -->
+            <div class="px-6 py-5 border-b border-gray-200">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Filing history depth</div>
+                <p class="text-[11px] text-gray-500 mb-3">How many years of governance filings to pull from NSE for each company. Deeper spans take longer to fetch. You can also pull a custom depth per company from its Disclosures page.</p>
+                <div class="grid grid-cols-4 gap-2" id="depth-setting-grid">
+                    <button type="button" data-years="3" onclick="setHistoryYears(3)" class="depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all">
+                        <div class="text-sm font-bold text-gray-900">3y</div>
+                        <div class="text-[10px] text-gray-500">Default</div>
+                    </button>
+                    <button type="button" data-years="5" onclick="setHistoryYears(5)" class="depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all">
+                        <div class="text-sm font-bold text-gray-900">5y</div>
+                        <div class="text-[10px] text-gray-500">Standard</div>
+                    </button>
+                    <button type="button" data-years="10" onclick="setHistoryYears(10)" class="depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all">
+                        <div class="text-sm font-bold text-gray-900">10y</div>
+                        <div class="text-[10px] text-gray-500">Deep</div>
+                    </button>
+                    <button type="button" data-years="15" onclick="setHistoryYears(15)" class="depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all">
+                        <div class="text-sm font-bold text-gray-900">15y</div>
+                        <div class="text-[10px] text-gray-500">Max</div>
+                    </button>
+                </div>
+                <div id="history-years-status" class="text-[11px] mt-2"></div>
+            </div>
+
+            <!-- Industry / Watchlist -->
+            <div class="px-6 py-5 border-b border-gray-200">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">1. Industry Watchlist</div>
+                <p class="text-[11px] text-gray-500 mb-3">
+                    Switch the industry to track a different set of companies. Your current watchlist
+                    will be <span class="font-semibold text-red-600">replaced</span> with the top companies in the new sector.
+                </p>
+                <div class="flex items-center gap-2">
+                    <select id="settings-industry"
+                            class="flex-1 px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-xl
+                                   focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option value="">Loading industries…</option>
+                    </select>
+                    <button onclick="changeIndustry()" id="industry-save-btn"
+                            class="text-xs font-semibold px-4 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        Switch
+                    </button>
+                </div>
+                <div id="industry-status" class="text-[11px] mt-2"></div>
+
+                <!-- Add a single company -->
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <p class="text-[11px] text-gray-500 mb-2">Or add a single company to your current watchlist:</p>
+                    <div class="relative" id="set-add-wrapper">
+                        <input type="text" id="set-add-input" placeholder="Search company to add…"
+                               class="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-xl
+                                      focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                                      placeholder-gray-400"
+                               oninput="setOnSearch()" autocomplete="off">
+                        <div id="set-add-suggestions" class="hidden absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-56 overflow-y-auto"></div>
+                    </div>
+                    <div id="set-add-status" class="hidden text-[11px] mt-2"></div>
+                </div>
+            </div>
+
+            <!-- Model Selection -->
+            <div class="px-6 py-5 bg-slate-50 border-b border-gray-200">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">2. Select Model Engine</div>
+                <div id="model-cards" class="grid grid-cols-2 gap-3">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+            <!-- API Key -->
+            <div class="px-6 py-5 border-t border-gray-200">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">3. AI API Key</div>
+                <div class="relative">
+                    <input type="password" id="settings-api-key" placeholder="Enter your AI API key..."
+                           class="w-full px-4 py-3 text-sm bg-slate-50 border border-gray-200 rounded-xl
+                                  focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                                  font-mono placeholder-gray-400">
+                    <button onclick="toggleKeyVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <svg id="eye-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button onclick="testApiKey()" id="test-key-btn"
+                            class="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                        Test Key
+                    </button>
+                    <span id="key-test-result" class="text-xs"></span>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-2">
+                    Works with a <b>Google Gemini</b> key (<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-indigo-500 hover:underline">aistudio.google.com</a>, starts with <code>AIza</code>)
+                    or an <b>OpenRouter</b> key (<a href="https://openrouter.ai/keys" target="_blank" rel="noopener" class="text-indigo-500 hover:underline">openrouter.ai/keys</a>, starts with <code>sk-or-</code>).
+                    Pick a model from the matching provider above. Without a key, summaries fall back to basic text extraction.
+                </p>
+            </div>
+
+            <!-- Save -->
+            <div class="px-6 py-4 bg-slate-50 border-t border-gray-200 flex items-center justify-between">
+                <div id="settings-save-status" class="text-xs"></div>
+                <button onclick="saveSettings()" id="save-settings-btn"
+                        class="btn btn-primary text-sm px-5 py-2">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   SETTINGS MODAL
+   ═══════════════════════════════════════ */
+let _settingsLoaded = false;
+let _selectedModel = 'gemini-2.5-flash';
+
+function openSettingsModal() {
+    document.getElementById('settings-modal').classList.remove('hidden');
+    if (!_settingsLoaded) loadSettings();
+}
+
+function closeSettingsModal() {
+    document.getElementById('settings-modal').classList.add('hidden');
+}
+
+/* ── Top-bar dropdowns (watchlist + user) ── */
+function toggleDd(id, e) {
+    if (e) e.stopPropagation();
+    const m = document.getElementById(id);
+    if (!m) return;
+    document.querySelectorAll('.topbar-menu').forEach(x => { if (x.id !== id) x.classList.remove('visible'); });
+    m.classList.toggle('visible');
+}
+document.addEventListener('click', () => {
+    document.querySelectorAll('.topbar-menu').forEach(x => x.classList.remove('visible'));
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.querySelectorAll('.topbar-menu').forEach(x => x.classList.remove('visible'));
+});
+
+/* Wrapper so the settings menu item can close the dropdown + open the modal. */
+function openSettingsModalFromMenu(e) {
+    if (e) e.stopPropagation();
+    document.querySelectorAll('.topbar-menu').forEach(x => x.classList.remove('visible'));
+    openSettingsModal();
+}
+
+/* ═══════════════════════════════════════
+   AVATAR IMAGE (persisted in localStorage)
+   ═══════════════════════════════════════ */
+const AVATAR_KEY = 'df_avatar_image';
+const AVATAR_MAX_BYTES = 1.5 * 1024 * 1024; // 1.5 MB on disk
+const AVATAR_MAX_DIM   = 256;               // downscale to 256px square
+
+function _applyAvatar(dataUrl) {
+    const topBtn   = document.getElementById('topbar-avatar-btn');
+    const cardWrap = document.getElementById('user-card-avatar');
+    const removeBtn = document.getElementById('remove-avatar-item');
+    if (!topBtn) return;
+    if (dataUrl) {
+        topBtn.classList.add('has-image');
+        topBtn.querySelector('.avatar-initial')?.remove();
+        let img = topBtn.querySelector('img');
+        if (!img) { img = document.createElement('img'); img.alt = ''; topBtn.insertBefore(img, topBtn.firstChild); }
+        img.src = dataUrl;
+
+        if (cardWrap) {
+            cardWrap.querySelector('.user-card-initial')?.remove();
+            let cimg = cardWrap.querySelector('img');
+            if (!cimg) { cimg = document.createElement('img'); cimg.alt = ''; cardWrap.appendChild(cimg); }
+            cimg.src = dataUrl;
+        }
+        if (removeBtn) removeBtn.style.display = '';
+    } else {
+        topBtn.classList.remove('has-image');
+        topBtn.querySelector('img')?.remove();
+        if (!topBtn.querySelector('.avatar-initial')) {
+            const sp = document.createElement('span');
+            sp.className = 'avatar-initial';
+            sp.textContent = topBtn.getAttribute('data-initial') || 'U';
+            topBtn.insertBefore(sp, topBtn.firstChild);
+        }
+        if (cardWrap) {
+            cardWrap.querySelector('img')?.remove();
+            if (!cardWrap.querySelector('.user-card-initial')) {
+                const sp = document.createElement('span');
+                sp.className = 'user-card-initial';
+                sp.textContent = topBtn.getAttribute('data-initial') || 'U';
+                cardWrap.appendChild(sp);
+            }
+        }
+        if (removeBtn) removeBtn.style.display = 'none';
+    }
+}
+
+/* Read stored avatar at boot. */
+(function bootAvatar() {
+    try {
+        const btn = document.getElementById('topbar-avatar-btn');
+        if (btn) {
+            const initial = btn.querySelector('.avatar-initial')?.textContent?.trim() || 'U';
+            btn.setAttribute('data-initial', initial);
+        }
+        const stored = localStorage.getItem(AVATAR_KEY);
+        if (stored) _applyAvatar(stored);
+    } catch (e) { /* ignore */ }
+})();
+
+function triggerAvatarUpload(e) {
+    if (e) e.stopPropagation();
+    document.getElementById('avatar-file-input')?.click();
+}
+
+document.getElementById('avatar-file-input')?.addEventListener('change', function (ev) {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { alert('Please pick an image file.'); return; }
+
+    // Downscale + crop to a square, then store as JPEG (smaller) or PNG (transparency).
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const size = Math.min(AVATAR_MAX_DIM, img.naturalWidth, img.naturalHeight);
+            const side = Math.min(img.naturalWidth, img.naturalHeight);
+            const sx = (img.naturalWidth  - side) / 2;
+            const sy = (img.naturalHeight - side) / 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+            const mime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+            const dataUrl = canvas.toDataURL(mime, 0.88);
+            if (dataUrl.length > AVATAR_MAX_BYTES * 1.4) {
+                alert('That photo is too large after compression. Try a smaller one.');
+                return;
+            }
+            try {
+                localStorage.setItem(AVATAR_KEY, dataUrl);
+                _applyAvatar(dataUrl);
+                // Brief "saved" pulse
+                const btn = document.getElementById('topbar-avatar-btn');
+                if (btn) { btn.animate(
+                    [{transform:'scale(1)'},{transform:'scale(1.08)'},{transform:'scale(1)'}],
+                    {duration: 320, easing: 'cubic-bezier(.22,.61,.36,1)'}
+                ); }
+            } catch (err) {
+                alert('Could not save photo (storage full).');
+            }
+        };
+        img.onerror = () => alert('That image could not be read.');
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    ev.target.value = ''; // allow re-upload of the same file
+});
+
+function removeAvatarImage(e) {
+    if (e) e.stopPropagation();
+    try { localStorage.removeItem(AVATAR_KEY); } catch (err) {}
+    _applyAvatar(null);
+    document.querySelectorAll('.topbar-menu').forEach(x => x.classList.remove('visible'));
+}
+
+/* ═══════════════════════════════════════
+   CROSS-PAGE PILL MORPH (View Transitions)
+   ═══════════════════════════════════════ */
+(function () {
+    // Opt the document into cross-document view transitions when supported.
+    if (!('startViewTransition' in document)) return;
+    // For same-origin nav links, briefly play a transition before navigating.
+    document.addEventListener('click', (e) => {
+        const a = e.target.closest('a');
+        if (!a) return;
+        if (a.target && a.target !== '_self') return;
+        if (a.hasAttribute('download')) return;
+        const url = a.getAttribute('href');
+        if (!url || url.startsWith('#') || url.startsWith('javascript:')) return;
+        try {
+            const u = new URL(a.href, location.href);
+            if (u.origin !== location.origin) return;
+        } catch (_) { return; }
+        // Only animate when the page-pill exists (i.e. we're inside the app, not on auth pages).
+        if (!document.getElementById('page-pill')) return;
+        e.preventDefault();
+        document.startViewTransition(() => { location.href = a.href; });
+    }, true);
+})();
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeSettingsModal();
+});
+
+function _highlightHistoryYears(y) {
+    const on = 'border-indigo-500 bg-indigo-50';
+    const off = 'border-gray-200 hover:border-gray-300';
+    document.querySelectorAll('.depth-setting-btn').forEach(b => {
+        const sel = parseInt(b.dataset.years, 10) === y;
+        b.className = `depth-setting-btn text-center p-2.5 rounded-xl border-2 transition-all ${sel ? on : off}`;
+    });
+}
+
+function setHistoryYears(y) {
+    _highlightHistoryYears(y);
+    const status = document.getElementById('history-years-status');
+    status.innerHTML = '<span class="text-gray-500">Saving…</span>';
+    fetch('/api/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ filings_history_years: y }) })
+        .then(r => r.json())
+        .then(d => {
+            if (d.error) { status.innerHTML = `<span class="text-red-500">${d.message || 'Failed'}</span>`; return; }
+            status.innerHTML = `<span class="text-emerald-600 font-medium">&#x2713; New companies will pull ${y} years. Existing ones deepen on next open.</span>`;
+            setTimeout(() => { status.innerHTML = ''; }, 4000);
+        })
+        .catch(() => { status.innerHTML = '<span class="text-red-500">Failed to save.</span>'; });
+}
+
+function loadSettings() {
+    fetch('/api/settings').then(r => r.json()).then(data => {
+        _settingsLoaded = true;
+        _selectedModel = data.gemini_model || 'gemini-2.5-flash';
+        _highlightHistoryYears(data.filings_history_years || 3);
+
+        // Industry dropdown
+        const indSel = document.getElementById('settings-industry');
+        if (indSel) {
+            const current = data.industry || '';
+            const list = data.industries || [];
+            indSel.innerHTML = list.map(name =>
+                `<option value="${name}" ${name === current ? 'selected' : ''}>${name}</option>`
+            ).join('');
+            // Stash current so we can warn before switch.
+            indSel.dataset.current = current;
+        }
+
+        // Render model cards, grouped by provider (Gemini direct vs OpenRouter).
+        const container = document.getElementById('model-cards');
+        const badgeColors = {
+            emerald: 'bg-emerald-500',
+            indigo: 'bg-indigo-500',
+            violet: 'bg-violet-500',
+        };
+        const cardHTML = ([id, m]) => `
+            <div class="model-card ${id === _selectedModel ? 'selected' : ''}" data-model="${id}" onclick="selectModel('${id}')">
+                <div class="flex items-start justify-between mb-1.5">
+                    <span class="text-sm font-bold text-gray-900">${m.name}</span>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${badgeColors[m.badge_color] || 'bg-gray-500'} text-white">${m.badge}</span>
+                </div>
+                <p class="text-[11px] text-gray-500 leading-snug mb-3">${m.description}</p>
+                <div class="text-[10px] text-gray-400 space-y-1">
+                    <div class="flex justify-between"><span>Speed:</span><span class="text-gray-700 font-medium">${m.speed}</span></div>
+                    <div class="flex justify-between"><span>Cost:</span><span class="text-gray-700 font-medium">${m.cost}</span></div>
+                </div>
+            </div>`;
+
+        const entries = Object.entries(data.models);
+        const gem = entries.filter(([, m]) => (m.provider || 'gemini') === 'gemini');
+        const orr = entries.filter(([, m]) => m.provider === 'openrouter');
+        let html = '';
+        if (gem.length) {
+            html += `<div class="col-span-2 flex items-center gap-2 mt-1">
+                <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Google Gemini</span>
+                <span class="text-[9px] text-gray-400">direct API · key starts with AIza…</span>
+            </div>` + gem.map(cardHTML).join('');
+        }
+        if (orr.length) {
+            html += `<div class="col-span-2 flex items-center gap-2 mt-2">
+                <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">OpenRouter</span>
+                <span class="text-[9px] text-gray-400">openrouter.ai · key starts with sk-or-…</span>
+            </div>` + orr.map(cardHTML).join('');
+        }
+        container.innerHTML = html;
+
+        // Set API key field
+        if (data.gemini_api_key_set) {
+            document.getElementById('settings-api-key').placeholder = data.gemini_api_key_masked || '••••••••';
+        }
+
+        // Update status dot
+        updateAiStatusDot(data.gemini_api_key_set);
+    });
+}
+
+function changeIndustry() {
+    const sel = document.getElementById('settings-industry');
+    const btn = document.getElementById('industry-save-btn');
+    const status = document.getElementById('industry-status');
+    const target = sel.value;
+    const current = sel.dataset.current || '';
+
+    if (!target) {
+        status.innerHTML = '<span class="text-amber-600">Pick an industry first.</span>';
+        return;
+    }
+    if (target === current) {
+        status.innerHTML = '<span class="text-gray-400">Already on this industry.</span>';
+        return;
+    }
+    if (!confirm(`Switching to "${target}" will replace your current watchlist with that sector\'s top companies. Continue?`)) {
+        return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Switching…';
+    status.innerHTML = '<span class="text-gray-500">Replacing watchlist and pulling SEBI history…</span>';
+
+    fetch('/api/settings/industry', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({industry: target}),
+    })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false; btn.textContent = 'Switch';
+            if (data.error) {
+                status.innerHTML = `<span class="text-red-500">${data.message || 'Failed to switch.'}</span>`;
+                return;
+            }
+            sel.dataset.current = target;
+            const syms = (data.symbols || []).join(', ');
+            status.innerHTML = `<span class="text-emerald-600 font-medium">&#x2713; Switched to ${target} — ${data.symbols.length} companies: ${syms}. Reloading…</span>`;
+            setTimeout(() => { window.location.reload(); }, 1200);
+        })
+        .catch(() => {
+            btn.disabled = false; btn.textContent = 'Switch';
+            status.innerHTML = '<span class="text-red-500">Network error.</span>';
+        });
+}
+
+function selectModel(modelId) {
+    _selectedModel = modelId;
+    document.querySelectorAll('.model-card').forEach(el => {
+        el.classList.toggle('selected', el.dataset.model === modelId);
+    });
+}
+
+function toggleKeyVisibility() {
+    const input = document.getElementById('settings-api-key');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function testApiKey() {
+    const key = document.getElementById('settings-api-key').value.trim();
+    if (!key) { document.getElementById('key-test-result').innerHTML = '<span class="text-amber-500">Enter a key first</span>'; return; }
+    const btn = document.getElementById('test-key-btn');
+    const result = document.getElementById('key-test-result');
+    btn.disabled = true; btn.textContent = 'Testing...';
+    result.innerHTML = '<span class="text-gray-400 animate-pulse">Connecting to AI...</span>';
+
+    fetch('/api/settings/test-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({api_key: key}) })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false; btn.textContent = 'Test Key';
+            result.innerHTML = data.valid
+                ? '<span class="text-emerald-600 font-medium">&#x2713; ' + data.message + '</span>'
+                : '<span class="text-red-500">&#x2717; ' + data.message + '</span>';
+        })
+        .catch(() => { btn.disabled = false; btn.textContent = 'Test Key'; result.innerHTML = '<span class="text-red-500">Network error</span>'; });
+}
+
+function saveSettings() {
+    const key = document.getElementById('settings-api-key').value.trim();
+    const body = { gemini_model: _selectedModel };
+    if (key) body.gemini_api_key = key;
+
+    const btn = document.getElementById('save-settings-btn');
+    const status = document.getElementById('settings-save-status');
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    fetch('/api/settings', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false; btn.textContent = 'Save Settings';
+            if (data.error) {
+                status.innerHTML = '<span class="text-red-500">' + data.message + '</span>';
+            } else {
+                status.innerHTML = '<span class="text-emerald-600 font-medium">&#x2713; Settings saved</span>';
+                updateAiStatusDot(!!key || document.getElementById('settings-api-key').placeholder !== 'Enter your AI API key...');
+                setTimeout(() => { status.innerHTML = ''; }, 3000);
+            }
+        })
+        .catch(() => { btn.disabled = false; btn.textContent = 'Save Settings'; status.innerHTML = '<span class="text-red-500">Failed</span>'; });
+}
+
+function updateAiStatusDot(hasKey) {
+    const dot = document.getElementById('ai-status-dot');
+    if (!dot) return;
+    const color = hasKey ? '#10b981' : '#cbd5e1';
+    if (dot.classList.contains('avatar-status-dot')) {
+        // New UI: tiny status dot on the avatar — set inline bg, keep class for sizing/border.
+        dot.style.background = color;
+    } else {
+        // Classic UI: full className rewrite as before.
+        dot.className = 'ml-auto w-2 h-2 rounded-full flex-shrink-0 ' + (hasKey ? 'bg-emerald-400' : 'bg-gray-300');
+    }
+    dot.title = hasKey ? 'AI active' : 'No API key set';
+    // Mirror status in the avatar menu Settings row, when present.
+    const menuStatus = document.getElementById('settings-menu-status');
+    if (menuStatus) {
+        menuStatus.textContent = hasKey ? 'AI on' : 'No key';
+        menuStatus.style.color = hasKey ? '#10b981' : '#94a3b8';
+    }
+}
+
+// Check AI status on page load
+fetch('/api/settings').then(r=>r.json()).then(d => updateAiStatusDot(d.gemini_api_key_set)).catch(()=>{});
+
+function removeCompany(symbol) {
+    if (!confirm(`Remove ${symbol} from your watchlist?`)) return;
+    fetch(`/api/watchlist/${symbol}`, {method: 'DELETE'}).then(r => r.json()).then(() => window.location.reload()).catch(() => alert('Failed'));
+}
+
+/* ═══════════════════════════════════════
+   SETTINGS — Add a single company
+   ═══════════════════════════════════════ */
+let _setAddTimer = null, _setAddResults = [];
+const _SET_EXISTING = {{ (companies if companies is defined else []) | tojson }};
+
+function setOnSearch() {
+    clearTimeout(_setAddTimer);
+    const q = document.getElementById('set-add-input').value.trim();
+    if (q.length < 2) { _setCloseSuggestions(); return; }
+    _setAddTimer = setTimeout(() => {
+        fetch(`/api/symbol_search?q=${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(data => { _setAddResults = data.results || []; _setRender(q); })
+            .catch(() => _setCloseSuggestions());
+    }, 250);
+}
+
+function _setRender(query) {
+    const el = document.getElementById('set-add-suggestions');
+    if (!_setAddResults.length) {
+        el.innerHTML = `<div class="px-3 py-3 text-xs text-gray-400">No matches for "${query}"</div>`;
+        el.classList.remove('hidden'); return;
+    }
+    const existing = new Set(_SET_EXISTING.map(c => c.toUpperCase()));
+    el.innerHTML = _setAddResults.map(s => {
+        const already = existing.has(s.symbol.toUpperCase());
+        const badge = already ? '<span class="text-[9px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-medium">On watchlist</span>' : '';
+        const click = already ? '' : `onclick="setAddCompany('${s.symbol}', '${s.name.replace(/'/g, "\\'")}')"`;
+        const cls = already ? 'cursor-default opacity-60' : 'cursor-pointer hover:bg-indigo-50';
+        return `<div class="px-3 py-2.5 ${cls} transition-colors border-b border-gray-50 last:border-0" ${click}>
+            <div class="flex items-center justify-between"><span class="text-sm font-bold text-gray-900">${s.symbol}</span>${badge}</div>
+            <p class="text-[11px] text-gray-500 mt-0.5 truncate">${s.name}</p></div>`;
+    }).join('');
+    el.classList.remove('hidden');
+}
+
+function _setCloseSuggestions() {
+    const el = document.getElementById('set-add-suggestions');
+    if (el) el.classList.add('hidden');
+}
+
+document.addEventListener('click', e => {
+    const wrap = document.getElementById('set-add-wrapper');
+    if (wrap && !wrap.contains(e.target)) _setCloseSuggestions();
+});
+
+function setAddCompany(symbol, name) {
+    _setCloseSuggestions();
+    const input = document.getElementById('set-add-input');
+    const statusEl = document.getElementById('set-add-status');
+    input.value = ''; input.disabled = true;
+    statusEl.textContent = `Adding ${symbol}…`;
+    statusEl.className = 'text-[11px] mt-2 text-blue-600 animate-pulse';
+    statusEl.classList.remove('hidden');
+    fetch('/api/watchlist', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({symbol, name}) })
+        .then(r => r.json()).then(data => {
+            input.disabled = false;
+            if (data.error) { statusEl.textContent = data.message; statusEl.className = 'text-[11px] mt-2 text-amber-600'; }
+            else { statusEl.textContent = `Added ${symbol} (${data.new_count} filings). Reloading…`; statusEl.className = 'text-[11px] mt-2 text-green-600 font-medium'; setTimeout(() => window.location.reload(), 900); }
+        }).catch(() => { input.disabled = false; statusEl.textContent = 'Network error'; statusEl.className = 'text-[11px] mt-2 text-red-500'; });
+}
+</script>
+
+
+{# Delta Copilot — global floating assistant, present on every authed screen. #}
+{% include 'copilot.html' %}

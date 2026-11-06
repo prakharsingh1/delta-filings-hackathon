@@ -1,0 +1,214 @@
+{% extends 'app_base.html' %}
+{% block title %}{{ req.title }}{% endblock %}
+
+{% block head %}
+<style>
+  .rq-back { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; margin-bottom: 14px; }
+  .rq-headsub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .rq-link-row { display: flex; gap: 8px; }
+  .rq-link-row .fld-input { flex: 1; min-width: 0; }
+  .rq-share-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .rq-meter { margin-top: 10px; }
+  .rq-meter.is-done > span { background: #059669; }
+
+  .rq-items { list-style: none; margin: 0; padding: 0; }
+  .rq-item { padding: 14px 18px; border-top: 1px solid var(--border-light); }
+  .rq-item:first-child { border-top: 0; }
+  .rq-item-head { display: flex; align-items: flex-start; gap: 12px; }
+  .rq-num { flex: none; width: 24px; height: 24px; border-radius: 999px; background: var(--surface-secondary); border: 1px solid var(--border); color: var(--text-secondary); font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .rq-item-text { flex: 1; min-width: 0; }
+  .rq-item-title { font-size: 14px; font-weight: 650; color: var(--text-primary); overflow-wrap: anywhere; }
+  .rq-item-note { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .rq-files { list-style: none; margin: 10px 0 0 36px; padding: 0; border: 1px solid var(--border-light); border-radius: 10px; }
+  .rq-file { display: flex; align-items: center; gap: 12px; padding: 9px 12px; font-size: 13px; border-top: 1px solid var(--border-light); }
+  .rq-file:first-child { border-top: 0; }
+  .rq-file-name { flex: 1; min-width: 0; color: var(--text-primary); overflow-wrap: anywhere; }
+  .rq-file-meta { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+  .rq-danger { color: #b91c1c; }
+  .rq-danger:hover { border-color: #fecaca; background: #fef2f2; }
+  .rq-btn-danger { background: #dc2626; color: #fff; }
+  .rq-btn-danger:hover { background: #b91c1c; }
+  @media (max-width: 560px) {
+    .rq-files { margin-left: 0; }
+    .rq-file { flex-wrap: wrap; gap: 4px 12px; }
+    .rq-file-name { flex-basis: 100%; }
+    .rq-link-row { flex-direction: column; }
+  }
+  html.dark .rq-meter.is-done > span { background: #34d399; }
+  html.dark .rq-files { border-color: #1f1f1f; }
+  html.dark .rq-file { border-color: #1f1f1f; }
+  html.dark .rq-num { background: #1c1c1c; border-color: #2a2a2a; color: #d4d4d4; }
+  html.dark .rq-danger { color: #fca5a5; }
+  html.dark .rq-danger:hover { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); }
+  html.dark .rq-btn-danger { background: #b91c1c; }
+  html.dark .rq-btn-danger:hover { background: #991b1b; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set state_chip = {'open': 'chip-info', 'overdue': 'chip-critical', 'complete': 'chip-ok', 'closed': 'chip-low'} %}
+{% set closed = req.status == 'closed' %}
+<div class="mod-wrap">
+  <a class="link rq-back" href="/requests">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+    Document requests
+  </a>
+
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Document request</div>
+      <h1 class="mod-title">{{ req.title }}</h1>
+      <div class="mod-sub rq-headsub">
+        <span class="chip {{ state_chip[req.state] }}">{{ req.state_label }}</span>
+        <span>{{ req.client_name }}{% if req.client_contact %} · {{ req.client_contact }}{% endif %}</span>
+        {% if req.entity_name %}<span>· {% if req.entity_archived %}{{ req.entity_name }}{% else %}<a class="link" href="/workspace/entity/{{ req.entity_id }}">{{ req.entity_name }}</a>{% endif %}</span>{% endif %}
+      </div>
+    </div>
+    <div class="mod-actions">
+      {% if req.file_count %}<a class="btn btn-secondary" href="/requests/{{ req.id }}/files.zip">Download all</a>{% endif %}
+      <button type="button" class="btn btn-secondary" id="rq-toggle" data-status="{{ 'open' if closed else 'closed' }}">{{ 'Reopen request' if closed else 'Close request' }}</button>
+      <button type="button" class="btn btn-secondary rq-danger" id="rq-delete">Delete</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label">Received</div>
+      <div class="kpi-value">{{ req.received }} of {{ req.total }}</div>
+      <div class="meter rq-meter {{ 'is-done' if req.total and req.received == req.total }}"><span style="width: {{ req.pct }}%"></span></div>
+    </div>
+    <div class="kpi {{ 'kpi-danger' if req.state == 'overdue' }}">
+      <div class="kpi-label">Due</div>
+      <div class="kpi-value">{{ fmt_date(req.due_date) if req.due_date else 'No date' }}</div>
+      <div class="kpi-foot">{{ due_note or ('Created ' ~ fmt_date(req.created_at)) }}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Files</div>
+      <div class="kpi-value">{{ req.file_count }}</div>
+      <div class="kpi-foot">{{ fmt_size(req.bytes_used) }} of 100 MB for this request</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">Client link</div>
+        <div class="panel-sub">Opens without an account. Works until you close the request.</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      {% if closed %}
+      <p class="note">This request is closed, so the link no longer accepts uploads. Reopen it if the client needs to send more.</p>
+      {% else %}
+      <div class="rq-link-row">
+        <input class="fld-input mono" id="rq-link" value="{{ link }}" readonly aria-label="Client link">
+        <button type="button" class="btn btn-secondary" id="rq-copy">Copy link</button>
+      </div>
+      <div class="rq-share-row">
+        <a class="btn btn-secondary btn-sm" href="{{ share.whatsapp }}" target="_blank" rel="noopener">Share on WhatsApp</a>
+        <a class="btn btn-secondary btn-sm" href="{{ share.mailto }}">Send by email</a>
+        <a class="btn btn-secondary btn-sm" href="{{ link }}" target="_blank" rel="noopener">See what the client sees</a>
+      </div>
+      {% if 0 < req.received < req.total %}
+      <p class="fld-hint" style="margin-top: 10px;">The WhatsApp and email messages ask only for the {{ req.total - req.received }} document{{ 's' if req.total - req.received != 1 }} still pending.</p>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">Documents</div>
+      <div class="panel-sub">{{ req.received }} of {{ req.total }} received</div>
+    </div>
+    <ol class="rq-items">
+      {% for it in req['items'] %}
+      <li class="rq-item">
+        <div class="rq-item-head">
+          <span class="rq-num">{{ loop.index }}</span>
+          <div class="rq-item-text">
+            <div class="rq-item-title">{{ it.title }}</div>
+            {% if it.note %}<div class="rq-item-note">{{ it.note }}</div>{% endif %}
+          </div>
+          <span class="chip {{ 'chip-ok' if it.received else 'chip-low' }}">{{ 'Received' if it.received else 'Waiting' }}</span>
+        </div>
+        {% if it.uploads %}
+        <ul class="rq-files">
+          {% for u in it.uploads %}
+          <li class="rq-file">
+            <span class="rq-file-name">{{ u.original_name }}</span>
+            <span class="rq-file-meta">{{ fmt_size(u.size) }} · {{ fmt_dt(u.uploaded_at) }}</span>
+            <a class="link" href="/requests/{{ req.id }}/files/{{ u.id }}">Download</a>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+</div>
+
+<dialog class="mod-dialog" id="rq-del-dlg" aria-labelledby="rq-del-title">
+  <div class="dlg-head"><span id="rq-del-title">Delete this request</span></div>
+  <div class="dlg-body">
+    <p style="font-size: 13.5px; color: var(--text-secondary);">
+      The client link stops working{% if req.file_count == 1 %} and the uploaded file is deleted{% elif req.file_count %} and all {{ req.file_count }} uploaded files are deleted{% endif %}. This cannot be undone.
+      {% if req.file_count %}Download anything you need first.{% endif %}
+    </p>
+  </div>
+  <div class="dlg-foot">
+    <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+    <button type="button" class="btn rq-btn-danger" id="rq-del-confirm">Delete request</button>
+  </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var RID = {{ req.id|tojson }};
+
+  var copyBtn = document.getElementById('rq-copy');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function () {
+      var input = document.getElementById('rq-link');
+      function done() { dfToast('Link copied', 'ok'); }
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(input.value).then(done, function () { input.select(); });
+      } else {
+        input.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+      }
+    });
+  }
+
+  var toggle = document.getElementById('rq-toggle');
+  toggle.addEventListener('click', async function () {
+    toggle.disabled = true;
+    try {
+      await dfApi('/api/requests/' + RID, { method: 'PATCH', body: { status: toggle.dataset.status } });
+      window.location.reload();
+    } catch (err) {
+      dfToast(err.message, 'err');
+      toggle.disabled = false;
+    }
+  });
+
+  var dlg = document.getElementById('rq-del-dlg');
+  document.getElementById('rq-delete').addEventListener('click', function () { dlg.showModal(); });
+  dlg.querySelector('[data-close]').addEventListener('click', function () { dlg.close(); });
+  var confirmBtn = document.getElementById('rq-del-confirm');
+  confirmBtn.addEventListener('click', async function () {
+    confirmBtn.disabled = true;
+    try {
+      await dfApi('/api/requests/' + RID, { method: 'DELETE', body: {} });
+      window.location.href = '/requests';
+    } catch (err) {
+      dfToast(err.message, 'err');
+      confirmBtn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

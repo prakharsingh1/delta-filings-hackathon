@@ -1,0 +1,145 @@
+{% extends "site_base.html" %}
+{% block title %}Product · Delta Filings{% endblock %}
+{% block meta_description %}What Delta Filings does: a compliance calendar with late fees across ROC, SEBI, tax, GST, labour and FEMA, board meetings, statutory registers, insider-trading database, drafting, regulatory news and counterparty risk.{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <p class="eyebrow">Product</p>
+    <h1 class="h1">Everything between the circular and the filing.</h1>
+    <p class="lede">Delta Filings reads a company's profile and dates every filing it owes. Around that calendar sit the news that changes it, the meetings and registers the Companies Act asks for, the insider-trading record SEBI asks for, the drafts, and a watch on the companies you are exposed to.</p>
+    <div class="cta-row"><a href="/signup" class="btn btn-primary">Create workspace</a><a href="/solutions" class="btn btn-quiet">See it by role</a></div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="stat-row">
+      <div><b>{{ counts.total }}</b><span>rules across seven regimes</span></div>
+      <div><b>6</b><span>entity types, listed to LLP</span></div>
+      <div><b>~100</b><span>draft document types</span></div>
+      <div><b>3</b><span>public risk sources: exchanges, SEBI, IBBI</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt" id="calendar">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Comply</p><h2 class="h2">A calendar built from the company's profile.</h2>
+      <p class="sec-lede">Each rule says who it applies to, when it falls due and what lateness costs. Answer the profile questions once and the filings that apply are dated for you.</p></div>
+    <div class="split">
+      <ol class="steps">
+        <li><div><b>Profile</b><span>Entity type, state, and yes or no questions: GST registered, deducts TDS, has employees, has foreign investment, listed, small company.</span></div></li>
+        <li><div><b>Rules</b><span>The rulebook picks what applies. A private company gets ROC, tax and GST items; a listed one adds SEBI; a Maharashtra employer adds professional tax.</span></div></li>
+        <li><div><b>Dates</b><span>Monthly, quarterly and annual items are dated automatically. One-off extensions, such as this year's tax audit date, are built in.</span></div></li>
+        <li><div><b>Events</b><span>Log "director appointed" or "charge created" and the follow-up filings are dated from that day: DIR-12 in 30 days, CHG-1 in 30, Reg 30 the next day.</span></div></li>
+        <li><div><b>Late fees</b><span>Anything overdue shows its estimated cost and the working: the normal fee, the multiple for the delay, or the per-day rate.</span></div></li>
+      </ol>
+      <div class="card">
+        <span class="tag tag-grey">Sample</span>
+        <h3 style="margin-top:6px">DIR-12 · change in directors</h3>
+        <div class="tbl-scroll" style="margin-top:12px;border:0">
+          <table class="t"><tbody>
+            <tr><td>Trigger</td><td>Director appointed on 12 August</td></tr>
+            <tr><td>Due</td><td>11 September (30 days)</td></tr>
+            <tr><td>If filed 29 September</td><td>18 days late</td></tr>
+            <tr><td>Fee</td><td>2× the normal fee of ₹200 = ₹400</td></tr>
+            <tr><td>Basis</td><td>Rule 12, Companies (Registration Offices and Fees) Rules</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="coverage">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Coverage</p><h2 class="h2">{{ counts.total }} rules, each with its source.</h2>
+      <p class="sec-lede">Last reviewed {{ counts.reviewed }}. See every rule, its schedule and penalty in the app's Rulebook once you have an account.</p></div>
+    <div class="tbl-scroll">
+      <table class="t">
+        <thead><tr><th>Area</th><th class="num">Rules</th><th>Includes</th></tr></thead>
+        <tbody>
+          <tr><td>Companies Act</td><td class="num">{{ counts.by_regime.get('Companies Act', 0) }}</td><td>AGM, AOC-4 and CFS, MGT-7, MGT-15, DIR-12, DIR-3 KYC, MGT-14, PAS-3, PAS-6, CHG-1, DPT-3, MSME-1, ADT-1 and ADT-3, MBP-1, board and general meetings, minutes</td></tr>
+          <tr><td>SEBI</td><td class="num">{{ counts.by_regime.get('SEBI', 0) }}</td><td>Reg 33, 32, 31, 30, 29, 27, 24A, 23(9), 44, 47, BRSR, SAST Reg 31(4), PIT trading window and SDD certificate, depositories certificates</td></tr>
+          <tr><td>Income tax</td><td class="num">{{ counts.by_regime.get('Income Tax', 0) }}</td><td>Advance tax, TDS and TCS deposits and returns, Forms 130 and 131, SFT, tax audit, Form 3CEB, ITR-5 and ITR-6</td></tr>
+          <tr><td>GST</td><td class="num">{{ counts.by_regime.get('GST', 0) }}</td><td>GSTR-1 and GSTR-3B monthly or QRMP (22nd or 24th by state), PMT-06, GSTR-9, 9C, ITC-04, LUT</td></tr>
+          <tr><td>FEMA / RBI</td><td class="num">{{ counts.by_regime.get('FEMA / RBI', 0) }}</td><td>FLA return, ODI APR, ECB-2, FC-GPR, FC-TRS, Form OPI, Form DI, allotment against inflow</td></tr>
+          <tr><td>Labour</td><td class="num">{{ counts.by_regime.get('Labour', 0) }}</td><td>PF, ESI, professional tax and labour welfare fund in Maharashtra and Karnataka, POSH annual report</td></tr>
+          <tr><td>LLP Act</td><td class="num">{{ counts.by_regime.get('LLP Act', 0) }}</td><td>Form 11, Form 8, Forms 3 and 4</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sec-lede" style="font-size:15px">Also tracked per director: DIR-3 KYC on its three-year cycle, and DSC expiry dates.</p>
+  </div>
+</section>
+
+<section class="sec sec-alt">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Modules</p><h2 class="h2">Four groups, one workspace.</h2></div>
+    <div class="grid g2">
+      <div class="card" id="monitor"><span class="tag">Monitor</span><h3>Know what changed</h3>
+        <ul class="checks" style="margin-top:10px">
+          <li><b>Regulatory news.</b> SEBI and RBI circulars, orders and press releases, refreshed every two hours and tagged by topic. Your role decides what you see first. Any item becomes a task on a company's calendar.</li>
+          <li><b>Disclosures.</b> A listed company's NSE filings, summarised, with what changed since the last one.</li>
+          <li><b>Compare and Signal.</b> Filing-to-filing differences, and a queue of what needs attention.</li>
+          <li><b>Prices and DIN search.</b> Share prices with alerts; a director's boards across listed companies.</li>
+        </ul></div>
+      <div class="card" id="comply"><span class="tag">Comply</span><h3>Do the work</h3>
+        <ul class="checks" style="margin-top:10px">
+          <li><b>Workspace.</b> A calendar per company or LLP, merged across a practice, with events, tasks and a penalty meter.</li>
+          <li><b>Meetings.</b> Notice, agenda, resolutions and minutes as one Word file. Notice periods are checked, and items that need MGT-14 are marked for your company type.</li>
+          <li><b>Registers.</b> Members, directors and KMP, charges, related-party contracts, loans and investments, share transfers. Every edit is a new version.</li>
+          <li><b>Insider trading.</b> Designated persons, trading window, pre-clearance, and the structured digital database as an append-only, hash-chained log.</li>
+          <li><b>Document requests.</b> Private upload links with checklists, so clients send papers without an account.</li>
+        </ul></div>
+      <div class="card" id="risk"><span class="tag">Risk</span><h3>Watch your counterparties</h3>
+        <ul class="checks" style="margin-top:10px">
+          <li><b>Watch list.</b> Each counterparty is scored 0 to 100 from exchange filings, SEBI orders, IBBI insolvency announcements and price shocks. Every score lists its reasons.</li>
+          <li><b>Alerts.</b> Acknowledge, assign, resolve or dismiss, with a log of who did what.</li>
+          <li><b>Director network.</b> Where one director sits on several boards you care about.</li>
+          <li><b>Committee report.</b> Exposure by band and category, ready to print.</li>
+        </ul></div>
+      <div class="card" id="create"><span class="tag">Create</span><h3>Draft it once, correctly</h3>
+        <ul class="checks" style="margin-top:10px">
+          <li><b>About 100 document types.</b> Reg 30, 29, 33 and 44 letters, PIT disclosures, board and AGM notices, resolutions, MBP-1, DIR-8, covering letters for common ROC forms.</li>
+          <li><b>Your style.</b> Drafts learn from the company's own past filings. A language model writes; you review and edit.</li>
+          <li><b>Export and sign.</b> Word and PDF, with signatories suggested from the governance report.</li>
+          <li>From any calendar row, <b>Draft</b> opens the right document for that filing.</li>
+        </ul></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="sources">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Sources</p><h2 class="h2">Where the data comes from.</h2></div>
+    <div class="grid g4">
+      <div class="card"><h3>SEBI</h3><p>Circulars, orders, recovery proceedings and press releases, from SEBI's own feed. Orders naming a counterparty become risk signals.</p></div>
+      <div class="card"><h3>RBI</h3><p>Notifications and press releases, tagged by department and topic.</p></div>
+      <div class="card"><h3>IBBI</h3><p>Public announcements of insolvency and liquidation. These cover unlisted companies too.</p></div>
+      <div class="card"><h3>NSE</h3><p>Announcements, results and prices for listed companies you track or lend to.</p></div>
+    </div>
+    <div class="callout warn" style="margin-top:24px"><b>Not included.</b> MCA does not publish a feed we can read, so MCA notifications are not in the news, and charges, filing defaults or strike-off status of unlisted companies are not in the risk desk. Both need a licensed data source.</div>
+  </div>
+</section>
+
+<section class="sec sec-alt">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Boundaries</p><h2 class="h2">What Delta does not do.</h2>
+      <p class="sec-lede">Better to know before you start.</p></div>
+    <div class="grid g3">
+      <div class="card"><h3>File on the MCA portal</h3><p>There is no public API. You still upload and sign. Delta tracks the SRN and the date.</p></div>
+      <div class="card"><h3>E-voting or AGM streaming</h3><p>Rule 20 requires an approved agency. Reg 44 stays on the calendar; the voting itself is with NSDL, CDSL or your RTA.</p></div>
+      <div class="card"><h3>Accounting, GST returns or payroll</h3><p>It tracks the due date and the fee. The books stay in your accounting software.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec final-cta">
+  <div class="wrap">
+    <h2 class="h2">Start with one company.</h2>
+    <p class="lede" style="margin-left:auto;margin-right:auto">Free during the beta. Choose your role when you sign up and your home screen follows it.</p>
+    <div class="cta-row"><a href="/signup" class="btn btn-primary">Create workspace</a><a href="/pricing" class="btn btn-quiet">See pricing</a></div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,265 @@
+{% extends 'app_base.html' %}
+{% block title %}Director network{% endblock %}
+
+{% block head %}
+<style>
+  :root { --rk-severe: #dc2626; --rk-high: #ea580c; --rk-moderate: #d97706; --rk-low: #94a3b8; --rk-edge: #94a3b8; --rk-edge-on: #4f46e5; --rk-own: #4f46e5; --rk-label-halo: #ffffff; }
+  html.dark { --rk-severe: #f87171; --rk-high: #fb923c; --rk-moderate: #fbbf24; --rk-low: #71717a; --rk-edge: #52525b; --rk-edge-on: #a5b4fc; --rk-own: #a5b4fc; --rk-label-halo: #141414; }
+
+  .rk-net { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 0; }
+  @media (max-width: 960px) { .rk-net { grid-template-columns: minmax(0, 1fr); } }
+  .rk-canvas { position: relative; border-right: 1px solid var(--border-light); min-width: 0; }
+  @media (max-width: 960px) { .rk-canvas { border-right: 0; border-bottom: 1px solid var(--border-light); } }
+  #net-svg { display: block; width: 100%; height: auto; touch-action: manipulation; }
+  /* On a phone the 800-wide drawing would shrink its labels to about 5px;
+     keep it legible and let it scroll sideways inside the panel instead. */
+  @media (max-width: 640px) { .rk-canvas { overflow-x: auto; } #net-svg { min-width: 600px; } }
+  #net-svg .edge { stroke: var(--rk-edge); stroke-opacity: .7; cursor: pointer; transition: stroke .15s ease, stroke-opacity .15s ease; }
+  #net-svg .edge-hit { stroke: transparent; stroke-width: 14; cursor: pointer; }
+  #net-svg .edge.on { stroke: var(--rk-edge-on); stroke-opacity: 1; }
+  #net-svg .edge.dim { stroke-opacity: .18; }
+  #net-svg .node { cursor: pointer; outline: none; }
+  #net-svg .node circle { stroke: var(--surface); stroke-width: 2; transition: r .15s ease; }
+  #net-svg .node.own circle { fill: var(--surface); stroke: var(--rk-own); stroke-width: 3; }
+  #net-svg .node.on circle, #net-svg .node:focus circle { stroke: var(--rk-edge-on); stroke-width: 3.5; }
+  #net-svg .node.dim { opacity: .3; }
+  #net-svg .node text { font-size: 11.5px; font-weight: 600; fill: var(--text-primary); paint-order: stroke; stroke: var(--rk-label-halo); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
+  .fill-Severe { fill: var(--rk-severe); } .fill-High { fill: var(--rk-high); } .fill-Moderate { fill: var(--rk-moderate); } .fill-Low { fill: var(--rk-low); }
+
+  .rk-info { padding: 16px 18px; font-size: 13.5px; }
+  .rk-info h3 { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px; }
+  .rk-info .muted { font-size: 12.5px; }
+  .rk-info ul { list-style: none; padding: 0; margin: 10px 0 0; }
+  .rk-info li { padding: 8px 0; border-bottom: 1px solid var(--border-light); }
+  .rk-info li:last-child { border-bottom: 0; }
+  .rk-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 12px 18px; border-top: 1px solid var(--border-light); font-size: 12.5px; color: var(--text-secondary); }
+  .rk-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .rk-sw { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .rk-sw.own { background: transparent; border: 2.5px solid var(--rk-own); width: 12px; height: 12px; }
+  .rk-sw-line { width: 22px; height: 0; border-top: 2px solid var(--rk-edge); display: inline-block; }
+  .rk-sw-line.thick { border-top-width: 5px; }
+  .bg-Severe { background: var(--rk-severe); } .bg-High { background: var(--rk-high); } .bg-Moderate { background: var(--rk-moderate); } .bg-Low { background: var(--rk-low); }
+
+  .rk-orgs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rk-org { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--text-primary); text-decoration: none; white-space: nowrap; }
+  .rk-org:hover { border-color: var(--primary); color: var(--primary); }
+  .rk-org .rk-sw { width: 8px; height: 8px; }
+  .rk-org .rk-sw.own { width: 9px; height: 9px; border-width: 2px; }
+  .rk-stats { font-size: 13px; color: var(--text-secondary); margin: -8px 0 18px; }
+  .rk-sources { text-align: left; max-width: 620px; margin: 14px auto 0; display: grid; gap: 10px; }
+  .rk-sources div { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-secondary); font-size: 13px; }
+  .rk-sources b { color: var(--text-primary); }
+
+  html.dark .rk-canvas, html.dark .rk-legend, html.dark .rk-info li { border-color: #1f1f1f; }
+  html.dark .rk-org { background: #141414; border-color: #2a2a2a; }
+  html.dark .rk-org:hover { border-color: #818cf8; color: #a5b4fc; }
+  html.dark .rk-sources div { background: #101010; border-color: #262626; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap">
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Risk desk</div>
+      <h1 class="mod-title">Director network</h1>
+      <p class="mod-sub">Where one director sits on the boards of two or more of your counterparties, or of a counterparty and one of your own companies. Common directors can mean common control and shared risk.</p>
+    </div>
+    <div class="mod-actions"><a class="btn btn-secondary" href="/risk">Counterparty watch</a></div>
+  </div>
+
+  {% if net.nodes %}
+  <p class="rk-stats">{{ net.overlaps|length }} shared {{ 'director' if net.overlaps|length == 1 else 'directors' }} linking {{ net.nodes|length }} of the {{ net.org_count }} organisations checked, matched by DIN.</p>
+
+  <div class="panel" style="margin-bottom:18px">
+    <div class="rk-net">
+      <div class="rk-canvas">
+        <svg id="net-svg" viewBox="0 0 800 520" role="group" aria-label="Network of organisations linked by shared directors. Use Tab to move between organisations."></svg>
+      </div>
+      <div class="rk-info" id="net-info" aria-live="polite">
+        <h3>Select a company or a line</h3>
+        <p class="muted">A line joins two organisations with at least one director in common. Thicker lines mean more shared directors.</p>
+      </div>
+    </div>
+    <div class="rk-legend">
+      <span><i class="rk-sw bg-Severe"></i>Severe</span>
+      <span><i class="rk-sw bg-High"></i>High</span>
+      <span><i class="rk-sw bg-Moderate"></i>Moderate</span>
+      <span><i class="rk-sw bg-Low"></i>Low</span>
+      <span><i class="rk-sw own"></i>Your own company</span>
+      <span><i class="rk-sw-line"></i>1 director</span>
+      <span><i class="rk-sw-line thick"></i>3 or more</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><div class="panel-title">Shared directors</div><div class="panel-sub">Most connected first</div></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Director</th><th>DIN</th><th>Boards on your list</th></tr></thead>
+        <tbody>
+          {% for o in net.overlaps %}
+          <tr>
+            <td style="font-weight:600">{{ o.name or 'Name not on record' }}</td>
+            <td class="mono">{{ o.din }}</td>
+            <td>
+              <div class="rk-orgs">
+                {% for g in o.orgs %}
+                <a class="rk-org" href="{{ g.href }}">{% if g.kind == 'entity' %}<i class="rk-sw own"></i>{% else %}<i class="rk-sw bg-{{ g.band }}"></i>{% endif %}{{ g.label }}</a>
+                {% endfor %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="panel">
+    <div class="empty">
+      <div class="empty-title">No shared directors found</div>
+      {% if net.org_count %}
+      <p>Checked {{ net.org_count }} organisations{% if net.director_count %} and {{ net.director_count }} directors with a DIN{% endif %}. Nobody sits on more than one of their boards yet.</p>
+      {% else %}
+      <p>This page shows directors who sit on more than one board among your counterparties and your own companies.</p>
+      {% endif %}
+      <div class="rk-sources">
+        <div><b>Listed counterparties.</b> The current board, with DINs, comes from their governance filings on each live scan.</div>
+        <div><b>Unlisted counterparties.</b> Add directors and their DINs on the counterparty page.</div>
+        <div><b>Your own companies.</b> Directors come from the entities in your Workspace.</div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <a class="btn btn-primary" href="/risk">Counterparty watch</a>
+        <a class="btn btn-secondary" href="/workspace">Workspace</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if net.nodes %}
+<script>
+(function () {
+  var NODES = {{ net.nodes|tojson }};
+  var EDGES = {{ net.edges|tojson }};
+  var W = 800, H = 520, PAD = 70;
+  var svg = document.getElementById('net-svg');
+  var info = document.getElementById('net-info');
+  var NS = 'http://www.w3.org/2000/svg';
+  var byId = {};
+  NODES.forEach(function (n, i) {
+    byId[n.id] = n;
+    n.deg = 0;
+    // Deterministic start on a circle so the layout is the same on every load.
+    var a = (i / NODES.length) * Math.PI * 2 - Math.PI / 2;
+    var r = Math.min(W, H) / 2 - PAD;
+    n.x = W / 2 + r * Math.cos(a);
+    n.y = H / 2 + r * Math.sin(a);
+    n.vx = 0; n.vy = 0;
+  });
+  EDGES.forEach(function (e) { e.s = byId[e.source]; e.t = byId[e.target]; e.s.deg++; e.t.deg++; });
+
+  // A small force layout: pairwise repulsion, springs on edges, gentle pull
+  // to the centre. Enough for a few hundred nodes without a library.
+  var k = Math.sqrt((W - 2 * PAD) * (H - 2 * PAD) / Math.max(NODES.length, 1));
+  for (var it = 0; it < 320; it++) {
+    var temp = 1 - it / 320;
+    for (var i = 0; i < NODES.length; i++) {
+      var a = NODES[i];
+      for (var j = i + 1; j < NODES.length; j++) {
+        var b = NODES[j], dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy || 0.01, d = Math.sqrt(d2);
+        var f = (k * k) / d;
+        a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
+      }
+    }
+    EDGES.forEach(function (e) {
+      var dx = e.s.x - e.t.x, dy = e.s.y - e.t.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      var f = (d * d) / k * (1 + 0.3 * (e.directors.length - 1));
+      e.s.vx -= dx / d * f; e.s.vy -= dy / d * f; e.t.vx += dx / d * f; e.t.vy += dy / d * f;
+    });
+    NODES.forEach(function (n) {
+      n.vx += (W / 2 - n.x) * 0.02 * k; n.vy += (H / 2 - n.y) * 0.02 * k;
+      var v = Math.sqrt(n.vx * n.vx + n.vy * n.vy) || 1, step = Math.min(v, 18 * temp + 0.5);
+      n.x += n.vx / v * step; n.y += n.vy / v * step;
+      n.x = Math.max(PAD, Math.min(W - PAD, n.x)); n.y = Math.max(40, Math.min(H - 40, n.y));
+      n.vx = 0; n.vy = 0;
+    });
+  }
+
+  function el(tag, attrs) { var x = document.createElementNS(NS, tag); for (var a in attrs) x.setAttribute(a, attrs[a]); return x; }
+  var gEdges = el('g', {}), gNodes = el('g', {});
+  svg.appendChild(gEdges); svg.appendChild(gNodes);
+
+  EDGES.forEach(function (e) {
+    var w = Math.min(7, 1.5 + 1.5 * (e.directors.length - 1));
+    e.line = el('line', { x1: e.s.x, y1: e.s.y, x2: e.t.x, y2: e.t.y, 'class': 'edge', 'stroke-width': w });
+    var hit = el('line', { x1: e.s.x, y1: e.s.y, x2: e.t.x, y2: e.t.y, 'class': 'edge-hit' });
+    var title = el('title', {}); title.textContent = e.s.label + ' and ' + e.t.label + ': ' + e.directors.join(', ');
+    hit.appendChild(title);
+    gEdges.appendChild(e.line); gEdges.appendChild(hit);
+    hit.addEventListener('mouseenter', function () { showEdge(e); });
+    hit.addEventListener('click', function () { showEdge(e, true); });
+  });
+
+  NODES.forEach(function (n) {
+    var g = el('g', { 'class': 'node' + (n.kind === 'entity' ? ' own' : ''), tabindex: '0', role: 'button',
+      'aria-label': n.label + (n.kind === 'entity' ? ', your company' : ', ' + n.band + ' band') + ', ' + n.deg + ' link' + (n.deg === 1 ? '' : 's') });
+    var r = Math.min(15, 8 + n.deg * 1.5);
+    var c = el('circle', { cx: n.x, cy: n.y, r: r, 'class': n.kind === 'entity' ? '' : 'fill-' + (n.band || 'Low') });
+    var left = n.x > W * 0.62;
+    var t = el('text', { x: left ? n.x - r - 6 : n.x + r + 6, y: n.y + 4, 'text-anchor': left ? 'end' : 'start' });
+    t.textContent = n.label.length > 26 ? n.label.slice(0, 25) + '…' : n.label;
+    g.appendChild(c); g.appendChild(t);
+    gNodes.appendChild(g);
+    n.g = g;
+    g.addEventListener('mouseenter', function () { showNode(n); });
+    g.addEventListener('focus', function () { showNode(n, true); });
+    g.addEventListener('click', function () { showNode(n, true); });
+    g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') window.location.href = n.href; });
+  });
+
+  var pinned = null;
+  function clear() {
+    EDGES.forEach(function (e) { e.line.classList.remove('on', 'dim'); });
+    NODES.forEach(function (n) { n.g.classList.remove('on', 'dim'); });
+  }
+  function highlight(nodes, edges) {
+    clear();
+    EDGES.forEach(function (e) { e.line.classList.add(edges.indexOf(e) !== -1 ? 'on' : 'dim'); });
+    NODES.forEach(function (n) { if (nodes.indexOf(n) === -1) n.g.classList.add('dim'); });
+    nodes.forEach(function (n) { n.g.classList.add('on'); });
+  }
+  function kindLabel(n) { return n.kind === 'entity' ? 'Your company' : 'Counterparty, ' + dfEsc(n.band) + ' band'; }
+  function showNode(n, pin) {
+    if (pinned && !pin) return;
+    if (pin) pinned = n;
+    var edges = EDGES.filter(function (e) { return e.s === n || e.t === n; });
+    highlight([n].concat(edges.map(function (e) { return e.s === n ? e.t : e.s; })), edges);
+    var html = '<h3>' + dfEsc(n.label) + '</h3><div class="muted">' + kindLabel(n) + '</div>' +
+      '<div style="margin-top:8px"><a class="link" href="' + dfEsc(n.href) + '">Open</a></div><ul>';
+    edges.forEach(function (e) {
+      var o = e.s === n ? e.t : e.s;
+      html += '<li><div style="font-weight:600">' + dfEsc(o.label) + '</div><div class="muted">' +
+        e.directors.map(dfEsc).join(', ') + '</div></li>';
+    });
+    info.innerHTML = html + '</ul>';
+  }
+  function showEdge(e, pin) {
+    if (pinned && !pin) return;
+    if (pin) pinned = e;
+    highlight([e.s, e.t], [e]);
+    info.innerHTML = '<h3>' + dfEsc(e.s.label) + ' and ' + dfEsc(e.t.label) + '</h3>' +
+      '<div class="muted">' + e.directors.length + ' shared director' + (e.directors.length === 1 ? '' : 's') + '</div><ul>' +
+      e.directors.map(function (d) { return '<li>' + dfEsc(d) + '</li>'; }).join('') + '</ul>';
+  }
+  svg.addEventListener('mouseleave', function () { if (!pinned) clear(); });
+  svg.addEventListener('click', function (ev) {
+    if (ev.target === svg) { pinned = null; clear(); }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

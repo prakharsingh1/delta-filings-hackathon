@@ -1,0 +1,580 @@
+{% extends 'app_base.html' %}
+{% block title %}Compliance calendar{% endblock %}
+
+{% block head %}
+<style>
+  [hidden] { display: none !important; }
+  .ws-kpis .kpi-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border); border-radius: 999px; font-size: 10px; letter-spacing: .04em; color: var(--text-muted); vertical-align: 1px; }
+  @media (max-width: 640px) {
+    .ws-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .ws-kpis .kpi { padding: 12px 14px; }
+    .ws-kpis .kpi-value { font-size: 21px; }
+  }
+  .ws-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border-light); }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg-btn { font-size: 12.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); cursor: pointer; }
+  .seg-btn:hover { color: var(--text-primary); }
+  .seg-btn.active { background: var(--primary-light); color: var(--primary); border-color: rgba(79,70,229,.35); }
+  .seg-n { font-variant-numeric: tabular-nums; opacity: .75; margin-left: 3px; }
+  .ws-selects { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fld-sm { width: auto; min-width: 150px; max-width: 100%; padding: 6px 9px; font-size: 12.5px; }
+  .att-tbl { min-width: 860px; }
+  .ent-tbl { min-width: 640px; }
+  .f-name { font-weight: 600; }
+  .f-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .small { font-size: 12px; }
+  .nowrap { white-space: nowrap; }
+  .rel { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .rel.late { color: #b91c1c; }
+  .acts { white-space: nowrap; text-align: right; }
+  .acts .btn + .btn { margin-left: 4px; }
+  .pen { cursor: help; border-bottom: 1px dotted var(--text-muted); }
+  .ot { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+  .ot .meter { flex: 1; }
+  .ws-more { padding: 10px 18px; font-size: 12.5px; border-top: 1px solid var(--border-light); }
+  .ws-empty p { max-width: 52ch; margin: 0 auto 6px; }
+  .ws-empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+  .ent-search { max-width: 220px; padding: 6px 10px; font-size: 12.5px; }
+  .dlg-x { display: inline-flex; padding: 4px; border: 0; border-radius: 6px; background: none; color: var(--text-muted); cursor: pointer; }
+  .dlg-x:hover { color: var(--text-primary); background: var(--surface-secondary); }
+  .dlg-foot { flex-wrap: wrap; }
+  .dlg-ctx { font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
+  .dlg-ctx strong { color: var(--text-primary); }
+  dialog.mod-dialog.ws-wide { width: min(760px, calc(100vw - 32px)); }
+  .imp-sum { font-size: 13px; margin-bottom: 10px; color: var(--text-secondary); }
+  .imp-tbl { min-width: 560px; }
+  .imp-err { color: #b91c1c; font-size: 12.5px; }
+  .imp-ok { color: #047857; font-size: 12.5px; font-weight: 600; }
+  .mono-in { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  html.dark .seg-btn.active { border-color: rgba(129,140,248,.4); }
+  html.dark .rel.late, html.dark .imp-err { color: #fca5a5; }
+  html.dark .imp-ok { color: #6ee7b7; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap">
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Workspace</div>
+      <h1 class="mod-title">Compliance calendar</h1>
+      <p class="mod-sub">ROC, income tax, GST, labour, FEMA and SEBI deadlines for every company and LLP you look after, with the late fee worked out on anything overdue.</p>
+    </div>
+    <div class="mod-actions">
+      <button type="button" class="btn btn-secondary" data-open="dlg-import">Import clients</button>
+      <button type="button" class="btn btn-primary" data-open="dlg-add">Add company or LLP</button>
+    </div>
+  </div>
+
+  <section class="panel" id="ws-empty" hidden>
+    <div class="empty ws-empty">
+      <div class="empty-title">Add your first company or LLP</div>
+      <p>Answer a few questions about it and this page lists every filing that applies, with due dates and the late fee on anything overdue.</p>
+      <p>Look after many clients? Paste your client list and import them in one go.</p>
+      <div class="ws-empty-actions">
+        <button type="button" class="btn btn-primary" data-open="dlg-add">Add company or LLP</button>
+        <button type="button" class="btn btn-secondary" data-open="dlg-import">Import clients</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="ws-main" hidden>
+    <div class="kpi-grid ws-kpis" id="ws-kpis"></div>
+
+    <section class="panel" id="attention">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Needs attention</div>
+          <div class="panel-sub">Open filings across all entities, overdue first.</div>
+        </div>
+      </div>
+      <div class="ws-filters">
+        <div class="seg" role="group" aria-label="Show">
+          <button type="button" class="seg-btn" data-f="overdue">Overdue<span class="seg-n"></span></button>
+          <button type="button" class="seg-btn" data-f="next15">Next 15 days<span class="seg-n"></span></button>
+          <button type="button" class="seg-btn" data-f="next90">Next 90 days<span class="seg-n"></span></button>
+          <button type="button" class="seg-btn" data-f="all">All open<span class="seg-n"></span></button>
+        </div>
+        <div class="ws-selects">
+          <select class="fld-select fld-sm" id="f-regime" aria-label="Filter by regime"></select>
+          <select class="fld-select fld-sm" id="f-entity" aria-label="Filter by entity"></select>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl att-tbl">
+          <thead>
+            <tr><th>State</th><th>Due</th><th>Filing</th><th>Entity</th><th>Regime</th><th class="num">Est. penalty</th><th></th></tr>
+          </thead>
+          <tbody id="att-body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="att-empty" hidden></div>
+      <div class="ws-more muted" id="att-more" hidden></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Entities</div>
+          <div class="panel-sub" id="ent-sub"></div>
+        </div>
+        <input type="search" class="fld-input ent-search" id="ent-search" placeholder="Find an entity" aria-label="Find an entity" hidden>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl ent-tbl">
+          <thead>
+            <tr><th>Entity</th><th class="num">Overdue</th><th class="num">Due in 15 days</th><th class="num">Exposure</th><th>On time</th><th></th></tr>
+          </thead>
+          <tbody id="ent-body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="ent-none" hidden>No entity matches that search.</div>
+    </section>
+  </div>
+</div>
+
+{# ── Add company or LLP ── #}
+<dialog class="mod-dialog" id="dlg-add" aria-labelledby="dlg-add-title">
+  <form id="form-add" novalidate>
+    <div class="dlg-head">
+      <span id="dlg-add-title">Add company or LLP</span>
+      <button type="button" class="dlg-x" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="dlg-body">
+      <label class="fld">
+        <span class="fld-label">Name</span>
+        <input class="fld-input" name="name" maxlength="200" autocomplete="off" required placeholder="Acme Technologies Private Limited">
+      </label>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">Type</span>
+          <select class="fld-select" name="entity_type">
+            {% for key, label in entity_types.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="fld">
+          <span class="fld-label">CIN or LLPIN <span class="muted">(optional)</span></span>
+          <input class="fld-input mono-in" name="cin" maxlength="21" autocomplete="off" spellcheck="false" placeholder="U72900MH2015PTC123456">
+        </label>
+      </div>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">State</span>
+          <select class="fld-select" name="state">
+            <option value="">Choose later</option>
+            {% for s in states %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+          </select>
+          <span class="fld-hint">Registered office. Decides state levies such as professional tax.</span>
+        </label>
+        <label class="fld" id="add-symbol" hidden>
+          <span class="fld-label">NSE symbol</span>
+          <input class="fld-input mono-in" name="symbol" maxlength="20" autocomplete="off" spellcheck="false" placeholder="INFY">
+        </label>
+      </div>
+      <p class="fld-hint">Next, a few questions about the company decide which filings go on its calendar.</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Add and continue</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Import clients ── #}
+<dialog class="mod-dialog ws-wide" id="dlg-import" aria-labelledby="dlg-import-title">
+  <form id="form-import" novalidate>
+    <div class="dlg-head">
+      <span id="dlg-import-title">Import clients</span>
+      <button type="button" class="dlg-x" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="dlg-body">
+      <div id="imp-step1">
+        <label class="fld">
+          <span class="fld-label">One per line: name, type, CIN</span>
+          <textarea class="fld-textarea mono-in" name="text" rows="8" spellcheck="false" placeholder="Acme Technologies Private Limited, private, U72900MH2015PTC123456&#10;Blue River LLP, llp, AAB-1234&#10;Northwind Foods Limited, listed"></textarea>
+          <span class="fld-hint">Type can be private, public, listed, opc, section8 or llp. Leave it out and it is read from the CIN or the name. You can paste straight from a spreadsheet.</span>
+        </label>
+      </div>
+      <div id="imp-step2" hidden>
+        <p class="imp-sum" id="imp-sum"></p>
+        <div class="tbl-wrap">
+          <table class="tbl imp-tbl">
+            <thead><tr><th class="num">Line</th><th>Name</th><th>Type</th><th>CIN</th><th>Status</th></tr></thead>
+            <tbody id="imp-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="button" class="btn btn-secondary" id="imp-back" hidden>Back</button>
+      <button type="button" class="btn btn-primary" id="imp-preview">Preview</button>
+      <button type="button" class="btn btn-primary" id="imp-create" hidden>Add</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Mark filed ── #}
+<dialog class="mod-dialog" id="dlg-filed" aria-labelledby="dlg-filed-title">
+  <form id="form-filed" novalidate>
+    <div class="dlg-head">
+      <span id="dlg-filed-title">Mark as filed</span>
+      <button type="button" class="dlg-x" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="dlg-body">
+      <p class="dlg-ctx" id="filed-ctx"></p>
+      <div class="fld-grid">
+        <label class="fld">
+          <span class="fld-label">Date filed</span>
+          <input type="date" class="fld-input" name="filed_on" required>
+        </label>
+        <label class="fld">
+          <span class="fld-label">SRN or acknowledgement <span class="muted">(optional)</span></span>
+          <input class="fld-input mono-in" name="srn" maxlength="40" autocomplete="off" spellcheck="false">
+        </label>
+      </div>
+      <label class="fld">
+        <span class="fld-label">Notes <span class="muted">(optional)</span></span>
+        <textarea class="fld-textarea" name="notes" maxlength="1000" rows="3"></textarea>
+      </label>
+      <p class="fld-hint" id="filed-late"></p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Mark filed</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="application/json" id="ws-data">{{ data|tojson }}</script>
+<script type="application/json" id="ws-regimes">{{ regimes|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  var DATA = JSON.parse(document.getElementById('ws-data').textContent);
+  var REGIMES = JSON.parse(document.getElementById('ws-regimes').textContent);
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var STATE_LABEL = { overdue: 'Overdue', due_soon: 'Due soon', upcoming: 'Upcoming', filed: 'Filed', na: 'N/A' };
+  var FILTER_EMPTY = {
+    overdue: 'Nothing is overdue.',
+    next15: 'Nothing falls due in the next 15 days.',
+    next90: 'Nothing falls due in the next 90 days.',
+    all: 'No open filings.'
+  };
+  // The server filters (a firm can have tens of thousands of open rows) and
+  // sends the chosen view's first 300, with counts for every view.
+  var view = { f: DATA.view || null, regime: '', entity: '' };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var p = String(iso).slice(0, 10).split('-');
+    return (+p[2]) + ' ' + MON[+p[1] - 1] + ' ' + p[0];
+  }
+  function rel(d) {
+    if (d == null) return '';
+    if (d < 0) return (-d) + (d === -1 ? ' day late' : ' days late');
+    if (d === 0) return 'due today';
+    if (d === 1) return 'tomorrow';
+    return 'in ' + d + ' days';
+  }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+  function chip(state) { return '<span class="chip st-' + state + '">' + STATE_LABEL[state] + '</span>'; }
+  function cleanPeriod(i) {
+    if (!i.period || i.origin === 'custom') return '';
+    return String(i.period).replace(/\s*(·\s*)?#\d+$/, '')
+      .replace(/\b\d{4}-\d{2}-\d{2}\b/g, function (m) { return fmtDate(m); });
+  }
+  function penaltyCell(p) {
+    if (!p) return '<span class="muted">&mdash;</span>';
+    if (p.amount == null) {
+      return p.basis ? '<span class="pen muted" tabindex="0" data-basis="' + dfEsc(p.basis) + '" title="' + dfEsc(p.basis) + '">Varies</span>'
+                     : '<span class="muted">&mdash;</span>';
+    }
+    return '<span class="pen" tabindex="0" data-basis="' + dfEsc(p.basis) + '" title="' + dfEsc(p.basis) + '">' + dfInr(p.amount) + '</span>';
+  }
+  function kpi(label, value, foot, cls) {
+    return '<div class="kpi ' + (cls || '') + '"><div class="kpi-label">' + label + '</div>' +
+      '<div class="kpi-value">' + value + '</div><div class="kpi-foot">' + foot + '</div></div>';
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────
+  function render() {
+    var hasEntities = DATA.entities.length > 0;
+    $('ws-empty').hidden = hasEntities;
+    $('ws-main').hidden = !hasEntities;
+    if (!hasEntities) return;
+    renderKpis();
+    renderSelects();
+    renderAttention();
+    renderEntities();
+  }
+
+  function renderKpis() {
+    var s = DATA.summary, ents = DATA.entities;
+    var llps = ents.filter(function (x) { return x.entity.entity_type === 'llp'; }).length;
+    var cos = ents.length - llps;
+    var entFoot = [cos ? plural(cos, 'company', 'companies') : '', llps ? plural(llps, 'LLP', 'LLPs') : ''].filter(Boolean).join(', ');
+    var lateEnts = ents.filter(function (x) { return x.summary.overdue > 0; }).length;
+    var next = DATA.next_due;
+    var expFoot = s.exposure_uncomputed
+      ? '+' + s.exposure_uncomputed + ' more with interest-based or discretionary penalties'
+      : (s.overdue ? 'On overdue filings, as of today' : 'Nothing overdue');
+    $('ws-kpis').innerHTML =
+      kpi('Entities', ents.length, entFoot) +
+      kpi('Overdue', s.overdue, s.overdue ? 'Across ' + plural(lateEnts, 'entity', 'entities') : 'Nothing late', s.overdue ? 'kpi-danger' : '') +
+      kpi('Due in next 15 days', s.due_soon, next ? 'Next: ' + dfEsc(next.form || next.name) + ', ' + fmtDate(next.due_date) : 'Nothing due') +
+      kpi('Late-fee exposure<span class="kpi-tag">Indicative</span>', s.exposure ? dfInr(s.exposure) : '&#8377;0', expFoot) +
+      kpi('On-time rate', s.on_time_rate == null ? '&mdash;' : s.on_time_rate + '%',
+          s.on_time_rate == null ? 'Nothing filed or due yet' : 'Filed by the due date, of those due so far');
+  }
+
+  function renderSelects() {
+    var regimes = DATA.regimes || [];
+    if (view.regime && regimes.indexOf(view.regime) < 0) view.regime = '';
+    $('f-regime').innerHTML = '<option value="">All regimes</option>' + regimes.map(function (r) {
+      return '<option value="' + dfEsc(r) + '"' + (r === view.regime ? ' selected' : '') + '>' + dfEsc(r) + '</option>';
+    }).join('');
+    var sel = $('f-entity');
+    sel.hidden = DATA.entities.length < 2;
+    if (view.entity && !DATA.entities.some(function (x) { return String(x.entity.id) === view.entity; })) view.entity = '';
+    sel.innerHTML = '<option value="">All entities</option>' + DATA.entities.map(function (x) {
+      var id = String(x.entity.id);
+      return '<option value="' + id + '"' + (id === view.entity ? ' selected' : '') + '>' + dfEsc(x.entity.name) + '</option>';
+    }).join('');
+  }
+
+  function renderAttention() {
+    var counts = DATA.counts;
+    view.f = DATA.view;
+    document.querySelectorAll('.seg-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.f === view.f);
+      b.setAttribute('aria-pressed', b.dataset.f === view.f ? 'true' : 'false');
+      b.querySelector('.seg-n').textContent = counts[b.dataset.f];
+    });
+    var rows = DATA.items;
+    $('att-body').innerHTML = rows.map(function (i) {
+      return '<tr>' +
+        '<td>' + chip(i.state) + '</td>' +
+        '<td class="nowrap"><div>' + fmtDate(i.due_date) + '</div><div class="rel' + (i.days_to_due < 0 ? ' late' : '') + '">' + rel(i.days_to_due) + '</div></td>' +
+        '<td><div class="f-name">' + dfEsc(i.name) + '</div><div class="f-meta">' +
+          (i.form ? '<span class="mono">' + dfEsc(i.form) + '</span>' : 'Task') +
+          (cleanPeriod(i) ? ' <span class="muted">&middot; ' + dfEsc(cleanPeriod(i)) + '</span>' : '') + '</div></td>' +
+        '<td><a class="link" href="/workspace/entity/' + Number(i.entity_id) + '">' + dfEsc(i.entity_name) + '</a></td>' +
+        '<td class="muted nowrap">' + dfEsc(i.regime) + '</td>' +
+        '<td class="num">' + penaltyCell(i.penalty) + '</td>' +
+        '<td class="acts"><button type="button" class="btn btn-sm btn-primary" data-act="filed" data-id="' + Number(i.id) + '">Mark filed</button>' +
+          '<button type="button" class="btn btn-sm btn-secondary" data-act="na" data-id="' + Number(i.id) + '">Not applicable</button></td>' +
+        '</tr>';
+    }).join('');
+    var empty = $('att-empty');
+    empty.hidden = rows.length > 0;
+    if (!rows.length) {
+      empty.innerHTML = '<div class="empty-title">' + FILTER_EMPTY[view.f] + '</div>' +
+        (view.f !== 'all' && counts.all ? 'Choose another view above to see what comes next.' : 'Mark filings as filed and they drop off this list.');
+    }
+    var more = $('att-more');
+    more.hidden = DATA.total <= rows.length;
+    more.textContent = 'Showing the first ' + rows.length + ' of ' + DATA.total + '. Narrow by regime or entity to see the rest.';
+  }
+
+  function renderEntities() {
+    var q = ($('ent-search').value || '').trim().toLowerCase();
+    var list = DATA.entities.slice().sort(function (a, b) {
+      return (b.summary.overdue - a.summary.overdue) || (b.summary.due_soon - a.summary.due_soon) ||
+        a.entity.name.localeCompare(b.entity.name);
+    });
+    $('ent-search').hidden = DATA.entities.length <= 8;
+    if (q) list = list.filter(function (x) { return (x.entity.name + ' ' + (x.entity.cin || '')).toLowerCase().indexOf(q) >= 0; });
+    $('ent-sub').textContent = DATA.entities.length === 1 ? '1 entity' : DATA.entities.length + ' entities, most overdue first';
+    $('ent-none').hidden = list.length > 0;
+    $('ent-body').innerHTML = list.map(function (x) {
+      var e = x.entity, s = x.summary, id = Number(e.id);
+      var rate = s.on_time_rate == null ? null : Number(s.on_time_rate);
+      return '<tr>' +
+        '<td><a class="link" href="/workspace/entity/' + id + '">' + dfEsc(e.name) + '</a>' +
+          '<div class="f-meta">' + dfEsc(e.type_label) + (e.cin ? ' &middot; <span class="mono">' + dfEsc(e.cin) + '</span>' : '') + '</div></td>' +
+        '<td class="num">' + (s.overdue ? '<span class="chip st-overdue">' + s.overdue + '</span>' : '<span class="muted">0</span>') + '</td>' +
+        '<td class="num">' + (s.due_soon ? s.due_soon : '<span class="muted">0</span>') + '</td>' +
+        '<td class="num">' + (s.exposure ? dfInr(s.exposure) : '<span class="muted">&mdash;</span>') +
+          (s.exposure_uncomputed ? '<div class="f-meta muted">+' + s.exposure_uncomputed + ' not priced</div>' : '') + '</td>' +
+        '<td>' + (rate == null ? '<span class="muted">&mdash;</span>'
+          : '<div class="ot"><div class="meter"><span style="width:' + rate + '%"></span></div><span class="small">' + rate + '%</span></div>') + '</td>' +
+        '<td class="acts"><a class="btn btn-sm btn-secondary" href="/workspace/entity/' + id + '">Open</a></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  async function reload(keepView) {
+    var q = [];
+    if (keepView !== false && view.f) q.push('f=' + encodeURIComponent(view.f));
+    if (view.regime) q.push('regime=' + encodeURIComponent(view.regime));
+    if (view.entity) q.push('entity=' + encodeURIComponent(view.entity));
+    try {
+      DATA = await dfApi('/api/workspace/overview' + (q.length ? '?' + q.join('&') : ''));
+      render();
+    } catch (e) { dfToast(e.message, 'err'); }
+  }
+
+  // ── Dialog plumbing ─────────────────────────────────────────────────────
+  function openDlg(id) {
+    var d = $(id);
+    if (id === 'dlg-import') resetImport();
+    if (id === 'dlg-add') { $('form-add').reset(); typeTouched = false; syncSymbol(); }
+    d.showModal();
+    var first = d.querySelector('input:not([type=hidden]):not([disabled]), textarea, select');
+    if (first) first.focus();
+  }
+  document.addEventListener('click', function (e) {
+    var o = e.target.closest('[data-open]');
+    if (o) { openDlg(o.dataset.open); return; }
+    var c = e.target.closest('[data-close]');
+    if (c) { c.closest('dialog').close(); return; }
+    var pen = e.target.closest('.pen[data-basis]');
+    if (pen && pen.dataset.basis) dfToast(pen.dataset.basis);
+  });
+  document.querySelectorAll('dialog').forEach(function (d) {
+    d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
+  });
+  async function busy(btn, fn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try { await fn(); } catch (e) { dfToast(e.message, 'err'); } finally { btn.disabled = false; }
+  }
+
+  // ── Filters ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('.seg-btn').forEach(function (b) {
+    b.addEventListener('click', function () { view.f = b.dataset.f; reload(); });
+  });
+  // A new scope picks its own first non-empty view, as the page does on load.
+  $('f-regime').addEventListener('change', function (e) { view.regime = e.target.value; reload(false); });
+  $('f-entity').addEventListener('change', function (e) { view.entity = e.target.value; reload(false); });
+  $('ent-search').addEventListener('input', renderEntities);
+
+  // ── Row actions ─────────────────────────────────────────────────────────
+  var current = null;
+  function findItem(id) { return DATA.items.filter(function (i) { return i.id === id; })[0]; }
+  $('att-body').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var item = findItem(Number(b.dataset.id));
+    if (!item) return;
+    if (b.dataset.act === 'filed') return openFiled(item);
+    busy(b, async function () {
+      await dfApi('/api/workspace/obligations/' + item.id, { method: 'PATCH', body: { status: 'na' } });
+      dfToast('Marked not applicable. Reopen it from the entity calendar if needed.', 'ok');
+      await reload();
+    });
+  });
+
+  var today = DATA.today;
+  function openFiled(item) {
+    current = item;
+    var f = $('form-filed');
+    f.reset();
+    f.filed_on.value = today;
+    f.filed_on.max = today;
+    f.srn.value = item.srn || '';
+    f.notes.value = item.notes || '';
+    $('filed-ctx').innerHTML = '<strong>' + dfEsc(item.name) + '</strong>' + (item.form ? ' (' + dfEsc(item.form) + ')' : '') +
+      ' for ' + dfEsc(item.entity_name) + ', due ' + fmtDate(item.due_date) + '.';
+    lateHint();
+    $('dlg-filed').showModal();
+  }
+  function lateHint() {
+    var f = $('form-filed'), v = f.filed_on.value, el = $('filed-late');
+    if (!current || !v || v <= current.due_date) { el.textContent = ''; return; }
+    var days = Math.round((Date.parse(v) - Date.parse(current.due_date)) / 86400000);
+    el.textContent = plural(days, 'day', 'days') + ' after the due date. It counts as filed late.';
+  }
+  $('form-filed').filed_on.addEventListener('input', lateHint);
+  $('form-filed').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target, btn = f.querySelector('[type=submit]');
+    if (!f.filed_on.value) { dfToast('Enter the date it was filed.', 'err'); return; }
+    busy(btn, async function () {
+      await dfApi('/api/workspace/obligations/' + current.id, { method: 'PATCH', body: {
+        status: 'filed', filed_on: f.filed_on.value, srn: f.srn.value.trim(), notes: f.notes.value.trim() } });
+      $('dlg-filed').close();
+      dfToast('Marked filed.', 'ok');
+      await reload();
+    });
+  });
+
+  // ── Add entity ──────────────────────────────────────────────────────────
+  var typeTouched = false;
+  var OWN = { PTC: 'private', FTC: 'private', PLC: 'public_unlisted', FLC: 'public_unlisted', OPC: 'opc', NPL: 'section8' };
+  var fa = $('form-add');
+  function syncSymbol() { $('add-symbol').hidden = fa.entity_type.value !== 'listed'; }
+  fa.entity_type.addEventListener('change', function () { typeTouched = true; syncSymbol(); });
+  fa.cin.addEventListener('input', function () {
+    var v = fa.cin.value.toUpperCase().replace(/\s/g, ''), t = null;
+    if (/^[A-Z]{3}-\d{4}$/.test(v)) t = 'llp';
+    else if (/^[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}$/.test(v)) t = v[0] === 'L' ? 'listed' : OWN[v.substr(12, 3)];
+    if (t && !typeTouched) { fa.entity_type.value = t; syncSymbol(); }
+  });
+  fa.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = fa.querySelector('[type=submit]');
+    if (!fa.name.value.trim()) { dfToast('Enter the name.', 'err'); fa.name.focus(); return; }
+    busy(btn, async function () {
+      var body = { name: fa.name.value.trim(), entity_type: fa.entity_type.value, cin: fa.cin.value.trim(), state: fa.state.value };
+      if (body.entity_type === 'listed') body.symbol = fa.symbol.value.trim();
+      var res = await dfApi('/api/workspace/entities', { method: 'POST', body: body });
+      window.location.href = res.url;
+    });
+  });
+
+  // ── Import ──────────────────────────────────────────────────────────────
+  var fi = $('form-import');
+  function resetImport() {
+    $('imp-step1').hidden = false;
+    $('imp-step2').hidden = true;
+    $('imp-back').hidden = true;
+    $('imp-preview').hidden = false;
+    $('imp-create').hidden = true;
+  }
+  fi.addEventListener('submit', function (e) { e.preventDefault(); });
+  $('imp-back').addEventListener('click', resetImport);
+  $('imp-preview').addEventListener('click', function () {
+    var btn = this;
+    if (!fi.text.value.trim()) { dfToast('Paste at least one line.', 'err'); fi.text.focus(); return; }
+    busy(btn, async function () {
+      var res = await dfApi('/api/workspace/entities/import', { method: 'POST', body: { text: fi.text.value, dry_run: true } });
+      $('imp-body').innerHTML = res.rows.map(function (r) {
+        return '<tr><td class="num muted">' + Number(r.line) + '</td>' +
+          '<td>' + dfEsc(r.name) + '</td>' +
+          '<td class="nowrap">' + dfEsc(r.type_label) + (r.type_label && r.type_guessed ? ' <span class="muted small">(read from ' + (r.cin ? 'CIN' : 'name') + ')</span>' : '') + '</td>' +
+          '<td class="mono">' + dfEsc(r.cin) + '</td>' +
+          '<td>' + (r.error ? '<span class="imp-err">' + dfEsc(r.error) + '</span>' : '<span class="imp-ok">Ready</span>') + '</td></tr>';
+      }).join('');
+      $('imp-sum').textContent = plural(res.ready, 'row is', 'rows are') + ' ready.' +
+        (res.skipped ? ' ' + plural(res.skipped, 'row needs', 'rows need') + ' fixing and will be skipped. Go back to fix them, or add the ready ones now.' : '');
+      $('imp-step1').hidden = true;
+      $('imp-step2').hidden = false;
+      $('imp-back').hidden = false;
+      $('imp-preview').hidden = true;
+      var create = $('imp-create');
+      create.hidden = false;
+      create.disabled = res.ready === 0;
+      create.textContent = res.ready ? 'Add ' + plural(res.ready, 'entity', 'entities') : 'Nothing to add';
+    });
+  });
+  $('imp-create').addEventListener('click', function () {
+    var btn = this;
+    busy(btn, async function () {
+      var res = await dfApi('/api/workspace/entities/import', { method: 'POST', body: { text: fi.text.value } });
+      $('dlg-import').close();
+      fi.reset();
+      dfToast('Added ' + plural(res.created, 'entity', 'entities') + '. Open each one to answer its profile questions.', 'ok');
+      await reload();
+    });
+  });
+
+  render();
+})();
+</script>
+{% endblock %}

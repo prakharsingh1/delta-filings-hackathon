@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Delta Filings",
+  "version": "0.1.0",
+  "identifier": "tech.deltafiling.desktop",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "Delta Filings",
+    "category": "Business",
+    "copyright": "© 2026 Delta Filings",
+    "shortDescription": "Corporate governance and compliance, on your own computer",
+    "longDescription": "Delta Filings keeps confidential board papers, drafts and the insider-trading record on this computer. Public filings come straight from the exchanges and AI runs on a model you choose, including models on this machine.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../../build/delta-server/": "delta-server/"
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "entitlements": "../../macos/entitlements.plist"
+    },
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "nsis": { "installMode": "both" },
+      "wix": { "language": "en-US" }
+    },
+    "linux": {
+      "deb": { "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"] }
+    }
+  }
+}

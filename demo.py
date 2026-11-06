@@ -36,8 +36,13 @@ DEMO_USER = {
 
 
 def demo_mode_enabled():
-    """Demo mode is on unless explicitly disabled."""
-    return os.environ.get("DELTA_DEMO_MODE", "1").strip() not in ("0", "false", "False", "")
+    """Demo mode is OFF unless explicitly enabled.
+
+    This MUST default to off: when on, login_required() provisions a shared
+    'demo-judge' session for any anonymous visitor, bypassing both sign-in and
+    the payment gate, and every visitor shares one watchlist/drafts/alerts.
+    """
+    return os.environ.get("DELTA_DEMO_MODE", "0").strip() in ("1", "true", "True")
 
 
 def is_demo_user(user):

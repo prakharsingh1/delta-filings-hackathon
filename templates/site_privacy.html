@@ -1,0 +1,31 @@
+{% extends "site_base.html" %}
+{% block title %}Privacy · Delta Filings{% endblock %}
+{% block meta_description %}A plain summary of what personal data Delta Filings collects and why.{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <p class="eyebrow">Privacy</p>
+    <h1 class="h1">What we collect and why.</h1>
+    <p class="lede">A plain summary of how personal data is handled in the beta. A full privacy policy and terms of service are being prepared and will replace this page before general release.</p>
+  </div>
+</section>
+<section class="sec">
+  <div class="wrap-narrow prose-site">
+    <h2 style="margin-top:0">What we collect</h2>
+    <ul>
+      <li><b>Account details:</b> your name, email address, role and sector, and your password (held as a hash by Supabase Auth).</li>
+      <li><b>What you enter:</b> companies, directors and their DINs, PANs and DSC dates, counterparties and exposure amounts, meeting content, register entries, insider-trading entries, and documents clients upload to your requests.</li>
+      <li><b>Usage data:</b> page views and device details through Google Analytics.</li>
+      <li><b>Optional:</b> a Telegram chat ID if you link alerts.</li>
+    </ul>
+    <h2>Why</h2>
+    <p>To run the product for you: build your calendar, send your alerts, produce your documents. We do not sell your data and we do not use it to train models.</p>
+    <h2>Who handles it</h2>
+    <p>Railway hosts the application and its storage, in US West (California). Supabase handles sign-in. Google Gemini and OpenRouter process text when you use an AI feature. Google Analytics records page views. Razorpay handles payments once billing starts. The <a href="/security">security page</a> lists each one and what it sees.</p>
+    <h2>Your control</h2>
+    <p>You can export your calendars, registers, insider-trading logs and risk lists, and archive companies and counterparties. Tools for full deletion and export requests under the Digital Personal Data Protection Act are not built yet.</p>
+    <h2>Third parties' data</h2>
+    <p>Directors' names, DINs and PANs, and insider-trading entries, belong to people who are not our users. They are used only to produce the records you ask for. PANs are masked on screen.</p>
+  </div>
+</section>
+{% endblock %}

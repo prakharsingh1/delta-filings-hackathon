@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'analytics.html' %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance - Delta Filings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+        .status-submitted { background: #ecfdf5; color: #059669; }
+        .status-delayed { background: #fffbeb; color: #d97706; }
+        .status-missed { background: #fef2f2; color: #dc2626; }
+        .status-unverified { background: #f5f3ff; color: #7c3aed; }
+        .status-pending { background: #f1f5f9; color: #64748b; }
+
+        .health-critical .health-label { color: #dc2626; }
+        .health-at_risk .health-label { color: #d97706; }
+        .health-stable .health-label { color: #059669; }
+        .health-unknown .health-label { color: #94a3b8; }
+
+        .score-ring { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0; }
+        .score-ring::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: white; }
+        .score-value { position: relative; z-index: 1; font-size: 20px; font-weight: 800; }
+
+        .countdown-urgent { animation: pulse-urgent 2s infinite; }
+        @keyframes pulse-urgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .compliance-table th { position: sticky; top: 0; background: #f8fafc; z-index: 10; }
+
+        .tab-btn { padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 10px; transition: all 0.15s; cursor: pointer; border: none; background: none; color: #64748b; white-space: nowrap; }
+        .tab-btn.active { background: #4f46e5; color: white; box-shadow: 0 6px 14px -6px rgba(79,70,229,0.5); }
+        .tab-btn:hover:not(.active) { background: #f1f5f9; color: #334155; }
+
+        .mandate-card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 22px; transition: all 0.15s; background: white; }
+        .mandate-card:hover { border-color: #c7d2fe; box-shadow: 0 4px 14px rgba(79,70,229,0.08); }
+
+        .sebi-link { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: #4f46e5; text-decoration: none; padding: 2px 8px; border-radius: 6px; background: #eef2ff; transition: all 0.15s; }
+        .sebi-link:hover { background: #c7d2fe; color: #3730a3; }
+        .validation-ok { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+        .validation-fail { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: #dc2626; background: #fef2f2; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+
+        /* Evidence badge — shows that a completed obligation was verified against sources */
+        .evidence-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600;
+            color: #0f766e; background: #f0fdfa; border: 1px solid #ccfbf1; padding: 2px 8px; border-radius: 6px; cursor: default; }
+
+        /* ── Hero band ── */
+        .hero-card { background: white; border: 1px solid #e8ecf4; border-radius: 18px; padding: 24px; }
+        .posture-num { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+        .posture-sub { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-top: 6px; }
+        .fy-bar { height: 9px; border-radius: 999px; background: #eef1f7; overflow: hidden; }
+        .fy-bar > div { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4f46e5, #7c3aed); transition: width 0.8s cubic-bezier(.22,.61,.36,1); }
+
+        /* ── Deadline timeline ── */
+        .dl-timeline { position: relative; height: 110px; margin: 12px 8px 0; }
+        .dl-axis { position: absolute; left: 0; right: 0; top: 56px; height: 2.5px; background: #e8ecf4; border-radius: 2px; }
+        .dl-today { position: absolute; top: 38px; width: 2.5px; height: 38px; background: #4f46e5; border-radius: 2px; }
+        .dl-today::after { content: 'TODAY'; position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+            font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #4f46e5; }
+        .dl-tick { position: absolute; top: 66px; font-size: 11px; color: #94a3b8; font-weight: 600; transform: translateX(-50%); white-space: nowrap; }
+        .dl-marker { position: absolute; top: 46px; transform: translateX(-50%); cursor: pointer; z-index: 2; }
+        .dl-dot { width: 22px; height: 22px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(15,23,42,0.2);
+            display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: white;
+            transition: transform .15s ease; }
+        .dl-marker:hover .dl-dot { transform: scale(1.25); }
+        .dl-tip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+            background: #0f172a; color: #e2e8f0; font-size: 12px; padding: 9px 12px; border-radius: 9px;
+            white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s ease; z-index: 30; }
+        .dl-tip b { color: white; }
+        .dl-marker:hover .dl-tip { opacity: 1; }
+
+        /* Mini stacked bar inside health cards */
+        .mini-stack { display: flex; height: 7px; border-radius: 999px; overflow: hidden; background: #f1f5f9; }
+        .mini-stack > div { height: 100%; }
+
+        /* Health card */
+        .health-card { border: 1px solid #e8ecf4; border-radius: 18px; padding: 20px; background: white;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+        .health-card:hover { transform: translateY(-2px); box-shadow: 0 16px 32px -18px rgba(15,23,42,0.18); border-color: #c7d2fe; }
+        .co-logo { width: 40px; height: 40px; border-radius: 10px; object-fit: contain; background: white;
+            border: 1px solid #eef1f7; padding: 3px; flex-shrink: 0; }
+        .co-letter { width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center;
+            justify-content: center; font-size: 15px; font-weight: 800; color: white; flex-shrink: 0; }
+        .next-due-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+            padding: 3px 9px; border-radius: 999px; }
+
+        /* ── Compliance Library ── */
+        .lib-pill { --rc:#4f46e5; display:inline-flex; align-items:center; gap:6px;
+            padding:6px 13px; border-radius:999px; font-size:12.5px; font-weight:600;
+            color:#475569; background:#fff; border:1.5px solid #eef1f7; cursor:pointer;
+            transition: transform .12s ease, border-color .18s ease, background .18s ease, color .18s ease; }
+        .lib-pill:hover { transform:translateY(-1px); border-color: color-mix(in srgb, var(--rc) 40%, #e2e8f0); }
+        .lib-pill.active { background:var(--rc); border-color:var(--rc); color:#fff;
+            box-shadow:0 6px 16px -6px color-mix(in srgb, var(--rc) 65%, transparent); }
+        .lib-pill-ct { font-size:10.5px; font-weight:700; background:#f1f5f9; color:#94a3b8;
+            padding:1px 7px; border-radius:999px; }
+        .lib-pill.active .lib-pill-ct { background:rgba(255,255,255,0.25); color:#fff; }
+
+        .lib-group-head { --rc:#4f46e5; display:flex; align-items:center; gap:12px;
+            padding-bottom:10px; border-bottom:2px solid color-mix(in srgb, var(--rc) 18%, #eef1f7); }
+        .lib-group-dot { width:10px; height:10px; border-radius:50%; background:var(--rc); flex-shrink:0;
+            box-shadow:0 0 0 4px color-mix(in srgb, var(--rc) 14%, transparent); }
+        .lib-group-title { font-size:14px; font-weight:800; color:#0f172a; letter-spacing:-.01em; }
+        .lib-group-sub { font-size:11.5px; color:#94a3b8; margin-top:1px; }
+        .lib-group-ct { margin-left:auto; font-size:11px; font-weight:700; color:var(--rc);
+            background: color-mix(in srgb, var(--rc) 10%, transparent); padding:3px 10px; border-radius:999px; }
+
+        .lib-card { --rc:#4f46e5; display:flex; flex-direction:column; }
+        .lib-card:hover { border-color: color-mix(in srgb, var(--rc) 32%, #e2e8f0);
+            box-shadow:0 10px 26px -16px color-mix(in srgb, var(--rc) 60%, transparent); }
+        .lib-form { font-size:10.5px; font-weight:800; letter-spacing:.01em;
+            color:var(--rc); background: color-mix(in srgb, var(--rc) 9%, transparent);
+            padding:3px 9px; border-radius:7px; }
+        .lib-meta { display:inline-flex; align-items:center; gap:4px; color:#64748b; font-weight:500; }
+        .lib-meta svg { color:#94a3b8; }
+        .lib-applies { color:#94a3b8; }
+        .lib-penalty { display:flex; align-items:flex-start; gap:5px; margin-top:9px;
+            font-size:10.5px; line-height:1.45; color:#b45309; background:#fffbeb;
+            border:1px solid #fde68a; border-radius:8px; padding:6px 8px; }
+        .lib-penalty svg { color:#d97706; margin-top:1px; }
+        .lib-src { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600;
+            color:var(--rc); text-decoration:none; padding:3px 9px; border-radius:7px;
+            background: color-mix(in srgb, var(--rc) 8%, transparent); transition: background .15s ease; }
+        .lib-src:hover { background: color-mix(in srgb, var(--rc) 16%, transparent); }
+
+        /* ── XBRL utilities ── */
+        .xbrl-card { background:#fff; border:1px solid #e8ecf4; border-radius:14px; padding:15px;
+            transition: transform .14s ease, box-shadow .18s ease, border-color .18s ease; display:flex; flex-direction:column; }
+        .xbrl-card:hover { transform:translateY(-2px); border-color:#c7d2fe;
+            box-shadow:0 12px 28px -16px rgba(79,70,229,0.3); }
+        .xbrl-card.is-new { border-color: rgba(16,185,129,0.4); background: linear-gradient(180deg, rgba(16,185,129,0.04), #fff 60%); }
+        .xbrl-new-badge { font-size:9px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+            color:#fff; background:#10b981; padding:2px 7px; border-radius:999px; }
+        .xbrl-cat { font-size:10px; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:6px; }
+        .xbrl-date { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:#475569; }
+        .xbrl-date svg { width:13px; height:13px; color:#94a3b8; }
+        .xbrl-dl { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
+            color:#4f46e5; background:rgba(99,102,241,0.08); padding:5px 11px; border-radius:9px; text-decoration:none;
+            transition: background .15s ease; }
+        .xbrl-dl:hover { background:rgba(99,102,241,0.16); }
+        .xbrl-pill { --c:#4f46e5; display:inline-flex; align-items:center; gap:6px; padding:6px 13px; border-radius:999px;
+            font-size:12.5px; font-weight:600; color:#475569; background:#fff; border:1.5px solid #eef1f7; cursor:pointer;
+            transition: transform .12s ease, background .18s ease, color .18s ease, border-color .18s ease; }
+        .xbrl-pill:hover { transform:translateY(-1px); border-color:#cbd5e1; }
+        .xbrl-pill.active { background:#4f46e5; border-color:#4f46e5; color:#fff; box-shadow:0 6px 16px -6px rgba(79,70,229,.5); }
+        .xbrl-pill-ct { font-size:10.5px; font-weight:700; background:#f1f5f9; color:#94a3b8; padding:1px 7px; border-radius:999px; }
+        .xbrl-pill.active .xbrl-pill-ct { background:rgba(255,255,255,0.25); color:#fff; }
+    </style>
+</head>
+<body class="bg-slate-50 text-gray-900">
+
+<div class="flex h-screen overflow-hidden">
+    {% set active_page = 'compliance' %}
+    {% include 'sidebar.html' %}
+
+    <main class="flex-1 overflow-y-auto">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="page-title">Compliance</h2>
+                    <p class="page-subtitle">SEBI LODR obligations, verified against NSE &amp; BSE filings, for your watchlist</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div id="sync-info" class="text-right">
+                        <div id="last-synced" class="text-[10px] text-gray-400"></div>
+                        <div id="validation-badge"></div>
+                    </div>
+                    <button onclick="refreshCompliance()" id="refresh-btn" class="btn btn-primary">
+                        <svg id="refresh-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Refresh All
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading-state" class="flex items-center justify-center py-20">
+            <div class="text-center">
+                <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <p class="text-sm text-gray-500">Loading compliance data...</p>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard-content" class="hidden">
+
+            <!-- ── Hero band: posture · stats · FY progress ── -->
+            <div class="px-8 pt-6 grid grid-cols-1 lg:grid-cols-4 gap-3">
+                <!-- On-time posture -->
+                <div class="hero-card flex items-center gap-4">
+                    <div class="score-ring" id="posture-ring" style="background: conic-gradient(#e2e8f0 0deg, #f1f5f9 0)">
+                        <span class="score-value" id="posture-pct" style="color:#94a3b8">—</span>
+                    </div>
+                    <div>
+                        <div class="posture-num" id="posture-label" style="font-size:20px; color:#0f172a">On-time rate</div>
+                        <div class="posture-sub" id="posture-detail">across resolved obligations</div>
+                    </div>
+                </div>
+                <!-- Stat row spans 2 -->
+                <div class="lg:col-span-2 grid grid-cols-5 gap-2" id="stats-row"></div>
+                <!-- FY progress -->
+                <div class="hero-card">
+                    <div class="flex items-baseline justify-between mb-1">
+                        <span class="text-sm font-bold text-gray-700" id="fy-quarter">—</span>
+                        <span class="text-xs text-gray-400" id="fy-days"></span>
+                    </div>
+                    <div class="fy-bar"><div id="fy-progress" style="width:0%"></div></div>
+                    <p class="text-xs text-gray-400 mt-2.5" id="fy-next-due">&nbsp;</p>
+                </div>
+            </div>
+
+            <!-- ── Deadline timeline (next 90 days) ── -->
+            <div class="px-8 pt-4">
+                <div class="hero-card">
+                    <div class="flex items-center justify-between">
+                        <div class="text-[11px] font-bold uppercase tracking-widest text-gray-400">Deadline runway · next 90 days</div>
+                        <div class="flex items-center gap-3 text-[11px] font-semibold text-gray-400">
+                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#dc2626"></span> overdue</span>
+                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#d97706"></span> ≤ 7 days</span>
+                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#4f46e5"></span> later</span>
+                        </div>
+                    </div>
+                    <div class="dl-timeline" id="dl-timeline"></div>
+                </div>
+            </div>
+
+            <!-- Company Health Cards -->
+            <div class="px-8 pt-4">
+                <div class="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">Company Compliance Health</div>
+                <div id="score-cards" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3"></div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="px-8 pt-5">
+                <div class="flex items-center gap-1.5 bg-white rounded-xl p-1.5 shadow-sm border border-gray-100 overflow-x-auto">
+                    <button class="tab-btn active" onclick="switchTab('company', this)">By Company</button>
+                    <button class="tab-btn" onclick="switchTab('upcoming', this)">Upcoming <span id="tab-count-upcoming" class="text-[10px] opacity-70"></span></button>
+                    <button class="tab-btn" onclick="switchTab('overdue', this)">Overdue <span id="tab-count-overdue" class="text-[10px] opacity-70"></span></button>
+                    <button class="tab-btn" onclick="switchTab('completed', this)">Completed <span id="tab-count-completed" class="text-[10px] opacity-70"></span></button>
+                    <button class="tab-btn" id="tab-btn-all" onclick="switchTab('all', this)">All Obligations</button>
+                    <button class="tab-btn" onclick="switchTab('mandates', this)">Compliance Library</button>
+                    <button class="tab-btn" onclick="switchTab('xbrl', this)">XBRL Utilities <span id="tab-count-xbrl" class="text-[10px] opacity-70"></span></button>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="px-8 py-5">
+                <!-- ── By Company: A-to-Z compliance for one company ── -->
+                <div id="tab-company" class="tab-content">
+                    <!-- Company picker -->
+                    <div class="relative max-w-lg mb-5" id="cprof-wrap">
+                        <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input id="cprof-search" type="text" autocomplete="off" placeholder="Pick a company to see every filing it owes…"
+                               oninput="cprofSearch()"
+                               class="w-full pl-10 pr-3 py-3 text-sm bg-white border border-gray-200 rounded-2xl shadow-sm focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50">
+                        <div id="cprof-results" class="hidden absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-2xl shadow-xl z-30 max-h-72 overflow-y-auto p-2"></div>
+                    </div>
+
+                    <!-- Empty prompt -->
+                    <div id="cprof-empty" class="text-center py-16">
+                        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 mb-4">
+                            <svg class="w-7 h-7 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        </div>
+                        <p class="text-gray-700 font-semibold text-sm">Select a company above</p>
+                        <p class="text-gray-400 text-xs mt-1 max-w-md mx-auto">See the complete A-to-Z compliance map — SEBI, Companies Act, sector-specific (environmental, carbon credits, licences) and cross-border filings tailored to its industry.</p>
+                    </div>
+
+                    <!-- Profile output -->
+                    <div id="cprof-out" class="hidden">
+                        <div class="flex items-center gap-3 mb-4" id="cprof-head"></div>
+                        <div id="cprof-stats" class="flex flex-wrap gap-2 mb-5"></div>
+                        <div id="cprof-groups" class="space-y-7"></div>
+                    </div>
+                    <div id="cprof-loading" class="hidden text-center py-16">
+                        <svg class="animate-spin h-7 w-7 text-indigo-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        <p class="text-sm text-gray-500">Building the compliance map…</p>
+                    </div>
+                </div>
+
+                <div id="tab-upcoming" class="tab-content hidden">
+                    <div id="upcoming-list" class="space-y-3"></div>
+                    <div id="upcoming-empty" class="hidden text-center py-12">
+                        <svg class="w-12 h-12 text-green-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <p class="text-gray-500 text-sm">No upcoming obligations in the next 30 days</p>
+                    </div>
+                </div>
+                <div id="tab-overdue" class="tab-content hidden">
+                    <div id="overdue-list" class="space-y-3"></div>
+                    <div id="overdue-empty" class="hidden text-center py-12">
+                        <svg class="w-12 h-12 text-green-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <p class="text-gray-500 text-sm">No overdue obligations — all companies are compliant!</p>
+                    </div>
+                </div>
+                <div id="tab-completed" class="tab-content hidden">
+                    <div id="completed-list" class="space-y-3"></div>
+                    <div id="completed-empty" class="hidden text-center py-12">
+                        <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        <p class="text-gray-500 text-sm">No completed filings found</p>
+                    </div>
+                </div>
+                <div id="tab-all" class="tab-content hidden">
+                    <div class="flex items-center gap-3 mb-4">
+                        <select id="filter-company" onchange="filterTable()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white"><option value="">All Companies</option></select>
+                        <select id="filter-status" onchange="filterTable()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="submitted">Submitted</option>
+                            <option value="delayed">Delayed</option>
+                            <option value="missed">Missed</option>
+                            <option value="unverified">Confirm at source</option>
+                        </select>
+                        <select id="filter-category" onchange="filterTable()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                            <option value="">All Categories</option>
+                            <option value="Disclosure">Disclosure</option>
+                            <option value="Periodic">Periodic</option>
+                            <option value="Financial">Financial</option>
+                            <option value="Governance">Governance</option>
+                            <option value="Compliance">Compliance</option>
+                            <option value="Investor Relations">Investor Relations</option>
+                            <option value="Insider Trading">Insider Trading</option>
+                        </select>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                            <table class="compliance-table w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Company</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Mandate</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Due Date</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Proof</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Delay</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="obligations-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div id="tab-mandates" class="tab-content hidden">
+                    <div class="flex items-start justify-between gap-3 flex-wrap mb-4">
+                        <p class="text-sm text-gray-500 max-w-2xl">Every statutory filing an Indian company may owe — SEBI (LODR / PIT / SAST), MCA / Companies Act ROC e-forms, FEMA / RBI, and Tax &amp; Labour. Each card shows the form, frequency, due date, penalty for default, and the official source. <span class="text-gray-400">This is your master compliance calendar.</span></p>
+                        <div class="relative flex-shrink-0">
+                            <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <input id="lib-search" type="search" placeholder="Search filings, forms, sections…" oninput="filterLibrary()"
+                                   class="w-64 pl-9 pr-3 py-2 text-sm bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50">
+                        </div>
+                    </div>
+                    <!-- Regime filter pills -->
+                    <div class="flex flex-wrap gap-2 mb-5" id="lib-regime-pills"></div>
+                    <!-- Grouped library -->
+                    <div id="mandates-grid" class="space-y-7"></div>
+                    <div id="lib-empty" class="hidden text-center py-12 text-sm text-gray-400">No filings match your search.</div>
+                </div>
+
+                <!-- ── XBRL Utilities ── -->
+                <div id="tab-xbrl" class="tab-content hidden">
+                    <div class="flex items-start justify-between gap-3 flex-wrap mb-4">
+                        <div class="max-w-2xl">
+                            <p class="text-sm text-gray-600">Latest NSE XBRL filing utilities &amp; taxonomies. NSE updates these <span class="font-semibold text-gray-800">without notice</span> — filing with an outdated version draws exchange objections. Always download the current one before you file.</p>
+                            <p id="xbrl-meta" class="text-xs text-gray-400 mt-1"></p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <div class="relative">
+                                <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                <input id="xbrl-search" type="search" placeholder="Search utilities…" oninput="renderXbrl()"
+                                       class="w-56 pl-9 pr-3 py-2 text-sm bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50">
+                            </div>
+                            <button onclick="loadXbrl(true)" id="xbrl-refresh" class="topbar-icon" title="Re-check NSE now"
+                                    style="width:38px;height:38px;border:1px solid #e8ecf4;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;color:#64748b;background:#fff;cursor:pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mb-5" id="xbrl-cat-pills"></div>
+                    <div id="xbrl-loading" class="text-center py-12">
+                        <svg class="animate-spin h-7 w-7 text-indigo-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        <p class="text-sm text-gray-500">Fetching latest utilities from NSE…</p>
+                    </div>
+                    <div id="xbrl-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+                    <div id="xbrl-empty" class="hidden text-center py-12 text-sm text-gray-400">No utilities match your search.</div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+let _dashData = null;
+let _enfPollTimer = null;
+
+// Local logos + per-symbol avatar colors injected by the server.
+const LOGO_MAP = {{ (logo_map or {}) | tojson }};
+const AVATAR_COLORS = {{ (avatar_colors or {}) | tojson }};
+
+function coLogoHTML(symbol) {
+    const url = LOGO_MAP[symbol];
+    if (url) return `<img src="${url}" alt="" class="co-logo">`;
+    const color = AVATAR_COLORS[symbol] || '#4f46e5';
+    return `<span class="co-letter" style="background:${color}">${symbol[0]}</span>`;
+}
+
+// ── Load ──
+function loadDashboard() {
+    fetch('/api/compliance')
+        .then(r => r.json())
+        .then(data => {
+            _dashData = data;
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('dashboard-content').classList.remove('hidden');
+
+            renderSyncInfo(data);
+            renderPosture(data);
+            renderStats(data);
+            renderFyProgress(data);
+            renderTimeline(data);
+            renderScoreCards(data);
+            renderUpcoming(data.upcoming || []);
+            renderOverdue(data.overdue || []);
+            renderCompleted(data.completed || []);
+            renderAllTable(data.all || []);
+            renderMandates(data.mandates || []);
+            populateFilters(data.all || []);
+            updateTabCounts(data);
+
+            const stillLoading = Object.values(data.company_scores || {})
+                .some(c => (c.enforcement && c.enforcement.loading) || c.compliance_loading);
+            if (_enfPollTimer) { clearTimeout(_enfPollTimer); _enfPollTimer = null; }
+            if (stillLoading) _enfPollTimer = setTimeout(loadDashboard, 6000);
+        })
+        .catch(() => {
+            document.getElementById('loading-state').innerHTML = `
+                <div class="text-center py-20">
+                    <svg class="w-12 h-12 text-red-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                    <p class="text-gray-500 text-sm">Failed to load compliance data</p>
+                    <button onclick="loadDashboard()" class="btn btn-primary mt-4 text-sm">Retry</button>
+                </div>`;
+        });
+}
+
+function refreshCompliance() {
+    const btn = document.getElementById('refresh-btn');
+    const icon = document.getElementById('refresh-icon');
+    btn.disabled = true; icon.classList.add('animate-spin');
+    fetch('/api/compliance/refresh', { method: 'POST' })
+        .then(r => r.json())
+        .then(() => { loadDashboard(); btn.disabled = false; icon.classList.remove('animate-spin'); })
+        .catch(() => { btn.disabled = false; icon.classList.remove('animate-spin'); });
+}
+
+// ── Sync & Validation ──
+function renderSyncInfo(data) {
+    const syncEl = document.getElementById('last-synced');
+    const valEl = document.getElementById('validation-badge');
+    if (data.last_synced) {
+        const d = new Date(data.last_synced);
+        syncEl.textContent = 'Last synced: ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    } else syncEl.textContent = 'Not synced yet';
+
+    const v = data.validation || {};
+    valEl.innerHTML = v.is_valid
+        ? '<span class="validation-ok"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Data reconciled</span>'
+        : `<span class="validation-fail"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/></svg> Data mismatch (${v.bucket_sum || '?'}/${v.total || '?'})</span>`;
+}
+
+// ── Posture ring: on-time rate across resolved obligations ──
+function renderPosture(data) {
+    const all = data.all || [];
+    const resolved = all.filter(o => ['submitted', 'delayed', 'missed'].includes(o.status));
+    const ring = document.getElementById('posture-ring');
+    const pctEl = document.getElementById('posture-pct');
+    const detail = document.getElementById('posture-detail');
+
+    if (!resolved.length) {
+        pctEl.textContent = '—'; pctEl.style.color = '#94a3b8';
+        detail.textContent = 'no resolved obligations yet';
+        return;
+    }
+    const onTime = resolved.filter(o => o.status === 'submitted').length;
+    const pct = Math.round(onTime / resolved.length * 100);
+    const color = pct >= 90 ? '#059669' : pct >= 70 ? '#d97706' : '#dc2626';
+    pctEl.textContent = pct + '%';
+    pctEl.style.color = color;
+    ring.style.background = `conic-gradient(${color} ${pct * 3.6}deg, #f1f5f9 0)`;
+    detail.textContent = `${onTime} of ${resolved.length} resolved filings on time`;
+}
+
+// ── Stats row ──
+function renderStats(data) {
+    const v = data.validation || {};
+    document.getElementById('stats-row').innerHTML = `
+        ${statCard('Total', v.total || 0, '#4f46e5', '#eef2ff')}
+        ${statCard('Upcoming', v.upcoming_count || 0, '#d97706', '#fffbeb', '30d')}
+        ${statCard('Overdue', v.overdue_count || 0, (v.overdue_count || 0) > 0 ? '#dc2626' : '#059669', (v.overdue_count || 0) > 0 ? '#fef2f2' : '#ecfdf5')}
+        ${statCard('Done', v.completed_count || 0, '#059669', '#ecfdf5')}
+        ${statCard('Future', v.future_count || 0, '#6366f1', '#eef2ff', '>30d')}`;
+}
+function statCard(label, value, color, bg, subtitle) {
+    const sub = subtitle ? `<span class="text-[10px] font-normal text-gray-400 lowercase ml-0.5">${subtitle}</span>` : '';
+    return `<div class="hero-card !p-4 text-center flex flex-col justify-center">
+        <p class="text-3xl font-extrabold" style="color:${color}">${value}</p>
+        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-tight mt-1">${label}${sub}</p>
+    </div>`;
+}
+
+// ── FY quarter progress ──
+function renderFyProgress(data) {
+    const now = new Date();
+    const m = now.getMonth() + 1;
+    let qNum, qStart, qEnd, fy;
+    if (m <= 3)      { qNum = 4; qStart = new Date(now.getFullYear(), 0, 1);  qEnd = new Date(now.getFullYear(), 2, 31); fy = now.getFullYear() - 1; }
+    else if (m <= 6) { qNum = 1; qStart = new Date(now.getFullYear(), 3, 1);  qEnd = new Date(now.getFullYear(), 5, 30); fy = now.getFullYear(); }
+    else if (m <= 9) { qNum = 2; qStart = new Date(now.getFullYear(), 6, 1);  qEnd = new Date(now.getFullYear(), 8, 30); fy = now.getFullYear(); }
+    else             { qNum = 3; qStart = new Date(now.getFullYear(), 9, 1);  qEnd = new Date(now.getFullYear(), 11, 31); fy = now.getFullYear(); }
+
+    const totalDays = Math.round((qEnd - qStart) / 86400000) + 1;
+    const dayNum = Math.min(totalDays, Math.round((now - qStart) / 86400000) + 1);
+    document.getElementById('fy-quarter').textContent = `Q${qNum} FY${fy}-${String(fy + 1).slice(-2)}`;
+    document.getElementById('fy-days').textContent = `day ${dayNum} of ${totalDays}`;
+    document.getElementById('fy-progress').style.width = Math.round(dayNum / totalDays * 100) + '%';
+
+    // Next due obligation across watchlist
+    const pendings = (data.all || []).filter(o => o.status === 'pending' && o.days_remaining !== null && o.days_remaining >= 0)
+        .sort((a, b) => a.days_remaining - b.days_remaining);
+    const nd = pendings[0];
+    document.getElementById('fy-next-due').innerHTML = nd
+        ? `Next due: <b class="text-gray-600">${nd.symbol}</b> · ${nd.mandate_name.split('—')[0].trim()} · <b class="text-gray-600">${nd.days_remaining}d</b>`
+        : 'No pending deadlines on the runway.';
+}
+
+// ── Deadline timeline: -7 → +90 days ──
+function renderTimeline(data) {
+    const host = document.getElementById('dl-timeline');
+    const MIN_D = -7, MAX_D = 90;
+    const span = MAX_D - MIN_D;
+    const pos = (d) => ((Math.max(MIN_D, Math.min(MAX_D, d)) - MIN_D) / span * 100);
+
+    // Collect unresolved obligations in window, grouped by due date.
+    const items = (data.all || []).filter(o =>
+        ['pending', 'missed', 'unverified'].includes(o.status)
+        && o.days_remaining !== null && o.days_remaining >= MIN_D && o.days_remaining <= MAX_D);
+
+    const byDate = new Map();
+    items.forEach(o => {
+        if (!byDate.has(o.due_date)) byDate.set(o.due_date, []);
+        byDate.get(o.due_date).push(o);
+    });
+
+    let html = `<div class="dl-axis"></div><div class="dl-today" style="left:${pos(0)}%"></div>`;
+    // Ticks
+    [[0, 'Today'], [30, '+30d'], [60, '+60d'], [90, '+90d']].forEach(([d, label]) => {
+        html += `<div class="dl-tick" style="left:${pos(d)}%">${label}</div>`;
+    });
+
+    for (const [dueDate, obs] of byDate) {
+        const dr = obs[0].days_remaining;
+        const color = dr < 0 ? '#dc2626' : dr <= 7 ? '#d97706' : '#4f46e5';
+        const names = obs.slice(0, 4).map(o => `${o.symbol} · ${o.mandate_name.split('—')[0].trim()}`).join('<br>');
+        const more = obs.length > 4 ? `<br>+${obs.length - 4} more` : '';
+        const dateLabel = new Date(dueDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        html += `<div class="dl-marker" style="left:${pos(dr)}%" onclick="jumpToAll('${dueDate}')">
+            <span class="dl-tip"><b>${dateLabel}</b> · ${obs.length} due<br>${names}${more}</span>
+            <span class="dl-dot" style="background:${color}">${obs.length > 1 ? obs.length : ''}</span>
+        </div>`;
+    }
+
+    if (!byDate.size) {
+        html += `<div style="position:absolute; top:8px; left:50%; transform:translateX(-50%)" class="text-[11px] text-gray-400">
+            Nothing due in the next 90 days 🎉</div>`;
+    }
+    host.innerHTML = html;
+}
+
+function jumpToAll(dueDate) {
+    switchTab('all', document.getElementById('tab-btn-all'));
+    // No per-date filter control — scroll the table to the first matching row and flash it.
+    setTimeout(() => {
+        const row = document.querySelector(`.obligation-row[data-due="${dueDate}"]`);
+        if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.style.transition = 'background 0.4s';
+            row.style.background = '#eef2ff';
+            setTimeout(() => { row.style.background = ''; }, 1600);
+        }
+    }, 120);
+}
+
+// ── Company Score Cards ──
+function renderScoreCards(data) {
+    const scores = data.company_scores || {};
+    const all = data.all || [];
+    const container = document.getElementById('score-cards');
+    const entries = Object.entries(scores);
+    if (!entries.length) { container.innerHTML = '<p class="text-sm text-gray-400 col-span-full">No companies on watchlist</p>'; return; }
+
+    container.innerHTML = entries.map(([symbol, info]) => {
+        const score = info.score;
+        const history = info.history || {};
+        const tag = info.health_tag || 'unknown';
+        const tagLabels = { critical: 'Critical', at_risk: 'At Risk', stable: 'Stable', unknown: 'No Data' };
+        const tagColors = { critical: '#dc2626', at_risk: '#d97706', stable: '#059669', unknown: '#94a3b8' };
+        const ringColor = score !== null ? tagColors[tag] : '#e2e8f0';
+        const ringDeg = score !== null ? score * 3.6 : 0;
+
+        const sub = history.submitted || 0, del = history.delayed || 0,
+              mis = history.missed || 0, pen = history.pending || 0, unv = history.unverified || 0;
+        const denom = Math.max(1, sub + del + mis + pen + unv);
+        const stack = (n, c) => n ? `<div style="width:${n / denom * 100}%; background:${c}"></div>` : '';
+
+        // Next due for this company
+        const next = all.filter(o => o.symbol === symbol && o.status === 'pending' && o.days_remaining !== null && o.days_remaining >= 0)
+            .sort((a, b) => a.days_remaining - b.days_remaining)[0];
+        let nextChip = '';
+        if (next) {
+            const c = next.days_remaining <= 7 ? ['#fef2f2', '#dc2626'] : next.days_remaining <= 30 ? ['#fffbeb', '#d97706'] : ['#f1f5f9', '#64748b'];
+            nextChip = `<span class="next-due-chip" style="background:${c[0]}; color:${c[1]}">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3"/></svg>
+                next in ${next.days_remaining}d</span>`;
+        }
+
+        const enfBanner = renderEnforcementBanner(symbol, info.enforcement || { total: 0 });
+        const loadingNote = info.compliance_loading
+            ? '<p class="text-[11px] text-indigo-500 mt-1.5 animate-pulse">building obligations…</p>' : '';
+
+        return `
+        <div class="health-card health-${tag}">
+            <div class="flex items-center gap-3 mb-3">
+                ${coLogoHTML(symbol)}
+                <div class="flex-1 min-w-0">
+                    <a href="/company/${symbol}" class="font-bold text-gray-900 text-sm hover:text-indigo-600 truncate block">${symbol}</a>
+                    <span class="health-label text-[10px] font-bold uppercase">${tagLabels[tag]}</span>
+                </div>
+                <div class="score-ring" style="width:56px;height:56px;background: conic-gradient(${ringColor} ${ringDeg}deg, #f1f5f9 0)">
+                    <span class="score-value" style="font-size:16px;color:${ringColor}">${score !== null ? score : '—'}</span>
+                </div>
+            </div>
+            <div class="mini-stack mb-2">
+                ${stack(sub, '#10b981')}${stack(del, '#f59e0b')}${stack(mis, '#ef4444')}${stack(unv, '#8b5cf6')}${stack(pen, '#e2e8f0')}
+            </div>
+            <div class="flex items-center justify-between gap-1 flex-wrap">
+                <span class="text-[11px] text-gray-400">${sub} ok · ${del} late · ${mis} missed</span>
+                ${nextChip}
+            </div>
+            ${loadingNote}
+            <div class="mt-2">${enfBanner}</div>
+        </div>`;
+    }).join('');
+}
+
+// ── SEBI Enforcement Banner ──
+function renderEnforcementBanner(symbol, enf) {
+    const high = enf.high || 0, total = enf.total || 0;
+    if (enf.loading) {
+        return `<span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded bg-indigo-50 text-indigo-600">
+            <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            Pulling SEBI history…</span>`;
+    }
+    if (total === 0) {
+        return `<button onclick="openEnforcementModal('${symbol}')" class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            No SEBI actions</button>`;
+    }
+    if (high > 0) {
+        return `<button onclick="openEnforcementModal('${symbol}')" class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 transition">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            ${high} SEBI order${high === 1 ? '' : 's'}</button>`;
+    }
+    return `<button onclick="openEnforcementModal('${symbol}')" class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded bg-amber-50 text-amber-700 hover:bg-amber-100 transition">
+        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+        ${total} possibly related</button>`;
+}
+
+// ── SEBI Enforcement Modal ──
+function openEnforcementModal(symbol) {
+    let modal = document.getElementById('enf-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'enf-modal';
+        modal.className = 'fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl w-[min(720px,92vw)] max-h-[85vh] overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h3 id="enf-modal-title" class="text-base font-bold text-gray-900"></h3>
+                        <p id="enf-modal-sub" class="text-xs text-gray-500 mt-0.5"></p>
+                    </div>
+                    <button onclick="closeEnforcementModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+                </div>
+                <div id="enf-modal-body" class="flex-1 overflow-y-auto p-5"></div>
+            </div>`;
+        modal.addEventListener('click', e => { if (e.target === modal) closeEnforcementModal(); });
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    document.getElementById('enf-modal-title').textContent = `SEBI Enforcement History — ${symbol}`;
+    document.getElementById('enf-modal-sub').textContent = 'Loading from sebi.gov.in…';
+    document.getElementById('enf-modal-body').innerHTML = `
+        <div class="flex items-center justify-center py-10">
+            <svg class="animate-spin h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+        </div>`;
+
+    fetch(`/api/compliance/enforcement/${encodeURIComponent(symbol)}`)
+        .then(r => r.json())
+        .then(data => renderEnforcementModalBody(symbol, data))
+        .catch(() => {
+            document.getElementById('enf-modal-body').innerHTML =
+                '<p class="text-sm text-red-600">Failed to load enforcement history. Try again.</p>';
+        });
+}
+
+function closeEnforcementModal() {
+    const m = document.getElementById('enf-modal');
+    if (m) m.classList.add('hidden');
+}
+
+function renderEnforcementModalBody(symbol, data) {
+    const sub = document.getElementById('enf-modal-sub');
+    const body = document.getElementById('enf-modal-body');
+    const total = data.total || 0;
+    const high = data.high_confidence || 0;
+    const med = data.medium_confidence || 0;
+    const low = data.low_confidence || 0;
+    const last = data.last_action_date;
+
+    if (total === 0) {
+        sub.textContent = 'Source: sebi.gov.in/enforcement/orders';
+        body.innerHTML = `
+            <div class="text-center py-12">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 mb-4">
+                    <svg class="w-8 h-8 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                </div>
+                <p class="text-base font-semibold text-gray-900">No SEBI enforcement actions on record</p>
+                <p class="text-xs text-gray-500 mt-1">Searched Adjudication, Settlement, Chairperson, Quasi-Judicial &amp; SAT orders.</p>
+                <button onclick="forceRefreshEnforcement('${symbol}')" class="mt-4 text-xs text-indigo-600 hover:underline">Re-check now</button>
+            </div>`;
+        return;
+    }
+
+    sub.innerHTML = `${high} confirmed &middot; ${med} contextual &middot; ${low} ambiguous` +
+        (last ? ` &middot; latest ${last}` : '') +
+        ` &middot; <button onclick="forceRefreshEnforcement('${symbol}')" class="text-indigo-600 hover:underline">refresh</button>`;
+
+    const groups = { high: [], medium: [], low: [] };
+    for (const a of (data.actions || [])) groups[a.confidence || 'low']?.push(a);
+
+    const sectionHTML = (label, list, badgeClass, helpText) => {
+        if (!list.length) return '';
+        return `
+            <div class="mb-5">
+                <div class="flex items-center gap-2 mb-2">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-700">${label}</h4>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded ${badgeClass}">${list.length}</span>
+                </div>
+                ${helpText ? `<p class="text-[11px] text-gray-500 mb-2">${helpText}</p>` : ''}
+                <ul class="space-y-2">
+                    ${list.map(a => `
+                        <li class="border border-gray-200 rounded-lg p-3 hover:border-indigo-200 transition">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <a href="${a.url}" target="_blank" rel="noopener" class="text-sm font-semibold text-gray-900 hover:text-indigo-600 block">${escapeHTML(a.title)}</a>
+                                    <p class="text-[11px] text-gray-500 mt-1">${a.category_label || a.category} &middot; ${a.order_date || 'date unknown'}</p>
+                                </div>
+                                <a href="${a.url}" target="_blank" rel="noopener" class="text-indigo-600 hover:text-indigo-800 flex-shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                </a>
+                            </div>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>`;
+    };
+
+    body.innerHTML =
+        sectionHTML('Confirmed actions against ' + symbol, groups.high, 'bg-red-100 text-red-700',
+                    'These orders name the company directly as the subject of SEBI action.') +
+        sectionHTML('Contextual mentions', groups.medium, 'bg-amber-100 text-amber-700',
+                    'The company name appears in the order, but not as the primary subject.') +
+        sectionHTML('Ambiguous', groups.low, 'bg-gray-100 text-gray-600',
+                    'Search match by partial name — verify before relying on these.');
+}
+
+function forceRefreshEnforcement(symbol) {
+    const sub = document.getElementById('enf-modal-sub');
+    if (sub) sub.textContent = 'Refreshing from sebi.gov.in…';
+    fetch(`/api/compliance/enforcement/${encodeURIComponent(symbol)}/refresh`, { method: 'POST' })
+        .then(r => r.json())
+        .then(resp => { if (resp.data) renderEnforcementModalBody(symbol, resp.data); })
+        .then(() => loadDashboard());
+}
+
+function escapeHTML(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Evidence badge: verified against N live sources ──
+function evidenceBadge(ob) {
+    const ev = ob.evidence || [];
+    if (!ev.length) return '';
+    const responded = ev.filter(e => e.responded).length;
+    const matched = ev.filter(e => e.match).length;
+    if (!matched) return '';
+    const conf = ob.confidence === 'high' ? 'verified' : 'matched';
+    return `<span class="evidence-badge" title="Checked ${responded} exchange sources; ${matched} returned a matching filing.">
+        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+        ${conf} · ${responded} sources</span>`;
+}
+
+// ── Obligation Card ──
+function obligationCard(ob) {
+    const statusColors = { pending: 'status-pending', submitted: 'status-submitted', delayed: 'status-delayed', missed: 'status-missed', unverified: 'status-unverified' };
+    // An obligation Delta cannot verify from its own feeds is not an
+    // exception — it is confirmed at the authority it was filed with.
+    const _vr = ob.verification || null;
+    const statusLabels = { unverified: _vr && !_vr.auto ? 'Confirm at source' : 'Verify', pending: 'Pending' };
+
+    let countdown = '';
+    const dr = ob.days_remaining;
+    const pastDueUnmatched = (ob.status === 'unverified' || ob.status === 'pending')
+                             && dr !== null && dr < 0;
+
+    if (pastDueUnmatched) {
+        // Only `missed` means we confirmed nothing was filed. Everything else
+        // past its date is awaiting confirmation, and for MCA/tax/RBI filings
+        // that confirmation was never going to come from an exchange feed.
+        countdown = _vr && !_vr.auto
+            ? `<span class="text-gray-500 text-xs">Confirm on ${_vr.where}</span>`
+            : `<span class="text-violet-600 text-xs font-medium">Awaiting confirmation</span>`;
+    } else if (ob.status === 'missed' && dr !== null && dr < 0) {
+        countdown = `<span class="text-red-600 font-bold text-xs countdown-urgent">${Math.abs(dr)}d overdue</span>`;
+    } else if (ob.status === 'pending' && dr !== null) {
+        if (dr === 0) countdown = '<span class="text-red-600 font-bold text-xs countdown-urgent">Due today!</span>';
+        else if (dr <= 7) countdown = `<span class="text-amber-600 font-bold text-xs countdown-urgent">${dr}d remaining</span>`;
+        else countdown = `<span class="text-gray-500 text-xs">${dr}d remaining</span>`;
+    }
+
+    const sourceLink = (pastDueUnmatched && _vr && _vr.url)
+        ? `<a href="${_vr.url}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline text-xs font-medium">${_vr.action} \u2197</a>`
+        : '';
+    const proofLink = ob.filing_url
+        ? `<a href="${ob.filing_url}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline text-xs font-medium">View filing ↗</a>`
+        : (ob.filing_id ? `<a href="/company/${ob.symbol}" class="text-indigo-600 hover:underline text-xs font-medium">Filing #${ob.filing_id}</a>` : '');
+    const delayBadge = ob.status === 'delayed' && ob.delay_days > 0 ? `<span class="text-amber-600 text-xs font-medium">+${ob.delay_days}d late</span>` : '';
+    const sebiLink = ob.sebi_source ? `<a href="${ob.sebi_source}" target="_blank" rel="noopener" class="sebi-link" title="${ob.section_ref || ''}">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        SEBI Source</a>` : '';
+
+    return `
+    <div class="mandate-card">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${coLogoHTML(ob.symbol).replace('co-logo', 'co-logo !w-4 !h-4 !p-0 !border-0').replace('co-letter', 'co-letter !w-4 !h-4 !text-[8px]')} ${ob.symbol}</span>
+                    <span class="text-xs font-medium text-gray-400">${ob.mandate_category}</span>
+                    ${sebiLink}
+                    ${evidenceBadge(ob)}
+                </div>
+                <p class="font-semibold text-gray-900 text-[15px] mt-2">${ob.mandate_name}</p>
+                <p class="text-xs text-gray-400 mt-0.5">${ob.regulation} &middot; ${ob.period}${ob.section_ref ? ' &middot; ' + ob.section_ref : ''}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <span class="${statusColors[ob.status] || 'status-pending'} status-badge">${statusLabels[ob.status] || ob.status}</span>
+                <div class="mt-2">${countdown}</div>
+            </div>
+        </div>
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+            <div class="flex items-center gap-4">
+                <span class="text-xs text-gray-500">Due: <strong class="text-gray-700">${formatDate(ob.due_date)}</strong></span>
+                ${ob.filed_date ? `<span class="text-xs text-gray-500">Filed: <strong class="text-gray-700">${formatDate(ob.filed_date)}</strong></span>` : ''}
+                ${delayBadge}
+            </div>
+            <div class="flex items-center gap-3">${proofLink}${sourceLink}</div>
+        </div>
+    </div>`;
+}
+
+// ── Render Sections ──
+function renderList(items, listId, emptyId) {
+    const el = document.getElementById(listId);
+    const empty = document.getElementById(emptyId);
+    if (!items.length) { el.innerHTML = ''; empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+    el.innerHTML = items.map(o => obligationCard(o)).join('');
+}
+function renderUpcoming(items) { renderList(items, 'upcoming-list', 'upcoming-empty'); }
+function renderOverdue(items) { renderList(items, 'overdue-list', 'overdue-empty'); }
+function renderCompleted(items) { renderList(items, 'completed-list', 'completed-empty'); }
+// Group the verification queue by how each obligation can actually be
+// confirmed. Reporting an MCA form as "no filing data" implies Delta lost
+// something, when in fact that filing never reaches the exchanges at all.
+const _VERIFY_ORDER = ['exchange', 'mca', 'rbi', 'tax', 'other'];
+
+function renderUnverified(items) {
+    const host = document.getElementById('unverified-grouped');
+    const empty = document.getElementById('unverified-empty');
+    if (!items.length) { host.innerHTML = ''; empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+
+    const groups = {};
+    items.forEach(ob => {
+        const v = ob.verification || { key: 'other', label: 'Other', auto: false,
+                                       where: 'the relevant authority', how: '', url: '', action: 'Mark confirmed' };
+        (groups[v.key] = groups[v.key] || { v, list: [] }).list.push(ob);
+    });
+
+    host.innerHTML = _VERIFY_ORDER.filter(k => groups[k]).map(k => {
+        const { v, list } = groups[k];
+        const rows = list.map(ob => `
+            <div class="flex items-start justify-between gap-4 py-2.5 border-b border-gray-50 last:border-0">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <a href="/company/${ob.symbol}" class="text-[11px] font-bold text-indigo-600 hover:underline">${ob.symbol}</a>
+                        <span class="text-xs font-medium text-gray-900">${ob.mandate_name}</span>
+                    </div>
+                    <div class="text-[10.5px] text-gray-400 mt-0.5">${ob.period} · due ${formatDate(ob.due_date)} · ${ob.regulation || ''}</div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    ${v.auto ? `<button onclick="crossCheckOne('${ob.symbol}','${ob.mandate_id}','${ob.period}','${ob.due_date}',this)"
+                        class="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-indigo-200 text-indigo-700 hover:bg-indigo-50">Cross-check</button>` : ''}
+                    ${v.url ? `<a href="${v.url}" target="_blank" rel="noopener"
+                        class="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50">${v.action} ↗</a>` : ''}
+                </div>
+            </div>`).join('');
+
+        const badge = v.auto
+            ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">DELTA CAN CHECK</span>'
+            : '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700">CONFIRM ON PORTAL</span>';
+
+        return `<div class="mb-4 rounded-xl border border-gray-200 overflow-hidden">
+            <div class="px-4 py-3 bg-slate-50 border-b border-gray-100">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-sm font-bold text-gray-900">${v.label}</span>
+                        ${badge}
+                        <span class="text-[11px] text-gray-400">${list.length} item${list.length === 1 ? '' : 's'}</span>
+                    </div>
+                    <span class="text-[11px] text-gray-500">Filed with: <strong>${v.where}</strong></span>
+                </div>
+                <p class="text-[11px] text-gray-500 mt-1.5 leading-relaxed max-w-4xl">${v.how || ''}</p>
+            </div>
+            <div class="px-4 py-1">${rows}</div>
+        </div>`;
+    }).join('');
+}
+
+async function crossCheckOne(symbol, mandateId, period, dueDate, btn) {
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Checking…';
+    try {
+        const r = await fetch(`/api/compliance/crosscheck-one`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, mandate_id: mandateId, period, due_date: dueDate }),
+        });
+        const d = await r.json();
+        if (d.verdict === 'evidence_found') {
+            btn.textContent = '✓ Confirmed';
+            btn.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50';
+        } else {
+            btn.textContent = 'Not found';
+            btn.title = d.verdict_text || '';
+            btn.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-md border border-gray-200 text-gray-500';
+        }
+    } catch (e) {
+        btn.disabled = false; btn.textContent = original;
+    }
+}
+
+function renderAllTable(items) {
+    const tbody = document.getElementById('obligations-tbody');
+    tbody.innerHTML = items.map(ob => {
+        const sc = { pending: 'status-pending', submitted: 'status-submitted', delayed: 'status-delayed', missed: 'status-missed', unverified: 'status-unverified' };
+        const vr = ob.verification || null;
+        const pastDue = ob.days_remaining !== null && ob.days_remaining < 0;
+        // Only `missed` is a confirmed non-filing. Anything else past its date
+        // is awaiting confirmation, and for MCA/tax/RBI filings that
+        // confirmation never comes from an exchange feed.
+        const label = (ob.status === 'unverified' || (ob.status === 'pending' && pastDue))
+            ? (vr && !vr.auto ? 'confirm at source' : 'verify')
+            : ob.status;
+
+        let delayCell = '-';
+        if (ob.status === 'delayed' && ob.delay_days > 0) delayCell = `<span class="text-amber-600 font-medium">+${ob.delay_days}d</span>`;
+        else if (ob.status === 'missed') { const dr = ob.days_remaining; delayCell = `<span class="text-red-600 font-medium">${dr !== null ? Math.abs(dr) + 'd overdue' : 'Overdue'}</span>`; }
+        else if (label === 'confirm at source' && vr) delayCell = `<span class="text-gray-400 text-[11px]">${vr.where}</span>`;
+
+        const proofCell = ob.filing_url
+            ? `<a href="${ob.filing_url}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline text-xs">filing ↗</a>`
+            : (ob.filing_id ? `<a href="/company/${ob.symbol}" class="text-indigo-600 hover:underline">#${ob.filing_id}</a>` : '<span class="text-gray-300">-</span>');
+        // Point at the authority this form is actually filed with — labelling
+        // an MCA or POSH obligation "SEBI" is simply wrong.
+        const _icon = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>';
+        const _srcUrl = (vr && !vr.auto && vr.url) ? vr.url : ob.sebi_source;
+        const _srcName = (vr && !vr.auto) ? (vr.key === 'mca' ? 'MCA' : vr.key === 'rbi' ? 'RBI' : vr.key === 'tax' ? 'TAX' : 'SOURCE') : 'SEBI';
+        const sourceCell = _srcUrl
+            ? `<a href="${_srcUrl}" target="_blank" rel="noopener" class="sebi-link" title="${(vr && vr.where) || ob.section_ref || ''}">${_icon}${_srcName}</a>`
+            : '<span class="text-gray-300">-</span>';
+
+        return `<tr class="border-b border-gray-100 hover:bg-slate-50 obligation-row"
+                    data-company="${ob.symbol}" data-status="${ob.status}" data-category="${ob.mandate_category}" data-due="${ob.due_date}">
+            <td class="px-4 py-3"><a href="/company/${ob.symbol}" class="font-semibold text-indigo-600 hover:underline">${ob.symbol}</a></td>
+            <td class="px-4 py-3">
+                <div class="font-medium text-gray-900 text-xs">${ob.mandate_name}</div>
+                <div class="text-[10px] text-gray-400">${ob.regulation}</div>
+            </td>
+            <td class="px-4 py-3 text-gray-600 text-xs">${ob.period}</td>
+            <td class="px-4 py-3 text-gray-600 text-xs">${formatDate(ob.due_date)}</td>
+            <td class="px-4 py-3"><span class="${sc[ob.status] || 'status-pending'} status-badge">${label}</span></td>
+            <td class="px-4 py-3 text-xs">${proofCell}</td>
+            <td class="px-4 py-3 text-xs">${delayCell}</td>
+            <td class="px-4 py-3">${sourceCell}</td>
+        </tr>`;
+    }).join('');
+}
+
+// Regime presentation: order, color, icon.
+const _REGIMES = [
+    { key: 'SEBI',         label: 'SEBI — Listed Companies', color: '#4f46e5', bg: 'rgba(99,102,241,0.08)',
+      sub: 'LODR · PIT · SAST disclosures to the exchanges' },
+    { key: 'MCA',          label: 'MCA / Companies Act — ROC', color: '#0d9488', bg: 'rgba(13,148,136,0.08)',
+      sub: 'Annual returns, event forms & registers filed with the Registrar' },
+    { key: 'FEMA',         label: 'FEMA / RBI', color: '#d97706', bg: 'rgba(217,119,6,0.08)',
+      sub: 'Foreign investment, borrowings & overseas-investment reporting' },
+    { key: 'Tax & Labour', label: 'Tax & Labour', color: '#db2777', bg: 'rgba(219,39,80,0.08)',
+      sub: 'Income-tax, TDS, PF/ESI & POSH obligations' },
+];
+const _FREQ_PILL = {
+    Quarterly:    'bg-blue-100 text-blue-700',
+    'Half-yearly':'bg-cyan-100 text-cyan-700',
+    Annual:       'bg-purple-100 text-purple-700',
+    Monthly:      'bg-teal-100 text-teal-700',
+    'Event-based':'bg-gray-100 text-gray-600',
+    Ongoing:      'bg-amber-100 text-amber-700',
+};
+let _allMandates = [];
+let _libRegime = 'all';
+
+function renderMandates(mandates) {
+    _allMandates = mandates || [];
+    // Regime filter pills (with counts).
+    const counts = {};
+    _allMandates.forEach(m => { counts[m.regime] = (counts[m.regime] || 0) + 1; });
+    const pills = [`<button class="lib-pill ${_libRegime==='all'?'active':''}" data-regime="all" onclick="setLibRegime('all')">All <span class="lib-pill-ct">${_allMandates.length}</span></button>`];
+    _REGIMES.forEach(r => {
+        if (!counts[r.key]) return;
+        pills.push(`<button class="lib-pill ${_libRegime===r.key?'active':''}" data-regime="${r.key}" style="--rc:${r.color}" onclick="setLibRegime('${r.key}')">${r.label.split('—')[0].trim()} <span class="lib-pill-ct">${counts[r.key]}</span></button>`);
+    });
+    document.getElementById('lib-regime-pills').innerHTML = pills.join('');
+    _renderLibraryGroups();
+}
+
+function setLibRegime(r) {
+    _libRegime = r;
+    document.querySelectorAll('.lib-pill').forEach(p => p.classList.toggle('active', p.dataset.regime === r));
+    _renderLibraryGroups();
+}
+
+function filterLibrary() { _renderLibraryGroups(); }
+
+function _renderLibraryGroups() {
+    const q = (document.getElementById('lib-search')?.value || '').trim().toLowerCase();
+    const grid = document.getElementById('mandates-grid');
+    let total = 0;
+    const html = _REGIMES.map(r => {
+        if (_libRegime !== 'all' && _libRegime !== r.key) return '';
+        let items = _allMandates.filter(m => m.regime === r.key);
+        if (q) items = items.filter(m =>
+            (m.name + m.form + m.regulation + m.section_ref + (m.description||'') + (m.keywords||[]).join(' '))
+            .toLowerCase().includes(q));
+        if (!items.length) return '';
+        total += items.length;
+        return `
+        <section>
+            <div class="lib-group-head" style="--rc:${r.color}">
+                <span class="lib-group-dot"></span>
+                <div>
+                    <h3 class="lib-group-title">${r.label}</h3>
+                    <p class="lib-group-sub">${r.sub}</p>
+                </div>
+                <span class="lib-group-ct">${items.length}</span>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 mt-3">
+                ${items.map(m => mandateCard(m, r.color)).join('')}
+            </div>
+        </section>`;
+    }).join('');
+    grid.innerHTML = html;
+    document.getElementById('lib-empty').classList.toggle('hidden', total > 0);
+}
+
+function mandateCard(m, color) {
+    const freqPill = m.frequency_label
+        ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded ${_FREQ_PILL[m.frequency_label] || 'bg-gray-100 text-gray-600'}">${m.frequency_label}</span>` : '';
+    const formBadge = m.form
+        ? `<span class="lib-form" style="--rc:${color}">${escapeHTML(m.form)}</span>` : '';
+    const srcBtn = m.sebi_source
+        ? `<a href="${m.sebi_source}" target="_blank" rel="noopener" class="lib-src" style="--rc:${color}">
+             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+             Source</a>` : '';
+    const penalty = m.penalty
+        ? `<div class="lib-penalty"><svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg><span>${escapeHTML(m.penalty)}</span></div>` : '';
+    return `
+    <div class="mandate-card lib-card">
+        <div class="flex items-start justify-between gap-2 mb-1.5">
+            ${formBadge}
+            ${freqPill}
+        </div>
+        <p class="font-semibold text-gray-900 text-sm leading-snug">${escapeHTML(m.name)}</p>
+        <p class="text-[11px] text-gray-400 mt-0.5">${escapeHTML(m.regulation)}${m.section_ref ? ' · ' + escapeHTML(m.section_ref) : ''}</p>
+        <p class="text-xs text-gray-500 mt-2 leading-relaxed">${escapeHTML(m.description || '')}</p>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11px]">
+            <span class="lib-meta"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> ${escapeHTML(m.due_label || '—')}</span>
+            <span class="lib-meta lib-applies"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4 0M17 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg> ${escapeHTML(m.applies_to || '')}</span>
+        </div>
+        ${penalty}
+        <div class="mt-2.5 flex items-center justify-between">
+            <span class="text-[10px] text-gray-300 font-mono">${m.id}</span>
+            ${srcBtn}
+        </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════
+// BY COMPANY — A-to-Z compliance profile
+// ═══════════════════════════════════════════
+let _cprofTimer = null;
+
+function _watchlistSymbols() {
+    return Object.keys((_dashData && _dashData.company_scores) || {});
+}
+
+function cprofSearch() {
+    clearTimeout(_cprofTimer);
+    const q = document.getElementById('cprof-search').value.trim();
+    const box = document.getElementById('cprof-results');
+    // With <2 chars, show the watchlist as quick picks.
+    if (q.length < 2) {
+        const wl = _watchlistSymbols();
+        if (!wl.length) { box.classList.add('hidden'); return; }
+        box.innerHTML = `<div class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Your watchlist</div>` +
+            wl.map(s => cprofResultRow(s, '')).join('');
+        box.classList.remove('hidden');
+        return;
+    }
+    _cprofTimer = setTimeout(() => {
+        fetch(`/api/symbol_search?q=${encodeURIComponent(q)}`).then(r => r.json()).then(d => {
+            const rs = (d.results || []).slice(0, 8);
+            box.innerHTML = rs.length
+                ? rs.map(s => cprofResultRow(s.symbol, s.name)).join('')
+                : `<div class="px-3 py-3 text-xs text-gray-400">No matches for "${q}"</div>`;
+            box.classList.remove('hidden');
+        }).catch(() => box.classList.add('hidden'));
+    }, 240);
+}
+function cprofResultRow(sym, name) {
+    return `<button type="button" onclick="cprofPick('${sym}')" class="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-indigo-50 transition-colors text-left">
+        ${coLogoHTML(sym)}
+        <span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-gray-900">${sym}</span>${name ? `<span class="block text-[11px] text-gray-400 truncate">${name}</span>` : ''}</span>
+    </button>`;
+}
+document.addEventListener('click', e => {
+    const w = document.getElementById('cprof-wrap');
+    if (w && !w.contains(e.target)) document.getElementById('cprof-results').classList.add('hidden');
+});
+document.getElementById('cprof-search')?.addEventListener('focus', cprofSearch);
+
+function cprofPick(symbol) {
+    document.getElementById('cprof-results').classList.add('hidden');
+    document.getElementById('cprof-search').value = symbol;
+    document.getElementById('cprof-empty').classList.add('hidden');
+    document.getElementById('cprof-out').classList.add('hidden');
+    document.getElementById('cprof-loading').classList.remove('hidden');
+    fetch(`/api/compliance/profile/${encodeURIComponent(symbol)}`)
+        .then(r => r.json()).then(renderCompanyProfile)
+        .catch(() => {
+            document.getElementById('cprof-loading').innerHTML =
+                '<p class="text-sm text-red-500">Could not load the compliance profile. Try again.</p>';
+        });
+}
+
+const _STATUS_PILL = {
+    submitted: ['#ecfdf5', '#059669', 'Filed'], delayed: ['#fffbeb', '#d97706', 'Filed late'],
+    missed: ['#fef2f2', '#dc2626', 'Missed'], pending: ['#eef2ff', '#4f46e5', 'Pending'],
+    unverified: ['#f5f3ff', '#7c3aed', 'Unverified'],
+};
+
+function renderCompanyProfile(p) {
+    document.getElementById('cprof-loading').classList.add('hidden');
+    document.getElementById('cprof-out').classList.remove('hidden');
+
+    document.getElementById('cprof-head').innerHTML = `
+        ${coLogoHTML(p.symbol)}
+        <div>
+            <h3 class="text-lg font-extrabold text-gray-900 leading-tight">${p.symbol}</h3>
+            <p class="text-xs text-gray-400">${p.industry || 'General'} · ${p.total} applicable filings tracked A-to-Z</p>
+        </div>`;
+
+    // Stats: count per group + count of pending/overdue across all.
+    const allItems = p.groups.flatMap(g => g.items);
+    const pending = allItems.filter(i => i.status === 'pending' || i.status === 'missed').length;
+    const dueSoon = allItems.filter(i => i.days_remaining != null && i.days_remaining >= 0 && i.days_remaining <= 30).length;
+    document.getElementById('cprof-stats').innerHTML = [
+        cprofStat(p.total, 'Total filings', '#4f46e5'),
+        cprofStat(p.groups.find(g => g.key === 'sector')?.items.length || 0, 'Sector-specific', '#ea580c'),
+        cprofStat(dueSoon, 'Due in 30 days', dueSoon ? '#d97706' : '#059669'),
+        cprofStat(pending, 'Pending / overdue', pending ? '#dc2626' : '#059669'),
+    ].join('');
+
+    document.getElementById('cprof-groups').innerHTML = p.groups.map(g => {
+        if (!g.items.length) return '';
+        return `
+        <section>
+            <div class="lib-group-head" style="--rc:${g.color}">
+                <span class="lib-group-dot"></span>
+                <div><h3 class="lib-group-title">${g.label}</h3><p class="lib-group-sub">${g.sub}</p></div>
+                <span class="lib-group-ct">${g.items.length}</span>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 mt-3">
+                ${g.items.map(m => cprofCard(m, g.color)).join('')}
+            </div>
+        </section>`;
+    }).join('');
+}
+
+function cprofStat(num, label, color) {
+    return `<div class="hero-card !p-3 text-center" style="min-width:120px">
+        <p class="text-2xl font-extrabold" style="color:${color}">${num}</p>
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">${label}</p>
+    </div>`;
+}
+
+function cprofCard(m, color) {
+    const freqPill = m.frequency_label ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded ${_FREQ_PILL[m.frequency_label] || 'bg-gray-100 text-gray-600'}">${m.frequency_label}</span>` : '';
+    const formBadge = m.form ? `<span class="lib-form" style="--rc:${color}">${escapeHTML(m.form)}</span>` : '';
+    // Live status / next-due chip when this filing has a dated obligation.
+    let statusChip = '';
+    if (m.status && _STATUS_PILL[m.status]) {
+        const [bg, fg, lbl] = _STATUS_PILL[m.status];
+        const dd = (m.days_remaining != null)
+            ? (m.days_remaining < 0 ? ` · ${Math.abs(m.days_remaining)}d overdue` : ` · ${m.days_remaining}d left`) : '';
+        statusChip = `<span class="next-due-chip" style="background:${bg};color:${fg}">${lbl}${dd}</span>`;
+    }
+    const srcBtn = m.sebi_source ? `<a href="${m.sebi_source}" target="_blank" rel="noopener" class="lib-src" style="--rc:${color}"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>Source</a>` : '';
+    const penalty = m.penalty ? `<div class="lib-penalty"><svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg><span>${escapeHTML(m.penalty)}</span></div>` : '';
+    return `
+    <div class="mandate-card lib-card">
+        <div class="flex items-start justify-between gap-2 mb-1.5">${formBadge}<div class="flex items-center gap-1.5">${statusChip}${freqPill}</div></div>
+        <p class="font-semibold text-gray-900 text-sm leading-snug">${escapeHTML(m.name)}</p>
+        <p class="text-[11px] text-gray-400 mt-0.5">${escapeHTML(m.regulation || '')}${m.section_ref ? ' · ' + escapeHTML(m.section_ref) : ''}</p>
+        <p class="text-xs text-gray-500 mt-2 leading-relaxed">${escapeHTML(m.description || '')}</p>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11px]">
+            <span class="lib-meta"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> ${escapeHTML(m.due_label || '—')}</span>
+        </div>
+        ${penalty}
+        <div class="mt-2.5 flex items-center justify-end">${srcBtn}</div>
+    </div>`;
+}
+
+// ── Tab Switching ──
+function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.remove('hidden');
+    if (btn) btn.classList.add('active');
+    if (tab === 'xbrl' && !_xbrlData) loadXbrl();   // lazy-load on first open
+}
+
+/* ═══════════════════════════════════════
+   XBRL UTILITIES TRACKER
+   ═══════════════════════════════════════ */
+let _xbrlData = null;
+let _xbrlCat = 'all';
+
+function loadXbrl(force) {
+    const loading = document.getElementById('xbrl-loading');
+    const grid = document.getElementById('xbrl-grid');
+    const ref = document.getElementById('xbrl-refresh');
+    loading.classList.remove('hidden'); grid.innerHTML = '';
+    if (ref) ref.querySelector('svg')?.classList.add('animate-spin');
+    fetch('/api/xbrl-utilities' + (force ? '?refresh=1' : ''))
+        .then(r => r.json())
+        .then(d => {
+            _xbrlData = d;
+            loading.classList.add('hidden');
+            if (ref) ref.querySelector('svg')?.classList.remove('animate-spin');
+            const meta = document.getElementById('xbrl-meta');
+            const cnt = document.getElementById('tab-count-xbrl');
+            if (!d.ok || !d.count) {
+                meta.textContent = d.message || 'Could not reach NSE right now — try refresh.';
+                return;
+            }
+            meta.innerHTML = `<b class="text-gray-600">${d.count}</b> utilities tracked · <b class="text-emerald-600">${d.new_count}</b> updated in the last 45 days · latest change ${d.latest_update} · <a href="${d.source}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">NSE source &#8599;</a>`;
+            if (cnt && d.new_count) cnt.textContent = `(${d.new_count} new)`;
+            renderXbrlPills();
+            renderXbrl();
+        })
+        .catch(() => {
+            loading.classList.add('hidden');
+            if (ref) ref.querySelector('svg')?.classList.remove('animate-spin');
+            document.getElementById('xbrl-meta').textContent = 'Failed to load. Try refresh.';
+        });
+}
+
+function renderXbrlPills() {
+    const cats = {};
+    (_xbrlData.utilities || []).forEach(u => { cats[u.category] = (cats[u.category] || 0) + 1; });
+    const order = ['Integrated Filing', 'Governance', 'Shareholding', 'Board Meeting / Events',
+                   'Issuance / Listing', 'Buyback', 'Debt / NCD', 'Insider / Trading Window',
+                   'REIT / InvIT', 'Other'];
+    const pills = [`<button class="xbrl-pill ${_xbrlCat==='all'?'active':''}" onclick="setXbrlCat('all')">All <span class="xbrl-pill-ct">${_xbrlData.count}</span></button>`];
+    order.forEach(c => { if (cats[c]) pills.push(`<button class="xbrl-pill ${_xbrlCat===c?'active':''}" onclick="setXbrlCat('${c.replace(/'/g,"\\'")}')">${c} <span class="xbrl-pill-ct">${cats[c]}</span></button>`); });
+    document.getElementById('xbrl-cat-pills').innerHTML = pills.join('');
+}
+
+function setXbrlCat(c) {
+    _xbrlCat = c;
+    document.querySelectorAll('.xbrl-pill').forEach(p => p.classList.toggle('active', p.textContent.trim().startsWith(c === 'all' ? 'All' : c)));
+    renderXbrl();
+}
+
+function renderXbrl() {
+    if (!_xbrlData) return;
+    const q = (document.getElementById('xbrl-search')?.value || '').trim().toLowerCase();
+    let items = _xbrlData.utilities || [];
+    if (_xbrlCat !== 'all') items = items.filter(u => u.category === _xbrlCat);
+    if (q) items = items.filter(u => (u.name + ' ' + u.category).toLowerCase().includes(q));
+    const grid = document.getElementById('xbrl-grid');
+    document.getElementById('xbrl-empty').classList.toggle('hidden', items.length > 0);
+    grid.innerHTML = items.map(u => `
+        <div class="xbrl-card ${u.is_new ? 'is-new' : ''}">
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="xbrl-cat">${escapeHTML(u.category)}</span>
+                ${u.is_new ? '<span class="xbrl-new-badge">Updated</span>' : ''}
+            </div>
+            <p class="font-semibold text-gray-900 text-sm leading-snug flex-1">${escapeHTML(u.name)}</p>
+            <div class="flex items-center justify-between mt-3">
+                <span class="xbrl-date" title="Published / last updated on NSE">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    ${u.published_label}
+                </span>
+                <a href="${u.url}" target="_blank" rel="noopener" class="xbrl-dl">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Download
+                </a>
+            </div>
+        </div>`).join('');
+}
+
+function updateTabCounts(data) {
+    const v = data.validation || {};
+    document.getElementById('tab-count-upcoming').textContent = v.upcoming_count ? `(${v.upcoming_count})` : '';
+    document.getElementById('tab-count-overdue').textContent = v.overdue_count ? `(${v.overdue_count})` : '';
+    document.getElementById('tab-count-completed').textContent = v.completed_count ? `(${v.completed_count})` : '';
+    const uv = document.getElementById('tab-count-unverified');
+    if (uv) uv.textContent = v.unverified_count ? `(${v.unverified_count})` : '';
+}
+
+// ── Filters ──
+function populateFilters(items) {
+    const companies = [...new Set(items.map(o => o.symbol))].sort();
+    const sel = document.getElementById('filter-company');
+    sel.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
+    companies.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+}
+function filterTable() {
+    const company = document.getElementById('filter-company').value;
+    const status = document.getElementById('filter-status').value;
+    const category = document.getElementById('filter-category').value;
+    document.querySelectorAll('.obligation-row').forEach(row => {
+        row.style.display = (!company || row.dataset.company === company)
+            && (!status || row.dataset.status === status)
+            && (!category || row.dataset.category === category) ? '' : 'none';
+    });
+}
+
+// ── Helpers ──
+function formatDate(dateStr) {
+    if (!dateStr) return '<span class="text-gray-300">-</span>';
+    try { return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
+    catch { return dateStr; }
+}
+
+// ── Init ──
+loadDashboard();
+</script>
+</body>
+</html>

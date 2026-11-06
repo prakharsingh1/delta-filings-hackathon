@@ -1,0 +1,212 @@
+{% extends 'app_base.html' %}
+{% block title %}AI provider{% endblock %}
+
+{% block head %}
+<style>
+  /* Layout only. Colours, borders, buttons and fields come from the shared
+     module styles so this page follows the app theme in light and dark. */
+  [hidden] { display: none !important; }
+  .ai-wrap { max-width: 980px; }
+  .ai-status { display: flex; align-items: center; gap: 14px; }
+  .ai-status .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--primary); }
+  .ai-status.private .dot { background: #2f8f5b; box-shadow: 0 0 0 4px rgba(47,143,91,.16); }
+  .ai-status.cloud .dot { background: #d08a14; box-shadow: 0 0 0 4px rgba(208,138,20,.18); }
+  .ai-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 18px 0; }
+  @media (max-width: 760px) { .ai-modes { grid-template-columns: 1fr; } }
+  .ai-mode { text-align: left; padding: 16px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+  .ai-mode:hover, .ai-mode[aria-pressed="true"] { border-color: var(--primary); }
+  .ai-mode[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--primary-light); }
+  .ai-mode b { display: block; font-size: 14.5px; color: var(--text-primary); }
+  .ai-mode span { display: block; margin-top: 4px; font-size: 12.5px; line-height: 1.45; color: var(--text-muted); }
+  .ai-inline { display: flex; gap: 8px; }
+  .ai-inline .fld-input { flex: 1; min-width: 0; }
+  .ai-toggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .ai-toggle input { width: 18px; height: 18px; margin-top: 2px; }
+  .ai-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+  .ai-found { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .ai-found .chip { cursor: pointer; padding: 5px 11px; }
+  .ai-result { margin-top: 14px; }
+  .ai-result.ok { border-left-color: #2f8f5b; }
+  .ai-result.bad { border-left-color: #b9463e; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mod-wrap ai-wrap">
+  <div class="mod-head">
+    <div>
+      <div class="mod-eyebrow">Settings</div>
+      <h1 class="mod-title">AI provider</h1>
+      <p class="mod-sub">Choose where Delta Filings sends text when it summarises a filing, drafts a document or writes a briefing. A model on this computer or your company's server keeps confidential documents inside your network.</p>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="panel-body ai-status {{ 'private' if cfg.is_private else 'cloud' }}" id="ai-status">
+      <i class="dot" aria-hidden="true"></i>
+      <div><div class="panel-title" id="ai-status-title">{{ 'AI requests stay inside your network' if cfg.is_private else 'AI requests go to a cloud service' }}</div>
+        <div class="panel-sub" id="ai-status-sub">Destination: {{ cfg.destination }}{% if cfg.model %} · Model: {{ cfg.model }}{% endif %}</div></div>
+    </div>
+  </section>
+
+  <div class="ai-modes" role="group" aria-label="Where AI runs">
+    <button type="button" class="panel ai-mode" data-mode="local"><b>On this computer</b><span>Ollama, LM Studio, llama.cpp or Jan. Nothing leaves the machine.</span></button>
+    <button type="button" class="panel ai-mode" data-mode="server"><b>Your organisation's server</b><span>A private model server (vLLM, Ollama) on your company network.</span></button>
+    <button type="button" class="panel ai-mode" data-mode="cloud"><b>Cloud API</b><span>Gemini, Claude, OpenAI or Azure OpenAI with your own key.</span></button>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><div><div class="panel-title">Connection</div><div class="panel-sub">Applies to every AI feature in this workspace.</div></div></div>
+    <div class="panel-body">
+      <label class="fld"><span class="fld-label">Service</span>
+        <select class="fld-select" id="ai-preset"></select>
+        <div class="fld-hint" id="ai-hint"></div>
+      </label>
+      <div class="ai-found" id="ai-found" hidden></div>
+
+      <label class="fld" id="row-url"><span class="fld-label">Endpoint</span>
+        <input class="fld-input" id="ai-url" placeholder="http://127.0.0.1:11434/v1" autocomplete="off" spellcheck="false">
+        <div class="fld-hint">OpenAI-compatible base address. Ollama, LM Studio, llama.cpp, Jan, vLLM, OpenAI, Azure OpenAI and OpenRouter all work.</div>
+      </label>
+
+      <div class="fld"><label class="fld-label" for="ai-model">Model</label>
+        <div class="ai-inline">
+          <input class="fld-input" id="ai-model" list="ai-model-list" placeholder="llama3.2" autocomplete="off" spellcheck="false">
+          <datalist id="ai-model-list"></datalist>
+          <button type="button" class="btn btn-secondary" id="ai-load-models">List models</button>
+        </div>
+        <div class="fld-hint">For drafting, an 8B to 14B instruction model is the practical minimum on a laptop.</div>
+      </div>
+
+      <label class="fld" id="row-key"><span class="fld-label">API key</span>
+        <input class="fld-input" id="ai-key" type="password" autocomplete="off" placeholder="{{ 'Saved. Leave blank to keep it.' if cfg.has_api_key else 'Not needed for local models' }}">
+        <div class="fld-hint">Stored on this {{ 'computer' if cfg.desktop else 'server' }}. It is never shown again.</div>
+      </label>
+
+      <div class="fld-grid">
+        <label class="fld ai-toggle" for="ai-local-only"><input type="checkbox" id="ai-local-only">
+          <span><span class="fld-label">Private network only</span><span class="fld-hint">Refuse any AI request that would leave this computer or your organisation's private network. Cloud services are blocked while this is on.</span></span></label>
+        <label class="fld"><span class="fld-label">Time limit (seconds)</span>
+          <input class="fld-input" id="ai-timeout" type="number" min="10" max="1800" step="10">
+          <div class="fld-hint">Local models on a laptop CPU can need several minutes for a long draft.</div></label>
+      </div>
+
+      {% if cfg.locked %}<p class="note">Some settings are fixed by your administrator: {{ cfg.locked|join(', ') }}.</p>{% endif %}
+      <div class="ai-actions">
+        <button type="button" class="btn btn-primary" id="ai-save">Save</button>
+        <button type="button" class="btn btn-secondary" id="ai-test">Test connection</button>
+        <button type="button" class="btn btn-secondary" id="ai-detect">Find models on this computer</button>
+      </div>
+      <p class="note ai-result" id="ai-result" role="status" hidden></p>
+    </div>
+  </section>
+
+  <p class="note" style="margin-top:18px">Grounded web search during drafting is a Gemini feature. With another provider, drafts are written from your filings and inputs only. Summaries, drafts and briefings all use the provider chosen here.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var cfg = {{ cfg|tojson }};
+  var byId = {};
+  cfg.presets.forEach(function (p) { byId[p.id] = p; });
+  var $ = function (id) { return document.getElementById(id); };
+  var sel = $('ai-preset'), url = $('ai-url'), model = $('ai-model'), key = $('ai-key'),
+      lo = $('ai-local-only'), timeout = $('ai-timeout'), result = $('ai-result');
+  var MODES = { local: ['ollama', 'lmstudio', 'llamacpp', 'jan'], server: ['vllm', 'ollama'],
+                cloud: ['gemini', 'anthropic', 'openai', 'azure', 'openrouter'] };
+
+  function fill(mode, keep) {
+    sel.innerHTML = '';
+    MODES[mode].forEach(function (id) {
+      var o = document.createElement('option'); o.value = id; o.textContent = byId[id].label; sel.appendChild(o);
+    });
+    document.querySelectorAll('.ai-mode').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.mode === mode)); });
+    if (keep && MODES[mode].indexOf(keep) >= 0) sel.value = keep;
+    lo.checked = mode !== 'cloud';
+    applyPreset(!keep);
+  }
+  function isLoopback(u) { return /\/\/(127\.|localhost|\[::1\])/.test(u || ''); }
+  function modeFor(preset) {
+    if (MODES.cloud.indexOf(preset) >= 0) return 'cloud';
+    if (preset === 'vllm' || (preset === 'ollama' && cfg.base_url && !isLoopback(cfg.base_url))) return 'server';
+    return 'local';
+  }
+  function applyPreset(reset) {
+    var p = byId[sel.value];
+    $('ai-hint').textContent = p.hint;
+    $('row-url').hidden = p.provider === 'gemini';
+    $('row-key').hidden = p.local;
+    if (reset) { url.value = p.base_url; model.value = p.model || ''; key.value = ''; $('ai-model-list').innerHTML = ''; }
+  }
+  function show(ok, html) { result.hidden = false; result.className = 'note ai-result ' + (ok ? 'ok' : 'bad'); result.innerHTML = html; }
+  function payload() {
+    var p = byId[sel.value];
+    return { provider: p.provider, preset: p.id, base_url: p.provider === 'gemini' ? '' : url.value.trim(),
+             model: model.value.trim(), api_key: key.value.trim(), local_only: lo.checked, timeout: timeout.value };
+  }
+  function setStatus(c) {
+    $('ai-status').className = 'panel-body ai-status ' + (c.is_private ? 'private' : 'cloud');
+    $('ai-status-title').textContent = c.is_private ? 'AI requests stay inside your network' : 'AI requests go to a cloud service';
+    $('ai-status-sub').textContent = 'Destination: ' + c.destination + (c.model ? ' · Model: ' + c.model : '');
+  }
+  async function busy(btn, fn) { btn.disabled = true; try { await fn(); } catch (e) { show(false, dfEsc(e.message)); } finally { btn.disabled = false; } }
+
+  document.querySelectorAll('.ai-mode').forEach(function (b) { b.addEventListener('click', function () { fill(b.dataset.mode); }); });
+  sel.addEventListener('change', function () { applyPreset(true); });
+
+  $('ai-load-models').addEventListener('click', function () {
+    busy(this, async function () {
+      var r = await dfApi('/api/ai/models', { method: 'POST', body: payload() });
+      var list = $('ai-model-list'); list.innerHTML = '';
+      (r.models || []).forEach(function (m) { var o = document.createElement('option'); o.value = m; list.appendChild(o); });
+      if (r.error) show(false, dfEsc(r.error));
+      else if (!(r.models || []).length) show(false, 'The endpoint answered but lists no models. Download one first, for example <code>ollama pull qwen3:8b</code>.');
+      else { show(true, dfEsc(r.models.length + ' models found: ' + r.models.slice(0, 8).join(', '))); if (!model.value) model.value = r.models[0]; }
+    });
+  });
+
+  $('ai-detect').addEventListener('click', function () {
+    busy(this, async function () {
+      var r = await dfApi('/api/ai/detect');
+      var box = $('ai-found'); box.innerHTML = '';
+      if (!r.found.length) { box.hidden = true; show(false, 'No local model runtime is answering. Install and open Ollama or LM Studio, download a model, then try again.'); return; }
+      box.hidden = false;
+      r.found.forEach(function (f) {
+        (f.models.length ? f.models : ['']).slice(0, 6).forEach(function (m) {
+          var c = document.createElement('button'); c.type = 'button'; c.className = 'chip';
+          c.textContent = f.label + (m ? ' · ' + m : ' (no models yet)');
+          c.addEventListener('click', function () { fill('local', f.preset); url.value = f.base_url; model.value = m; });
+          box.appendChild(c);
+        });
+      });
+      show(true, 'Found ' + r.found.map(function (f) { return dfEsc(f.label); }).join(', ') + '. Click a model to use it, then Save.');
+    });
+  });
+
+  $('ai-save').addEventListener('click', function () {
+    busy(this, async function () {
+      var r = await dfApi('/api/ai/config', { method: 'POST', body: payload() });
+      cfg = Object.assign(cfg, r.config); key.value = ''; setStatus(r.config);
+      show(true, 'Saved. AI requests now go to ' + dfEsc(r.config.destination) + '.');
+    });
+  });
+
+  $('ai-test').addEventListener('click', function () {
+    busy(this, async function () {
+      show(true, 'Asking the model for a one-word reply…');
+      var r = await dfApi('/api/ai/test', { method: 'POST', body: {} });
+      if (r.ok) show(true, 'Working. ' + dfEsc(r.destination) + ' answered “' + dfEsc(r.reply) + '” in ' + (r.latency_ms / 1000).toFixed(1) + ' s.');
+      else show(false, dfEsc(r.error));
+    });
+  });
+
+  timeout.value = cfg.timeout;
+  fill(modeFor(cfg.preset), cfg.preset);
+  url.value = cfg.base_url || (byId[cfg.preset] || {}).base_url || '';
+  model.value = cfg.model || '';
+  lo.checked = cfg.local_only;
+})();
+</script>
+{% endblock %}

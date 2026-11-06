@@ -13,10 +13,10 @@
         display: flex; align-items: center; gap: 14px; padding: 0 24px; }
     .topbar-logo { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
         display: flex; align-items: center; justify-content: center;
-        color: #2D2A7C;
+        color: #897a31;
         transition: transform .25s cubic-bezier(.22,.61,.36,1); }
     /* Lighter tint on dark surfaces — the brand navy is unreadable there. */
-    html.dark .topbar-logo { color: #8B87F0; }
+    html.dark .topbar-logo { color: #dfce82; }
     .topbar-logo:hover { transform: scale(1.06); }
     .topbar-logo svg { width: 26px; height: 26px; }
     .topbar-wordmark { font-weight: 700; font-size: 15px; letter-spacing: -.02em; color: var(--text-primary); }
@@ -28,21 +28,26 @@
         view-transition-name: page-pill;
         display: inline-flex; align-items: center; gap: 7px;
         padding: 6px 12px 6px 10px; border-radius: 999px;
-        font-size: 12.5px; font-weight: 600; color: #4f46e5;
-        background: linear-gradient(135deg, rgba(99,102,241,0.10), rgba(14,165,233,0.10));
-        border: 1px solid rgba(99,102,241,0.18);
+        font-size: 12.5px; font-weight: 600; color: #a68b1a;
+        background: linear-gradient(135deg, rgba(217,184,42,0.10), rgba(244,211,68,0.10));
+        border: 1px solid rgba(217,184,42,0.18);
         white-space: nowrap; flex-shrink: 0;
         opacity: 0; transform: translateX(-6px);
         animation: pagePillIn .45s cubic-bezier(.22,.61,.36,1) forwards .08s;
     }
-    html.dark .page-pill { color: #a5b4fc;
-        background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(14,165,233,0.14));
-        border-color: rgba(99,102,241,0.32); }
+    html.dark .page-pill { color: #e8d783;
+        background: linear-gradient(135deg, rgba(217,184,42,0.18), rgba(244,211,68,0.14));
+        border-color: rgba(217,184,42,0.32); }
     .page-pill svg { width: 14px; height: 14px; flex-shrink: 0; }
     @keyframes pageChevIn { to { opacity: 1; } }
     @keyframes pagePillIn { to { opacity: 1; transform: none; } }
 
-    .top-nav { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; margin-left: 6px; }
+    .top-nav { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; overflow: hidden; margin-left: 6px; }
+    .top-nav-item[hidden] { display: none; }
+    .top-nav-more[hidden] { display: none; }
+    .top-nav-more .topbar-btn.active { color: var(--primary); }
+    .top-nav-more .topbar-btn svg { width: 14px; height: 14px; }
+    #nav-more-dd .topbar-menu-item.tools-active { color: var(--primary); font-weight: 600; }
     .top-nav::-webkit-scrollbar { display: none; }
     .top-nav-item { position: relative; padding: 8px 13px; border-radius: 9px; font-size: 13.5px;
         font-weight: 600; color: var(--text-secondary); white-space: nowrap;
@@ -51,8 +56,8 @@
     .top-nav-item.active { color: var(--primary); }
     .top-nav-item.active::after { content: ''; position: absolute; left: 13px; right: 13px; bottom: -3px;
         height: 2.5px; border-radius: 3px; background: var(--primary); }
-    html.dark .top-nav-item.active { color: #a5b4fc; }
-    html.dark .top-nav-item.active::after { background: #6366f1; }
+    html.dark .top-nav-item.active { color: #e8d783; }
+    html.dark .top-nav-item.active::after { background: #b59c2d; }
     .topbar-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 10px;
         font-size: 12.5px; font-weight: 600; color: var(--text-secondary); background: transparent;
         border: 1px solid transparent; cursor: pointer; transition: all .18s ease; }
@@ -77,27 +82,27 @@
     .topbar-avatar img {
         width: 100%; height: 100%; border-radius: 50%; display: flex;
         align-items: center; justify-content: center; object-fit: cover;
-        background: linear-gradient(135deg, #4f46e5, #0ea5e9);
-        box-shadow: 0 0 0 0 rgba(99,102,241,0); transition: box-shadow .25s ease;
+        background: linear-gradient(135deg, #a68b1a, #e0c442);
+        box-shadow: 0 0 0 0 rgba(217,184,42,0); transition: box-shadow .25s ease;
     }
     .topbar-avatar:hover .avatar-initial,
-    .topbar-avatar:hover img { box-shadow: 0 0 0 4px rgba(99,102,241,0.18); }
-    .topbar-avatar img { background: #e2e8f0; }    /* neutral bg if image is transparent */
+    .topbar-avatar:hover img { box-shadow: 0 0 0 4px rgba(217,184,42,0.18); }
+    .topbar-avatar img { background: #e8e5dc; }    /* neutral bg if image is transparent */
     .avatar-status-dot {
         position: absolute; right: -2px; bottom: -2px;
         width: 11px; height: 11px; border-radius: 50%;
-        background: #cbd5e1; border: 2.5px solid white;
-        box-shadow: 0 1px 3px rgba(15,23,42,0.18);
+        background: #c3c0b4; border: 2.5px solid white;
+        box-shadow: 0 1px 3px rgba(27,26,22,0.18);
         transition: background .25s ease;
         z-index: 2;
     }
-    html.dark .avatar-status-dot { border-color: #141414; }
+    html.dark .avatar-status-dot { border-color: #111111; }
 
     /* ── Dropdown menus ── */
     .topbar-dd { position: relative; }
     .topbar-menu { position: absolute; top: 52px; left: 0; min-width: 260px; background: var(--surface);
         border: 1px solid var(--border); border-radius: 16px;
-        box-shadow: 0 20px 50px -12px rgba(15,23,42,0.20), 0 6px 16px -6px rgba(15,23,42,0.08);
+        box-shadow: 0 20px 50px -12px rgba(27,26,22,0.20), 0 6px 16px -6px rgba(27,26,22,0.08);
         padding: 8px; z-index: 60;
         transform-origin: top right;
         opacity: 0; transform: translateY(-6px) scale(.96); pointer-events: none;
@@ -105,7 +110,7 @@
     }
     .topbar-menu.visible { opacity: 1; transform: none; pointer-events: auto; }
     .topbar-menu-right { left: auto; right: 0; }
-    html.dark .topbar-menu { background: #141414; border-color: #262626; }
+    html.dark .topbar-menu { background: #111111; border-color: #262626; }
     .topbar-menu-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
         color: var(--text-muted); padding: 7px 10px 5px; }
     .topbar-menu-item { display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: 10px;
@@ -120,6 +125,13 @@
     .topbar-menu-item.danger:hover { background: rgba(244,63,94,0.08); color: #be123c; }
     .topbar-menu-divider { height: 1px; background: var(--border); margin: 6px 4px; }
     .topbar-menu .wl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .tools-menu { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 4px 6px; min-width: 640px; }
+    @media (max-width: 760px) { .tools-menu { grid-template-columns: repeat(2, minmax(140px, 1fr)); min-width: 320px; } }
+    .tools-menu .topbar-menu-item { padding: 8px 10px; }
+    .tools-menu .tools-active { color: var(--primary); font-weight: 650; background: var(--primary-light); }
+    html.dark .tools-menu .tools-active { color: #e8d783; background: rgba(217,184,42,.14); }
+    .role-radio { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; }
+    .role-radio.on { border-color: var(--primary); background: radial-gradient(circle, var(--primary) 0 3px, transparent 4px); }
     .topbar-menu-count { margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 10px;
         background: var(--border-light); color: var(--text-muted); }
 
@@ -133,7 +145,7 @@
     .user-card-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
         display: inline-flex; align-items: center; justify-content: center; color: #fff;
         font-weight: 700; font-size: 16px; overflow: hidden;
-        background: linear-gradient(135deg, #4f46e5, #0ea5e9); }
+        background: linear-gradient(135deg, #a68b1a, #e0c442); }
     .user-card-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
     .user-card-name { font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
     .user-card-email { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.2; }
@@ -145,7 +157,9 @@
        at y=64, any `sticky top-0` inside a page sticks BELOW the bar — no
        per-page sticky fixes needed. */
     @media (max-width: 1000px) { .topbar-wordmark { display: none; } }
-    @media (max-width: 860px) { .page-pill .page-pill-label, .page-chevron { display: none; }
+    /* On phones the row can't fit; "All tools" carries navigation there. */
+    @media (max-width: 640px) { .top-nav { visibility: hidden; } }
+    @media (max-width: 1320px) { .page-pill .page-pill-label, .page-chevron { display: none; }
         .page-pill { padding: 7px 8px; } }
 
     /* ── Cross-page view transition ── */
@@ -156,6 +170,48 @@
         animation-timing-function: cubic-bezier(.22,.61,.36,1);
     }
 </style>
+
+<script>
+/* Top-nav overflow: links that do not fit the bar fold into a "More" menu
+   instead of being clipped. Measured on load and on resize; phones keep the
+   bar hidden and navigate through "All tools" as before. The script sits
+   above the bar in this template, so it waits for the DOM. */
+(function () {
+    function init() {
+        var nav = document.querySelector('.top-nav'), more = document.getElementById('top-nav-more');
+        if (!nav || !more) return;
+        var menu = document.getElementById('nav-more-dd'), btn = document.getElementById('top-nav-more-btn');
+        var items = Array.prototype.slice.call(nav.querySelectorAll('.top-nav-item'));
+        var label = menu.firstElementChild;
+        function fit() {
+            items.forEach(function (i) { i.hidden = false; });
+            more.hidden = true; btn.classList.remove('active');
+            while (menu.lastChild !== label) menu.removeChild(menu.lastChild);
+            if (window.innerWidth <= 640) return;
+            var avail = nav.clientWidth, used = 0, folded = [];
+            items.forEach(function (i) { used += i.offsetWidth + 2; if (used > avail - 8) folded.push(i); });
+            if (!folded.length) return;
+            var kept = used - folded.reduce(function (n, i) { return n + i.offsetWidth + 2; }, 0);
+            if (kept > avail - 84 && folded.length < items.length) {
+                var last = items[items.length - folded.length - 1];
+                if (last && folded.indexOf(last) < 0) folded.unshift(last);
+            }
+            more.hidden = false;
+            folded.forEach(function (i) {
+                i.hidden = true;
+                var a = document.createElement('a'); a.href = i.getAttribute('href'); a.textContent = i.textContent.trim();
+                a.className = 'topbar-menu-item' + (i.classList.contains('active') ? ' tools-active' : '');
+                if (i.classList.contains('active')) btn.classList.add('active');
+                menu.appendChild(a);
+            });
+        }
+        fit();
+        var t; window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(fit, 80); });
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
 
 {#  Mapping of active_page → display label + icon path. Keep in sync with the
     nav links below; rendering happens once per page server-side. Adding a new
@@ -171,6 +227,15 @@
     'compare':       {'label': 'Compare',       'icon': 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'},
     'watchlist':     {'label': 'Watchlist',     'icon': 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'},
     'company':       {'label': 'Company',       'icon': 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'},
+    'workspace':     {'label': 'Workspace',     'icon': 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'},
+    'rulebook':      {'label': 'Rulebook',      'icon': 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'},
+    'sdd':           {'label': 'Insider trading', 'icon': 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'},
+    'requests':      {'label': 'Document requests', 'icon': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'},
+    'news':          {'label': 'News desk', 'icon': 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'},
+    'risk':          {'label': 'Risk desk',     'icon': 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'},
+    'risk_alerts':   {'label': 'Risk alerts',   'icon': 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'},
+    'risk_network':  {'label': 'Director network', 'icon': 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'},
+    'risk_report':   {'label': 'Committee report', 'icon': 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'},
 } %}
 {# The company page hosts two top-nav destinations (Disclosures / Compare),
    distinguished by ?tab=. Resolve which one is "current" for the pill + nav. #}
@@ -184,7 +249,7 @@
 <style>.flex.h-screen { margin-top: 64px; height: calc(100vh - 64px); }</style>
 <header class="app-topbar">
     <div class="app-topbar-inner">
-        <a href="/dashboard" class="flex items-center gap-2.5 flex-shrink-0">
+        <a href="{{ role_home if role_home is defined else '/dashboard' }}" class="flex items-center gap-2.5 flex-shrink-0">
             <span class="topbar-logo">
                 <svg viewBox="0 0 104 120" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="Delta Filings">
                     <polygon points="8,42 34,30 34,108 8,120"/>
@@ -214,28 +279,59 @@
         {% elif watchlist is defined and watchlist %}{% set _first = watchlist[0] %}{% set _nav_target = (_first.symbol if _first is mapping else _first) %}
         {% elif companies is defined and companies %}{% set _nav_target = companies[0] %}{% endif %}
 
+        {# Top-nav items come from the user's role (roles.NAV); every other
+           module is one click away in "All tools". #}
+        {% set _nav_keys = role_nav if role_nav is defined and role_nav else ['dashboard','intelligence','draft','announcements','compliance','compare'] %}
         <nav class="top-nav">
-            <a href="/dashboard" class="top-nav-item {{ 'active' if active_page == 'dashboard' else '' }}">Dashboard</a>
-            <a href="/intelligence" class="top-nav-item {{ 'active' if active_page == 'intelligence' else '' }}">Signal</a>
-            <a href="/draft" class="top-nav-item {{ 'active' if active_page == 'draft' else '' }}">Draft</a>
+            {% for _k in _nav_keys %}
+                {% if _k == 'announcements' %}
             <a href="{{ ('/company/' ~ _nav_target ~ '?tab=announcements') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'announcements' or (active_page == 'company' and _company_tab != 'compare')) else '' }}">Disclosures</a>
-            <a href="/compliance" class="top-nav-item {{ 'active' if active_page == 'compliance' else '' }}">Compliance</a>
+                {% elif _k == 'compare' %}
             <a href="{{ ('/company/' ~ _nav_target ~ '?tab=compare') if _nav_target else '/dashboard' }}" class="top-nav-item {{ 'active' if (active_page == 'compare' or (active_page == 'company' and _company_tab == 'compare')) else '' }}">Compare</a>
+                {% elif modules is defined and _k in modules %}
+            <a href="{{ modules[_k].href }}" class="top-nav-item {{ 'active' if active_page == _k else '' }}">{{ (nav_labels or {}).get(_k, modules[_k].label) if nav_labels is defined else modules[_k].label }}</a>
+                {% endif %}
+            {% endfor %}
         </nav>
+        <div class="topbar-dd top-nav-more" id="top-nav-more" hidden>
+            <button type="button" class="topbar-btn" id="top-nav-more-btn" onclick="toggleDd('nav-more-dd', event)" aria-label="More pages" aria-haspopup="true">
+                More <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div id="nav-more-dd" class="topbar-menu"><div class="topbar-menu-label">Also in your workspace</div></div>
+        </div>
 
         <div class="flex items-center gap-1.5 flex-shrink-0">
+            {% if modules is defined and module_groups is defined %}
+            <div class="topbar-dd">
+                <button type="button" class="topbar-btn" onclick="toggleDd('tools-dd', event)" aria-label="All tools">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm6 0h4v4h-4V6zm6 0h4v4h-4V6zM4 14h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z"/></svg>
+                    <span class="hidden lg:inline">All tools</span>
+                </button>
+                <div id="tools-dd" class="topbar-menu topbar-menu-right tools-menu">
+                    {% for _g in module_groups %}
+                    <div class="tools-col">
+                        <div class="topbar-menu-label">{{ _g }}</div>
+                        {% for _k, _m in modules.items() if _m.group == _g %}
+                            {% set _href = _m.href if _m.href else (('/company/' ~ _nav_target ~ ('?tab=compare' if _k == 'compare' else '?tab=announcements')) if _nav_target else '/dashboard') %}
+                        <a href="{{ _href }}" class="topbar-menu-item {{ 'tools-active' if active_page == _k else '' }}">{{ _m.label }}</a>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             <div class="topbar-dd">
                 <button type="button" class="topbar-btn" onclick="toggleDd('wl-dd', event)">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
                     <span class="hidden lg:inline">Watchlist</span>
                 </button>
-                <div id="wl-dd" class="topbar-menu">
+                <div id="wl-dd" class="topbar-menu topbar-menu-right">
                     <div class="topbar-menu-label">Your watchlist</div>
                     {% set _wl = (watchlist if watchlist is defined else []) %}
                     {% for w in _wl %}
                     {% set _sym = w.symbol if w is mapping else w %}
                     <a href="/company/{{ _sym }}" class="topbar-menu-item">
-                        <span class="wl-dot" style="background: {{ ['#3b82f6','#6366f1','#0ea5e9','#818cf8','#38bdf8'][loop.index0 % 5] }}"></span>
+                        <span class="wl-dot" style="background: {{ ['#cdb243','#b59c2d','#e0c442','#d3bf63','#edda7b'][loop.index0 % 5] }}"></span>
                         <span class="flex-1 truncate font-medium">{{ _sym }}</span>
                         {% if company_counts is defined and _sym in company_counts %}<span class="topbar-menu-count">{{ company_counts[_sym] }}</span>{% endif %}
                     </a>
@@ -283,6 +379,17 @@
                         <span class="flex-1">Remove photo</span>
                     </button>
 
+                    {% if roles is defined and current_role is defined %}
+                    <div class="topbar-menu-divider"></div>
+                    <div class="topbar-menu-label">Workspace view</div>
+                    {% for _rk, _r in roles.items() %}
+                    <button type="button" class="topbar-menu-item" onclick="switchRole('{{ _rk }}', event)">
+                        <span class="role-radio {{ 'on' if _rk == current_role else '' }}"></span>
+                        <span class="flex-1">{{ _r.label }}</span>
+                    </button>
+                    {% endfor %}
+                    {% endif %}
+
                     <div class="topbar-menu-divider"></div>
 
                     <button type="button" class="topbar-menu-item" onclick="openSettingsModalFromMenu(event)">
@@ -290,6 +397,12 @@
                         <span class="flex-1">Settings</span>
                         <span id="settings-menu-status" class="text-[10px] text-slate-400"></span>
                     </button>
+                    {% if platform_admin %}
+                    <a href="/settings/ai" class="topbar-menu-item {{ 'tools-active' if active_page == 'ai_settings' else '' }}">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                        <span class="flex-1">AI provider</span>
+                    </a>
+                    {% endif %}
 
                     <div class="topbar-menu-divider"></div>
 
@@ -310,7 +423,7 @@
         <div class="modal-header">
             <div>
                 <h3 class="text-lg font-bold text-gray-900">Settings</h3>
-                <p class="text-sm text-gray-500 mt-0.5">Industry watchlist and AI configuration</p>
+                <p class="text-sm text-gray-500 mt-0.5">{% if platform_admin %}Industry watchlist and AI configuration{% else %}Industry watchlist{% endif %}</p>
             </div>
             <button onclick="closeSettingsModal()"
                 class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
@@ -320,8 +433,8 @@
         </div>
         <div class="modal-body" style="padding:0">
 
-            <!-- Filing history depth -->
-            <div class="px-6 py-5 border-b border-gray-200">
+            <!-- Filing history depth (applies to every account: operator only) -->
+            <div class="px-6 py-5 border-b border-gray-200{% if not platform_admin %} hidden{% endif %}">
                 <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Filing history depth</div>
                 <p class="text-[11px] text-gray-500 mb-3">How many years of governance filings to pull from NSE for each company. Deeper spans take longer to fetch. You can also pull a custom depth per company from its Disclosures page.</p>
                 <div class="grid grid-cols-4 gap-2" id="depth-setting-grid">
@@ -347,7 +460,7 @@
 
             <!-- Industry / Watchlist -->
             <div class="px-6 py-5 border-b border-gray-200">
-                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">1. Industry Watchlist</div>
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Industry watchlist</div>
                 <p class="text-[11px] text-gray-500 mb-3">
                     Switch the industry to track a different set of companies. Your current watchlist
                     will be <span class="font-semibold text-red-600">replaced</span> with the top companies in the new sector.
@@ -380,17 +493,17 @@
                 </div>
             </div>
 
-            <!-- Model Selection -->
-            <div class="px-6 py-5 bg-slate-50 border-b border-gray-200">
-                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">2. Select Model Engine</div>
+            <!-- Model Selection (operator only) -->
+            <div class="px-6 py-5 bg-slate-50 border-b border-gray-200{% if not platform_admin %} hidden{% endif %}">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">AI model · all accounts</div>
                 <div id="model-cards" class="grid grid-cols-2 gap-3">
                     <!-- Filled by JS -->
                 </div>
             </div>
 
-            <!-- API Key -->
-            <div class="px-6 py-5 border-t border-gray-200">
-                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">3. AI API Key</div>
+            <!-- API Key (operator only) -->
+            <div class="px-6 py-5 border-t border-gray-200{% if not platform_admin %} hidden{% endif %}">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">AI API key · all accounts</div>
                 <div class="relative">
                     <input type="password" id="settings-api-key" placeholder="Enter your AI API key..."
                            class="w-full px-4 py-3 text-sm bg-slate-50 border border-gray-200 rounded-xl
@@ -419,8 +532,8 @@
                 </p>
             </div>
 
-            <!-- Save -->
-            <div class="px-6 py-4 bg-slate-50 border-t border-gray-200 flex items-center justify-between">
+            <!-- Save (operator only: the industry switch saves itself) -->
+            <div class="px-6 py-4 bg-slate-50 border-t border-gray-200 flex items-center justify-between{% if not platform_admin %} hidden{% endif %}">
                 <div id="settings-save-status" class="text-xs"></div>
                 <button onclick="saveSettings()" id="save-settings-btn"
                         class="btn btn-primary text-sm px-5 py-2">
@@ -461,6 +574,17 @@ document.addEventListener('click', () => {
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') document.querySelectorAll('.topbar-menu').forEach(x => x.classList.remove('visible'));
 });
+
+/* Change workspace view (role) and land on that role's home. */
+async function switchRole(role, e) {
+    if (e) e.stopPropagation();
+    try {
+        const r = await fetch('/api/role', {method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json'}, body: JSON.stringify({role})});
+        const d = await r.json();
+        if (r.ok && d.home) { window.location.href = d.home; }
+    } catch (err) { console.warn('role switch failed', err); }
+}
 
 /* Wrapper so the settings menu item can close the dropdown + open the modal. */
 function openSettingsModalFromMenu(e) {
@@ -808,7 +932,7 @@ function saveSettings() {
 function updateAiStatusDot(hasKey) {
     const dot = document.getElementById('ai-status-dot');
     if (!dot) return;
-    const color = hasKey ? '#10b981' : '#cbd5e1';
+    const color = hasKey ? '#10b981' : '#c3c0b4';
     if (dot.classList.contains('avatar-status-dot')) {
         // New UI: tiny status dot on the avatar — set inline bg, keep class for sizing/border.
         dot.style.background = color;
@@ -821,7 +945,7 @@ function updateAiStatusDot(hasKey) {
     const menuStatus = document.getElementById('settings-menu-status');
     if (menuStatus) {
         menuStatus.textContent = hasKey ? 'AI on' : 'No key';
-        menuStatus.style.color = hasKey ? '#10b981' : '#94a3b8';
+        menuStatus.style.color = hasKey ? '#10b981' : '#9b988c';
     }
 }
 

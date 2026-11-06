@@ -6,7 +6,9 @@ from PyPDF2 import PdfReader
 MAX_CHARS = 15000  # Extract more text for thorough word-for-word view
 
 # Cache downloaded PDFs to avoid re-downloading
-PDF_CACHE_DIR = os.path.join(os.path.dirname(__file__), ".pdf_cache")
+# DELTA_PDF_CACHE_DIR moves the cache out of the code folder, which is
+# read-only inside an installed desktop app.
+PDF_CACHE_DIR = os.environ.get("DELTA_PDF_CACHE_DIR") or os.path.join(os.path.dirname(__file__), ".pdf_cache")
 os.makedirs(PDF_CACHE_DIR, exist_ok=True)
 
 
@@ -15,6 +17,45 @@ def _cache_path(pdf_url):
     import hashlib
     url_hash = hashlib.md5(pdf_url.encode()).hexdigest()
     return os.path.join(PDF_CACHE_DIR, f"{url_hash}.pdf")
+
+
+# The cache lives in ephemeral container storage, so it is wiped on every
+# deploy — but between deploys it grew without any bound. Cap it and evict the
+# least-recently-used files so a long-running container can't fill its disk.
+PDF_CACHE_MAX_MB = int(os.environ.get("DELTA_PDF_CACHE_MAX_MB", "200"))
+
+
+def _prune_cache(max_mb=None):
+    """Evict oldest cached PDFs until the cache is under the size cap."""
+    max_bytes = (max_mb if max_mb is not None else PDF_CACHE_MAX_MB) * 1024 * 1024
+    try:
+        entries = []
+        total = 0
+        for name in os.listdir(PDF_CACHE_DIR):
+            fp = os.path.join(PDF_CACHE_DIR, name)
+            try:
+                st = os.stat(fp)
+            except OSError:
+                continue
+            entries.append((st.st_mtime, st.st_size, fp))
+            total += st.st_size
+        if total <= max_bytes:
+            return
+        entries.sort()  # oldest first
+        freed = 0
+        for _mtime, size, fp in entries:
+            if total - freed <= max_bytes:
+                break
+            try:
+                os.remove(fp)
+                freed += size
+            except OSError:
+                continue
+        if freed:
+            print(f"[PDF] Cache pruned: freed {freed // (1024*1024)} MB "
+                  f"(cap {max_bytes // (1024*1024)} MB)")
+    except Exception as e:
+        print(f"[PDF] Cache prune failed: {e}")
 
 
 def download_and_extract(pdf_url):
@@ -43,6 +84,7 @@ def download_and_extract(pdf_url):
         # Save to cache
         with open(cached, "wb") as f:
             f.write(resp.content)
+        _prune_cache()
 
         return extract_text_from_file(cached)
 

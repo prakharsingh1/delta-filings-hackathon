@@ -121,42 +121,16 @@ POSTS.append({
     "category": "Software",
     "tag_color": "indigo",
     "read_minutes": 13,
-    "summary": "A practical, no-marketing comparison of the CS software stack used by Indian practices in 2026 — what each tool actually does, where every one falls short, and why Delta Filings is the layer most modern practices are standardising on.",
+    "summary": "A practical, no-marketing comparison of the CS software stack used by Indian practices in 2026 — what each tool actually does, where every one falls short, and where Delta Filings fits.",
     "published": "2026-05-28",
     "author": "Delta Filings Editorial",
-    "charts": [
-        {
-            "id": "cs-software-market-share",
-            "kind": "doughnut",
-            "title": "CS software adoption in Indian practices (2026 survey, n=412)",
-            "labels": ["Delta Filings", "Legacy desktop suites", "Bespoke spreadsheets", "Generic ERP add-ons", "BLISS / Vider ATOM (large only)"],
-            "datasets": [{
-                "label": "Share of practices",
-                "data": [34, 24, 22, 11, 9],
-                "color": ["#4f46e5", "#0ea5e9", "#ec4899", "#f59e0b", "#10b981"],
-            }],
-            "note": "Source: Delta Filings practice survey, March 2026. ‘Standardised on’ means the tool of record for the firm's calendar of deadlines.",
-        },
-        {
-            "id": "cs-software-feature-radar",
-            "kind": "radar",
-            "title": "Where each tool actually delivers — feature score, 0 to 10",
-            "labels": ["Deadline engine", "MCA-21 V3 integration", "AI-drafted letters", "Multi-client view", "Master data hygiene", "Audit trail", "Pricing transparency"],
-            "datasets": [
-                {"label": "Delta Filings", "data": [9, 8, 10, 9, 9, 9, 10], "color": "#4f46e5"},
-                {"label": "Legacy desktop suite (median)", "data": [7, 7, 2, 5, 7, 6, 5], "color": "#94a3b8"},
-                {"label": "Spreadsheet stack", "data": [3, 1, 0, 2, 3, 2, 10], "color": "#f59e0b"},
-            ],
-            "note": "Median scores across nineteen evaluator sessions run in Q1 2026.",
-        },
-    ],
+    "charts": [],
     "html": """
-<p class="lead">A modern company secretarial practice runs on software. The question is no longer whether to use it — it is which one, and what role each tool plays in the stack. This guide is the no-marketing version of that conversation: the seven tools Indian CS firms shortlist in 2026, what each actually does well, where each falls down, and why Delta Filings has become the layer most growing practices are standardising on.</p>
+<p class="lead">A modern company secretarial practice runs on software. The question is no longer whether to use it — it is which one, and what role each tool plays in the stack. This guide is the no-marketing version of that conversation: the seven tools Indian CS firms shortlist in 2026, what each actually does well, where each falls down, and where Delta Filings fits among them.</p>
 
 <h2>Why software matters more in 2026 than it did five years ago</h2>
 <p>The compliance surface area has widened, fast. MCA-21 V3 is now the default filing portal, the LLP forms have migrated, e-form fee structures were rationalised in 2024, MSME-1 has new triggers, and BRSR Lite is mandatory for the top thousand listed companies. Director KYC has become a recurring annual ritual that quietly breaks a portion of every firm's book of work each September.</p>
 <p>Add the parallel obligations under SEBI's LODR amendments, the BSE / NSE Integrated Filing System for governance reports, post-2020 stamp duty on share transfers, and the patchwork of state-level professional tax and shop-and-establishment renewals — and a manual spreadsheet stops scaling somewhere around the tenth client.</p>
-<p>Hidden cost of running without the right tool: the average mid-tier practice in our 2026 survey paid <strong>₹74,000 per partner in avoidable MCA additional fees</strong> across FY25 — entirely from filings that were technically possible to do on time and were not.</p>
 
 <h2>What to look for in CS software</h2>
 <p>Most evaluation matrices we see are too long and not useful. Strip the list down to seven things that actually decide whether the tool will stay in use:</p>
@@ -173,13 +147,13 @@ POSTS.append({
 <h2>The shortlist (the truth, no marketing)</h2>
 
 <h3>1. Delta Filings — the modern intelligence layer</h3>
-<p>The product most growing CS practices in India are standardising on in 2026. Delta Filings is built around three things older tools were never designed for:</p>
+<p>Delta Filings is built around three things older tools were never designed for:</p>
 <ul>
-  <li><strong>Real-time filings intelligence:</strong> NSE and BSE corporate announcements, SEBI enforcement orders, governance reports and BRSR disclosures, all ingested as they happen, indexed by company and director.</li>
-  <li><strong>AI drafting:</strong> Reply-to-SEBI letters, board notes, MGT-14 covering letters, and DIN-3 KYC chasers drafted in your firm's tone in under thirty seconds. The drafts pass through a CS-trained model that knows the difference between Section 117(3) and Section 179(3).</li>
-  <li><strong>Watchlist + alerting:</strong> Track every client and their related parties; you get pinged the moment a disqualification, a charge, or a SEBI proceeding touches anything on your list.</li>
+  <li><strong>Filings and regulatory news:</strong> NSE announcements, SEBI circulars and orders, RBI notifications and IBBI insolvency announcements, pulled in as they are published and tied to the companies you track.</li>
+  <li><strong>Drafting:</strong> About a hundred document types — Reg 30 letters, board notes, MGT-14 covering letters, DIR-3 KYC reminders — drafted in the company's own style from its past filings. A general-purpose language model writes the first draft; a CS reviews it.</li>
+  <li><strong>Watchlist and alerts:</strong> Track clients and counterparties; a SEBI order, an IBBI insolvency announcement or a sharp price move on anything on your list raises an alert. MCA data such as charges and director disqualification needs a licensed source and is not included yet.</li>
 </ul>
-<p>For a single-partner practice, Delta Filings starts at <strong>₹4,999/year</strong>, which has structurally repriced the category. For larger practices it pairs cleanly with whichever filing-form tool you already use. There is no on-prem version; it is cloud-only, which is a deliberate trade-off in favour of weekly updates as MCA, SEBI and the exchanges change their schemas.</p>
+<p>Delta Filings is free during its beta; see the pricing page for the proposed tiers. It does not file on the MCA portal, so larger practices pair it with whichever filing-form tool they already use. It is cloud-only for now.</p>
 
 <h3>2. Legacy desktop suites (the workhorses that age unevenly)</h3>
 <p>A handful of desktop-installed products have been running in mid-tier firms for over a decade. They cover the routine forms well, the bulk filing throughput is fast, and the support footprint is small. The UI shows its age, the cloud story is patchy, and most have no real answer for SEBI-side workflows or AI drafting. If your firm values raw filing throughput over everything else, they remain a safe pick — paired with Delta Filings for the intelligence layer.</p>
@@ -193,8 +167,8 @@ POSTS.append({
 <h3>5. Zoho One (with Zoho Books, Zoho People)</h3>
 <p>Not a CS product per se, but several smaller practices stitch together Zoho Books, a custom Zoho Creator app, and a deadline tracker to do most of what they need. The cost advantage is real. The trade-off is that you are the integrator — nobody else will fix your forms when MCA changes them.</p>
 
-<h3>6. KPMG Spark / EY Atlas-style suites</h3>
-<p>Rarely sold to independent CS practices, but worth knowing about because in-house teams of multinationals will increasingly insist on integrating with the Big Four's compliance platforms. If you serve such clients, your stack needs decent export and an API.</p>
+<h3>6. Big Four compliance platforms</h3>
+<p>Rarely sold to independent CS practices, but worth knowing about because in-house teams of multinationals may ask you to work with the compliance platforms their auditors or advisers run. If you serve such clients, your stack needs decent export.</p>
 
 <h3>7. In-house spreadsheets</h3>
 <p>Still the most widely used “CS software” in India — and still the most expensive when something is missed. It works for ten companies. It does not work for forty. The hidden cost is not the tool; it is the missed deadline that lands a client with a ₹1 lakh additional fee on AOC-4, and the partner-hours spent reconstructing what happened.</p>
@@ -344,20 +318,7 @@ POSTS.append({
     "summary": "A working reference for the fifteen MCA forms a CS in India touches most often — purpose, deadline, key fields, common errors, and what the V3 portal expects.",
     "published": "2026-05-18",
     "author": "Delta Filings Editorial",
-    "charts": [
-        {
-            "id": "form-rejection-rates",
-            "kind": "bar",
-            "title": "MCA-21 V3 first-pass rejection rate by form (2026, sample n≈18,400 filings)",
-            "labels": ["SPICe+", "DIR-12", "AOC-4 XBRL", "MGT-7", "CHG-1", "SH-7", "MGT-14", "PAS-3"],
-            "datasets": [{
-                "label": "% rejected at first upload",
-                "data": [22, 14, 31, 11, 18, 13, 17, 9],
-                "color": "#7c3aed",
-            }],
-            "note": "Top causes: schema mismatch, DSC expiry, master-data inconsistency between MCA and Income Tax records.",
-        },
-    ],
+    "charts": [],
     "html": """
 <p class="lead">The MCA-21 V3 portal has rationalised the form library considerably since 2024. The fifteen forms below cover the overwhelming majority of routine CS work. For each, we capture the purpose, the deadline, a short list of fields that most often cause rejection, and a note on what changed in V3.</p>
 
@@ -375,7 +336,7 @@ POSTS.append({
 <h2>Annual returns</h2>
 
 <h3>AOC-4 — Financial statements</h3>
-<p>In V3, the XBRL filing now uses the IND-AS-aligned taxonomy 2024 for companies above the prescribed thresholds. The chart above shows AOC-4 XBRL has the highest first-pass rejection rate of all forms (31%) — almost entirely from schema validation against the new taxonomy.</p>
+<p>In V3, the XBRL filing now uses the IND-AS-aligned taxonomy 2024 for companies above the prescribed thresholds.</p>
 
 <h3>MGT-7 / MGT-7A — Annual return</h3>
 <p>MGT-7A is the simplified version for OPCs and small companies. Common errors: total holding split percentages do not add up to 100; CIN of subsidiary or holding company entered without the correct format check; director details out of sync with DIR-12 history.</p>
@@ -443,27 +404,14 @@ POSTS.append({
     "summary": "A CS firm with thirty active clients runs into a different problem than one with five. What scales, what breaks, and the systems that quietly hold a practice together at fifty clients and a hundred.",
     "published": "2026-05-14",
     "author": "Delta Filings Editorial",
-    "charts": [
-        {
-            "id": "missed-deadlines-by-client-count",
-            "kind": "line",
-            "title": "Missed deadlines per year vs. number of active clients (practice survey, n=147)",
-            "labels": ["5 clients", "10", "15", "20", "30", "40", "60", "80", "100+"],
-            "datasets": [
-                {"label": "Spreadsheet-only practice", "data": [0.2, 0.6, 1.4, 3.1, 6.7, 11.4, 19.0, 27.5, 38.1], "color": "#ef4444"},
-                {"label": "Practice on Delta Filings", "data": [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0, 1.3], "color": "#4f46e5"},
-            ],
-            "y_label": "Missed filings / year",
-            "note": "Missed deadlines counted as filings that attracted MCA additional fees in FY25.",
-        },
-    ],
+    "charts": [],
     "html": """
 <p class="lead">There is a particular moment, somewhere between the twentieth and thirtieth client, when a CS practice stops being a craft and starts being an operation. The work has not become harder; there is just more of it, happening in parallel, on overlapping calendars. This article is about the systems that make that transition survivable.</p>
 
 <h2>Why scaling a CS practice is unusual</h2>
 <p>Most professional-services scaling problems are about more billable hours. CS work is different: the volume of any one engagement is fairly small, but the calendar surface area is enormous. A client with one filing a year (the dormant company) still consumes calendar discipline. A client with forty filings a year (a listed mid-cap) consumes filing capacity. Most practices end up with both, and the mistake is treating them the same.</p>
 
-<p>The chart above is the single most useful data point we can offer on this question. Below twenty clients, a spreadsheet-run practice can keep up. Above that, missed deadlines compound non-linearly. Practices that switched to an automated calendar — Delta Filings or equivalent — flatten the curve.</p>
+<p>Below twenty or so clients, a spreadsheet-run practice can usually keep up. Above that, the number of dates to track grows faster than anyone's memory, and an automated calendar — Delta Filings or an equivalent — is what keeps it manageable.</p>
 
 <h2>Segment your clients</h2>
 <p>The first useful step is to stop pretending all clients are the same engagement. We see four useful buckets:</p>
@@ -597,20 +545,7 @@ POSTS.append({
     "summary": "A working twelve-month checklist for a private limited company in India — board meetings, annual filings, event-based obligations, tax obligations, and the items most often forgotten in the first two years.",
     "published": "2026-05-05",
     "author": "Delta Filings Editorial",
-    "charts": [
-        {
-            "id": "first-year-misses",
-            "kind": "doughnut",
-            "title": "First-year compliance misses by new pvt ltd companies (n=2,100)",
-            "labels": ["INC-20A (commencement)", "First auditor appointment", "Board minutes discipline", "Statutory registers", "DIR-3 KYC of new directors"],
-            "datasets": [{
-                "label": "Share of misses",
-                "data": [38, 22, 17, 14, 9],
-                "color": ["#ef4444", "#f59e0b", "#7c3aed", "#0ea5e9", "#10b981"],
-            }],
-            "note": "INC-20A is the single most-missed first-year filing in India — partly because most founders don't think the company has “commenced business” yet.",
-        },
-    ],
+    "charts": [],
     "html": """
 <p class="lead">Most new private limited companies in India have a compliance load they only fully understand in their second year, when something gets missed and a notice arrives. This checklist is the kind of single-page reference a founder, in-house finance lead, or junior CS associate can keep at hand.</p>
 
@@ -697,31 +632,18 @@ POSTS.append({
     "summary": "The business case for moving a CS practice from spreadsheets to a real workflow tool — written for the partner who keeps deferring the decision because the existing setup ‘mostly works’.",
     "published": "2026-04-28",
     "author": "Delta Filings Editorial",
-    "charts": [
-        {
-            "id": "roi-on-tool",
-            "kind": "bar",
-            "title": "Annual ₹ saved on MCA additional fees after moving to Delta Filings",
-            "labels": ["10 clients", "20 clients", "40 clients", "60 clients", "100 clients"],
-            "datasets": [
-                {"label": "Avg. additional fees paid — spreadsheet stack", "data": [4500, 28000, 86000, 162000, 311000], "color": "#ef4444"},
-                {"label": "Avg. additional fees paid — Delta Filings", "data": [800, 2300, 5100, 9000, 14000], "color": "#4f46e5"},
-            ],
-            "y_label": "₹ in additional fees per year",
-            "note": "Survey of 412 practices, FY25 data. Subscription cost of Delta Filings already netted out.",
-        },
-    ],
+    "charts": [],
     "html": """
 <p class="lead">There is a particular conversation we hear often. A CS firm partner, mid-fifties, twenty-plus years of practice, twenty-five active clients, runs the firm on spreadsheets, WhatsApp, and a remarkable amount of personal memory. It mostly works. The question being deferred is whether to invest in a real compliance management tool. This article is for that conversation.</p>
 
 <h2>What “mostly works” actually costs</h2>
 <p>Spreadsheet-based compliance management has three real costs that are hard to see month-to-month and easy to see annually:</p>
 <ul>
-  <li><strong>Missed deadlines.</strong> The single most reliable indicator. Most spreadsheet-run practices miss between two and seven recurring deadlines per year across their book.</li>
+  <li><strong>Missed deadlines.</strong> The single most reliable indicator. A missed date usually surfaces only when the additional fee does.</li>
   <li><strong>Time spent on reconstruction.</strong> Every audit, every due diligence, every regulator query, the team spends one to three days putting together documentation that should have been searchable in minutes.</li>
   <li><strong>Key-person risk.</strong> If the partner who carries the calendar in their head is unavailable for two weeks, the practice operates blind.</li>
 </ul>
-<p>Multiply these against the firm's billing rate and the answer is rarely small. The chart above is the cleanest data we have: at twenty clients, the average practice pays ₹28,000 a year in MCA additional fees alone. At sixty clients, it is ₹1.62 lakh.</p>
+<p>Multiply these against the firm's billing rate and the answer is rarely small.</p>
 
 <h2>What good compliance software actually does</h2>
 <ol>
@@ -737,7 +659,7 @@ POSTS.append({
 <p>It works until it does not. The transition point is somewhere around the twentieth active client.</p>
 
 <h3>“Software is expensive.”</h3>
-<p>Delta Filings is ₹4,999/year for a single-practice tier. One missed AOC-4 filing on one client costs around ₹18,000 in additional fees for a six-month delay, plus the relationship damage. The economics break even at one prevented miss a year.</p>
+<p>Delta Filings is free during its beta. For comparison, one missed AOC-4 on one client costs ₹100 a day in additional fees — ₹18,000 for a six-month delay — plus the relationship damage.</p>
 
 <h3>“The team will resist.”</h3>
 <p>Resistance dissolves when associates discover the tool removes their least-favourite parts of the job — chasing master data, recomputing deadlines, hunting old filings. Pilot with the most spreadsheet-fatigued associate, not the most senior partner.</p>
@@ -772,20 +694,7 @@ POSTS.append({
     "summary": "Two years into MCA-21 V3, half the country's CS practices still run on outdated playbooks. This is the honest mid-2026 reset — what improved, what is still broken, and the workarounds that actually work.",
     "published": "2026-05-02",
     "author": "Delta Filings Editorial",
-    "charts": [
-        {
-            "id": "v3-form-success-rate",
-            "kind": "line",
-            "title": "V3 first-pass success rate over time (% of filings accepted at first upload)",
-            "labels": ["Q1 23", "Q3 23", "Q1 24", "Q3 24", "Q1 25", "Q3 25", "Q1 26", "Q2 26"],
-            "datasets": [{
-                "label": "V3 first-pass success",
-                "data": [41, 53, 62, 71, 79, 84, 87, 89],
-                "color": "#7c3aed",
-            }],
-            "note": "The platform has improved meaningfully. The remaining 11% is dominated by DSC-PAN mismatch and stale CIN master data.",
-        },
-    ],
+    "charts": [],
     "html": """
 <p class="lead">MCA-21 V3 launched in January 2023 to a chorus of professional complaint. Filings broke, DSCs misbehaved, the company-login interface was unfamiliar, and the form library felt half-finished. Two and a half years in, the picture is different — V3 is materially more reliable than V2, but many CS practices are still running on V2-era playbooks. This is the mid-2026 reset.</p>
 
@@ -815,7 +724,7 @@ POSTS.append({
 </ol>
 
 <h2>How Delta Filings handles V3</h2>
-<p>Most modern CS tools have to translate between the user's intent and the V3 schema. Delta Filings ships V3-aware drafting, runs pre-upload schema validation in the background, and surfaces master-data inconsistencies before you start the form. The result is the 89%+ first-pass success rate on the chart above being well above 95% in the cohort of practices that file through us.</p>
+<p>Delta Filings does not file on the V3 portal: MCA offers no API, so the upload and the DSC stay with you. What it does is date every form from the company's profile and its events (AOC-4 and MGT-7 from the actual AGM date, DIR-12 from the appointment), show the additional fee if a date slips, and draft the covering documents, so the time you spend on V3 goes on the form itself.</p>
 
 <h2>The takeaway</h2>
 <p>V3 is good now. The pain in 2023 was real and the muscle memory of avoiding it has stuck around longer than the actual problem. If your team is still treating V3 as a hazardous platform, you are leaving productivity on the table.</p>
@@ -848,18 +757,6 @@ POSTS.append({
             }],
             "note": "SEBI Master Circular on LODR, updated April 2026. Value chain reporting is mandatory for the top 250 from FY27.",
         },
-        {
-            "id": "brsr-prep-effort",
-            "kind": "doughnut",
-            "title": "Where the effort actually goes — BRSR prep time, % of total",
-            "labels": ["Data collection from operations", "Assurance and verification", "Drafting and disclosures", "Board approval workflow", "ESG policy refresh"],
-            "datasets": [{
-                "label": "Effort %",
-                "data": [54, 19, 14, 8, 5],
-                "color": ["#7c3aed", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444"],
-            }],
-            "note": "Median of 38 reporting workflows we audited in early 2026.",
-        },
     ],
     "html": """
 <p class="lead">If your client is listed and you still think of Business Responsibility and Sustainability Reporting as a single annual chore, the 2026 update will catch you out. BRSR has quietly become a three-layered regime — Full BRSR, BRSR Core, BRSR Lite — each with different applicability, different assurance requirements, and a meaningfully different scoping cost. This article unpacks what each one is, who has to file what in FY26, and how to scope the work without setting up a separate ESG team.</p>
@@ -884,7 +781,7 @@ POSTS.append({
 </ul>
 
 <h2>The realistic effort</h2>
-<p>The chart above is the most honest map we can offer. Over half the effort is just <strong>collecting data from operations</strong> — energy consumption by facility, water withdrawal, gender split by function, training hours by category, suppliers verified for child labour and forced labour. None of this is hard. All of it requires somebody owning the spreadsheet.</p>
+<p>Most of the effort is <strong>collecting data from operations</strong> — energy consumption by facility, water withdrawal, gender split by function, training hours by category, suppliers verified for child labour and forced labour. None of this is hard. All of it requires somebody owning the spreadsheet.</p>
 <p>The CS team rarely owns the underlying data. The CS team owns the disclosure framework, the board approval workflow, and the timing. The mistake we see most often is the CS team trying to own everything, then becoming the bottleneck.</p>
 
 <h2>A workable scoping playbook</h2>
@@ -897,7 +794,7 @@ POSTS.append({
 </ol>
 
 <h2>How Delta Filings helps</h2>
-<p>BRSR is one of the longest filings a listed entity makes in a year, and the one where errors are most public. Delta Filings ingests every BRSR filing on the exchanges as it happens, indexes the KPIs, and lets you benchmark a client's draft against peer companies in the same sector before it is filed. The number of times we have caught a clearly out-of-range disclosure before it embarrassed a CFO is non-trivial.</p>
+<p>BRSR is one of the longest filings a listed entity makes in a year, and the one where errors are most public. Delta Filings puts the BRSR due date on the listed company's calendar with the annual report, and its disclosures view shows what peers filed on the exchange. Peer benchmarking of BRSR KPIs is not built yet.</p>
 
 <h2>The strategic note</h2>
 <p>BRSR is going to look like CSR in five years' time — a regime that everyone resisted, then accepted, and which eventually rewrote how Indian boards think about non-financial performance. The CS teams that build the data pipes early will be the ones running this for the C-suite by FY28.</p>
@@ -917,21 +814,7 @@ POSTS.append({
     "summary": "The PIT Regulations are simple on paper. The trading window discipline that flows from them is where listed companies actually get into trouble. This is the playbook a listed company CS should be running every quarter.",
     "published": "2026-04-15",
     "author": "Delta Filings Editorial",
-    "charts": [
-        {
-            "id": "pit-window-timeline",
-            "kind": "bar",
-            "title": "Days the trading window is typically closed in a year — top 500 listed entities",
-            "labels": ["Q1 results", "Q2 / H1 results", "Q3 / 9M results", "Q4 / annual results", "M&A / fundraise events", "Other UPSI"],
-            "datasets": [{
-                "label": "Avg. days window closed",
-                "data": [22, 22, 22, 38, 14, 11],
-                "color": "#ec4899",
-            }],
-            "y_label": "Days closed per year",
-            "note": "Aggregated across FY25 disclosures of 500 listed entities. Total median: 129 days — about a third of the year.",
-        },
-    ],
+    "charts": [],
     "html": """
 <p class="lead">The SEBI (Prohibition of Insider Trading) Regulations, 2015 — usually shortened to “PIT” — are simple on paper. The trading window discipline that flows from them is where listed companies actually get into trouble. Notices from SEBI for trading-window violations are no longer rare, and the personal liability of the Compliance Officer is now squarely in scope. This is the playbook a listed company CS should be running every quarter.</p>
 
@@ -996,20 +879,7 @@ POSTS.append({
     "summary": "Half of LinkedIn says AI will replace the CS profession. The other half says it can't read a board resolution. The truth, like most truth in 2026, is in the middle — and the middle is more interesting than either extreme.",
     "published": "2026-04-08",
     "author": "Delta Filings Editorial",
-    "charts": [
-        {
-            "id": "ai-cs-time-saved",
-            "kind": "bar",
-            "title": "Time saved per task when CS work is AI-assisted (minutes, median)",
-            "labels": ["Board notice drafting", "Reply to SEBI show-cause", "MGT-14 covering letter", "Search & summarise an MCA filing", "Director KYC chasers", "Minutes drafting from agenda"],
-            "datasets": [
-                {"label": "Manual", "data": [45, 180, 30, 25, 12, 90], "color": "#94a3b8"},
-                {"label": "AI-assisted (CS-trained model)", "data": [7, 28, 5, 4, 1, 16], "color": "#4f46e5"},
-            ],
-            "y_label": "Minutes per task",
-            "note": "Internal benchmark across 1,300 task runs, March 2026. AI output then reviewed by a qualified CS — review time is included.",
-        },
-    ],
+    "charts": [],
     "html": """
 <p class="lead">Half of LinkedIn says AI will replace the company secretarial profession. The other half says AI cannot read a board resolution. Both are wrong, and the truth — like most truth in 2026 — is in the middle. This article is what we have actually learned shipping AI-assisted CS workflows over the last eighteen months.</p>
 
@@ -1048,7 +918,7 @@ POSTS.append({
 </ul>
 
 <h2>How Delta Filings approaches this</h2>
-<p>We built Delta Filings around the principle that AI should write the first draft of any reply, letter, or note a CS would otherwise write from scratch — but never the final word. Every drafted artefact in the tool is reviewable, editable, and version-controlled, with the model's reasoning visible to the CS. The CS-trained model knows Indian law; the workflow knows the firm's style. The combination is what turns the chart above from a benchmark into a daily reality.</p>
+<p>We built Delta Filings around the principle that AI should write the first draft of any reply, letter, or note a CS would otherwise write from scratch — but never the final word. Every draft in the tool is reviewable and editable before it leaves, and drafts follow the company's own past filings for style. The language model is a general-purpose one, not trained on Indian law, which is exactly why a qualified CS signs off.</p>
 
 <h2>The takeaway</h2>
 <p>AI in CS work in 2026 is not a future thing. It is a present thing being used badly. The practices that will define the profession five years from now are the ones building real AI-assisted workflows now — not the ones running ChatGPT in a separate tab.</p>
@@ -1068,39 +938,12 @@ POSTS.append({
     "summary": "If you are clearing your final CS module this year, the profession you are walking into is different from the one your seniors trained for. This is the practical roadmap — the paths, the comp ranges, the skills that compound, and the dead ends to avoid.",
     "published": "2026-03-30",
     "author": "Delta Filings Editorial",
-    "charts": [
-        {
-            "id": "cs-comp-by-track",
-            "kind": "bar",
-            "title": "CS compensation by career track and years of experience (₹ lakhs per annum, median, 2026)",
-            "labels": ["0–2 yrs", "3–5 yrs", "6–9 yrs", "10–14 yrs", "15+ yrs"],
-            "datasets": [
-                {"label": "Practice — small / mid firm", "data": [4.5, 8, 14, 22, 35], "color": "#4f46e5"},
-                {"label": "In-house — unlisted", "data": [6, 11, 18, 28, 42], "color": "#0ea5e9"},
-                {"label": "In-house — listed mid-cap", "data": [8, 14, 24, 38, 62], "color": "#10b981"},
-                {"label": "In-house — large listed / MNC", "data": [11, 19, 32, 52, 95], "color": "#ec4899"},
-            ],
-            "y_label": "₹ lakhs per annum (CTC)",
-            "note": "Based on 2,800 self-reported salaries collected across LinkedIn, ICSI placement data, and direct survey, March 2026. Big city premium ~20%.",
-        },
-        {
-            "id": "cs-time-allocation-2026",
-            "kind": "doughnut",
-            "title": "Where the modern CS actually spends their week (2026 working hours)",
-            "labels": ["Filings and compliance ops", "Board & governance support", "Advisory and judgement work", "Drafting (now AI-assisted)", "Learning and regulatory tracking", "Stakeholder communication"],
-            "datasets": [{
-                "label": "Hours / week",
-                "data": [12, 9, 8, 5, 4, 7],
-                "color": ["#4f46e5", "#0ea5e9", "#10b981", "#7c3aed", "#f59e0b", "#ec4899"],
-            }],
-            "note": "Drafting has shrunk from 14 hours/week in 2020 to ~5 hours in 2026. Advisory and judgement work has grown.",
-        },
-    ],
+    "charts": [],
     "html": """
 <p class="lead">If you are clearing your final CS module this year, the profession you are walking into is different from the one your seniors trained for. The regulation has multiplied. The tools have changed. The career paths have widened. The mistakes are also new. This is a practical roadmap — the paths, the comp ranges, the skills that compound, and the dead ends to avoid.</p>
 
 <h2>Where the profession is in 2026</h2>
-<p>The Indian CS profession crossed 75,000 members in early 2026, with around 9,000 in active practice and the balance in employment. Demand has outstripped supply for the last four years — listed-company CS roles, especially, sit unfilled for six to nine months on average. The chart above shows where the comp settles by track and seniority; the deltas across tracks are large and they grow over time.</p>
+<p>Most members of the ICSI work in employment; a smaller share hold a certificate of practice. Listed companies, NBFCs and larger private groups compete for the same experienced CSs, and pay differs widely by track and seniority.</p>
 
 <h2>The four primary career tracks</h2>
 
@@ -1170,14 +1013,7 @@ POSTS.append({
     "summary": "RPTs are where listed companies most consistently embarrass themselves in front of SEBI. The post-2023 LODR amendments dropped the materiality bar — and most CS playbooks haven't caught up. Here is the one that has.",
     "published": "2026-03-24",
     "author": "Delta Filings · The Governance Desk",
-    "charts": [{
-        "id": "rpt-approval-mix",
-        "kind": "doughnut",
-        "title": "How RPTs get approved at NIFTY 500 companies (sample of 1,820 approvals, FY25)",
-        "labels": ["Omnibus audit committee approval", "Specific audit committee approval", "Board approval (material RPT)", "Shareholder approval (material RPT)", "Ratified after the fact"],
-        "datasets": [{"label": "Share of RPTs", "data": [58, 22, 9, 7, 4], "color": ["#10b981","#0ea5e9","#7c3aed","#f59e0b","#ef4444"]}],
-        "note": "Ratified-after-the-fact is the category SEBI is currently watching most closely. Get this number to zero.",
-    }],
+    "charts": [],
     "html": """
 <p class="lead">If you've ever stayed up the night before an audit committee meeting cleaning up an RPT register that was 80% blanks and 20% question marks, this article is for you. Related Party Transactions are where listed companies most consistently embarrass themselves in front of SEBI — and the post-2023 LODR amendments dropped the materiality bar from 10% to 2%, which means a much larger volume of transactions now needs explicit board sign-off. The old playbook does not work in 2026. Here is the one that does.</p>
 
@@ -1303,15 +1139,7 @@ POSTS.append({
     "summary": "Corporate Social Responsibility has quietly become one of the most-amended chapters of the Companies Act. The 2% is the easy part. The carry-forward, ongoing project rules, CSR-2 form, and impact assessment regime are where the work actually is.",
     "published": "2026-03-15",
     "author": "Delta Filings Editorial",
-    "charts": [{
-        "id": "csr-spend-sectors",
-        "kind": "bar",
-        "title": "CSR spend by sector — top 1,000 companies, aggregated ₹ cr FY25",
-        "labels": ["Education", "Healthcare", "Rural development", "Skill development", "Environment", "Women & child welfare", "Sports & culture", "Other"],
-        "datasets": [{"label": "₹ crore", "data": [9420, 7510, 4820, 4120, 3940, 2380, 1260, 1840], "color": "#f43f5e"}],
-        "y_label": "₹ crore",
-        "note": "Source: aggregated CSR-2 disclosures, FY25. Education + Healthcare remain ~40% of all CSR spend.",
-    }],
+    "charts": [],
     "html": """
 <p class="lead">CSR is the chapter of the Companies Act that quietly gets amended the most. Every CFO thinks they understand the 2% rule. Most CS teams still get the carry-forward calculation wrong. This is the full, current, 2026 picture — eligibility, spend, the new CSR-2 form, ongoing project rules, impact assessment, and the mistakes the MCA is currently issuing notices on.</p>
 
@@ -1449,14 +1277,7 @@ POSTS.append({
     "summary": "The Insolvency and Bankruptcy Code touches more CS work than most realise — from creditor claims to suspended boards. This is the working CS view of the IBC, not the lawyer view.",
     "published": "2026-03-05",
     "author": "Delta Filings · CS Practice Notes",
-    "charts": [{
-        "id": "cirp-outcomes",
-        "kind": "doughnut",
-        "title": "Outcome of CIRPs commenced FY20-FY24 (IBBI data, status March 2026)",
-        "labels": ["Resolution plan approved", "Liquidation ordered", "Withdrawal under Section 12A", "Closed on appeal/settlement", "Ongoing"],
-        "datasets": [{"label": "Share", "data": [22, 41, 12, 8, 17], "color": ["#10b981","#ef4444","#0ea5e9","#f59e0b","#7c3aed"]}],
-        "note": "Liquidation is still the modal outcome. Resolution success rate is improving but slowly — knowing which side of this curve you're on early is decisive.",
-    }],
+    "charts": [],
     "html": """
 <p class="lead">The Insolvency and Bankruptcy Code, 2016 has reshaped Indian corporate law more than any single statute since the 2013 Act. Most CS think of it as someone else's problem — the IRP's, the RP's, the lawyer's. It isn't. When a company you work with goes into CIRP, your job changes shape overnight, and the CS who understands the framework adds disproportionate value. This is the working CS view of the IBC, not the lawyer view.</p>
 
@@ -1663,7 +1484,7 @@ POSTS.append({
 </ol>
 
 <h2>How Delta Filings supports the investor ESG conversation</h2>
-<p>We benchmark BRSR Core KPIs against peer companies in the same sector, surface where your disclosures diverge from the sector median, and pre-format the investor-facing summary that the IR team can use directly in the analyst deck. For a listed company CS preparing the investor pre-results pack, the BRSR-aligned investor summary is one of the highest-leverage artefacts you can produce.</p>
+<p>Delta Filings tracks the BRSR and BRSR Core dates with the annual report and shows peers' exchange filings in its disclosures view. Sector benchmarking of BRSR Core KPIs is not built yet. For a listed company CS preparing the investor pre-results pack, a BRSR-aligned investor summary is one of the highest-leverage artefacts you can produce.</p>
 
 <h2>The closing note</h2>
 <p>ESG ratings are imperfect. They are also already driving capital allocation decisions worth billions of dollars in Indian listed equities. The companies that engage the rating machinery seriously — feed it credible data, address the controversies, set credible targets — will see the rating rise. The companies that file BRSR and call it ESG strategy will not.</p>
