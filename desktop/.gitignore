@@ -1,8 +1,10 @@
 # Build outputs and local tooling for the desktop app.
 .venv/
-build/
+build
+build.nosync/
 vendor/
 shell/node_modules/
-shell/src-tauri/target/
+shell/src-tauri/target
+shell/src-tauri/target.nosync/
 shell/src-tauri/gen/
 requirements-desktop.txt
