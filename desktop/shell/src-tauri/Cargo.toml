@@ -1,6 +1,6 @@
 [package]
 name = "delta-filings"
-version = "0.1.2"
+version = "0.1.3"
 description = "Delta Filings desktop: corporate governance and compliance on your own computer"
 edition = "2021"
 
