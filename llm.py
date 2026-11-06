@@ -34,7 +34,8 @@ import re
 import socket
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from types import SimpleNamespace
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
@@ -355,7 +356,7 @@ def _breaker_trip(cfg: Dict[str, Any], msg: str) -> None:
 def _unreachable(cfg: Dict[str, Any], e: Exception) -> LLMError:
     where = destination_label(cfg)
     if isinstance(e, requests.Timeout):
-        msg = (f"The model at {where} did not answer within {cfg['timeout']} seconds. "
+        msg = (f"The model at {where} timed out after {cfg['timeout']} seconds. "
                "Try a smaller model or raise the time limit in Settings, AI provider.")
     elif _is_ollama(cfg):
         msg = f"Could not reach Ollama at {cfg['base_url']}. Open the Ollama app and try again."
@@ -373,13 +374,14 @@ def _http_error(cfg: Dict[str, Any], r: requests.Response) -> LLMError:
             detail = detail.get("message") or json.dumps(detail)[:200]
     except Exception:
         detail = (r.text or "")[:200]
-    if r.status_code in (401, 403):
-        return LLMError(f"The model service rejected the API key (HTTP {r.status_code}).")
-    if r.status_code == 404:
-        return LLMError(f"Model or endpoint not found at {cfg['base_url']}: {detail}")
-    # Existing callers retry on these markers.
-    marker = " 503 UNAVAILABLE" if r.status_code in (502, 503, 504) else (" 429" if r.status_code == 429 else "")
-    return LLMError(f"Model service error (HTTP {r.status_code}){marker}: {detail}")
+    code = r.status_code
+    # Lead with the status code, as google-genai does; callers classify on it.
+    if code in (401, 403):
+        return LLMError(f"{code} The model service rejected the API key.")
+    if code == 404:
+        return LLMError(f"404 NOT_FOUND. Model or endpoint not found at {cfg['base_url']}: {detail}")
+    label = {429: "RESOURCE_EXHAUSTED", 502: "UNAVAILABLE", 503: "UNAVAILABLE", 504: "DEADLINE_EXCEEDED"}.get(code, "ERROR")
+    return LLMError(f"{code} {label}. The model service returned an error: {detail}")
 
 
 def _post(cfg: Dict[str, Any], url: str, payload: Dict[str, Any], headers: Dict[str, str],
@@ -390,9 +392,17 @@ def _post(cfg: Dict[str, Any], url: str, payload: Dict[str, Any], headers: Dict[
         raise _unreachable(cfg, e)
 
 
-def _openai_compat(cfg, prompt, system, max_tokens, temperature, json_mode, timeout) -> str:
+_FINISH = {"length": "MAX_TOKENS", "max_tokens": "MAX_TOKENS", "stop": "STOP", "end_turn": "STOP",
+           "stop_sequence": "STOP", "tool_calls": "STOP", "content_filter": "SAFETY", "refusal": "SAFETY"}
+
+
+def _finish(reason: Any) -> str:
+    return _FINISH.get(str(reason or "stop").lower(), "STOP")
+
+
+def _openai_compat(cfg, prompt, system, max_tokens, temperature, json_mode, timeout, schema=None) -> Tuple[str, str]:
     if _is_ollama(cfg):
-        return _ollama_native(cfg, prompt, system, max_tokens, temperature, json_mode, timeout)
+        return _ollama_native(cfg, prompt, system, max_tokens, temperature, json_mode, timeout, schema)
     msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
     payload: Dict[str, Any] = {"model": cfg["model"], "messages": msgs, "max_tokens": int(max_tokens),
                                "temperature": float(temperature), "stream": False}
@@ -402,25 +412,36 @@ def _openai_compat(cfg, prompt, system, max_tokens, temperature, json_mode, time
         headers["api-key"] = cfg["api_key"]  # Azure OpenAI reads this header
     url = cfg["base_url"] + "/chat/completions"
     want_json = json_mode and cfg["base_url"] not in _no_json_mode
+    formats = []
+    if want_json and schema:
+        formats.append({"type": "json_schema", "json_schema": {"name": "response", "schema": schema}})
     if want_json:
-        payload["response_format"] = {"type": "json_object"}
-    r = _post(cfg, url, payload, headers, timeout)
-    if r.status_code in (400, 422) and want_json and "response_format" in (r.text or ""):
-        # Some servers (LM Studio, older llama.cpp) only take json_schema.
-        _no_json_mode.add(cfg["base_url"])
+        formats.append({"type": "json_object"})
+    r = None
+    for fmt in formats:
+        payload["response_format"] = fmt
+        r = _post(cfg, url, payload, headers, timeout)
+        body = r.text or ""
+        if not (r.status_code in (400, 422) and ("response_format" in body or "json_schema" in body)):
+            break
+        r = None
+    if r is None:
+        # The server takes neither structured format; the prompt still asks for JSON.
+        if want_json:
+            _no_json_mode.add(cfg["base_url"])
         payload.pop("response_format", None)
         r = _post(cfg, url, payload, headers, timeout)
     if r.status_code != 200:
         raise _http_error(cfg, r)
     data = r.json()
     try:
-        msg = data["choices"][0]["message"]
-        return _clean(msg.get("content") or "")
-    except (KeyError, IndexError, TypeError):
+        choice = data["choices"][0]
+        return _clean(choice["message"].get("content") or ""), _finish(choice.get("finish_reason"))
+    except (KeyError, IndexError, TypeError, AttributeError):
         raise LLMError("The model service returned an unexpected reply.")
 
 
-def _ollama_native(cfg, prompt, system, max_tokens, temperature, json_mode, timeout) -> str:
+def _ollama_native(cfg, prompt, system, max_tokens, temperature, json_mode, timeout, schema=None) -> Tuple[str, str]:
     # Ollama's OpenAI endpoint cannot raise the context window, and its
     # default silently truncates long filings. The native API can.
     msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
@@ -430,18 +451,20 @@ def _ollama_native(cfg, prompt, system, max_tokens, temperature, json_mode, time
                                "options": {"temperature": float(temperature), "num_predict": int(max_tokens),
                                            "num_ctx": num_ctx}}
     if json_mode:
-        payload["format"] = "json"
+        payload["format"] = schema if isinstance(schema, dict) else "json"  # Ollama enforces a JSON schema
     r = _post(cfg, _ollama_root(cfg["base_url"]) + "/api/chat", payload,
               {"Content-Type": "application/json"}, timeout)
     if r.status_code != 200:
         raise _http_error(cfg, r)
     data = r.json()
-    return _clean(((data.get("message") or {}).get("content")) or "")
+    return _clean(((data.get("message") or {}).get("content")) or ""), _finish(data.get("done_reason"))
 
 
-def _anthropic(cfg, prompt, system, max_tokens, temperature, json_mode, timeout) -> str:
+def _anthropic(cfg, prompt, system, max_tokens, temperature, json_mode, timeout, schema=None) -> Tuple[str, str]:
     if json_mode:
         prompt = prompt + "\n\nRespond with a single JSON object and nothing else."
+        if schema:
+            prompt += "\nIt must match this JSON Schema:\n" + json.dumps(schema)[:6000]
     payload: Dict[str, Any] = {"model": cfg["model"], "max_tokens": int(max_tokens),
                                "temperature": float(temperature),
                                "messages": [{"role": "user", "content": prompt}]}
@@ -454,13 +477,18 @@ def _anthropic(cfg, prompt, system, max_tokens, temperature, json_mode, timeout)
         raise _http_error(cfg, r)
     data = r.json()
     parts = [b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"]
-    return _clean("".join(parts))
+    return _clean("".join(parts)), _finish(data.get("stop_reason"))
 
 
-def complete(prompt: str, *, system: Optional[str] = None, max_tokens: int = 1500,
-             temperature: float = 0.3, json_mode: bool = False,
-             timeout: Optional[float] = None, cfg: Optional[Dict[str, Any]] = None) -> str:
+def complete(prompt: str, **kw: Any) -> str:
     """One completion on the configured non-Gemini provider. Raises LLMError."""
+    return complete_ex(prompt, **kw)[0]
+
+
+def complete_ex(prompt: str, *, system: Optional[str] = None, max_tokens: int = 1500,
+                temperature: float = 0.3, json_mode: bool = False, schema: Optional[Dict[str, Any]] = None,
+                timeout: Optional[float] = None, cfg: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
+    """complete(), plus the finish reason in Gemini's terms (STOP, MAX_TOKENS, SAFETY)."""
     cfg = cfg or active()
     if cfg["provider"] == "gemini":
         raise LLMError("complete() serves non-Gemini providers; Gemini runs through google-genai.")
@@ -477,8 +505,8 @@ def complete(prompt: str, *, system: Optional[str] = None, max_tokens: int = 150
     fn = _anthropic if cfg["provider"] == "anthropic" else _openai_compat
     if local:
         with _local_slots:
-            return fn(cfg, prompt, system, max_tokens, temperature, json_mode, timeout)
-    return fn(cfg, prompt, system, max_tokens, temperature, json_mode, timeout)
+            return fn(cfg, prompt, system, max_tokens, temperature, json_mode, timeout, schema)
+    return fn(cfg, prompt, system, max_tokens, temperature, json_mode, timeout, schema)
 
 
 def list_models(cfg: Optional[Dict[str, Any]] = None, timeout: float = 4) -> List[str]:
@@ -593,9 +621,12 @@ def _flatten(contents: Any) -> str:
 class _Response:
     """Enough of google.genai's GenerateContentResponse for the call sites."""
 
-    def __init__(self, text: str):
+    def __init__(self, text: str, finish: str = "STOP"):
         self.text = text
-        self.candidates: List[Any] = []
+        part = SimpleNamespace(text=text)
+        self.candidates: List[Any] = [SimpleNamespace(
+            finish_reason=finish, content=SimpleNamespace(role="model", parts=[part]),
+            grounding_metadata=None, safety_ratings=None, citation_metadata=None)]
         self.usage_metadata = None
         self.prompt_feedback = None
         self.parsed = None
@@ -612,17 +643,22 @@ class _Models:
                 _guard(cfg)
             return self._owner._real().models.generate_content(model=model, contents=contents,
                                                                config=config, **kwargs)
-        http = _get(config, "http_options")
+        http = _get(config, "http_options") or self._owner._kwargs.get("http_options")
         t_ms = _get(http, "timeout")
         system = _flatten(_get(config, "system_instruction")) or None
-        json_mode = str(_get(config, "response_mime_type") or "").lower() == "application/json"
-        text = complete(_flatten(contents), system=system,
-                        max_tokens=int(_get(config, "max_output_tokens") or 2048),
-                        temperature=float(_get(config, "temperature") if _get(config, "temperature") is not None else 0.3),
-                        json_mode=json_mode,
-                        timeout=max(float(t_ms) / 1000.0, cfg["timeout"]) if t_ms else None,
-                        cfg=cfg)
-        return _Response(text)
+        schema = _get(config, "response_json_schema") or _get(config, "response_schema")
+        if schema is not None and not isinstance(schema, dict):
+            schema = getattr(schema, "model_json_schema", lambda: None)() if hasattr(schema, "model_json_schema") else None
+        json_mode = str(_get(config, "response_mime_type") or "").lower() == "application/json" or bool(schema)
+        text, finish = complete_ex(
+            _flatten(contents), system=system,
+            max_tokens=int(_get(config, "max_output_tokens") or 2048),
+            temperature=float(_get(config, "temperature") if _get(config, "temperature") is not None else 0.3),
+            json_mode=json_mode, schema=schema if isinstance(schema, dict) else None,
+            # The user's time limit wins for local models, which can be slow.
+            timeout=max(float(t_ms) / 1000.0, cfg["timeout"]) if t_ms else None,
+            cfg=cfg)
+        return _Response(text, finish)
 
     def __getattr__(self, name: str):
         cfg = active()

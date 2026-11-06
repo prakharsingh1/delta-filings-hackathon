@@ -55,6 +55,8 @@ def _loopback(method):
 class _Fake(BaseHTTPRequestHandler):
     calls = []
     reject_json_mode = False
+    force_status = 0
+    reply_finish = "stop"
 
     def log_message(self, *a):
         pass
@@ -77,13 +79,16 @@ class _Fake(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         _Fake.calls.append((self.path, body, dict(self.headers)))
+        if _Fake.force_status:
+            return self._send(_Fake.force_status, {"error": {"message": "busy"}})
         if self.path == "/v1/chat/completions":
             if _Fake.reject_json_mode and "response_format" in body:
                 return self._send(400, {"error": "response_format.type must be json_schema"})
             prompt = body["messages"][-1]["content"]
-            return self._send(200, {"choices": [{"message": {"content": "<think>hmm</think>echo:" + prompt[:40]}}]})
+            return self._send(200, {"choices": [{"finish_reason": _Fake.reply_finish,
+                                                  "message": {"content": "<think>hmm</think>echo:" + prompt[:40]}}]})
         if self.path == "/api/chat":
-            return self._send(200, {"message": {"content": '{"ok": true}'}})
+            return self._send(200, {"message": {"content": '{"ok": true}'}, "done_reason": "stop"})
         self._send(404, {"error": "nope"})
 
 
@@ -118,6 +123,8 @@ class LLMTests(unittest.TestCase):
     def setUp(self):
         _Fake.calls.clear()
         _Fake.reject_json_mode = False
+        _Fake.force_status = 0
+        _Fake.reply_finish = "stop"
         llm._no_json_mode.clear()
         for k in llm._SETTING_KEYS:
             database.set_setting(k, "")
@@ -173,7 +180,8 @@ class LLMTests(unittest.TestCase):
             config={"max_output_tokens": 50, "temperature": 0.1, "http_options": {"timeout": 5000}})
         self.assertTrue(resp.text.startswith("echo:Summarise"))
         self.assertNotIn("<think>", resp.text)
-        self.assertEqual(resp.candidates, [])
+        self.assertEqual(resp.candidates[0].finish_reason, "STOP")
+        self.assertIsNone(resp.candidates[0].grounding_metadata)
         path, body, _ = _Fake.calls[-1]
         self.assertEqual(path, "/v1/chat/completions")
         self.assertEqual((body["model"], body["max_tokens"], body["temperature"]), ("tiny-model", 50, 0.1))
@@ -241,6 +249,47 @@ class LLMTests(unittest.TestCase):
         self.assertTrue(getattr(genai.Client, "_delta_wrapped", False))
         self._use()
         self.assertTrue(genai.Client(api_key="x").models.generate_content(model="m", contents="hi").text.startswith("echo:"))
+
+
+    def test_errors_lead_with_status_code_like_google_genai(self):
+        self._use()
+        _Fake.force_status = 503
+        with self.assertRaises(llm.LLMError) as ctx:
+            llm.complete("hi")
+        self.assertRegex(str(ctx.exception), r"^503 UNAVAILABLE")
+        llm._breaker.clear()
+        _Fake.force_status = 429
+        with self.assertRaises(llm.LLMError) as ctx:
+            llm.complete("hi")
+        self.assertRegex(str(ctx.exception), r"^429 RESOURCE_EXHAUSTED")
+
+    def test_max_tokens_finish_reason_is_reported(self):
+        self._use()
+        _Fake.reply_finish = "length"
+        resp = llm.Client(api_key="x").models.generate_content(model="m", contents="long")
+        self.assertEqual(resp.candidates[0].finish_reason, "MAX_TOKENS")
+
+    def test_json_schema_reaches_openai_compatible_and_ollama(self):
+        schema = {"type": "object", "properties": {"body": {"type": "string"}}, "required": ["body"]}
+        self._use()
+        llm.Client(api_key="x", http_options={"timeout": 5000}).models.generate_content(
+            model="m", contents="draft it", config={"response_mime_type": "application/json",
+                                                    "response_json_schema": schema,
+                                                    "system_instruction": "You draft filings.",
+                                                    "thinking_config": {"thinking_budget": 0}})
+        body = _Fake.calls[-1][1]
+        self.assertEqual(body["response_format"]["type"], "json_schema")
+        self.assertEqual(body["response_format"]["json_schema"]["schema"], schema)
+        self.assertEqual(body["messages"][0], {"role": "system", "content": "You draft filings."})
+        self._use(preset="ollama", model="llama3.2")
+        llm.Client(api_key="x").models.generate_content(
+            model="m", contents="draft it", config={"response_json_schema": schema})
+        self.assertEqual(_Fake.calls[-1][1]["format"], schema)
+
+    def test_models_list_raises_so_callers_use_their_fallback(self):
+        self._use()
+        with self.assertRaises(AttributeError):
+            llm.Client(api_key="x").models.list()
 
 
 if __name__ == "__main__":
