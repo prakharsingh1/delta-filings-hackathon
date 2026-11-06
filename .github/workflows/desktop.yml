@@ -69,7 +69,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           grep -viE '^(ocrmypdf|gunicorn)([^a-z0-9_-]|$)' requirements.txt > desktop/requirements-desktop.txt
-          python -m pip install -r desktop/requirements-desktop.txt "pyinstaller>=6.15" keyring "sqlcipher3>=0.6.5"
+          # Prefer published wheels: a source-built package (cryptography on Intel Macs)
+          # can link to a system library the frozen app cannot load.
+          python -m pip install --prefer-binary -r desktop/requirements-desktop.txt "pyinstaller>=6.15" keyring "sqlcipher3>=0.6.5"
 
       - name: Bundle CDN assets for offline use
         run: python desktop/vendor_assets.py

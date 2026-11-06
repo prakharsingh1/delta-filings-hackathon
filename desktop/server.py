@@ -424,21 +424,30 @@ def main(argv=None) -> int:
     ready_out = sys.stdout  # the shell reads the ready line here
     if not (args.log_to_console or sys.stdout.isatty()):
         redirect_logs(folder)
-    configure_environment(folder)
-    root = bundle_root()
-    sys.path.insert(0, str(root))
-    os.chdir(folder)
+    try:
+        configure_environment(folder)
+        root = bundle_root()
+        sys.path.insert(0, str(root))
+        os.chdir(folder)
 
-    from werkzeug.serving import make_server
+        from werkzeug.serving import make_server
 
-    import main as app_main
-    app = app_main.app
+        import main as app_main
+        app = app_main.app
 
-    token = secrets.token_urlsafe(32)
-    server = make_server("127.0.0.1", args.port, app, threaded=True)
-    port = server.server_port
-    os.environ["DELTA_SELF_PORT"] = str(port)
-    install_desktop_layer(app, folder, token, port)
+        token = secrets.token_urlsafe(32)
+        server = make_server("127.0.0.1", args.port, app, threaded=True)
+        port = server.server_port
+        os.environ["DELTA_SELF_PORT"] = str(port)
+        install_desktop_layer(app, folder, token, port)
+    except Exception as e:
+        # Tell the shell why, so the window can say more than "it stopped".
+        import traceback
+        traceback.print_exc()
+        ready_out.write(json.dumps({"event": "error", "message": f"{type(e).__name__}: {e}"[:600],
+                                    "logs_dir": str(folder / "logs")}) + "\n")
+        ready_out.flush()
+        return 1
 
     url = f"http://127.0.0.1:{port}/__desktop/enter?t={token}"
     ready = {"event": "ready", "port": port, "url": url, "data_dir": str(folder),

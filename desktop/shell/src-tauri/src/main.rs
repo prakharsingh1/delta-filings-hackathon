@@ -162,7 +162,22 @@ fn start_backend(app: AppHandle) {
     app.state::<Backend>().0.lock().unwrap().replace(child);
 
     let mut ready = false;
+    let mut failed = false;
     for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+        if !ready && line.contains("\"event\": \"error\"") {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) {
+                let detail = v["message"].as_str().unwrap_or("unknown error");
+                show_error(&app, &format!("Delta Filings could not start: {detail}. Choose Help, Open Logs Folder, and send backend.log to support."));
+                if let Some(logs) = v["logs_dir"].as_str() {
+                    app.state::<ReadyState>().0.lock().unwrap().replace(Ready {
+                        logs_dir: logs.to_string(),
+                        ..Default::default()
+                    });
+                }
+                failed = true;
+            }
+            continue;
+        }
         if ready || !line.contains("\"event\": \"ready\"") {
             continue; // keep draining so the pipe never fills
         }
@@ -185,7 +200,7 @@ fn start_backend(app: AppHandle) {
             }
         }
     }
-    if !ready {
+    if !ready && !failed {
         show_error(&app, "The local service stopped before it was ready. Restart Delta Filings. If it keeps happening, choose Help, Open Logs Folder, and send backend.log to support.");
     }
 }

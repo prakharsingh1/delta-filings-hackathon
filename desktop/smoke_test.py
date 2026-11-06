@@ -43,6 +43,10 @@ def main() -> int:
                 break
         if not ready:
             print("FAIL: backend never became ready")
+            log = Path(data) / "logs" / "backend.log"
+            if log.exists():
+                print("---- backend.log (last 60 lines) ----")
+                print("\n".join(log.read_text(errors="replace").splitlines()[-60:]))
             return 1
         port, url = ready["port"], ready["url"]
         plain = urllib.request.build_opener()

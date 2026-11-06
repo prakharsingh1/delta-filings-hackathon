@@ -11,7 +11,7 @@ BUNDLES="${1:-}"
 if [ ! -x desktop/.venv/bin/python ]; then
   python3 -m venv --system-site-packages desktop/.venv
   grep -viE '^(ocrmypdf|gunicorn)([^a-z0-9_-]|$)' requirements.txt > desktop/requirements-desktop.txt
-  desktop/.venv/bin/pip install -q -r desktop/requirements-desktop.txt "pyinstaller>=6.15" keyring "sqlcipher3>=0.6.5"
+  desktop/.venv/bin/pip install -q --prefer-binary -r desktop/requirements-desktop.txt "pyinstaller>=6.15" keyring "sqlcipher3>=0.6.5"
 fi
 
 echo "==> Bundling CDN assets for offline use"

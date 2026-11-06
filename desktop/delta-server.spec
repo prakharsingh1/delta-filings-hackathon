@@ -34,7 +34,10 @@ a = Analysis(
     # OCR needs Tesseract and Ghostscript, which are not shipped; the app
     # already reports OCR as unavailable when the library is missing.
     excludes=["tests", "pytest", "playwright", "IPython", "tkinter", "matplotlib", "notebook",
-              "ocrmypdf", "pikepdf"],
+              "ocrmypdf", "pikepdf",
+              # Optional extras of google-api-core (grpc) and fsspec/pyiceberg
+              # (pandas, numpy, pyarrow): imported only when present, never used here.
+              "grpc", "pandas", "numpy", "pyarrow", "scipy"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
