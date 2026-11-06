@@ -50,8 +50,8 @@ async function ddApi(url, opts = {}) {
 
 function ddErrorHtml(e, what) {
     const titles = {
-        quota: 'Gemini quota used up.', no_key: 'AI is not set up.', invalid_key: 'The Gemini key was rejected.',
-        overloaded: 'Gemini is busy.', timeout: 'Gemini took too long.', blocked: 'Gemini declined.',
+        quota: 'AI quota used up.', no_key: 'AI is not set up.', invalid_key: 'The AI key was rejected.',
+        overloaded: 'The AI model is busy.', timeout: 'The AI model took too long.', blocked: 'The AI model declined.',
         bad_output: 'Unusable answer.', network: 'No connection.', auth: 'Signed out.',
     };
     const t = titles[e.kind] || (what ? `${what} failed.` : 'Something went wrong.');

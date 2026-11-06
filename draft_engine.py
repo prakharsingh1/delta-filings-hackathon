@@ -1920,6 +1920,12 @@ def _x(text) -> str:
     return escape(str(text or ""))
 
 
+def _xbr(text) -> str:
+    """Escaped text with line breaks (newlines or <br> written into a draft)
+    kept as Paragraph line breaks. Raw "&", "<" or "<br>" used to crash export."""
+    return _x(re.sub(r"<br\s*/?>", "\n", str(text or ""), flags=re.I)).replace("\n", "<br/>")
+
+
 def render_pdf(letter: Dict) -> bytes:
     """Render the letter to a PDF using reportlab. Layout follows real
     Indian listed-company filings: company name centered, registered office
@@ -1976,11 +1982,11 @@ def render_pdf(letter: Dict) -> bytes:
     story = []
 
     # ── Letterhead ──
-    story.append(Paragraph(letter["company_name"] or "&nbsp;", h_style))
+    story.append(Paragraph(_x(letter["company_name"]) or "&nbsp;", h_style))
     if letter["registered_office"]:
-        story.append(Paragraph(letter["registered_office"], sub_h_style))
+        story.append(Paragraph(_x(letter["registered_office"]), sub_h_style))
     if letter["cin"]:
-        story.append(Paragraph(f"CIN: {letter['cin']}", sub_h_style))
+        story.append(Paragraph(f"CIN: {_x(letter['cin'])}", sub_h_style))
     story.append(Spacer(1, 4 * mm))
     # Horizontal rule
     rule = Table([[""]], colWidths=[170 * mm], rowHeights=[0.6])
@@ -2037,7 +2043,7 @@ def render_pdf(letter: Dict) -> bytes:
                 norm_rows = [r + [""] * (col_count - len(r)) for r in rows]
                 # Wrap each cell as a Paragraph for proper wrapping
                 table_data = [
-                    [Paragraph(c, addr_style) for c in r] for r in norm_rows
+                    [Paragraph(_xbr(c), addr_style) for c in r] for r in norm_rows
                 ]
                 t = Table(
                     table_data,
@@ -2057,8 +2063,7 @@ def render_pdf(letter: Dict) -> bytes:
                 flow.append(t)
                 flow.append(Spacer(1, 6 * mm))
             else:
-                para_html = payload.replace("\n", "<br/>")
-                flow.append(Paragraph(para_html, body_style))
+                flow.append(Paragraph(_xbr(payload), body_style))
         return flow
 
     story.extend(_flow_body(letter["body"]))
@@ -2089,9 +2094,9 @@ def render_pdf(letter: Dict) -> bytes:
         story.append(PageBreak())
         # Repeat the company name in small at the top so each annexure
         # page is self-identifying when paginated.
-        story.append(Paragraph(letter["company_name"] or "&nbsp;", sub_h_style))
+        story.append(Paragraph(_x(letter["company_name"]) or "&nbsp;", sub_h_style))
         story.append(Spacer(1, 4 * mm))
-        story.append(Paragraph(f"<b><u>{annx['title']}</u></b>", annexure_title_style))
+        story.append(Paragraph(f"<b><u>{_x(annx['title'])}</u></b>", annexure_title_style))
         story.append(Spacer(1, 2 * mm))
         story.extend(_flow_body(annx["body"]))
 

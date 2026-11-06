@@ -290,6 +290,35 @@ class RuleChecks(unittest.TestCase):
         self.assertIn("CIN does not match the company's records", self.titles(r))
 
 
+class Rendering(unittest.TestCase):
+    def test_special_characters_do_not_break_export(self):
+        import draft_engine as de
+        letter = de.build_letter_data(
+            "Procter & Gamble Hygiene Limited", registered_office="P&G Plaza, Mumbai 400 099",
+            subject="R&D <update>", body="One & two.\nNext <br> line.",
+            annexures=[{"title": "Annexure I & II", "body": "| A | B |\n|---|---|\n| x | one<br>two & three |"}],
+            signer_name="A", signer_designation="Company Secretary & Compliance Officer")
+        self.assertTrue(de.render_pdf(letter).startswith(b"%PDF"))
+        self.assertTrue(de.render_docx(letter)[:2] == b"PK")
+
+    def test_house_format_drives_the_letter_shell(self):
+        import draft_engine as de
+        owner = _util.uid()
+        learned(owner)
+        house = dm.house_format(owner, "ACMECO")
+        letter = de.build_letter_data("Acme Consumer Limited", subject="Outcome", body="Body.",
+                                      signer_name="Radhika Shah", bse_code="500696", nse_symbol="ACMECO", house=house)
+        self.assertEqual(letter["subject_label"], "Sub.:")
+        self.assertEqual(letter["thanks_line"], "Thanking You.")
+        self.assertEqual(letter["for_line"], "For Acme Consumer Limited")
+        self.assertEqual(letter["date_label"], "")
+        self.assertTrue(letter["signer_membership"].endswith("A19308"))
+        self.assertIn("Stock Code: BSE: 500696", letter["code_lines"])
+        plain = de.build_letter_data("Acme Consumer Limited", subject="x", body="y", bse_code="500696")
+        self.assertEqual(plain["subject_label"], "Subject:")
+        self.assertIn("Scrip Code: 500696", plain["address_columns"][0])
+
+
 class Requirements(unittest.TestCase):
     def test_verified_lists_and_aliases(self):
         r = draft_requirements.for_type("board_change")
@@ -422,6 +451,23 @@ class GeminiClient(unittest.TestCase):
                 draft_ai.generate("k", "x")
         self.assertEqual(cm.exception.kind, "invalid_key")
         self.assertEqual(len(calls), 1)
+
+    def test_a_local_provider_needs_no_gemini_key_and_is_named(self):
+        local = {"provider": "openai_compat", "model": "llama3.2", "name": "ollama"}
+        with mock.patch.object(draft_ai, "_provider", return_value=local):
+            self.assertEqual(draft_ai.ai_key(""), "provider-managed")
+            make, _ = self._client_with(['{"ok": true}'])
+            with mock.patch.object(draft_ai, "_client", side_effect=make):
+                out = draft_ai.generate(draft_ai.ai_key(""), "x", schema={"type": "object"})
+            self.assertEqual(out["model"], "llama3.2")
+            make, _ = self._client_with([Exception("503 UNAVAILABLE. busy")])
+            with mock.patch.object(draft_ai, "_client", side_effect=make), mock.patch("time.sleep"):
+                with self.assertRaises(AIError) as cm:
+                    draft_ai.generate("provider-managed", "x")
+            self.assertNotIn("Gemini", cm.exception.message)
+            self.assertIn("llama3.2", cm.exception.message)
+        with mock.patch.object(draft_ai, "_provider", return_value={"provider": "gemini", "model": "", "name": "gemini"}):
+            self.assertEqual(draft_ai.ai_key(""), "")
 
     def test_unparseable_json_tries_another_model(self):
         make, _ = self._client_with(["not json", '{"ok": true}'])

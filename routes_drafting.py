@@ -22,9 +22,12 @@ MAX_UPLOAD = 15 * 1024 * 1024
 
 
 def _gemini_key():
+    """The Gemini key, or a stand-in when llm.py routes AI to another
+    provider (a local model needs no Gemini key)."""
     from database import get_setting
+    import draft_ai
     key = (get_setting("gemini_api_key", "") or "").strip()
-    return key or (os.environ.get("GEMINI_API_KEY", "") or "").strip()
+    return draft_ai.ai_key(key or (os.environ.get("GEMINI_API_KEY", "") or "").strip())
 
 
 def _ai_error(e: AIError):

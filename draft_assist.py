@@ -130,11 +130,11 @@ def compose(api_key: str, owner_id: str, symbol: str, company_name: str, filing_
     body = (data.get("body") or "").strip()
     if not body:
         raise AIError("bad_output", "Gemini returned an empty draft. Try again, or add more detail to the brief.")
-    annexures = [{"title": (a.get("title") or "").strip(), "body": (a.get("body") or "").strip()}
+    annexures = [{"title": _clean_markup(a.get("title") or ""), "body": _clean_markup(a.get("body") or "")}
                  for a in (data.get("annexures") or []) if (a.get("title") or "").strip() and (a.get("body") or "").strip()]
     return {
         "subject": (data.get("subject") or subject or ft.get("subject_default") or "").strip(),
-        "body": _strip_shell(body, ctx["house"]),
+        "body": _strip_shell(_clean_markup(body), ctx["house"]),
         "annexures": annexures,
         "open_questions": [q for q in (data.get("open_questions") or []) if isinstance(q, str)][:6],
         "model": res["model"],
@@ -147,6 +147,15 @@ def compose(api_key: str, owner_id: str, symbol: str, company_name: str, filing_
             "requirements": len(reqs.get("items", [])),
         },
     }
+
+
+def _clean_markup(text: str) -> str:
+    """The letter renderers understand paragraphs and pipe tables only, so
+    headings, bold markers and HTML line breaks would print literally."""
+    text = re.sub(r"<br\s*/?>", "; ", text or "", flags=re.I)
+    text = re.sub(r"^\s{0,3}#{1,6}\s+", "", text, flags=re.M)
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    return text.strip()
 
 
 def _strip_shell(body: str, house: Dict[str, Any]) -> str:

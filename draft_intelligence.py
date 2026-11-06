@@ -194,8 +194,9 @@ def lint_draft(body: str, subject: str = "", filing_type: str = "",
     # ── Timeliness reminder, not a check on the text ──
     notes = []
     if filing_type in ("board_change", "reg30_disclosure", "auditor_change"):
-        notes.append("Regulation 30 disclosures are due to the exchanges within 24 hours "
-                     "of the decision (12 hours where the decision is at a board meeting).")
+        notes.append("Regulation 30(6): within 30 minutes of the close of the board meeting for a board "
+                     "decision; otherwise 12 hours for an event within the company and 24 hours for one "
+                     "outside it (24 hours for a resignation).")
     if dest == "mca":
         notes.append("This document is bound for MCA and must be signed with a Class 3 DSC "
                      "registered against the signatory's DIN.")

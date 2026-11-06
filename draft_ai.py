@@ -58,6 +58,42 @@ class AIError(Exception):
         return {"kind": self.kind, "message": self.message, "retry_after": self.retry_after}
 
 
+def _provider() -> Dict[str, str]:
+    """The provider llm.py has configured (Gemini unless the operator chose
+    Ollama, an OpenAI-compatible server or Anthropic). llm.py routes every
+    genai call to it and ignores model names, so labels and errors must
+    name the real model, and a Gemini key is not needed."""
+    try:
+        import llm
+        cfg = llm.active()
+        return {"provider": cfg.get("provider") or "gemini", "model": cfg.get("model") or "",
+                "name": cfg.get("preset") or cfg.get("provider") or "gemini"}
+    except Exception:  # noqa: BLE001
+        return {"provider": "gemini", "model": "", "name": "gemini"}
+
+
+def ai_key(gemini_key: str) -> str:
+    """What to pass to generate(): the Gemini key, or a stand-in when another
+    provider serves requests with its own credentials."""
+    if (gemini_key or "").strip():
+        return gemini_key.strip()
+    return "provider-managed" if _provider()["provider"] != "gemini" else ""
+
+
+def _named(err: "AIError") -> "AIError":
+    """Name the configured provider instead of Gemini in user-facing text."""
+    p = _provider()
+    if p["provider"] != "gemini":
+        who = f"The AI model ({p['model'] or p['name']})"
+        err.message = err.message.replace("Gemini", who).replace("Every " + who + " model", "Every AI model")
+        err.args = (err.message,)
+    return err
+
+
+def _named_error(kind, message, retry_after=None):
+    return _named(AIError(kind, message, retry_after))
+
+
 def _key_hash(api_key: str) -> str:
     return hashlib.sha256((api_key or "").encode()).hexdigest()[:16]
 
@@ -170,13 +206,13 @@ def generate(api_key: str, prompt: str, *, schema: Optional[Dict] = None,
     `deadline_s`. `fast=True` turns thinking off where the model allows it.
     """
     if not (api_key or "").strip():
-        raise AIError("no_key", "No Gemini API key is configured. Add GEMINI_API_KEY on the "
+        raise _named_error("no_key", "No Gemini API key is configured. Add GEMINI_API_KEY on the "
                                 "server, or a key under Settings.")
     started = time.monotonic()
     chain = model_chain(api_key)
     if not chain:
         wait = soonest_retry(api_key)
-        raise AIError("quota", "Every Gemini model Delta uses has hit this key's free-tier quota. "
+        raise _named_error("quota", "Every Gemini model Delta uses has hit this key's free-tier quota. "
                                f"It resets {_human_hours(wait)}; a paid key under Settings removes the limit.",
                       retry_after=wait)
 
@@ -206,7 +242,7 @@ def generate(api_key: str, prompt: str, *, schema: Optional[Dict] = None,
                 code = _status(msg)
                 low = msg.lower()
                 if code in (401, 403) or "api key not valid" in low or "api_key_invalid" in low:
-                    raise AIError("invalid_key", "The Gemini API key was rejected. Check it under Settings "
+                    raise _named_error("invalid_key", "The Gemini API key was rejected. Check it under Settings "
                                                  "or in GEMINI_API_KEY.")
                 if code == 400 and use_thinking_off:
                     _no_thinking.add(model)          # retry the same model without it
@@ -255,7 +291,7 @@ def generate(api_key: str, prompt: str, *, schema: Optional[Dict] = None,
                     attempt += 1
                     continue
                 if any(k in finish for k in ("SAFETY", "BLOCK", "PROHIBITED")):
-                    raise AIError("blocked", "Gemini declined to answer this request. Rephrase the brief "
+                    raise _named_error("blocked", "Gemini declined to answer this request. Rephrase the brief "
                                              "or remove unusual content and try again.")
                 seen.append("bad_output")
                 break
@@ -266,17 +302,19 @@ def generate(api_key: str, prompt: str, *, schema: Optional[Dict] = None,
                     seen.append("bad_output")
                     print(f"[DRAFT-AI] {purpose}: {model} returned unparseable JSON, next model")
                     break
-            return {"text": text, "data": data, "model": model,
+            prov = _provider()
+            label = model if prov["provider"] == "gemini" else (prov["model"] or prov["name"])
+            return {"text": text, "data": data, "model": label,
                     "seconds": round(time.monotonic() - started, 1)}
 
     if seen and all(k == "quota" for k in seen):
         wait = soonest_retry(api_key)
-        raise AIError("quota", "This Gemini key has used its free-tier quota on every model Delta tried. "
+        raise _named_error("quota", "This Gemini key has used its free-tier quota on every model Delta tried. "
                                f"It resets {_human_hours(wait)}; a paid key under Settings removes the limit.",
                       retry_after=wait)
     if "timeout" in seen or "overloaded" in seen:
-        raise AIError("overloaded", "Gemini is overloaded or slow right now. Nothing was changed; "
+        raise _named_error("overloaded", "Gemini is overloaded or slow right now. Nothing was changed; "
                                     "try again in a minute.", retry_after=60)
     if "bad_output" in seen:
-        raise AIError("bad_output", "Gemini answered, but not in a form Delta could use. Try again.")
-    raise AIError("unavailable", "Gemini could not be reached. Nothing was changed; try again shortly.")
+        raise _named_error("bad_output", "Gemini answered, but not in a form Delta could use. Try again.")
+    raise _named_error("unavailable", "Gemini could not be reached. Nothing was changed; try again shortly.")
