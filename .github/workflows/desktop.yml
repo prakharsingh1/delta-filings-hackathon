@@ -64,9 +64,12 @@ jobs:
           rm cert.p12
 
       - name: Backend dependencies
+        # OCR needs Tesseract and Ghostscript, which the desktop app does not
+        # ship, and pikepdf has no Intel-Mac wheel; leave both out everywhere.
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt "pyinstaller>=6.15" keyring
+          grep -viE '^(ocrmypdf|gunicorn)([^a-z0-9_-]|$)' requirements.txt > desktop/requirements-desktop.txt
+          python -m pip install -r desktop/requirements-desktop.txt "pyinstaller>=6.15" keyring "sqlcipher3>=0.6.5"
 
       - name: Bundle CDN assets for offline use
         run: python desktop/vendor_assets.py
@@ -74,7 +77,9 @@ jobs:
       - name: Freeze the backend
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: pyinstaller desktop/delta-server.spec --noconfirm --distpath desktop/build
+        run: |
+          if [ -z "$APPLE_SIGNING_IDENTITY" ]; then unset APPLE_SIGNING_IDENTITY; fi
+          pyinstaller desktop/delta-server.spec --noconfirm --distpath desktop/build
 
       - name: Smoke-test the frozen backend
         run: python desktop/smoke_test.py desktop/build/delta-server
@@ -92,7 +97,13 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build --bundles ${{ matrix.bundles }}
+        run: |
+          # Secrets that are not configured arrive as empty strings, and an
+          # empty signing identity makes Tauri try (and fail) to sign.
+          for v in APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
+            if [ -z "${!v}" ]; then unset "$v"; fi
+          done
+          npx tauri build --bundles ${{ matrix.bundles }}
 
       - name: Sign Windows installers
         if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE != ''

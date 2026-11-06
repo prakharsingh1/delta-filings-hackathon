@@ -5,3 +5,4 @@ vendor/
 shell/node_modules/
 shell/src-tauri/target/
 shell/src-tauri/gen/
+requirements-desktop.txt

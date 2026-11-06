@@ -11,11 +11,105 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 
+use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::webview::DownloadEvent;
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
 
 struct Backend(Mutex<Option<Child>>);
+
+/// What the backend reported in its ready line.
+#[derive(Default, Clone)]
+struct Ready {
+    origin: String,
+    data_dir: String,
+    logs_dir: String,
+    backups_dir: String,
+}
+struct ReadyState(Mutex<Option<Ready>>);
+
+fn build_menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    let ai = MenuItemBuilder::with_id("ai_settings", "AI Provider…")
+        .accelerator("CmdOrCtrl+,")
+        .build(app)?;
+    let app_menu = SubmenuBuilder::new(app, "Delta Filings")
+        .about(None)
+        .separator()
+        .item(&ai)
+        .separator()
+        .services()
+        .separator()
+        .hide()
+        .hide_others()
+        .show_all()
+        .separator()
+        .quit()
+        .build()?;
+    let file = SubmenuBuilder::new(app, "File")
+        .item(&MenuItemBuilder::with_id("open_data", "Open Data Folder").build(app)?)
+        .item(&MenuItemBuilder::with_id("open_backups", "Open Backups Folder").build(app)?)
+        .separator()
+        .close_window()
+        .build()?;
+    // Without an Edit menu, macOS web views lose copy, paste and undo shortcuts.
+    let edit = SubmenuBuilder::new(app, "Edit")
+        .undo()
+        .redo()
+        .separator()
+        .cut()
+        .copy()
+        .paste()
+        .select_all()
+        .build()?;
+    let view = SubmenuBuilder::new(app, "View")
+        .item(&MenuItemBuilder::with_id("reload", "Reload").accelerator("CmdOrCtrl+R").build(app)?)
+        .item(&MenuItemBuilder::with_id("home", "Home").accelerator("CmdOrCtrl+Shift+H").build(app)?)
+        .separator()
+        .fullscreen()
+        .build()?;
+    let window = SubmenuBuilder::new(app, "Window").minimize().build()?;
+    let help = SubmenuBuilder::new(app, "Help")
+        .item(&MenuItemBuilder::with_id("open_logs", "Open Logs Folder").build(app)?)
+        .item(&MenuItemBuilder::with_id("website", "Delta Filings Website").build(app)?)
+        .build()?;
+    MenuBuilder::new(app)
+        .items(&[&app_menu, &file, &edit, &view, &window, &help])
+        .build()
+}
+
+fn on_menu(app: &AppHandle, id: &str) {
+    let ready = app.state::<ReadyState>().0.lock().unwrap().clone();
+    let window = app.get_webview_window("main");
+    match (id, ready, window) {
+        ("website", _, _) => {
+            let _ = app.opener().open_url("https://deltafiling.tech", None::<&str>);
+        }
+        ("open_data", Some(r), _) => {
+            let _ = app.opener().open_path(r.data_dir, None::<&str>);
+        }
+        ("open_backups", Some(r), _) => {
+            let _ = std::fs::create_dir_all(&r.backups_dir);
+            let _ = app.opener().open_path(r.backups_dir, None::<&str>);
+        }
+        ("open_logs", Some(r), _) => {
+            let _ = app.opener().open_path(r.logs_dir, None::<&str>);
+        }
+        ("ai_settings", Some(r), Some(w)) => {
+            if let Ok(u) = Url::parse(&format!("{}/settings/ai", r.origin)) {
+                let _ = w.navigate(u);
+            }
+        }
+        ("home", Some(r), Some(w)) => {
+            if let Ok(u) = Url::parse(&format!("{}/", r.origin)) {
+                let _ = w.navigate(u);
+            }
+        }
+        ("reload", _, Some(w)) => {
+            let _ = w.eval("location.reload()");
+        }
+        _ => {}
+    }
+}
 
 fn backend_command(app: &AppHandle) -> Command {
     // Development: DELTA_BACKEND_CMD="python3 /path/to/desktop/server.py"
@@ -77,6 +171,14 @@ fn start_backend(app: AppHandle) {
             Err(_) => continue,
         };
         if let Some(url) = parsed["url"].as_str().and_then(|u| Url::parse(u).ok()) {
+            let text = |k: &str| parsed[k].as_str().unwrap_or_default().to_string();
+            let origin = format!("http://127.0.0.1:{}", url.port().unwrap_or(80));
+            app.state::<ReadyState>().0.lock().unwrap().replace(Ready {
+                origin,
+                data_dir: text("data_dir"),
+                logs_dir: text("logs_dir"),
+                backups_dir: text("backups_dir"),
+            });
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.navigate(url);
                 ready = true;
@@ -84,7 +186,7 @@ fn start_backend(app: AppHandle) {
         }
     }
     if !ready {
-        show_error(&app, "The local service stopped before it was ready. Restart Delta Filings; if it keeps happening, send the log from the Help menu.");
+        show_error(&app, "The local service stopped before it was ready. Restart Delta Filings. If it keeps happening, choose Help, Open Logs Folder, and send backend.log to support.");
     }
 }
 
@@ -92,7 +194,11 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(Backend(Mutex::new(None)))
+        .manage(ReadyState(Mutex::new(None)))
         .setup(|app| {
+            let menu = build_menu(app.handle())?;
+            app.set_menu(menu)?;
+            app.on_menu_event(|app, event| on_menu(app, event.id().as_ref()));
             let opener = app.handle().clone();
             let downloads = app.path().download_dir().ok();
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))

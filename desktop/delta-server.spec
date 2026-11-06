@@ -14,6 +14,7 @@ hidden += ["llm", "routes_ai", "main"]
 # OS keychain backends are loaded by entry point, invisible to the analyser.
 from PyInstaller.utils.hooks import collect_submodules
 hidden += collect_submodules("keyring.backends")
+hidden += ["sqlcipher3", "sqlcipher3.dbapi2"]  # encrypted SQLite for the local database
 
 datas = [
     (os.path.join(ROOT, "templates"), "templates"),
@@ -30,7 +31,10 @@ a = Analysis(
     hookspath=[],
     runtime_hooks=[],
     # Dev and test tooling never belongs in a customer install.
-    excludes=["tests", "pytest", "playwright", "IPython", "tkinter", "matplotlib", "notebook"],
+    # OCR needs Tesseract and Ghostscript, which are not shipped; the app
+    # already reports OCR as unavailable when the library is missing.
+    excludes=["tests", "pytest", "playwright", "IPython", "tkinter", "matplotlib", "notebook",
+              "ocrmypdf", "pikepdf"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

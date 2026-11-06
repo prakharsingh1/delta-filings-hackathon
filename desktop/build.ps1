@@ -6,7 +6,8 @@ Set-Location (Join-Path $PSScriptRoot "..")
 
 if (-not (Test-Path "desktop\.venv\Scripts\python.exe")) {
   py -3 -m venv --system-site-packages desktop\.venv
-  desktop\.venv\Scripts\pip install -q -r requirements.txt "pyinstaller>=6.15" keyring
+  Get-Content requirements.txt | Where-Object { $_ -notmatch '^(ocrmypdf|gunicorn)([^a-z0-9_-]|$)' } | Set-Content desktop\requirements-desktop.txt
+  desktop\.venv\Scripts\pip install -q -r desktop\requirements-desktop.txt "pyinstaller>=6.15" keyring "sqlcipher3>=0.6.5"
 }
 
 Write-Host "==> Bundling CDN assets for offline use"

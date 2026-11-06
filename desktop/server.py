@@ -34,6 +34,7 @@ import re
 import secrets
 import sys
 import threading
+import time
 from pathlib import Path
 
 APP_NAME = "Delta Filings"
@@ -133,13 +134,159 @@ def save_profile(folder: Path, updates: dict) -> dict:
     return profile
 
 
+# ── Encrypted database ────────────────────────────────────────────────────
+DB_NAME = "delta_filings.db"
+_PLAIN_HEADER = b"SQLite format 3\x00"
+
+
+def encryption_enabled() -> bool:
+    return os.environ.get("DELTA_DB_ENCRYPTION", "1") != "0"
+
+
+def _key_pragma(key_hex: str) -> str:
+    return f"PRAGMA key = \"x'{key_hex}'\""
+
+
+def install_encrypted_sqlite(key_hex: str) -> None:
+    """Make every `import sqlite3` in the app use SQLCipher with this install's key.
+
+    The app's modules open SQLite in eight places; swapping the module before
+    they load encrypts all of them without touching their code.
+    """
+    import types
+
+    import sqlcipher3.dbapi2 as sc
+    shim = types.ModuleType("sqlite3")
+    shim.__dict__.update({k: getattr(sc, k) for k in dir(sc) if not k.startswith("__")})
+    pragma = _key_pragma(key_hex)
+
+    def connect(database, *args, **kwargs):
+        conn = sc.connect(database, *args, **kwargs)
+        conn.execute(pragma)
+        return conn
+
+    shim.connect = connect
+    shim.dbapi2 = shim
+    shim.__file__ = getattr(sc, "__file__", "sqlcipher3")
+    if "sqlite3" in sys.modules:
+        print("[DESKTOP] sqlite3 was imported before encryption was installed", file=sys.stderr)
+    sys.modules["sqlite3"] = shim
+    sys.modules["sqlite3.dbapi2"] = shim
+
+
+def encrypt_existing_database(path: Path, key_hex: str) -> bool:
+    """Convert a plaintext database left by an earlier build. True if converted."""
+    if not path.exists() or path.read_bytes()[:16] != _PLAIN_HEADER:
+        return False
+    import sqlcipher3.dbapi2 as sc
+    tmp = path.with_suffix(".encrypting")
+    tmp.unlink(missing_ok=True)
+    src = sc.connect(str(path))
+    try:
+        src.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        tables = src.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").fetchone()[0]
+        src.execute(f"ATTACH DATABASE ? AS encrypted KEY \"x'{key_hex}'\"", (str(tmp),))
+        src.execute("SELECT sqlcipher_export('encrypted')")
+        src.execute("DETACH DATABASE encrypted")
+    finally:
+        src.close()
+    check = sc.connect(str(tmp))
+    try:
+        check.execute(_key_pragma(key_hex))
+        ok = check.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        same = check.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").fetchone()[0] == tables
+    finally:
+        check.close()
+    if not (ok and same):
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError("Encrypting the existing database failed its integrity check; the original is untouched.")
+    os.replace(tmp, path)
+    for suffix in ("-wal", "-shm"):
+        Path(str(path) + suffix).unlink(missing_ok=True)
+    return True
+
+
+# ── Backups ───────────────────────────────────────────────────────────────
+BACKUP_KEEP = int(os.environ.get("DELTA_BACKUP_KEEP", "30") or 30)
+
+
+def backup_dir(folder: Path) -> Path:
+    custom = os.environ.get("DELTA_BACKUP_DIR", "").strip()
+    return Path(custom).expanduser() if custom else folder / "backups"
+
+
+def backup_now(folder: Path) -> Path:
+    """A consistent copy of the database, encrypted with the same key."""
+    import sqlite3  # the SQLCipher shim when encryption is on
+    target_dir = backup_dir(folder)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y-%m-%d")
+    target = target_dir / f"delta-filings-{stamp}.db"
+    partial = target.with_suffix(".partial")
+    partial.unlink(missing_ok=True)
+    conn = sqlite3.connect(str(folder / DB_NAME), timeout=30)
+    try:
+        conn.execute("VACUUM INTO ?", (str(partial),))
+    finally:
+        conn.close()
+    os.replace(partial, target)
+    backups = sorted(target_dir.glob("delta-filings-*.db"))
+    for old in backups[:-BACKUP_KEEP]:
+        old.unlink(missing_ok=True)
+    (target_dir / "last-backup.json").write_text(json.dumps(
+        {"file": target.name, "at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "encrypted": encryption_enabled()}))
+    return target
+
+
+def _backup_loop(folder: Path) -> None:
+    """Daily copy, the way the Companies Act expects electronic records backed up."""
+    while True:
+        try:
+            today = backup_dir(folder) / f"delta-filings-{time.strftime('%Y-%m-%d')}.db"
+            if not today.exists():
+                print(f"[DESKTOP] backup written: {backup_now(folder)}")
+        except Exception as e:  # never take the app down over a backup
+            print(f"[DESKTOP] backup failed: {e}")
+        time.sleep(3600)
+
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+def redirect_logs(folder: Path) -> Path:
+    """Send prints and request logs to logs/backend.log (rotated at 5 MB)."""
+    logs = folder / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    path = logs / "backend.log"
+    if path.exists() and path.stat().st_size > 5_000_000:
+        os.replace(path, logs / "backend.1.log")
+    stream = open(path, "a", buffering=1, encoding="utf-8", errors="replace")
+    sys.stdout = sys.stderr = stream
+    import logging
+    logging.basicConfig(stream=stream, level=logging.INFO, force=True)
+    print(f"\n[DESKTOP] started {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    return path
+
+
 def configure_environment(folder: Path) -> None:
     """Everything main.py reads at import time. Must run before importing it."""
     for sub in ("uploads", "pdf_cache", "logos", "webview"):
         (folder / sub).mkdir(parents=True, exist_ok=True)
+    if encryption_enabled():
+        try:
+            import sqlcipher3.dbapi2  # noqa: F401
+        except ImportError:
+            if getattr(sys, "frozen", False):
+                raise RuntimeError("This build is missing its encryption library (sqlcipher3).")
+            print("[DESKTOP] WARNING: sqlcipher3 is not installed, so the database is NOT encrypted. "
+                  "Use desktop/.venv/bin/python, or pip install sqlcipher3.", file=sys.stderr)
+            os.environ["DELTA_DB_ENCRYPTION"] = "0"
+        else:
+            key = install_secret(folder, "database")
+            if encrypt_existing_database(folder / DB_NAME, key):
+                print("[DESKTOP] existing database encrypted")
+            install_encrypted_sqlite(key)
     os.environ.update({
         "DELTA_DESKTOP": "1",
-        "DATABASE_PATH": str(folder / "delta_filings.db"),
+        "DATABASE_PATH": str(folder / DB_NAME),
         "DELTA_UPLOAD_DIR": str(folder / "uploads"),
         "DELTA_PDF_CACHE_DIR": str(folder / "pdf_cache"),
         "DELTA_SECRET_KEY": install_secret(folder, "session"),
@@ -269,10 +416,14 @@ def main(argv=None) -> int:
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--open", action="store_true", help="open the app in the default browser")
     parser.add_argument("--watch-stdin", action="store_true")
+    parser.add_argument("--log-to-console", action="store_true", help="keep logs on the terminal")
     args = parser.parse_args(argv)
 
     folder = data_dir()
     folder.mkdir(parents=True, exist_ok=True)
+    ready_out = sys.stdout  # the shell reads the ready line here
+    if not (args.log_to_console or sys.stdout.isatty()):
+        redirect_logs(folder)
     configure_environment(folder)
     root = bundle_root()
     sys.path.insert(0, str(root))
@@ -290,7 +441,12 @@ def main(argv=None) -> int:
     install_desktop_layer(app, folder, token, port)
 
     url = f"http://127.0.0.1:{port}/__desktop/enter?t={token}"
-    print(json.dumps({"event": "ready", "port": port, "url": url, "data_dir": str(folder)}), flush=True)
+    ready = {"event": "ready", "port": port, "url": url, "data_dir": str(folder),
+             "logs_dir": str(folder / "logs"), "backups_dir": str(backup_dir(folder)),
+             "encrypted": encryption_enabled()}
+    ready_out.write(json.dumps(ready) + "\n")
+    ready_out.flush()
+    threading.Thread(target=_backup_loop, args=(folder,), daemon=True, name="daily-backup").start()
     if args.watch_stdin:
         threading.Thread(target=_watch_stdin, daemon=True).start()
     if args.open:

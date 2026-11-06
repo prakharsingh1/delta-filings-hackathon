@@ -54,6 +54,15 @@ def main() -> int:
         checks["accepts the launch token"] = status(jar, url) == 200
         checks["serves the AI provider page"] = status(jar, f"http://127.0.0.1:{port}/settings/ai") == 200
         checks["serves bundled CDN assets"] = status(jar, f"http://127.0.0.1:{port}/__desktop/vendor/manifest.json") == 200
+        db = Path(data) / "delta_filings.db"
+        checks["database is encrypted at rest"] = db.exists() and db.read_bytes()[:16] != b"SQLite format 3\x00"
+        backups = Path(ready.get("backups_dir", Path(data) / "backups"))
+        for _ in range(20):
+            if list(backups.glob("delta-filings-*.db")):
+                break
+            time.sleep(0.5)
+        checks["writes a daily backup"] = bool(list(backups.glob("delta-filings-*.db")))
+        checks["writes a log file"] = (Path(data) / "logs" / "backend.log").exists()
         for name, ok in checks.items():
             print(("PASS " if ok else "FAIL ") + name)
         print(f"ready in {time.time() - started:.1f}s")

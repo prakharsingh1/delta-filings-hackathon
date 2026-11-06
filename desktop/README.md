@@ -34,6 +34,19 @@ creates a local profile and runs the normal onboarding.
 
 `DELTA_DATA_DIR` overrides it (useful for a network share or an encrypted volume).
 
+| Inside the data folder | What it is |
+|---|---|
+| `delta_filings.db` | the workspace, encrypted with SQLCipher (AES-256); unreadable without the key |
+| `backups/` | one encrypted copy per day, the last 30 kept; `DELTA_BACKUP_DIR` points it at a network share |
+| `logs/backend.log` | the backend log, rotated at 5 MB; Help, Open Logs Folder |
+| `uploads/`, `pdf_cache/` | uploaded documents and cached public PDFs (protected by FileVault or BitLocker, not by the app) |
+
+The database key, the session key and the key that seals the insider-trading
+record live in the OS keychain (macOS Keychain, Windows Credential Manager,
+libsecret on Linux), never next to the database. A database left plain by an
+earlier build is converted on first start after an integrity check.
+`DELTA_DB_ENCRYPTION=0` turns encryption off for debugging only.
+
 ## AI providers
 
 Settings, AI provider (`/settings/ai`). The desktop app starts on Ollama at
@@ -56,7 +69,13 @@ chosen provider through `llm.py`, which wraps `google.genai.Client`.
 - page Content-Security-Policy allows network calls to this server only
 - CDN scripts, styles and fonts are bundled (`vendor_assets.py`); analytics is
   stripped, so pages render offline and nothing reports to Google
-- the backend exits when the shell closes its stdin
+- the backend exits when the shell closes its stdin, so a crash or force-quit never leaves it running
+
+## App menu
+
+Delta Filings: About, AI Provider… (⌘,), Quit. File: Open Data Folder, Open
+Backups Folder. Edit: undo, cut, copy, paste (macOS web views need this menu
+for the shortcuts). View: Reload (⌘R), Home. Help: Open Logs Folder, website.
 
 ## Develop
 
@@ -94,7 +113,7 @@ that file exist.
 - **Linux**: GPG-sign the packages and publish checksums.
 - **Updates**: add `tauri-plugin-updater` with a signing key, and a policy switch
   so IT can disable it or point it at an internal mirror.
-- **At-rest encryption**: SQLCipher for the database with its key in the OS
-  keychain (`keyring`). Until then the data relies on FileVault or BitLocker.
+- **Uploaded files**: the database is encrypted; uploaded documents in
+  `uploads/` still rely on FileVault or BitLocker.
 - **Enterprise install**: per-machine MSI for Intune/SCCM, signed `.pkg` with an
   MDM configuration profile for managed settings (AI endpoint, local-only lock).
